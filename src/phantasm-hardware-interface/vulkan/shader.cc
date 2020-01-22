@@ -54,5 +54,5 @@ void phi::vk::initialize_shader(phi::vk::shader& s, VkDevice device, const std::
 
     s.domain = domain;
     s.entrypoint = get_default_entrypoint(domain);
-    PR_VK_VERIFY_SUCCESS(vkCreateShaderModule(device, &shader_info, nullptr, &s.module));
+    PHI_VK_VERIFY_SUCCESS(vkCreateShaderModule(device, &shader_info, nullptr, &s.module));
 }

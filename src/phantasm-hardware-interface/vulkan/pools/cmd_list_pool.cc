@@ -16,7 +16,7 @@ void phi::vk::cmd_allocator_node::initialize(VkDevice device, unsigned num_cmd_l
         info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
         info.queueFamilyIndex = queue_family_index;
         info.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
-        PR_VK_VERIFY_SUCCESS(vkCreateCommandPool(device, &info, nullptr, &_cmd_pool));
+        PHI_VK_VERIFY_SUCCESS(vkCreateCommandPool(device, &info, nullptr, &_cmd_pool));
     }
     // allocate buffers
     {
@@ -28,7 +28,7 @@ void phi::vk::cmd_allocator_node::initialize(VkDevice device, unsigned num_cmd_l
         info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
         info.commandBufferCount = num_cmd_lists;
 
-        PR_VK_VERIFY_SUCCESS(vkAllocateCommandBuffers(device, &info, _cmd_buffers.data()));
+        PHI_VK_VERIFY_SUCCESS(vkAllocateCommandBuffers(device, &info, _cmd_buffers.data()));
     }
 
     _associated_framebuffers.reserve(num_cmd_lists * 3);                                                            // arbitrary
@@ -59,7 +59,7 @@ VkCommandBuffer phi::vk::cmd_allocator_node::acquire(VkDevice device)
     VkCommandBufferBeginInfo info = {};
     info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    PR_VK_VERIFY_SUCCESS(vkBeginCommandBuffer(res, &info));
+    PHI_VK_VERIFY_SUCCESS(vkBeginCommandBuffer(res, &info));
 
     return res;
 }
@@ -155,7 +155,7 @@ bool phi::vk::cmd_allocator_node::try_reset_blocking(VkDevice device)
 
 void phi::vk::cmd_allocator_node::do_reset(VkDevice device)
 {
-    PR_VK_VERIFY_SUCCESS(vkResetCommandPool(device, _cmd_pool, VK_COMMAND_POOL_RESET_RELEASE_RESOURCES_BIT));
+    PHI_VK_VERIFY_SUCCESS(vkResetCommandPool(device, _cmd_pool, VK_COMMAND_POOL_RESET_RELEASE_RESOURCES_BIT));
 
     for (auto fb : _associated_framebuffers)
     {
@@ -185,7 +185,7 @@ void phi::vk::FenceRingbuffer::initialize(VkDevice device, unsigned num_fences)
     {
         auto& fence = mFences[i];
         fence.ref_count.store(0);
-        PR_VK_VERIFY_SUCCESS(vkCreateFence(device, &fence_info, nullptr, &fence.raw_fence));
+        PHI_VK_VERIFY_SUCCESS(vkCreateFence(device, &fence_info, nullptr, &fence.raw_fence));
         util::set_object_name(device, fence.raw_fence, "ringbuffer fence %u of %u", i, num_fences);
     }
 }

@@ -58,7 +58,7 @@ void phi::vk::Device::initialize(vulkan_gpu_info const& device, backend_config c
     features.geometryShader = VK_TRUE;
     device_info.pEnabledFeatures = &features;
 
-    PR_VK_VERIFY_SUCCESS(vkCreateDevice(mPhysicalDevice, &device_info, nullptr, &mDevice));
+    PHI_VK_VERIFY_SUCCESS(vkCreateDevice(mPhysicalDevice, &device_info, nullptr, &mDevice));
 
     volkLoadDevice(mDevice);
 
@@ -86,7 +86,7 @@ void phi::vk::Device::initialize(vulkan_gpu_info const& device, backend_config c
 
 void phi::vk::Device::destroy()
 {
-    PR_VK_VERIFY_SUCCESS(vkDeviceWaitIdle(mDevice));
+    PHI_VK_VERIFY_SUCCESS(vkDeviceWaitIdle(mDevice));
     vkDestroyDevice(mDevice, nullptr);
 }
 

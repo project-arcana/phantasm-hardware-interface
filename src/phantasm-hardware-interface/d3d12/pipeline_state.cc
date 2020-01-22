@@ -89,7 +89,7 @@ ID3D12PipelineState* phi::d3d12::create_pipeline_state(ID3D12Device& device,
     pso_desc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
 
     ID3D12PipelineState* pso;
-    PR_D3D12_VERIFY(device.CreateGraphicsPipelineState(&pso_desc, IID_PPV_ARGS(&pso)));
+    PHI_D3D12_VERIFY(device.CreateGraphicsPipelineState(&pso_desc, IID_PPV_ARGS(&pso)));
     return pso;
 }
 
@@ -100,6 +100,6 @@ ID3D12PipelineState* phi::d3d12::create_compute_pipeline_state(ID3D12Device& dev
     pso_desc.CS = D3D12_SHADER_BYTECODE{binary_data, binary_size};
 
     ID3D12PipelineState* pso;
-    PR_D3D12_VERIFY(device.CreateComputePipelineState(&pso_desc, IID_PPV_ARGS(&pso)));
+    PHI_D3D12_VERIFY(device.CreateComputePipelineState(&pso_desc, IID_PPV_ARGS(&pso)));
     return pso;
 }

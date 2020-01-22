@@ -43,7 +43,7 @@ void phi::vk::command_list_translator::translateCommandList(
     }
 
     // close the list
-    PR_VK_VERIFY_SUCCESS(vkEndCommandBuffer(_cmd_list));
+    PHI_VK_VERIFY_SUCCESS(vkEndCommandBuffer(_cmd_list));
 
     // done
 }
@@ -118,7 +118,7 @@ void phi::vk::command_list_translator::execute(const phi::cmd::draw& draw)
                 fb_info.layers = 1;
 
                 // Create the framebuffer
-                PR_VK_VERIFY_SUCCESS(vkCreateFramebuffer(_globals.device, &fb_info, nullptr, &_bound.raw_framebuffer));
+                PHI_VK_VERIFY_SUCCESS(vkCreateFramebuffer(_globals.device, &fb_info, nullptr, &_bound.raw_framebuffer));
 
                 // Associate the framebuffer and all created image views with the current command list so they will get cleaned up
                 _globals.pool_cmd_lists->addAssociatedFramebuffer(_cmd_list_handle, _bound.raw_framebuffer, fb_image_views_to_clean_up);

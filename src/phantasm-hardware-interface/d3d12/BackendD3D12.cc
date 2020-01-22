@@ -128,8 +128,8 @@ phi::d3d12::BackendD3D12::~BackendD3D12() { destroy(); }
 void phi::d3d12::BackendD3D12::flushGPU()
 {
     shared_com_ptr<ID3D12Fence> fence;
-    PR_D3D12_VERIFY(mDevice.getDevice().CreateFence(0, D3D12_FENCE_FLAG_NONE, PR_COM_WRITE(fence)));
-    PR_D3D12_VERIFY(mGraphicsQueue.getQueue().Signal(fence, 1));
+    PHI_D3D12_VERIFY(mDevice.getDevice().CreateFence(0, D3D12_FENCE_FLAG_NONE, PHI_COM_WRITE(fence)));
+    PHI_D3D12_VERIFY(mGraphicsQueue.getQueue().Signal(fence, 1));
 
     auto const handle = CreateEvent(nullptr, FALSE, FALSE, nullptr);
     fence->SetEventOnCompletion(1, handle);

@@ -78,7 +78,7 @@ phi::handle::resource phi::vk::ResourcePool::createTexture(
 
     VmaAllocation res_alloc;
     VkImage res_image;
-    PR_VK_VERIFY_SUCCESS(vmaCreateImage(mAllocator, &image_info, &alloc_info, &res_image, &res_alloc, nullptr));
+    PHI_VK_VERIFY_SUCCESS(vmaCreateImage(mAllocator, &image_info, &alloc_info, &res_image, &res_alloc, nullptr));
     util::set_object_name(mDevice, res_image, "respool texture%s[%u] m%u", get_tex_dim_literal(dim), depth_or_array_size, image_info.mipLevels);
     return acquireImage(res_alloc, res_image, format, image_info.mipLevels, image_info.arrayLayers);
 }
@@ -114,7 +114,7 @@ phi::handle::resource phi::vk::ResourcePool::createRenderTarget(phi::format form
 
     VmaAllocation res_alloc;
     VkImage res_image;
-    PR_VK_VERIFY_SUCCESS(vmaCreateImage(mAllocator, &image_info, &alloc_info, &res_image, &res_alloc, nullptr));
+    PHI_VK_VERIFY_SUCCESS(vmaCreateImage(mAllocator, &image_info, &alloc_info, &res_image, &res_alloc, nullptr));
 
     if (phi::is_depth_format(format))
         util::set_object_name(mDevice, res_image, "respool depth stencil target");
@@ -143,7 +143,7 @@ phi::handle::resource phi::vk::ResourcePool::createBuffer(uint64_t size_bytes, u
 
     VmaAllocation res_alloc;
     VkBuffer res_buffer;
-    PR_VK_VERIFY_SUCCESS(vmaCreateBuffer(mAllocator, &buffer_info, &alloc_info, &res_buffer, &res_alloc, nullptr));
+    PHI_VK_VERIFY_SUCCESS(vmaCreateBuffer(mAllocator, &buffer_info, &alloc_info, &res_buffer, &res_alloc, nullptr));
     util::set_object_name(mDevice, res_buffer, "respool buffer");
     return acquireBuffer(res_alloc, res_buffer, buffer_info.usage, size_bytes, stride_bytes);
 }
@@ -160,7 +160,7 @@ phi::handle::resource phi::vk::ResourcePool::createBufferInternal(uint64_t size_
 
     VmaAllocation res_alloc;
     VkBuffer res_buffer;
-    PR_VK_VERIFY_SUCCESS(vmaCreateBuffer(mAllocator, &buffer_info, &alloc_info, &res_buffer, &res_alloc, nullptr));
+    PHI_VK_VERIFY_SUCCESS(vmaCreateBuffer(mAllocator, &buffer_info, &alloc_info, &res_buffer, &res_alloc, nullptr));
     util::set_object_name(mDevice, res_buffer, "respool internal buffer");
     return acquireBuffer(res_alloc, res_buffer, buffer_info.usage, size_bytes, stride_bytes);
 }
@@ -182,7 +182,7 @@ phi::handle::resource phi::vk::ResourcePool::createMappedBuffer(unsigned size_by
     VmaAllocation res_alloc;
     VmaAllocationInfo res_alloc_info;
     VkBuffer res_buffer;
-    PR_VK_VERIFY_SUCCESS(vmaCreateBuffer(mAllocator, &buffer_info, &alloc_info, &res_buffer, &res_alloc, &res_alloc_info));
+    PHI_VK_VERIFY_SUCCESS(vmaCreateBuffer(mAllocator, &buffer_info, &alloc_info, &res_buffer, &res_alloc, &res_alloc_info));
     CC_ASSERT(res_alloc_info.pMappedData != nullptr);
     util::set_object_name(mDevice, res_buffer, "respool mapped buffer");
     return acquireBuffer(res_alloc, res_buffer, buffer_info.usage, size_bytes, stride_bytes, cc::bit_cast<std::byte*>(res_alloc_info.pMappedData));
@@ -202,7 +202,7 @@ phi::handle::resource phi::vk::ResourcePool::createMappedBufferInternal(uint64_t
     VmaAllocation res_alloc;
     VmaAllocationInfo res_alloc_info;
     VkBuffer res_buffer;
-    PR_VK_VERIFY_SUCCESS(vmaCreateBuffer(mAllocator, &buffer_info, &alloc_info, &res_buffer, &res_alloc, &res_alloc_info));
+    PHI_VK_VERIFY_SUCCESS(vmaCreateBuffer(mAllocator, &buffer_info, &alloc_info, &res_buffer, &res_alloc, &res_alloc_info));
     CC_ASSERT(res_alloc_info.pMappedData != nullptr);
     util::set_object_name(mDevice, res_buffer, "respool internal mapped buffer");
     return acquireBuffer(res_alloc, res_buffer, buffer_info.usage, size_bytes, stride_bytes, cc::bit_cast<std::byte*>(res_alloc_info.pMappedData));
@@ -257,7 +257,7 @@ void phi::vk::ResourcePool::initialize(VkPhysicalDevice physical, VkDevice devic
         VmaAllocatorCreateInfo create_info = {};
         create_info.physicalDevice = physical;
         create_info.device = device;
-        PR_VK_VERIFY_SUCCESS(vmaCreateAllocator(&create_info, &mAllocator));
+        PHI_VK_VERIFY_SUCCESS(vmaCreateAllocator(&create_info, &mAllocator));
     }
 
     mAllocatorDescriptors.initialize(device, max_num_resources, 0, 0, 0);

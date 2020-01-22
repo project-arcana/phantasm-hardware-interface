@@ -279,7 +279,7 @@ VkSampler phi::vk::ShaderViewPool::makeSampler(const phi::sampler_config& config
     info.compareOp = util::to_native(config.compare_func);
 
     VkSampler res;
-    PR_VK_VERIFY_SUCCESS(vkCreateSampler(mDevice, &info, nullptr, &res));
+    PHI_VK_VERIFY_SUCCESS(vkCreateSampler(mDevice, &info, nullptr, &res));
     return res;
 }
 

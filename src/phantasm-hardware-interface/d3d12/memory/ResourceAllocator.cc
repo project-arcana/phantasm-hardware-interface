@@ -16,7 +16,7 @@ void phi::d3d12::ResourceAllocator::initialize(ID3D12Device& device)
     allocator_desc.pAllocationCallbacks = nullptr; // default
 
     auto const hr = D3D12MA::CreateAllocator(&allocator_desc, &mAllocator);
-    PR_D3D12_ASSERT(hr);
+    PHI_D3D12_ASSERT(hr);
 }
 
 void phi::d3d12::ResourceAllocator::destroy()
@@ -37,6 +37,6 @@ D3D12MA::Allocation* phi::d3d12::ResourceAllocator::allocate(const D3D12_RESOURC
 
     D3D12MA::Allocation* res;
     auto const hr = mAllocator->CreateResource(&allocation_desc, &desc, initial_state, clear_value, &res, __uuidof(ID3D12Resource), nullptr);
-    PR_D3D12_ASSERT(hr);
+    PHI_D3D12_ASSERT(hr);
     return res;
 }

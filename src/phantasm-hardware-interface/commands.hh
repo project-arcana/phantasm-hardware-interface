@@ -17,27 +17,27 @@ namespace cmd
 {
 namespace detail
 {
-#define PR_CMD_TYPE_VALUES        \
-    PR_X(draw)                    \
-    PR_X(dispatch)                \
-    PR_X(transition_resources)    \
-    PR_X(transition_image_slices) \
-    PR_X(copy_buffer)             \
-    PR_X(copy_texture)            \
-    PR_X(copy_buffer_to_texture)  \
-    PR_X(resolve_texture)         \
-    PR_X(begin_render_pass)       \
-    PR_X(end_render_pass)         \
-    PR_X(debug_marker)            \
-    PR_X(update_bottom_level)     \
-    PR_X(update_top_level)        \
-    PR_X(dispatch_rays)
+#define PHI_CMD_TYPE_VALUES        \
+    PHI_X(draw)                    \
+    PHI_X(dispatch)                \
+    PHI_X(transition_resources)    \
+    PHI_X(transition_image_slices) \
+    PHI_X(copy_buffer)             \
+    PHI_X(copy_texture)            \
+    PHI_X(copy_buffer_to_texture)  \
+    PHI_X(resolve_texture)         \
+    PHI_X(begin_render_pass)       \
+    PHI_X(end_render_pass)         \
+    PHI_X(debug_marker)            \
+    PHI_X(update_bottom_level)     \
+    PHI_X(update_top_level)        \
+    PHI_X(dispatch_rays)
 
 enum class cmd_type : uint8_t
 {
-#define PR_X(_val_) _val_,
-    PR_CMD_TYPE_VALUES
-#undef PR_X
+#define PHI_X(_val_) _val_,
+    PHI_CMD_TYPE_VALUES
+#undef PHI_X
 };
 
 enum class cmd_queue_type : uint8_t
@@ -67,9 +67,9 @@ struct typed_cmd : cmd_base
 template <class T, uint8_t N>
 using cmd_vector = phi::detail::trivial_capped_vector<T, N>;
 
-#define PR_DEFINE_CMD(_type_) struct _type_ final : detail::typed_cmd<detail::cmd_type::_type_>
+#define PHI_DEFINE_CMD(_type_) struct _type_ final : detail::typed_cmd<detail::cmd_type::_type_>
 
-PR_DEFINE_CMD(begin_render_pass)
+PHI_DEFINE_CMD(begin_render_pass)
 {
     struct render_target_info
     {
@@ -114,11 +114,11 @@ public:
     void set_null_depth_stencil() { depth_target.sve.init_as_null(); }
 };
 
-PR_DEFINE_CMD(end_render_pass){
+PHI_DEFINE_CMD(end_render_pass){
     // NOTE: Anything useful to pass here?
 };
 
-PR_DEFINE_CMD(transition_resources)
+PHI_DEFINE_CMD(transition_resources)
 {
     struct transition_info
     {
@@ -141,7 +141,7 @@ public:
     }
 };
 
-PR_DEFINE_CMD(transition_image_slices)
+PHI_DEFINE_CMD(transition_image_slices)
 {
     // Image slice transitions are entirely explicit, and require the user to synchronize before/after resource states
 
@@ -178,7 +178,7 @@ public:
 };
 
 
-PR_DEFINE_CMD(draw)
+PHI_DEFINE_CMD(draw)
 {
     static_assert(limits::max_root_constant_bytes > 0, "root constant size must be nonzero");
 
@@ -226,7 +226,7 @@ public:
     void set_scissor(int left, int top, int right, int bot) { scissor = tg::iaabb2({left, top}, {right, bot}); }
 };
 
-PR_DEFINE_CMD(dispatch)
+PHI_DEFINE_CMD(dispatch)
 {
     static_assert(limits::max_root_constant_bytes > 0, "root constant size must be nonzero");
 
@@ -268,7 +268,7 @@ public:
     }
 };
 
-PR_DEFINE_CMD(copy_buffer)
+PHI_DEFINE_CMD(copy_buffer)
 {
     handle::resource source;
     handle::resource destination;
@@ -295,7 +295,7 @@ public:
     }
 };
 
-PR_DEFINE_CMD(copy_texture)
+PHI_DEFINE_CMD(copy_texture)
 {
     handle::resource source;
     handle::resource destination;
@@ -325,7 +325,7 @@ public:
     }
 };
 
-PR_DEFINE_CMD(copy_buffer_to_texture)
+PHI_DEFINE_CMD(copy_buffer_to_texture)
 {
     handle::resource source;
     handle::resource destination;
@@ -348,7 +348,7 @@ public:
     }
 };
 
-PR_DEFINE_CMD(resolve_texture)
+PHI_DEFINE_CMD(resolve_texture)
 {
     handle::resource source;
     handle::resource destination;
@@ -375,7 +375,7 @@ public:
     }
 };
 
-PR_DEFINE_CMD(debug_marker)
+PHI_DEFINE_CMD(debug_marker)
 {
     char const* string_literal;
 
@@ -383,19 +383,19 @@ PR_DEFINE_CMD(debug_marker)
     debug_marker(char const* s) : string_literal(s) {}
 };
 
-PR_DEFINE_CMD(update_bottom_level)
+PHI_DEFINE_CMD(update_bottom_level)
 {
     handle::accel_struct dest = handle::null_accel_struct;
     handle::accel_struct source = handle::null_accel_struct;
 };
 
-PR_DEFINE_CMD(update_top_level)
+PHI_DEFINE_CMD(update_top_level)
 {
     handle::accel_struct dest = handle::null_accel_struct;
     unsigned num_instances = 0;
 };
 
-PR_DEFINE_CMD(dispatch_rays)
+PHI_DEFINE_CMD(dispatch_rays)
 {
     handle::pipeline_state pso = handle::null_pipeline_state;
     handle::resource table_raygen = handle::null_resource;
@@ -406,15 +406,15 @@ PR_DEFINE_CMD(dispatch_rays)
     unsigned depth = 0;
 };
 
-#undef PR_DEFINE_CMD
+#undef PHI_DEFINE_CMD
 
 namespace detail
 {
-#define PR_X(_val_)                                                                                                                       \
+#define PHI_X(_val_)                                                                                                                       \
     static_assert(std::is_trivially_copyable_v<::phi::cmd::_val_> && std::is_trivially_destructible_v<::phi::cmd::_val_>, \
                   #_val_ " is not trivially copyable / destructible");
-PR_CMD_TYPE_VALUES
-#undef PR_X
+PHI_CMD_TYPE_VALUES
+#undef PHI_X
 
     /// returns the size in bytes of the given command
     [[nodiscard]] inline constexpr size_t
@@ -422,11 +422,11 @@ PR_CMD_TYPE_VALUES
 {
     switch (type)
     {
-#define PR_X(_val_)               \
+#define PHI_X(_val_)               \
     case detail::cmd_type::_val_: \
         return sizeof(::phi::cmd::_val_);
-        PR_CMD_TYPE_VALUES
-#undef PR_X
+        PHI_CMD_TYPE_VALUES
+#undef PHI_X
     }
     return 0; // suppress warnings
 }
@@ -436,11 +436,11 @@ PR_CMD_TYPE_VALUES
 {
     switch (type)
     {
-#define PR_X(_val_)               \
+#define PHI_X(_val_)               \
     case detail::cmd_type::_val_: \
         return #_val_;
-        PR_CMD_TYPE_VALUES
-#undef PR_X
+        PHI_CMD_TYPE_VALUES
+#undef PHI_X
     }
     return ""; // suppress warnings
 }
@@ -452,28 +452,28 @@ void dynamic_dispatch(detail::cmd_base const& base, F& callback)
 {
     switch (base.s_internal_type)
     {
-#define PR_X(_val_)                                                            \
+#define PHI_X(_val_)                                                            \
     case detail::cmd_type::_val_:                                              \
         callback.execute(static_cast<::phi::cmd::_val_ const&>(base)); \
         break;
-        PR_CMD_TYPE_VALUES
-#undef PR_X
+        PHI_CMD_TYPE_VALUES
+#undef PHI_X
     }
 }
 
 [[nodiscard]] inline constexpr size_t compute_max_command_size()
 {
     size_t res = 0;
-#define PR_X(_val_) res = cc::max(res, sizeof(::phi::cmd::_val_));
-    PR_CMD_TYPE_VALUES
-#undef PR_X
+#define PHI_X(_val_) res = cc::max(res, sizeof(::phi::cmd::_val_));
+    PHI_CMD_TYPE_VALUES
+#undef PHI_X
     return res;
 }
 
 inline constexpr size_t max_command_size = compute_max_command_size();
 }
 
-#undef PR_CMD_TYPE_VALUES
+#undef PHI_CMD_TYPE_VALUES
 }
 
 struct command_stream_parser
@@ -557,7 +557,7 @@ public:
         _cursor += sizeof(CMDT);
     }
 
-#ifndef PR_ENABLE_DEBUG_MARKERS
+#ifndef PHI_ENABLE_DEBUG_MARKERS
     void add_command(cmd::debug_marker const&)
     {
         // no-op

@@ -50,11 +50,11 @@ ID3D12RootSignature* phi::d3d12::create_root_signature(ID3D12Device& device,
     {
         log::err()("root signature serialization failed:\n{}", static_cast<char*>(error_blob->GetBufferPointer()));
     }
-    PR_D3D12_ASSERT_FULL(serialize_hr, &device);
+    PHI_D3D12_ASSERT_FULL(serialize_hr, &device);
 
 
     ID3D12RootSignature* res;
-    PR_D3D12_VERIFY_FULL(device.CreateRootSignature(0, serialized_root_sig->GetBufferPointer(), serialized_root_sig->GetBufferSize(), IID_PPV_ARGS(&res)), &device);
+    PHI_D3D12_VERIFY_FULL(device.CreateRootSignature(0, serialized_root_sig->GetBufferPointer(), serialized_root_sig->GetBufferSize(), IID_PPV_ARGS(&res)), &device);
     return res;
 }
 

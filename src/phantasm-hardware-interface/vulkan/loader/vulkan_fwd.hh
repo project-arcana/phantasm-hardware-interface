@@ -9,23 +9,23 @@ extern "C"
     typedef uint64_t VkDeviceSize;
     typedef uint32_t VkSampleMask;
 
-#define PR_VK_DEFINE_HANDLE(object) typedef struct object##_T* object
+#define PHI_VK_DEFINE_HANDLE(object) typedef struct object##_T* object
 
-    PR_VK_DEFINE_HANDLE(VkInstance);
-    PR_VK_DEFINE_HANDLE(VkPhysicalDevice);
-    PR_VK_DEFINE_HANDLE(VkDevice);
-    PR_VK_DEFINE_HANDLE(VkQueue);
-    PR_VK_DEFINE_HANDLE(VkCommandBuffer);
-    PR_VK_DEFINE_HANDLE(VkSurfaceKHR);
-    PR_VK_DEFINE_HANDLE(VkSwapchainKHR);
-    PR_VK_DEFINE_HANDLE(VkRenderPass);
-    PR_VK_DEFINE_HANDLE(VkCommandPool);
-    PR_VK_DEFINE_HANDLE(VkFence);
-    PR_VK_DEFINE_HANDLE(VkEvent);
-    PR_VK_DEFINE_HANDLE(VkSemaphore);
-    PR_VK_DEFINE_HANDLE(VkAccelerationStructureNV);
+    PHI_VK_DEFINE_HANDLE(VkInstance);
+    PHI_VK_DEFINE_HANDLE(VkPhysicalDevice);
+    PHI_VK_DEFINE_HANDLE(VkDevice);
+    PHI_VK_DEFINE_HANDLE(VkQueue);
+    PHI_VK_DEFINE_HANDLE(VkCommandBuffer);
+    PHI_VK_DEFINE_HANDLE(VkSurfaceKHR);
+    PHI_VK_DEFINE_HANDLE(VkSwapchainKHR);
+    PHI_VK_DEFINE_HANDLE(VkRenderPass);
+    PHI_VK_DEFINE_HANDLE(VkCommandPool);
+    PHI_VK_DEFINE_HANDLE(VkFence);
+    PHI_VK_DEFINE_HANDLE(VkEvent);
+    PHI_VK_DEFINE_HANDLE(VkSemaphore);
+    PHI_VK_DEFINE_HANDLE(VkAccelerationStructureNV);
 
-#undef PR_VK_DEFINE_HANDLE
+#undef PHI_VK_DEFINE_HANDLE
 
     struct VkAccelerationStructureCreateInfoNV;
     struct VkGeometryNV;

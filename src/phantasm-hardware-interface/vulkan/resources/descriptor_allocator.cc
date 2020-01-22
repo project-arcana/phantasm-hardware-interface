@@ -51,7 +51,7 @@ void DescriptorAllocator::initialize(VkDevice device, uint32_t num_cbvs, uint32_
     descriptor_pool.poolSizeCount = uint32_t(type_sizes.size());
     descriptor_pool.pPoolSizes = type_sizes.data();
 
-    PR_VK_VERIFY_SUCCESS(vkCreateDescriptorPool(mDevice, &descriptor_pool, nullptr, &mPool));
+    PHI_VK_VERIFY_SUCCESS(vkCreateDescriptorPool(mDevice, &descriptor_pool, nullptr, &mPool));
 }
 
 void DescriptorAllocator::destroy() { vkDestroyDescriptorPool(mDevice, mPool, nullptr); }
@@ -67,7 +67,7 @@ VkDescriptorSet DescriptorAllocator::allocDescriptor(VkDescriptorSetLayout layou
     alloc_info.pSetLayouts = &layout;
 
     VkDescriptorSet res;
-    PR_VK_VERIFY_SUCCESS(vkAllocateDescriptorSets(mDevice, &alloc_info, &res));
+    PHI_VK_VERIFY_SUCCESS(vkAllocateDescriptorSets(mDevice, &alloc_info, &res));
     return res;
 }
 
@@ -97,7 +97,7 @@ VkDescriptorSetLayout DescriptorAllocator::createSingleCBVLayout(bool usage_comp
     layout_info.pBindings = bindings.data();
 
     VkDescriptorSetLayout layout;
-    PR_VK_VERIFY_SUCCESS(vkCreateDescriptorSetLayout(mDevice, &layout_info, nullptr, &layout));
+    PHI_VK_VERIFY_SUCCESS(vkCreateDescriptorSetLayout(mDevice, &layout_info, nullptr, &layout));
     return layout;
 }
 
@@ -134,7 +134,7 @@ VkDescriptorSetLayout DescriptorAllocator::createLayoutFromShaderViewArgs(cc::sp
     layout_info.pBindings = params.bindings.data();
 
     VkDescriptorSetLayout layout;
-    PR_VK_VERIFY_SUCCESS(vkCreateDescriptorSetLayout(mDevice, &layout_info, nullptr, &layout));
+    PHI_VK_VERIFY_SUCCESS(vkCreateDescriptorSetLayout(mDevice, &layout_info, nullptr, &layout));
 
     return layout;
 }

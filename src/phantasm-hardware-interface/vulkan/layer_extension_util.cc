@@ -14,13 +14,13 @@ void phi::vk::layer_extension_bundle::fill_with_instance_extensions(const char* 
     {
         uint32_t res_count = 0;
         res = vkEnumerateInstanceExtensionProperties(layername, &res_count, nullptr);
-        PR_VK_ASSERT_NONERROR(res);
+        PHI_VK_ASSERT_NONERROR(res);
 
         if (res_count > 0)
         {
             extension_properties.resize(res_count);
             res = vkEnumerateInstanceExtensionProperties(layername, &res_count, extension_properties.data());
-            PR_VK_ASSERT_NONERROR(res);
+            PHI_VK_ASSERT_NONERROR(res);
         }
     } while (res == VK_INCOMPLETE);
 }
@@ -32,13 +32,13 @@ void phi::vk::layer_extension_bundle::fill_with_device_extensions(VkPhysicalDevi
     {
         uint32_t res_count = 0;
         res = vkEnumerateDeviceExtensionProperties(device, layername, &res_count, nullptr);
-        PR_VK_ASSERT_NONERROR(res);
+        PHI_VK_ASSERT_NONERROR(res);
 
         if (res_count > 0)
         {
             extension_properties.resize(res_count);
             res = vkEnumerateDeviceExtensionProperties(device, layername, &res_count, extension_properties.data());
-            PR_VK_ASSERT_NONERROR(res);
+            PHI_VK_ASSERT_NONERROR(res);
         }
     } while (res == VK_INCOMPLETE);
 }
@@ -63,14 +63,14 @@ phi::vk::lay_ext_set phi::vk::get_available_instance_lay_ext()
         {
             uint32_t res_count;
             res = vkEnumerateInstanceLayerProperties(&res_count, nullptr);
-            PR_VK_ASSERT_NONERROR(res);
+            PHI_VK_ASSERT_NONERROR(res);
 
             if (res_count > 0)
             {
                 global_layer_properties.resize(global_layer_properties.size() + res_count);
                 // Append to global_layers
                 res = vkEnumerateInstanceLayerProperties(&res_count, &global_layer_properties[global_layer_properties.size() - res_count]);
-                PR_VK_ASSERT_NONERROR(res);
+                PHI_VK_ASSERT_NONERROR(res);
             }
 
         } while (res == VK_INCOMPLETE);
@@ -102,12 +102,12 @@ phi::vk::lay_ext_set phi::vk::get_available_device_lay_ext(VkPhysicalDevice phys
     {
         uint32_t count = 0;
 
-        PR_VK_VERIFY_SUCCESS(vkEnumerateDeviceLayerProperties(physical, &count, nullptr));
+        PHI_VK_VERIFY_SUCCESS(vkEnumerateDeviceLayerProperties(physical, &count, nullptr));
 
         std::vector<VkLayerProperties> layer_properties;
         layer_properties.resize(count);
 
-        PR_VK_VERIFY_SUCCESS(vkEnumerateDeviceLayerProperties(physical, &count, layer_properties.data()));
+        PHI_VK_VERIFY_SUCCESS(vkEnumerateDeviceLayerProperties(physical, &count, layer_properties.data()));
 
         layer_extensions.reserve(layer_extensions.size() + layer_properties.size());
         for (auto const& layer_prop : layer_properties)

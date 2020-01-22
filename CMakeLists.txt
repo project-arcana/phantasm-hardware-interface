@@ -117,7 +117,7 @@ if (PHI_BACKEND_D3D12)
     if (PHI_ENABLE_D3D12_PIX)
         target_link_libraries(phantasm-hardware-interface PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/extern/win32_pix_runtime/bin/WinPixEventRuntime.lib")
         target_include_directories(phantasm-hardware-interface PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/extern/win32_pix_runtime/include/")
-        target_compile_definitions(phantasm-hardware-interface PUBLIC PHI_BACKEND_D3D12_HAS_PIX USE_PIX)
+        target_compile_definitions(phantasm-hardware-interface PUBLIC PHI_HAS_PIX USE_PIX)
     endif()
 
 else()

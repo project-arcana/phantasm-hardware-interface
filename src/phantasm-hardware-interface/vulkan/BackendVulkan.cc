@@ -24,7 +24,7 @@ struct BackendVulkan::per_thread_component
 
 void phi::vk::BackendVulkan::initialize(const backend_config& config_arg, const window_handle& window_handle)
 {
-    PR_VK_VERIFY_SUCCESS(volkInitialize());
+    PHI_VK_VERIFY_SUCCESS(volkInitialize());
 
     // copy explicitly for modifications
     backend_config config = config_arg;
@@ -80,7 +80,7 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg, const 
     VkResult create_res = vkCreateInstance(&instance_info, nullptr, &mInstance);
 
     // TODO: More fine-grained error handling
-    PR_VK_ASSERT_SUCCESS(create_res);
+    PHI_VK_ASSERT_SUCCESS(create_res);
 
     // Load Vulkan entrypoints (instance-based)
     // NOTE: volk is up to 7% slower if using this method (over i.e. volkLoadDevice(VkDevice))
@@ -245,7 +245,7 @@ void phi::vk::BackendVulkan::submit(cc::span<const phi::handle::command_list> cl
         submit_info.commandBufferCount = unsigned(submit_batch.size());
         submit_info.pCommandBuffers = submit_batch.data();
 
-        PR_VK_VERIFY_SUCCESS(vkQueueSubmit(mDevice.getQueueDirect(), 1, &submit_info, submit_fence));
+        PHI_VK_VERIFY_SUCCESS(vkQueueSubmit(mDevice.getQueueDirect(), 1, &submit_info, submit_fence));
 
         cc::array<cc::span<handle::command_list const>, 2> submit_spans = {barrier_lists, cls.subspan(last_cl_index, num_cls_in_batch)};
         mPoolCmdLists.freeOnSubmit(submit_spans, submit_fence_index);
@@ -323,7 +323,7 @@ bool phi::vk::BackendVulkan::tryUnsetEvent(phi::handle::event event)
     }
     else
     {
-        PR_VK_ASSERT_NONERROR(status);
+        PHI_VK_ASSERT_NONERROR(status);
         return false;
     }
 }
@@ -437,5 +437,5 @@ void phi::vk::BackendVulkan::createDebugMessenger()
                              | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
     createInfo.pfnUserCallback = detail::debug_callback;
     createInfo.pUserData = nullptr;
-    PR_VK_VERIFY_SUCCESS(vkCreateDebugUtilsMessengerEXT(mInstance, &createInfo, nullptr, &mDebugMessenger));
+    PHI_VK_VERIFY_SUCCESS(vkCreateDebugUtilsMessengerEXT(mInstance, &createInfo, nullptr, &mDebugMessenger));
 }

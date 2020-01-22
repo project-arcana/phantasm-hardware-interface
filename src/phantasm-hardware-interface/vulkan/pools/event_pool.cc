@@ -16,7 +16,7 @@ phi::handle::event phi::vk::EventPool::createEvent()
     info.sType = VK_STRUCTURE_TYPE_EVENT_CREATE_INFO;
 
     VkEvent& new_event = mPool.get(pool_index);
-    PR_VK_VERIFY_SUCCESS(vkCreateEvent(mDevice, &info, nullptr, &new_event));
+    PHI_VK_VERIFY_SUCCESS(vkCreateEvent(mDevice, &info, nullptr, &new_event));
 
     return {static_cast<handle::index_t>(pool_index)};
 }

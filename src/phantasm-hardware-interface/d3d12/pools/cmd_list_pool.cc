@@ -16,7 +16,7 @@ void phi::d3d12::cmd_allocator_node::initialize(ID3D12Device& device, D3D12_COMM
     _fence.initialize(device);
     util::set_object_name(_fence.getRawFence(), "cmd_allocator_node fence for %zx", this);
 
-    PR_D3D12_VERIFY(device.CreateCommandAllocator(type, IID_PPV_ARGS(&_allocator)));
+    PHI_D3D12_VERIFY(device.CreateCommandAllocator(type, IID_PPV_ARGS(&_allocator)));
 }
 
 void phi::d3d12::cmd_allocator_node::destroy() { _allocator->Release(); }
@@ -31,7 +31,7 @@ void phi::d3d12::cmd_allocator_node::acquire(ID3D12GraphicsCommandList* cmd_list
         // we were able to recover, but should warn even now
     }
 
-    PR_D3D12_VERIFY(cmd_list->Reset(_allocator, nullptr));
+    PHI_D3D12_VERIFY(cmd_list->Reset(_allocator, nullptr));
     ++_num_in_flight;
 
     if (_num_in_flight == _max_num_in_flight)
@@ -83,7 +83,7 @@ bool phi::d3d12::cmd_allocator_node::try_reset_blocking()
 
 void phi::d3d12::cmd_allocator_node::do_reset()
 {
-    PR_D3D12_VERIFY(_allocator->Reset());
+    PHI_D3D12_VERIFY(_allocator->Reset());
     _full_and_waiting = false;
     _num_in_flight = 0;
     _num_discarded = 0;
@@ -229,7 +229,7 @@ void phi::d3d12::CommandAllocatorBundle::initialize(ID3D12Device& device, int nu
 
             for (auto _ = 0; _ < num_cmdlists_per_allocator; ++_)
             {
-                PR_D3D12_VERIFY(device.CreateCommandList(0, list_type, raw_alloc, nullptr, IID_PPV_ARGS(&initial_lists[cmdlist_i])));
+                PHI_D3D12_VERIFY(device.CreateCommandList(0, list_type, raw_alloc, nullptr, IID_PPV_ARGS(&initial_lists[cmdlist_i])));
                 initial_lists[cmdlist_i]->Close();
                 util::set_object_name(initial_lists[cmdlist_i], "pool cmdlist #%d, alloc_bundle %zx", cmdlist_i, this);
                 ++cmdlist_i;

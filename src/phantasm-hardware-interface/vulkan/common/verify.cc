@@ -1,5 +1,4 @@
 #include "verify.hh"
-#ifdef PR_BACKEND_VULKAN
 
 #include <cstdio>
 #include <cstdlib>
@@ -78,5 +77,3 @@ void phi::vk::detail::verify_failure_handler(VkResult vr, const char* expression
     // TODO: Graceful shutdown, possibly memory dump n
     std::abort();
 }
-
-#endif

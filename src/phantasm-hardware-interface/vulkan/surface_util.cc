@@ -51,7 +51,7 @@ VkSurfaceKHR phi::vk::create_platform_surface(VkInstance instance, const phi::wi
         surface_info.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
         surface_info.hwnd = window_handle.value.win32_hwnd;
         surface_info.hinstance = GetModuleHandle(nullptr);
-        PR_VK_VERIFY_SUCCESS(vkCreateWin32SurfaceKHR(instance, &surface_info, nullptr, &res_surface));
+        PHI_VK_VERIFY_SUCCESS(vkCreateWin32SurfaceKHR(instance, &surface_info, nullptr, &res_surface));
 #else
         CC_RUNTIME_ASSERT(false && "Win32 HWND given, but compiled on non-win32 platform");
 #endif
@@ -66,7 +66,7 @@ VkSurfaceKHR phi::vk::create_platform_surface(VkInstance instance, const phi::wi
         surface_info.window = window_handle.value.xlib_handles.window;
         surface_info.pNext = nullptr;
         surface_info.flags = 0;
-        PR_VK_VERIFY_SUCCESS(vkCreateXlibSurfaceKHR(instance, &surface_info, nullptr, &res_surface));
+        PHI_VK_VERIFY_SUCCESS(vkCreateXlibSurfaceKHR(instance, &surface_info, nullptr, &res_surface));
 #else
         CC_RUNTIME_ASSERT(false && "Xlib handle given, but compiled on non-linux platform");
 #endif

@@ -23,7 +23,7 @@ phi::vk::suitable_queues phi::vk::get_suitable_queues(VkPhysicalDevice physical,
         {
             // graphics candidate, query present support
             VkBool32 present_support = false;
-            PR_VK_VERIFY_SUCCESS(vkGetPhysicalDeviceSurfaceSupportKHR(physical, i, surface, &present_support));
+            PHI_VK_VERIFY_SUCCESS(vkGetPhysicalDeviceSurfaceSupportKHR(physical, i, surface, &present_support));
 
             if (present_support)
                 can_present = true;

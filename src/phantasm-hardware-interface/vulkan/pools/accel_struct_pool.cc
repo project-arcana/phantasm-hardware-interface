@@ -100,7 +100,7 @@ phi::handle::accel_struct phi::vk::AccelStructPool::createBottomLevelAS(cc::span
     as_create_info.compactedSize = 0;
 
     VkAccelerationStructureNV raw_as = nullptr;
-    PR_VK_VERIFY_SUCCESS(vkCreateAccelerationStructureNV(mDevice, &as_create_info, nullptr, &raw_as));
+    PHI_VK_VERIFY_SUCCESS(vkCreateAccelerationStructureNV(mDevice, &as_create_info, nullptr, &raw_as));
     util::set_object_name(mDevice, raw_as, "pool bottom-level accel struct s%u", static_cast<unsigned>(element_geometries.size()));
 
     // Allocate AS and scratch buffers in the required sizes
@@ -120,7 +120,7 @@ phi::handle::accel_struct phi::vk::AccelStructPool::createBottomLevelAS(cc::span
     bind_mem_info.deviceIndexCount = 0;
     bind_mem_info.pDeviceIndices = nullptr;
 
-    PR_VK_VERIFY_SUCCESS(vkBindAccelerationStructureMemoryNV(mDevice, 1, &bind_mem_info));
+    PHI_VK_VERIFY_SUCCESS(vkBindAccelerationStructureMemoryNV(mDevice, 1, &bind_mem_info));
 
     auto const res = acquireAccelStruct(raw_as, flags, buffer_as, buffer_scratch);
     moveGeometriesToAS(res, cc::move(element_geometries));
@@ -143,7 +143,7 @@ phi::handle::accel_struct phi::vk::AccelStructPool::createTopLevelAS(unsigned nu
     as_create_info.compactedSize = 0;
 
     VkAccelerationStructureNV raw_as = nullptr;
-    PR_VK_VERIFY_SUCCESS(vkCreateAccelerationStructureNV(mDevice, &as_create_info, nullptr, &raw_as));
+    PHI_VK_VERIFY_SUCCESS(vkCreateAccelerationStructureNV(mDevice, &as_create_info, nullptr, &raw_as));
     util::set_object_name(mDevice, raw_as, "pool top-level accel struct s%u", num_instances);
 
     VkDeviceSize buffer_size_as = 0, buffer_size_scratch = 0;
@@ -165,7 +165,7 @@ phi::handle::accel_struct phi::vk::AccelStructPool::createTopLevelAS(unsigned nu
     bind_mem_info.deviceIndexCount = 0;
     bind_mem_info.pDeviceIndices = nullptr;
 
-    PR_VK_VERIFY_SUCCESS(vkBindAccelerationStructureMemoryNV(mDevice, 1, &bind_mem_info));
+    PHI_VK_VERIFY_SUCCESS(vkBindAccelerationStructureMemoryNV(mDevice, 1, &bind_mem_info));
 
     return acquireAccelStruct(raw_as, {}, buffer_as, buffer_scratch, buffer_instances);
 }
@@ -251,7 +251,7 @@ phi::handle::accel_struct phi::vk::AccelStructPool::acquireAccelStruct(VkAcceler
     new_node.flags = flags;
     new_node.geometries.clear();
 
-    PR_VK_VERIFY_SUCCESS(vkGetAccelerationStructureHandleNV(mDevice, raw_as, sizeof(new_node.raw_as_handle), &new_node.raw_as_handle));
+    PHI_VK_VERIFY_SUCCESS(vkGetAccelerationStructureHandleNV(mDevice, raw_as, sizeof(new_node.raw_as_handle), &new_node.raw_as_handle));
 
     if (new_node.buffer_instances.is_valid())
     {

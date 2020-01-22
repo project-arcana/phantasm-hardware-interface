@@ -82,7 +82,7 @@ VkRenderPass phi::vk::create_render_pass(VkDevice device, arg::framebuffer_confi
         renderPassInfo.dependencyCount = 1;
         renderPassInfo.pDependencies = &dependency;
 
-        PR_VK_VERIFY_SUCCESS(vkCreateRenderPass(device, &renderPassInfo, nullptr, &render_pass));
+        PHI_VK_VERIFY_SUCCESS(vkCreateRenderPass(device, &renderPassInfo, nullptr, &render_pass));
     }
 
     return render_pass;
@@ -162,7 +162,7 @@ VkRenderPass phi::vk::create_render_pass(VkDevice device, const phi::cmd::begin_
     renderPassInfo.pDependencies = &dependency;
 
     VkRenderPass res_rp;
-    PR_VK_VERIFY_SUCCESS(vkCreateRenderPass(device, &renderPassInfo, nullptr, &res_rp));
+    PHI_VK_VERIFY_SUCCESS(vkCreateRenderPass(device, &renderPassInfo, nullptr, &res_rp));
     return res_rp;
 }
 
@@ -318,7 +318,7 @@ VkPipeline phi::vk::create_pipeline(VkDevice device,
     pipelineInfo.basePipelineIndex = -1;       // Optional
 
     VkPipeline res;
-    PR_VK_VERIFY_SUCCESS(vkCreateGraphicsPipelines(device, nullptr, 1, &pipelineInfo, nullptr, &res));
+    PHI_VK_VERIFY_SUCCESS(vkCreateGraphicsPipelines(device, nullptr, 1, &pipelineInfo, nullptr, &res));
 
     for (auto& shader : shader_stages)
     {

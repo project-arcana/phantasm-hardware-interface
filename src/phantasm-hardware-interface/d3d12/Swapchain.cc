@@ -46,12 +46,12 @@ void phi::d3d12::Swapchain::initialize(
         swapchain_desc.Flags = get_swapchain_flags(mPresentMode);
 
         shared_com_ptr<IDXGISwapChain1> temp_swapchain;
-        PR_D3D12_VERIFY(factory.CreateSwapChainForHwnd(mParentDirectQueue, handle, &swapchain_desc, nullptr, nullptr, temp_swapchain.override()));
-        PR_D3D12_VERIFY(temp_swapchain.get_interface(mSwapchain));
+        PHI_D3D12_VERIFY(factory.CreateSwapChainForHwnd(mParentDirectQueue, handle, &swapchain_desc, nullptr, nullptr, temp_swapchain.override()));
+        PHI_D3D12_VERIFY(temp_swapchain.get_interface(mSwapchain));
     }
 
     // Disable Alt + Enter behavior
-    PR_D3D12_VERIFY(factory.MakeWindowAssociation(handle, DXGI_MWA_NO_WINDOW_CHANGES));
+    PHI_D3D12_VERIFY(factory.MakeWindowAssociation(handle, DXGI_MWA_NO_WINDOW_CHANGES));
 
     // Create backbuffer RTV heap, then create RTVs
     {
@@ -61,7 +61,7 @@ void phi::d3d12::Swapchain::initialize(
         rtv_heap_desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
         rtv_heap_desc.NodeMask = 0;
 
-        PR_D3D12_VERIFY(mParentDevice->CreateDescriptorHeap(&rtv_heap_desc, PR_COM_WRITE(mRTVHeap)));
+        PHI_D3D12_VERIFY(mParentDevice->CreateDescriptorHeap(&rtv_heap_desc, PHI_COM_WRITE(mRTVHeap)));
         util::set_object_name(mRTVHeap, "swapchain RTV heap");
 
         updateBackbuffers();
@@ -74,16 +74,16 @@ void phi::d3d12::Swapchain::onResize(tg::isize2 size)
 {
     mBackbufferSize = size;
     releaseBackbuffers();
-    PR_D3D12_VERIFY(mSwapchain->ResizeBuffers(unsigned(mBackbuffers.size()), UINT(mBackbufferSize.width), UINT(mBackbufferSize.height),
+    PHI_D3D12_VERIFY(mSwapchain->ResizeBuffers(unsigned(mBackbuffers.size()), UINT(mBackbufferSize.width), UINT(mBackbufferSize.height),
                                               gc_backbuffer_format, get_swapchain_flags(mPresentMode)));
     updateBackbuffers();
 }
 
-void phi::d3d12::Swapchain::setFullscreen(bool fullscreen) { PR_D3D12_VERIFY(mSwapchain->SetFullscreenState(fullscreen, nullptr)); }
+void phi::d3d12::Swapchain::setFullscreen(bool fullscreen) { PHI_D3D12_VERIFY(mSwapchain->SetFullscreenState(fullscreen, nullptr)); }
 
 void phi::d3d12::Swapchain::present()
 {
-    PR_D3D12_VERIFY_FULL(mSwapchain->Present(0, mPresentMode == present_mode::allow_tearing ? DXGI_PRESENT_ALLOW_TEARING : 0), mParentDevice);
+    PHI_D3D12_VERIFY_FULL(mSwapchain->Present(0, mPresentMode == present_mode::allow_tearing ? DXGI_PRESENT_ALLOW_TEARING : 0), mParentDevice);
 
     auto const backbuffer_i = mSwapchain->GetCurrentBackBufferIndex();
     mBackbuffers[backbuffer_i].fence.issueFence(*mParentDirectQueue);
@@ -111,7 +111,7 @@ void phi::d3d12::Swapchain::updateBackbuffers()
         backbuffer.rtv = mRTVHeap->GetCPUDescriptorHandleForHeapStart();
         backbuffer.rtv.ptr += rtv_size * i;
 
-        PR_D3D12_VERIFY(mSwapchain->GetBuffer(i, IID_PPV_ARGS(&backbuffer.resource)));
+        PHI_D3D12_VERIFY(mSwapchain->GetBuffer(i, IID_PPV_ARGS(&backbuffer.resource)));
         util::set_object_name(backbuffer.resource, "swapchain backbuffer #%u", i);
 
         mParentDevice->CreateRenderTargetView(backbuffer.resource, nullptr, backbuffer.rtv);

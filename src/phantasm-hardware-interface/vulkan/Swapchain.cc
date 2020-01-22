@@ -27,7 +27,7 @@ void phi::vk::Swapchain::initialize(const phi::vk::Device& device, VkSurfaceKHR 
         VkCommandPoolCreateInfo info = {};
         info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
         info.queueFamilyIndex = static_cast<unsigned>(device.getQueueFamilyDirect());
-        PR_VK_VERIFY_SUCCESS(vkCreateCommandPool(mDevice, &info, nullptr, &mDummyPresentCommandPool));
+        PHI_VK_VERIFY_SUCCESS(vkCreateCommandPool(mDevice, &info, nullptr, &mDummyPresentCommandPool));
     }
 
     cc::array<VkCommandBuffer> linear_cmd_buffers = cc::array<VkCommandBuffer>::uninitialized(num_backbuffers);
@@ -40,7 +40,7 @@ void phi::vk::Swapchain::initialize(const phi::vk::Device& device, VkSurfaceKHR 
         info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
         info.commandBufferCount = num_backbuffers;
 
-        PR_VK_VERIFY_SUCCESS(vkAllocateCommandBuffers(mDevice, &info, linear_cmd_buffers.data()));
+        PHI_VK_VERIFY_SUCCESS(vkAllocateCommandBuffers(mDevice, &info, linear_cmd_buffers.data()));
     }
 
     // Create synchronization primitives and assign dummy command buffers
@@ -54,8 +54,8 @@ void phi::vk::Swapchain::initialize(const phi::vk::Device& device, VkSurfaceKHR 
             backbuffer.dummy_present_cmdbuf = linear_cmd_buffers[i];
             VkCommandBufferBeginInfo info = {};
             info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-            PR_VK_VERIFY_SUCCESS(vkBeginCommandBuffer(backbuffer.dummy_present_cmdbuf, &info));
-            PR_VK_VERIFY_SUCCESS(vkEndCommandBuffer(backbuffer.dummy_present_cmdbuf));
+            PHI_VK_VERIFY_SUCCESS(vkBeginCommandBuffer(backbuffer.dummy_present_cmdbuf, &info));
+            PHI_VK_VERIFY_SUCCESS(vkEndCommandBuffer(backbuffer.dummy_present_cmdbuf));
         }
         // create fence
         {
@@ -64,7 +64,7 @@ void phi::vk::Swapchain::initialize(const phi::vk::Device& device, VkSurfaceKHR 
             fence_info.pNext = nullptr;
             fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-            PR_VK_VERIFY_SUCCESS(vkCreateFence(mDevice, &fence_info, nullptr, &backbuffer.fence_command_buf_executed));
+            PHI_VK_VERIFY_SUCCESS(vkCreateFence(mDevice, &fence_info, nullptr, &backbuffer.fence_command_buf_executed));
         }
         // create semaphores
         {
@@ -73,8 +73,8 @@ void phi::vk::Swapchain::initialize(const phi::vk::Device& device, VkSurfaceKHR 
             sem_info.pNext = nullptr;
             sem_info.flags = 0;
 
-            PR_VK_VERIFY_SUCCESS(vkCreateSemaphore(mDevice, &sem_info, nullptr, &backbuffer.sem_image_available));
-            PR_VK_VERIFY_SUCCESS(vkCreateSemaphore(mDevice, &sem_info, nullptr, &backbuffer.sem_render_finished));
+            PHI_VK_VERIFY_SUCCESS(vkCreateSemaphore(mDevice, &sem_info, nullptr, &backbuffer.sem_image_available));
+            PHI_VK_VERIFY_SUCCESS(vkCreateSemaphore(mDevice, &sem_info, nullptr, &backbuffer.sem_render_finished));
         }
     }
 
@@ -117,7 +117,7 @@ void phi::vk::Swapchain::initialize(const phi::vk::Device& device, VkSurfaceKHR 
         rp_info.dependencyCount = 0;
         rp_info.pDependencies = nullptr;
 
-        PR_VK_VERIFY_SUCCESS(vkCreateRenderPass(mDevice, &rp_info, nullptr, &mRenderPass));
+        PHI_VK_VERIFY_SUCCESS(vkCreateRenderPass(mDevice, &rp_info, nullptr, &mRenderPass));
     }
 
     createSwapchain(w, h);
@@ -166,7 +166,7 @@ bool phi::vk::Swapchain::present()
     }
     else
     {
-        PR_VK_ASSERT_SUCCESS(present_res);
+        PHI_VK_ASSERT_SUCCESS(present_res);
     }
 
     ++mActiveFenceIndex;
@@ -188,7 +188,7 @@ bool phi::vk::Swapchain::waitForBackbuffer()
     }
     else
     {
-        PR_VK_ASSERT_SUCCESS(res);
+        PHI_VK_ASSERT_SUCCESS(res);
     }
 
     return true;
@@ -215,7 +215,7 @@ void phi::vk::Swapchain::performPresentSubmit()
     submit_info.commandBufferCount = 1;
     submit_info.pCommandBuffers = &active_backbuffer.dummy_present_cmdbuf;
 
-    PR_VK_VERIFY_SUCCESS(vkQueueSubmit(mPresentQueue, 1, &submit_info, active_backbuffer.fence_command_buf_executed));
+    PHI_VK_VERIFY_SUCCESS(vkQueueSubmit(mPresentQueue, 1, &submit_info, active_backbuffer.fence_command_buf_executed));
 }
 
 void phi::vk::Swapchain::createSwapchain(int width_hint, int height_hint)
@@ -250,7 +250,7 @@ void phi::vk::Swapchain::createSwapchain(int width_hint, int height_hint)
         swapchain_info.clipped = true;
         swapchain_info.oldSwapchain = nullptr;
 
-        PR_VK_VERIFY_SUCCESS(vkCreateSwapchainKHR(mDevice, &swapchain_info, nullptr, &mSwapchain));
+        PHI_VK_VERIFY_SUCCESS(vkCreateSwapchainKHR(mDevice, &swapchain_info, nullptr, &mSwapchain));
     }
 
     // Query backbuffer VkImages
@@ -289,7 +289,7 @@ void phi::vk::Swapchain::createSwapchain(int width_hint, int height_hint)
             info.subresourceRange.levelCount = 1;
             info.subresourceRange.baseArrayLayer = 0;
             info.subresourceRange.layerCount = 1;
-            PR_VK_VERIFY_SUCCESS(vkCreateImageView(mDevice, &info, nullptr, &backbuffer.view));
+            PHI_VK_VERIFY_SUCCESS(vkCreateImageView(mDevice, &info, nullptr, &backbuffer.view));
         }
 
         // Framebuffer
@@ -307,7 +307,7 @@ void phi::vk::Swapchain::createSwapchain(int width_hint, int height_hint)
             fb_info.height = new_extent.height;
             fb_info.layers = 1;
 
-            PR_VK_VERIFY_SUCCESS(vkCreateFramebuffer(mDevice, &fb_info, nullptr, &backbuffer.framebuffer));
+            PHI_VK_VERIFY_SUCCESS(vkCreateFramebuffer(mDevice, &fb_info, nullptr, &backbuffer.framebuffer));
         }
     }
 

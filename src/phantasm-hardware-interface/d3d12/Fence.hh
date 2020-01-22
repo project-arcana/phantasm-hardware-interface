@@ -30,7 +30,7 @@ public:
     {
         auto const res = mFence->GetCompletedValue();
 #ifdef CC_ENABLE_ASSERTIONS
-        PR_D3D12_DRED_ASSERT(res != UINT64_MAX, mFence);
+        PHI_D3D12_DRED_ASSERT(res != UINT64_MAX, mFence);
 #endif
         return res;
     }

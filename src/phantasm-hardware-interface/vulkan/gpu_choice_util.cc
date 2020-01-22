@@ -26,9 +26,9 @@ namespace
 cc::array<VkPhysicalDevice> phi::vk::get_physical_devices(VkInstance instance)
 {
     uint32_t num_physical_devices;
-    PR_VK_VERIFY_NONERROR(vkEnumeratePhysicalDevices(instance, &num_physical_devices, nullptr));
+    PHI_VK_VERIFY_NONERROR(vkEnumeratePhysicalDevices(instance, &num_physical_devices, nullptr));
     cc::array<VkPhysicalDevice> res(num_physical_devices);
-    PR_VK_VERIFY_NONERROR(vkEnumeratePhysicalDevices(instance, &num_physical_devices, res.data()));
+    PHI_VK_VERIFY_NONERROR(vkEnumeratePhysicalDevices(instance, &num_physical_devices, res.data()));
     return res;
 }
 
@@ -127,7 +127,7 @@ phi::vk::backbuffer_information phi::vk::get_backbuffer_information(VkPhysicalDe
 VkSurfaceCapabilitiesKHR phi::vk::get_surface_capabilities(VkPhysicalDevice device, VkSurfaceKHR surface)
 {
     VkSurfaceCapabilitiesKHR res;
-    PR_VK_VERIFY_NONERROR(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &res));
+    PHI_VK_VERIFY_NONERROR(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &res));
     return res;
 }
 

@@ -17,7 +17,7 @@ void phi::d3d12::DescriptorPageAllocator::initialize(ID3D12Device& device, D3D12
     desc.Type = type;
     desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
     desc.NodeMask = 0;
-    PR_D3D12_VERIFY(device.CreateDescriptorHeap(&desc, PR_COM_WRITE(mHeap)));
+    PHI_D3D12_VERIFY(device.CreateDescriptorHeap(&desc, PHI_COM_WRITE(mHeap)));
     util::set_object_name(mHeap, "desc page allocator, type %d, size %d", int(type), int(num_descriptors));
 
     mHeapStartCPU = mHeap->GetCPUDescriptorHandleForHeapStart();

@@ -133,7 +133,7 @@ struct barrier_bundle
         submit_info.commandBufferCount = 1;
         submit_info.pCommandBuffers = &cmd_buf;
 
-        PR_VK_VERIFY_SUCCESS(vkQueueSubmit(queue, 1, &submit_info, nullptr));
+        PHI_VK_VERIFY_SUCCESS(vkQueueSubmit(queue, 1, &submit_info, nullptr));
     }
 };
 

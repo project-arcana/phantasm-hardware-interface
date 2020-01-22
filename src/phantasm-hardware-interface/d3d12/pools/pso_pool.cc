@@ -259,9 +259,9 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracin
     state_obj.pSubobjects = subobjects.data();
 
     // Create the state object
-    PR_D3D12_VERIFY(mDeviceRaytracing->CreateStateObject(&state_obj, IID_PPV_ARGS(&new_node.raw_state_object)));
+    PHI_D3D12_VERIFY(mDeviceRaytracing->CreateStateObject(&state_obj, IID_PPV_ARGS(&new_node.raw_state_object)));
     // QI the properties for access to shader identifiers
-    PR_D3D12_VERIFY(new_node.raw_state_object->QueryInterface(IID_PPV_ARGS(&new_node.raw_state_object_props)));
+    PHI_D3D12_VERIFY(new_node.raw_state_object->QueryInterface(IID_PPV_ARGS(&new_node.raw_state_object_props)));
 
     return {static_cast<handle::index_t>(pool_index + gc_raytracing_handle_offset)};
 }

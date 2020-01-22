@@ -57,7 +57,7 @@ void print_dred_information(ID3D12Device* device)
     log::dred() << "device removal reason: " << get_device_error_literal(removal_reason);
 
     phi::d3d12::shared_com_ptr<ID3D12DeviceRemovedExtendedData> dred;
-    if (SUCCEEDED(device->QueryInterface(PR_COM_WRITE(dred))))
+    if (SUCCEEDED(device->QueryInterface(PHI_COM_WRITE(dred))))
     {
         log::dred() << "DRED detected, querying outputs";
         D3D12_DRED_AUTO_BREADCRUMBS_OUTPUT DredAutoBreadcrumbsOutput;
@@ -178,7 +178,7 @@ void phi::d3d12::detail::dred_assert_handler(void* device_child, const char* exp
     auto* const as_device_child = static_cast<ID3D12DeviceChild*>(device_child);
 
     shared_com_ptr<ID3D12Device> recovered_device;
-    auto const hr = as_device_child->GetDevice(PR_COM_WRITE(recovered_device));
+    auto const hr = as_device_child->GetDevice(PHI_COM_WRITE(recovered_device));
     if (hr_succeeded(hr) && recovered_device.is_valid())
     {
         print_dred_information(recovered_device);

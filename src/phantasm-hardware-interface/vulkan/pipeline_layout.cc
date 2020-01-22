@@ -46,7 +46,7 @@ VkDescriptorSetLayout phi::vk::detail::pipeline_layout_params::descriptor_set_pa
 
 
     VkDescriptorSetLayout res;
-    PR_VK_VERIFY_SUCCESS(vkCreateDescriptorSetLayout(device, &layout_info, nullptr, &res));
+    PHI_VK_VERIFY_SUCCESS(vkCreateDescriptorSetLayout(device, &layout_info, nullptr, &res));
 
     return res;
 }
@@ -101,7 +101,7 @@ void phi::vk::pipeline_layout::initialize(VkDevice device, cc::span<const util::
         this->push_constant_stages = VK_PIPELINE_STAGE_FLAG_BITS_MAX_ENUM;
     }
 
-    PR_VK_VERIFY_SUCCESS(vkCreatePipelineLayout(device, &layout_info, nullptr, &raw_layout));
+    PHI_VK_VERIFY_SUCCESS(vkCreatePipelineLayout(device, &layout_info, nullptr, &raw_layout));
 }
 
 void phi::vk::pipeline_layout::print() const

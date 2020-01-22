@@ -14,7 +14,7 @@ void phi::d3d12::Adapter::initialize(const backend_config& config)
         // Suppress GBV startup message
         // shared_com_ptr<IDXGIInfoQueue> dxgi_info_queue;
 
-        bool const dxgi_queue_success = detail::hr_succeeded(::DXGIGetDebugInterface1(0, PR_COM_WRITE(mInfoQueue)));
+        bool const dxgi_queue_success = detail::hr_succeeded(::DXGIGetDebugInterface1(0, PHI_COM_WRITE(mInfoQueue)));
         if (dxgi_queue_success && mInfoQueue.is_valid())
         {
             DXGI_INFO_QUEUE_FILTER filter = {};
@@ -33,11 +33,11 @@ void phi::d3d12::Adapter::initialize(const backend_config& config)
             // The D3D12 device produces a filter during creation, which makes it more up-to-date than any that'd be
             // created before device creation is begun. [...]"
             // will revisit once that is fixed
-            PR_D3D12_VERIFY(mInfoQueue->PushStorageFilter(DXGI_DEBUG_ALL, &filter));
+            PHI_D3D12_VERIFY(mInfoQueue->PushStorageFilter(DXGI_DEBUG_ALL, &filter));
 
             // (none of these have either)
-            //            PR_D3D12_VERIFY(mInfoQueue->PushDenyAllStorageFilter(DXGI_DEBUG_D3D12));
-            //            PR_D3D12_VERIFY(mInfoQueue->PushDenyAllRetrievalFilter(DXGI_DEBUG_D3D12));
+            //            PHI_D3D12_VERIFY(mInfoQueue->PushDenyAllStorageFilter(DXGI_DEBUG_D3D12));
+            //            PHI_D3D12_VERIFY(mInfoQueue->PushDenyAllRetrievalFilter(DXGI_DEBUG_D3D12));
             //            mInfoQueue->SetMuteDebugOutput(DXGI_DEBUG_D3D12, TRUE);
         }
     }
@@ -45,8 +45,8 @@ void phi::d3d12::Adapter::initialize(const backend_config& config)
     // Factory init
     {
         shared_com_ptr<IDXGIFactory> temp_factory;
-        PR_D3D12_VERIFY(::CreateDXGIFactory(PR_COM_WRITE(temp_factory)));
-        PR_D3D12_VERIFY(temp_factory.get_interface(mFactory));
+        PHI_D3D12_VERIFY(::CreateDXGIFactory(PHI_COM_WRITE(temp_factory)));
+        PHI_D3D12_VERIFY(temp_factory.get_interface(mFactory));
     }
 
     // Adapter init
@@ -73,14 +73,14 @@ void phi::d3d12::Adapter::initialize(const backend_config& config)
         // create the adapter
         shared_com_ptr<IDXGIAdapter> temp_adapter;
         mFactory->EnumAdapters(chosen_adapter_index, temp_adapter.override());
-        PR_D3D12_VERIFY(temp_adapter.get_interface(mAdapter));
+        PHI_D3D12_VERIFY(temp_adapter.get_interface(mAdapter));
     }
 
     // Debug layer init
     if (config.validation != validation_level::off)
     {
         shared_com_ptr<ID3D12Debug> debug_controller;
-        bool const debug_init_success = detail::hr_succeeded(::D3D12GetDebugInterface(PR_COM_WRITE(debug_controller)));
+        bool const debug_init_success = detail::hr_succeeded(::D3D12GetDebugInterface(PHI_COM_WRITE(debug_controller)));
 
 
         if (debug_init_success && debug_controller.is_valid())

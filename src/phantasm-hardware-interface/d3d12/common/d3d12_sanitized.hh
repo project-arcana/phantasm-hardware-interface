@@ -6,10 +6,10 @@
 #endif
 
 // Check if <Windows.h> was included somewhere before this header
-#if defined(_WINDOWS_) && !defined(PR_SANITIZED_D3D12_H)
+#if defined(_WINDOWS_) && !defined(PHI_SANITIZED_D3D12_H)
 #error "Including unsanitized d3d12.h or Windows.h"
 #endif
-#define PR_SANITIZED_D3D12_H
+#define PHI_SANITIZED_D3D12_H
 
  // clang-format off
 #include <clean-core/native/detail/win32_sanitize_before.inl>

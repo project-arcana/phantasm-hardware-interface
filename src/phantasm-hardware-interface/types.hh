@@ -11,7 +11,7 @@ namespace handle
 using index_t = int32_t;
 inline constexpr index_t null_handle_index = index_t(-1);
 
-#define PR_DEFINE_HANDLE(_type_)                                                                          \
+#define PHI_DEFINE_HANDLE(_type_)                                                                          \
     struct _type_                                                                                         \
     {                                                                                                     \
         index_t index;                                                                                    \
@@ -23,25 +23,25 @@ inline constexpr index_t null_handle_index = index_t(-1);
 
 
 /// generic resource (buffer, texture, render target)
-PR_DEFINE_HANDLE(resource);
+PHI_DEFINE_HANDLE(resource);
 
 /// pipeline state (vertex layout, primitive config, shaders, framebuffer formats, ...)
-PR_DEFINE_HANDLE(pipeline_state);
+PHI_DEFINE_HANDLE(pipeline_state);
 
 /// shader_view := (SRVs + UAVs + Samplers)
 /// shader argument := handle::shader_view + handle::resource (CBV) + uint (CBV offset)
-PR_DEFINE_HANDLE(shader_view);
+PHI_DEFINE_HANDLE(shader_view);
 
 /// recorded command list, ready to submit or discard
-PR_DEFINE_HANDLE(command_list);
+PHI_DEFINE_HANDLE(command_list);
 
 /// synchronization primitive. can be "set" by a command_list after it completed executing
-PR_DEFINE_HANDLE(event);
+PHI_DEFINE_HANDLE(event);
 
 /// raytracing acceleration structure handle
-PR_DEFINE_HANDLE(accel_struct);
+PHI_DEFINE_HANDLE(accel_struct);
 
-#undef PR_DEFINE_HANDLE
+#undef PHI_DEFINE_HANDLE
 }
 
 struct shader_argument

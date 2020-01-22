@@ -17,7 +17,7 @@ int phi::d3d12::test_adapter(IDXGIAdapter* adapter, D3D_FEATURE_LEVEL min_featur
 
     detail::perform_safe_seh_call([&] {
         shared_com_ptr<ID3D12Device> test_device;
-        auto const hres = ::D3D12CreateDevice(adapter, min_features, PR_COM_WRITE(test_device));
+        auto const hres = ::D3D12CreateDevice(adapter, min_features, PHI_COM_WRITE(test_device));
 
         if (SUCCEEDED(hres))
         {
@@ -48,7 +48,7 @@ cc::vector<phi::gpu_info> phi::d3d12::get_adapter_candidates()
 
     // Create a temporary factory to enumerate adapters
     shared_com_ptr<IDXGIFactory4> temp_factory;
-    detail::perform_safe_seh_call([&] { PR_D3D12_VERIFY(::CreateDXGIFactory(PR_COM_WRITE(temp_factory))); });
+    detail::perform_safe_seh_call([&] { PHI_D3D12_VERIFY(::CreateDXGIFactory(PHI_COM_WRITE(temp_factory))); });
 
     // If the call failed (likely XP or earlier), return empty
     if (!temp_factory.is_valid())
@@ -68,7 +68,7 @@ cc::vector<phi::gpu_info> phi::d3d12::get_adapter_candidates()
             {
                 // Min level supported, this adapter is a candidate
                 DXGI_ADAPTER_DESC adapter_desc;
-                PR_D3D12_VERIFY(temp_adapter->GetDesc(&adapter_desc));
+                PHI_D3D12_VERIFY(temp_adapter->GetDesc(&adapter_desc));
 
 
                 auto& new_candidate = res.emplace_back();
@@ -129,7 +129,7 @@ phi::gpu_feature_flags phi::d3d12::check_capabilities(ID3D12Device* device)
 
     // Device5 (this is purely OS-based, Win10 1809+)
     shared_com_ptr<ID3D12Device5> device5;
-    auto const has_device5 = SUCCEEDED(device->QueryInterface(PR_COM_WRITE(device5)));
+    auto const has_device5 = SUCCEEDED(device->QueryInterface(PHI_COM_WRITE(device5)));
 
     // features requiring windows 1809+
     if (has_device5)
