@@ -29,7 +29,7 @@ constexpr cc::array<char const*, 2> gc_required_vulkan_extensions = {VK_KHR_SURF
 
 }
 
-VkSurfaceKHR pr::backend::vk::create_platform_surface(VkInstance instance, const pr::backend::window_handle& window_handle)
+VkSurfaceKHR phi::vk::create_platform_surface(VkInstance instance, const phi::window_handle& window_handle)
 {
     VkSurfaceKHR res_surface = nullptr;
 
@@ -79,4 +79,4 @@ VkSurfaceKHR pr::backend::vk::create_platform_surface(VkInstance instance, const
     return res_surface;
 }
 
-cc::span<const char* const> pr::backend::vk::get_platform_instance_extensions() { return gc_required_vulkan_extensions; }
+cc::span<const char* const> phi::vk::get_platform_instance_extensions() { return gc_required_vulkan_extensions; }

@@ -6,11 +6,11 @@
 
 #include <phantasm-hardware-interface/types.hh>
 
-namespace pr::backend::d3d12::util
+namespace phi::d3d12::util
 {
-[[nodiscard]] inline constexpr DXGI_FORMAT to_dxgi_format(backend::format format)
+[[nodiscard]] inline constexpr DXGI_FORMAT to_dxgi_format(phi::format format)
 {
-    using af = backend::format;
+    using af = phi::format;
     switch (format)
     {
     case af::rgba32f:
@@ -98,9 +98,9 @@ namespace pr::backend::d3d12::util
     return DXGI_FORMAT_UNKNOWN;
 }
 
-[[nodiscard]] inline constexpr backend::format to_pr_format(DXGI_FORMAT format)
+[[nodiscard]] inline constexpr phi::format to_pr_format(DXGI_FORMAT format)
 {
-    using af = backend::format;
+    using af = phi::format;
     switch (format)
     {
     case DXGI_FORMAT_R32G32B32A32_FLOAT:

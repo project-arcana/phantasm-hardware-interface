@@ -2,7 +2,7 @@
 
 #include <rich-log/MessageBuilder.hh>
 
-namespace pr::backend::vk::log
+namespace phi::vk::log
 {
 inline rlog::MessageBuilder info()
 {

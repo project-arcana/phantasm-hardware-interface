@@ -48,9 +48,9 @@ namespace
     return {};
 }
 
-[[nodiscard]] constexpr pr::backend::shader_domain reflect_to_pr(SpvReflectShaderStageFlagBits shader_stage_flags)
+[[nodiscard]] constexpr phi::shader_domain reflect_to_pr(SpvReflectShaderStageFlagBits shader_stage_flags)
 {
-    using sd = pr::backend::shader_domain;
+    using sd = phi::shader_domain;
     switch (shader_stage_flags)
     {
     case SPV_REFLECT_SHADER_STAGE_VERTEX_BIT:
@@ -70,9 +70,9 @@ namespace
     return {};
 }
 
-void patchSpvReflectShader(SpvReflectShaderModule& module, pr::backend::shader_domain current_stage, cc::vector<pr::backend::vk::util::spirv_desc_info>& out_desc_infos)
+void patchSpvReflectShader(SpvReflectShaderModule& module, phi::shader_domain current_stage, cc::vector<phi::vk::util::spirv_desc_info>& out_desc_infos)
 {
-    using namespace pr::backend::vk;
+    using namespace phi::vk;
 
     // shift CBVs up by [max_shader_arguments] sets
     {
@@ -85,7 +85,7 @@ void patchSpvReflectShader(SpvReflectShaderModule& module, pr::backend::shader_d
         {
             if (b->resource_type == SPV_REFLECT_RESOURCE_FLAG_CBV)
             {
-                auto const new_set = b->set + pr::backend::limits::max_shader_arguments;
+                auto const new_set = b->set + phi::limits::max_shader_arguments;
                 spvReflectChangeDescriptorBindingNumbers(&module, b, b->binding, new_set);
             }
         }
@@ -117,7 +117,7 @@ void patchSpvReflectShader(SpvReflectShaderModule& module, pr::backend::shader_d
 
 }
 
-pr::backend::arg::shader_stage pr::backend::vk::util::create_patched_spirv(std::byte const* bytecode, size_t bytecode_size, spirv_refl_info& out_info)
+phi::arg::shader_stage phi::vk::util::create_patched_spirv(std::byte const* bytecode, size_t bytecode_size, spirv_refl_info& out_info)
 {
     arg::shader_stage res;
 
@@ -150,13 +150,13 @@ pr::backend::arg::shader_stage pr::backend::vk::util::create_patched_spirv(std::
 }
 
 
-void pr::backend::vk::util::free_patched_spirv(const arg::shader_stage& val)
+void phi::vk::util::free_patched_spirv(const arg::shader_stage& val)
 {
     // do the same thing spirv-reflect would have done in spvReflectDestroyShaderModule
     ::free(val.binary.data);
 }
 
-cc::vector<pr::backend::vk::util::spirv_desc_info> pr::backend::vk::util::merge_spirv_descriptors(cc::span<spirv_desc_info> desc_infos)
+cc::vector<phi::vk::util::spirv_desc_info> phi::vk::util::merge_spirv_descriptors(cc::span<spirv_desc_info> desc_infos)
 {
     // sort by set, then binding (both ascending)
     std::sort(desc_infos.begin(), desc_infos.end(), [](spirv_desc_info const& lhs, spirv_desc_info const& rhs) {
@@ -205,8 +205,8 @@ cc::vector<pr::backend::vk::util::spirv_desc_info> pr::backend::vk::util::merge_
     return sorted_merged_res;
 }
 
-bool pr::backend::vk::util::is_consistent_with_reflection(cc::span<const pr::backend::vk::util::spirv_desc_info> spirv_ranges,
-                                                          pr::backend::arg::shader_argument_shapes arg_shapes)
+bool phi::vk::util::is_consistent_with_reflection(cc::span<const phi::vk::util::spirv_desc_info> spirv_ranges,
+                                                          phi::arg::shader_argument_shapes arg_shapes)
 {
     struct reflected_range_infos
     {
@@ -275,7 +275,7 @@ bool pr::backend::vk::util::is_consistent_with_reflection(cc::span<const pr::bac
     return true;
 }
 
-void pr::backend::vk::util::print_spirv_info(cc::span<const pr::backend::vk::util::spirv_desc_info> info)
+void phi::vk::util::print_spirv_info(cc::span<const phi::vk::util::spirv_desc_info> info)
 {
     std::cout << "[pr][backend][vk] SPIR-V descriptor info: " << std::endl;
     for (auto const& i : info)

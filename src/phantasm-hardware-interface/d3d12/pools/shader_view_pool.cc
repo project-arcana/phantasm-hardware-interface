@@ -7,7 +7,7 @@
 
 #include "resource_pool.hh"
 
-void pr::backend::d3d12::DescriptorPageAllocator::initialize(ID3D12Device& device, D3D12_DESCRIPTOR_HEAP_TYPE type, unsigned num_descriptors, unsigned page_size)
+void phi::d3d12::DescriptorPageAllocator::initialize(ID3D12Device& device, D3D12_DESCRIPTOR_HEAP_TYPE type, unsigned num_descriptors, unsigned page_size)
 {
     mPageAllocator.initialize(num_descriptors, page_size);
     mDescriptorSize = device.GetDescriptorHandleIncrementSize(type);
@@ -24,7 +24,7 @@ void pr::backend::d3d12::DescriptorPageAllocator::initialize(ID3D12Device& devic
     mHeapStartGPU = mHeap->GetGPUDescriptorHandleForHeapStart();
 }
 
-pr::backend::handle::shader_view pr::backend::d3d12::ShaderViewPool::create(cc::span<shader_view_element const> srvs,
+phi::handle::shader_view phi::d3d12::ShaderViewPool::create(cc::span<shader_view_element const> srvs,
                                                                             cc::span<shader_view_element const> uavs,
                                                                             cc::span<sampler_config const> samplers)
 {
@@ -112,7 +112,7 @@ pr::backend::handle::shader_view pr::backend::d3d12::ShaderViewPool::create(cc::
     return {static_cast<handle::index_t>(pool_index)};
 }
 
-void pr::backend::d3d12::ShaderViewPool::free(pr::backend::handle::shader_view sv)
+void phi::d3d12::ShaderViewPool::free(phi::handle::shader_view sv)
 {
     auto& data = mPool.get(static_cast<unsigned>(sv.index));
     data.resources.clear();
@@ -124,7 +124,7 @@ void pr::backend::d3d12::ShaderViewPool::free(pr::backend::handle::shader_view s
     }
 }
 
-void pr::backend::d3d12::ShaderViewPool::free(cc::span<const pr::backend::handle::shader_view> svs)
+void phi::d3d12::ShaderViewPool::free(cc::span<const phi::handle::shader_view> svs)
 {
     auto lg = std::lock_guard(mMutex);
     for (auto sv : svs)
@@ -137,7 +137,7 @@ void pr::backend::d3d12::ShaderViewPool::free(cc::span<const pr::backend::handle
     }
 }
 
-void pr::backend::d3d12::ShaderViewPool::initialize(ID3D12Device* device, pr::backend::d3d12::ResourcePool* res_pool, unsigned num_shader_views, unsigned num_srvs_uavs, unsigned num_samplers)
+void phi::d3d12::ShaderViewPool::initialize(ID3D12Device* device, phi::d3d12::ResourcePool* res_pool, unsigned num_shader_views, unsigned num_srvs_uavs, unsigned num_samplers)
 {
     mDevice = device;
     mResourcePool = res_pool;
@@ -146,7 +146,7 @@ void pr::backend::d3d12::ShaderViewPool::initialize(ID3D12Device* device, pr::ba
     mPool.initialize(num_shader_views);
 }
 
-void pr::backend::d3d12::ShaderViewPool::destroy()
+void phi::d3d12::ShaderViewPool::destroy()
 {
     // nothing, the heaps themselves are being destroyed
 }

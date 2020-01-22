@@ -13,7 +13,7 @@
 #include "resources/transition_barrier.hh"
 #include "surface_util.hh"
 
-namespace pr::backend::vk
+namespace phi::vk
 {
 struct BackendVulkan::per_thread_component
 {
@@ -22,7 +22,7 @@ struct BackendVulkan::per_thread_component
 };
 }
 
-void pr::backend::vk::BackendVulkan::initialize(const backend_config& config_arg, const window_handle& window_handle)
+void phi::vk::BackendVulkan::initialize(const backend_config& config_arg, const window_handle& window_handle)
 {
     PR_VK_VERIFY_SUCCESS(volkInitialize());
 
@@ -139,7 +139,7 @@ void pr::backend::vk::BackendVulkan::initialize(const backend_config& config_arg
     }
 }
 
-void pr::backend::vk::BackendVulkan::destroy()
+void phi::vk::BackendVulkan::destroy()
 {
     if (mInstance != nullptr)
     {
@@ -172,9 +172,9 @@ void pr::backend::vk::BackendVulkan::destroy()
     }
 }
 
-pr::backend::vk::BackendVulkan::~BackendVulkan() { destroy(); }
+phi::vk::BackendVulkan::~BackendVulkan() { destroy(); }
 
-pr::backend::handle::resource pr::backend::vk::BackendVulkan::acquireBackbuffer()
+phi::handle::resource phi::vk::BackendVulkan::acquireBackbuffer()
 {
     auto const prev_backbuffer_index = mSwapchain.getCurrentBackbufferIndex();
     bool const acquire_success = mSwapchain.waitForBackbuffer();
@@ -195,7 +195,7 @@ pr::backend::handle::resource pr::backend::vk::BackendVulkan::acquireBackbuffer(
     }
 }
 
-void pr::backend::vk::BackendVulkan::present()
+void phi::vk::BackendVulkan::present()
 {
     mSwapchain.performPresentSubmit();
     if (!mSwapchain.present())
@@ -204,16 +204,16 @@ void pr::backend::vk::BackendVulkan::present()
     }
 }
 
-void pr::backend::vk::BackendVulkan::onResize(tg::isize2 size)
+void phi::vk::BackendVulkan::onResize(tg::isize2 size)
 {
     flushGPU();
     onInternalResize();
     mSwapchain.onResize(size.width, size.height);
 }
 
-pr::backend::format pr::backend::vk::BackendVulkan::getBackbufferFormat() const { return util::to_pr_format(mSwapchain.getBackbufferFormat()); }
+phi::format phi::vk::BackendVulkan::getBackbufferFormat() const { return util::to_pr_format(mSwapchain.getBackbufferFormat()); }
 
-pr::backend::handle::command_list pr::backend::vk::BackendVulkan::recordCommandList(std::byte* buffer, size_t size, handle::event event_to_set)
+phi::handle::command_list phi::vk::BackendVulkan::recordCommandList(std::byte* buffer, size_t size, handle::event event_to_set)
 {
     auto& thread_comp = mThreadComponents[mThreadAssociation.get_current_index()];
 
@@ -225,7 +225,7 @@ pr::backend::handle::command_list pr::backend::vk::BackendVulkan::recordCommandL
     return res;
 }
 
-void pr::backend::vk::BackendVulkan::submit(cc::span<const pr::backend::handle::command_list> cls)
+void phi::vk::BackendVulkan::submit(cc::span<const phi::handle::command_list> cls)
 {
     constexpr auto c_batch_size = 16;
 
@@ -311,7 +311,7 @@ void pr::backend::vk::BackendVulkan::submit(cc::span<const pr::backend::handle::
         submit_flush();
 }
 
-bool pr::backend::vk::BackendVulkan::tryUnsetEvent(pr::backend::handle::event event)
+bool phi::vk::BackendVulkan::tryUnsetEvent(phi::handle::event event)
 {
     auto const raw_event = mPoolEvents.get(event);
     auto const status = vkGetEventStatus(mDevice.getDevice(), raw_event);
@@ -328,9 +328,9 @@ bool pr::backend::vk::BackendVulkan::tryUnsetEvent(pr::backend::handle::event ev
     }
 }
 
-pr::backend::handle::pipeline_state pr::backend::vk::BackendVulkan::createRaytracingPipelineState(pr::backend::arg::raytracing_shader_libraries libraries,
+phi::handle::pipeline_state phi::vk::BackendVulkan::createRaytracingPipelineState(phi::arg::raytracing_shader_libraries libraries,
                                                                                                   arg::raytracing_argument_associations arg_assocs,
-                                                                                                  pr::backend::arg::raytracing_hit_groups hit_groups,
+                                                                                                  phi::arg::raytracing_hit_groups hit_groups,
                                                                                                   unsigned max_recursion,
                                                                                                   unsigned max_payload_size_bytes,
                                                                                                   unsigned max_attribute_size_bytes)
@@ -340,13 +340,13 @@ pr::backend::handle::pipeline_state pr::backend::vk::BackendVulkan::createRaytra
     return handle::null_pipeline_state;
 }
 
-pr::backend::handle::accel_struct pr::backend::vk::BackendVulkan::createTopLevelAccelStruct(unsigned num_instances)
+phi::handle::accel_struct phi::vk::BackendVulkan::createTopLevelAccelStruct(unsigned num_instances)
 {
     CC_ASSERT(isRaytracingEnabled() && "raytracing is not enabled");
     return mPoolAccelStructs.createTopLevelAS(num_instances);
 }
 
-pr::backend::handle::accel_struct pr::backend::vk::BackendVulkan::createBottomLevelAccelStruct(cc::span<const pr::backend::arg::blas_element> elements,
+phi::handle::accel_struct phi::vk::BackendVulkan::createBottomLevelAccelStruct(cc::span<const phi::arg::blas_element> elements,
                                                                                                accel_struct_build_flags_t flags,
                                                                                                uint64_t* out_native_handle)
 {
@@ -359,7 +359,7 @@ pr::backend::handle::accel_struct pr::backend::vk::BackendVulkan::createBottomLe
     return res;
 }
 
-void pr::backend::vk::BackendVulkan::uploadTopLevelInstances(pr::backend::handle::accel_struct as, cc::span<const pr::backend::accel_struct_geometry_instance> instances)
+void phi::vk::BackendVulkan::uploadTopLevelInstances(phi::handle::accel_struct as, cc::span<const phi::accel_struct_geometry_instance> instances)
 {
     CC_ASSERT(isRaytracingEnabled() && "raytracing is not enabled");
     auto const& node = mPoolAccelStructs.getNode(as);
@@ -367,38 +367,38 @@ void pr::backend::vk::BackendVulkan::uploadTopLevelInstances(pr::backend::handle
     flushMappedMemory(node.buffer_instances);
 }
 
-pr::backend::handle::resource pr::backend::vk::BackendVulkan::getAccelStructBuffer(pr::backend::handle::accel_struct as)
+phi::handle::resource phi::vk::BackendVulkan::getAccelStructBuffer(phi::handle::accel_struct as)
 {
     log::err()("calculateShaderTableSize unimplemented");
     return handle::null_resource;
 }
 
-pr::backend::shader_table_sizes pr::backend::vk::BackendVulkan::calculateShaderTableSize(pr::backend::arg::shader_table_records ray_gen_records,
-                                                                                         pr::backend::arg::shader_table_records miss_records,
-                                                                                         pr::backend::arg::shader_table_records hit_group_records)
+phi::shader_table_sizes phi::vk::BackendVulkan::calculateShaderTableSize(phi::arg::shader_table_records ray_gen_records,
+                                                                                         phi::arg::shader_table_records miss_records,
+                                                                                         phi::arg::shader_table_records hit_group_records)
 {
     log::err()("calculateShaderTableSize unimplemented");
     return {};
 }
 
-void pr::backend::vk::BackendVulkan::writeShaderTable(std::byte* dest, handle::pipeline_state pso, unsigned stride, arg::shader_table_records records)
+void phi::vk::BackendVulkan::writeShaderTable(std::byte* dest, handle::pipeline_state pso, unsigned stride, arg::shader_table_records records)
 {
     log::err()("writeShaderTable unimplemented");
 }
 
-void pr::backend::vk::BackendVulkan::free(pr::backend::handle::accel_struct as)
+void phi::vk::BackendVulkan::free(phi::handle::accel_struct as)
 {
     CC_ASSERT(isRaytracingEnabled() && "raytracing is not enabled");
     mPoolAccelStructs.free(as);
 }
 
-void pr::backend::vk::BackendVulkan::freeRange(cc::span<const pr::backend::handle::accel_struct> as)
+void phi::vk::BackendVulkan::freeRange(cc::span<const phi::handle::accel_struct> as)
 {
     CC_ASSERT(isRaytracingEnabled() && "raytracing is not enabled");
     mPoolAccelStructs.free(as);
 }
 
-void pr::backend::vk::BackendVulkan::printInformation(pr::backend::handle::resource res) const
+void phi::vk::BackendVulkan::printInformation(phi::handle::resource res) const
 {
     log::info() << "Inspecting resource " << res.index;
     if (!res.is_valid())
@@ -421,13 +421,13 @@ void pr::backend::vk::BackendVulkan::printInformation(pr::backend::handle::resou
     }
 }
 
-bool pr::backend::vk::BackendVulkan::startForcedDiagnosticCapture() { return mDiagnostics.start_capture(); }
+bool phi::vk::BackendVulkan::startForcedDiagnosticCapture() { return mDiagnostics.start_capture(); }
 
-bool pr::backend::vk::BackendVulkan::endForcedDiagnosticCapture() { return mDiagnostics.end_capture(); }
+bool phi::vk::BackendVulkan::endForcedDiagnosticCapture() { return mDiagnostics.end_capture(); }
 
-void pr::backend::vk::BackendVulkan::flushGPU() { vkDeviceWaitIdle(mDevice.getDevice()); }
+void phi::vk::BackendVulkan::flushGPU() { vkDeviceWaitIdle(mDevice.getDevice()); }
 
-void pr::backend::vk::BackendVulkan::createDebugMessenger()
+void phi::vk::BackendVulkan::createDebugMessenger()
 {
     VkDebugUtilsMessengerCreateInfoEXT createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;

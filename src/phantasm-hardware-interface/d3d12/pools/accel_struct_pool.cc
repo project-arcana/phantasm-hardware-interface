@@ -10,7 +10,7 @@
 
 #include "resource_pool.hh"
 
-pr::backend::handle::accel_struct pr::backend::d3d12::AccelStructPool::createBottomLevelAS(cc::span<const pr::backend::arg::blas_element> elements,
+phi::handle::accel_struct phi::d3d12::AccelStructPool::createBottomLevelAS(cc::span<const phi::arg::blas_element> elements,
                                                                                            accel_struct_build_flags_t flags)
 {
     handle::accel_struct res_handle;
@@ -79,7 +79,7 @@ pr::backend::handle::accel_struct pr::backend::d3d12::AccelStructPool::createBot
     return res_handle;
 }
 
-pr::backend::handle::accel_struct pr::backend::d3d12::AccelStructPool::createTopLevelAS(unsigned num_instances)
+phi::handle::accel_struct phi::d3d12::AccelStructPool::createTopLevelAS(unsigned num_instances)
 {
     static_assert(sizeof(D3D12_RAYTRACING_INSTANCE_DESC) == sizeof(accel_struct_geometry_instance), "acceleration instance struct sizes mismatch");
 
@@ -114,7 +114,7 @@ pr::backend::handle::accel_struct pr::backend::d3d12::AccelStructPool::createTop
     return res_handle;
 }
 
-void pr::backend::d3d12::AccelStructPool::free(pr::backend::handle::accel_struct as)
+void phi::d3d12::AccelStructPool::free(phi::handle::accel_struct as)
 {
     if (!as.is_valid())
         return;
@@ -128,7 +128,7 @@ void pr::backend::d3d12::AccelStructPool::free(pr::backend::handle::accel_struct
     }
 }
 
-void pr::backend::d3d12::AccelStructPool::free(cc::span<const pr::backend::handle::accel_struct> as_span)
+void phi::d3d12::AccelStructPool::free(cc::span<const phi::handle::accel_struct> as_span)
 {
     auto lg = std::lock_guard(mMutex);
 
@@ -143,7 +143,7 @@ void pr::backend::d3d12::AccelStructPool::free(cc::span<const pr::backend::handl
     }
 }
 
-void pr::backend::d3d12::AccelStructPool::initialize(ID3D12Device5* device, pr::backend::d3d12::ResourcePool* res_pool, unsigned max_num_accel_structs)
+void phi::d3d12::AccelStructPool::initialize(ID3D12Device5* device, phi::d3d12::ResourcePool* res_pool, unsigned max_num_accel_structs)
 {
     CC_ASSERT(mDevice == nullptr && mResourcePool == nullptr && "double init");
     mDevice = device;
@@ -151,7 +151,7 @@ void pr::backend::d3d12::AccelStructPool::initialize(ID3D12Device5* device, pr::
     mPool.initialize(max_num_accel_structs);
 }
 
-void pr::backend::d3d12::AccelStructPool::destroy()
+void phi::d3d12::AccelStructPool::destroy()
 {
     if (mDevice != nullptr)
     {
@@ -168,13 +168,13 @@ void pr::backend::d3d12::AccelStructPool::destroy()
     }
 }
 
-pr::backend::d3d12::AccelStructPool::accel_struct_node& pr::backend::d3d12::AccelStructPool::getNode(pr::backend::handle::accel_struct as)
+phi::d3d12::AccelStructPool::accel_struct_node& phi::d3d12::AccelStructPool::getNode(phi::handle::accel_struct as)
 {
     CC_ASSERT(as.is_valid());
     return mPool.get(static_cast<unsigned>(as.index));
 }
 
-pr::backend::d3d12::AccelStructPool::accel_struct_node& pr::backend::d3d12::AccelStructPool::acquireAccelStruct(handle::accel_struct& out_handle)
+phi::d3d12::AccelStructPool::accel_struct_node& phi::d3d12::AccelStructPool::acquireAccelStruct(handle::accel_struct& out_handle)
 {
     unsigned res;
     {
@@ -186,7 +186,7 @@ pr::backend::d3d12::AccelStructPool::accel_struct_node& pr::backend::d3d12::Acce
     return mPool.get(res);
 }
 
-void pr::backend::d3d12::AccelStructPool::internalFree(pr::backend::d3d12::AccelStructPool::accel_struct_node& node)
+void phi::d3d12::AccelStructPool::internalFree(phi::d3d12::AccelStructPool::accel_struct_node& node)
 {
     cc::array const buffers_to_free = {node.buffer_as, node.buffer_scratch, node.buffer_instances};
     mResourcePool->free(buffers_to_free);

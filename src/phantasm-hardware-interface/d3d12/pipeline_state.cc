@@ -5,12 +5,12 @@
 #include <phantasm-hardware-interface/d3d12/common/native_enum.hh>
 #include <phantasm-hardware-interface/d3d12/common/verify.hh>
 
-ID3D12PipelineState* pr::backend::d3d12::create_pipeline_state(ID3D12Device& device,
+ID3D12PipelineState* phi::d3d12::create_pipeline_state(ID3D12Device& device,
                                                                ID3D12RootSignature* root_sig,
                                                                cc::span<const D3D12_INPUT_ELEMENT_DESC> vertex_input_layout,
-                                                               pr::backend::arg::framebuffer_config const& framebuffer_format,
-                                                               pr::backend::arg::graphics_shader_stages shader_stages,
-                                                               const pr::primitive_pipeline_config& config)
+                                                               phi::arg::framebuffer_config const& framebuffer_format,
+                                                               phi::arg::graphics_shader_stages shader_stages,
+                                                               const phi::primitive_pipeline_config& config)
 {
     D3D12_GRAPHICS_PIPELINE_STATE_DESC pso_desc = {};
     pso_desc.InputLayout = {!vertex_input_layout.empty() ? vertex_input_layout.data() : nullptr, UINT(vertex_input_layout.size())};
@@ -48,7 +48,7 @@ ID3D12PipelineState* pr::backend::d3d12::create_pipeline_state(ID3D12Device& dev
     pso_desc.RasterizerState.FrontCounterClockwise = true;
 
     pso_desc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
-    pso_desc.DepthStencilState.DepthEnable = config.depth != pr::depth_function::none && !framebuffer_format.depth_target.empty();
+    pso_desc.DepthStencilState.DepthEnable = config.depth != phi::depth_function::none && !framebuffer_format.depth_target.empty();
     pso_desc.DepthStencilState.DepthFunc = util::to_native(config.depth);
     pso_desc.DepthStencilState.DepthWriteMask = config.depth_readonly ? D3D12_DEPTH_WRITE_MASK_ZERO : D3D12_DEPTH_WRITE_MASK_ALL;
 
@@ -93,7 +93,7 @@ ID3D12PipelineState* pr::backend::d3d12::create_pipeline_state(ID3D12Device& dev
     return pso;
 }
 
-ID3D12PipelineState* pr::backend::d3d12::create_compute_pipeline_state(ID3D12Device& device, ID3D12RootSignature* root_sig, std::byte const* binary_data, size_t binary_size)
+ID3D12PipelineState* phi::d3d12::create_compute_pipeline_state(ID3D12Device& device, ID3D12RootSignature* root_sig, std::byte const* binary_data, size_t binary_size)
 {
     D3D12_COMPUTE_PIPELINE_STATE_DESC pso_desc = {};
     pso_desc.pRootSignature = root_sig;

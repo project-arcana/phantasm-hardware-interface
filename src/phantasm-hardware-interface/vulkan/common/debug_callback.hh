@@ -2,7 +2,7 @@
 
 #include <phantasm-hardware-interface/vulkan/loader/volk.hh>
 
-namespace pr::backend::vk::detail
+namespace phi::vk::detail
 {
 VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT severity,
                                               VkDebugUtilsMessageTypeFlagsEXT type,

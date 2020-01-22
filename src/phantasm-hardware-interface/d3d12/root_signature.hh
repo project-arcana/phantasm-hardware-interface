@@ -9,7 +9,7 @@
 #include <phantasm-hardware-interface/d3d12/common/d3dx12.hh>
 #include <phantasm-hardware-interface/d3d12/common/shared_com_ptr.hh>
 
-namespace pr::backend::d3d12
+namespace phi::d3d12
 {
 struct shader_argument_map
 {

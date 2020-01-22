@@ -10,7 +10,7 @@
 #include "common/unique_name_set.hh"
 #include "loader/volk.hh"
 
-namespace pr::backend::vk
+namespace phi::vk
 {
 struct layer_extension_bundle
 {

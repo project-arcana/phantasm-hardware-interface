@@ -2,7 +2,7 @@
 
 typedef struct RENDERDOC_API_1_4_0 RENDERDOC_API_1_4_0;
 
-namespace pr::backend::vk::util
+namespace phi::vk::util
 {
 struct diagnostic_state
 {

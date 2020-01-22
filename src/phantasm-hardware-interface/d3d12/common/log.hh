@@ -2,7 +2,7 @@
 
 #include <rich-log/MessageBuilder.hh>
 
-namespace pr::backend::d3d12::log
+namespace phi::d3d12::log
 {
 inline rlog::MessageBuilder info()
 {

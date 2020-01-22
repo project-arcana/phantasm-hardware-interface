@@ -16,7 +16,7 @@
 #include "pools/shader_view_pool.hh"
 #include "resources/transition_barrier.hh"
 
-void pr::backend::vk::command_list_translator::translateCommandList(
+void phi::vk::command_list_translator::translateCommandList(
     VkCommandBuffer list, handle::command_list list_handle, vk_incomplete_state_cache* state_cache, std::byte* buffer, size_t buffer_size, VkEvent event_to_set)
 {
     _cmd_list = list;
@@ -48,13 +48,13 @@ void pr::backend::vk::command_list_translator::translateCommandList(
     // done
 }
 
-void pr::backend::vk::command_list_translator::execute(const pr::backend::cmd::begin_render_pass& begin_rp)
+void phi::vk::command_list_translator::execute(const phi::cmd::begin_render_pass& begin_rp)
 {
     // We can't call vkCmdBeginRenderPass or anything yet
     _bound.current_render_pass = begin_rp;
 }
 
-void pr::backend::vk::command_list_translator::execute(const pr::backend::cmd::draw& draw)
+void phi::vk::command_list_translator::execute(const phi::cmd::draw& draw)
 {
     if (_bound.update_pso(draw.pipeline_state))
     {
@@ -207,7 +207,7 @@ void pr::backend::vk::command_list_translator::execute(const pr::backend::cmd::d
     }
 }
 
-void pr::backend::vk::command_list_translator::execute(const pr::backend::cmd::dispatch& dispatch)
+void phi::vk::command_list_translator::execute(const phi::cmd::dispatch& dispatch)
 {
     auto const& pso_node = _globals.pool_pipeline_states->get(dispatch.pipeline_state);
 
@@ -228,7 +228,7 @@ void pr::backend::vk::command_list_translator::execute(const pr::backend::cmd::d
     vkCmdDispatch(_cmd_list, dispatch.dispatch_x, dispatch.dispatch_y, dispatch.dispatch_z);
 }
 
-void pr::backend::vk::command_list_translator::execute(const pr::backend::cmd::end_render_pass&)
+void phi::vk::command_list_translator::execute(const phi::cmd::end_render_pass&)
 {
     if (_bound.raw_render_pass != nullptr)
     {
@@ -237,7 +237,7 @@ void pr::backend::vk::command_list_translator::execute(const pr::backend::cmd::e
     }
 }
 
-void pr::backend::vk::command_list_translator::execute(const pr::backend::cmd::transition_resources& transition_res)
+void phi::vk::command_list_translator::execute(const phi::cmd::transition_resources& transition_res)
 {
     // NOTE: Barriers adhere to some special rules in the vulkan backend:
     // 1. They must not occur within an active render pass
@@ -279,7 +279,7 @@ void pr::backend::vk::command_list_translator::execute(const pr::backend::cmd::t
     barriers.record(_cmd_list);
 }
 
-void pr::backend::vk::command_list_translator::execute(const pr::backend::cmd::transition_image_slices& transition_images)
+void phi::vk::command_list_translator::execute(const phi::cmd::transition_image_slices& transition_images)
 {
     // Image slice transitions are entirely explicit, and require the user to synchronize before/after resource states
     // NOTE: we do not update the master state as it does not encompass subresource states
@@ -304,7 +304,7 @@ void pr::backend::vk::command_list_translator::execute(const pr::backend::cmd::t
     barriers.record(_cmd_list);
 }
 
-void pr::backend::vk::command_list_translator::execute(const pr::backend::cmd::copy_buffer& copy_buf)
+void phi::vk::command_list_translator::execute(const phi::cmd::copy_buffer& copy_buf)
 {
     auto const src_buffer = _globals.pool_resources->getRawBuffer(copy_buf.source);
     auto const dest_buffer = _globals.pool_resources->getRawBuffer(copy_buf.destination);
@@ -316,7 +316,7 @@ void pr::backend::vk::command_list_translator::execute(const pr::backend::cmd::c
     vkCmdCopyBuffer(_cmd_list, src_buffer, dest_buffer, 1, &region);
 }
 
-void pr::backend::vk::command_list_translator::execute(const pr::backend::cmd::copy_texture& copy_text)
+void phi::vk::command_list_translator::execute(const phi::cmd::copy_texture& copy_text)
 {
     auto const& src_image_info = _globals.pool_resources->getImageInfo(copy_text.source);
     auto const& dest_image_info = _globals.pool_resources->getImageInfo(copy_text.destination);
@@ -338,7 +338,7 @@ void pr::backend::vk::command_list_translator::execute(const pr::backend::cmd::c
                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
 }
 
-void pr::backend::vk::command_list_translator::execute(const pr::backend::cmd::copy_buffer_to_texture& copy_text)
+void phi::vk::command_list_translator::execute(const phi::cmd::copy_buffer_to_texture& copy_text)
 {
     auto const src_buffer = _globals.pool_resources->getRawBuffer(copy_text.source);
     auto const& dest_image_info = _globals.pool_resources->getImageInfo(copy_text.destination);
@@ -356,7 +356,7 @@ void pr::backend::vk::command_list_translator::execute(const pr::backend::cmd::c
     vkCmdCopyBufferToImage(_cmd_list, src_buffer, dest_image_info.raw_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 }
 
-void pr::backend::vk::command_list_translator::execute(const pr::backend::cmd::resolve_texture& resolve)
+void phi::vk::command_list_translator::execute(const phi::cmd::resolve_texture& resolve)
 {
     constexpr auto src_layout = util::to_image_layout(resource_state::resolve_src);
     constexpr auto dest_layout = util::to_image_layout(resource_state::resolve_dest);
@@ -386,7 +386,7 @@ void pr::backend::vk::command_list_translator::execute(const pr::backend::cmd::r
     vkCmdResolveImage(_cmd_list, src_image, src_layout, dest_image, dest_layout, 1, &region);
 }
 
-void pr::backend::vk::command_list_translator::execute(const pr::backend::cmd::debug_marker& marker)
+void phi::vk::command_list_translator::execute(const phi::cmd::debug_marker& marker)
 {
     VkDebugUtilsLabelEXT label = {};
     label.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
@@ -397,7 +397,7 @@ void pr::backend::vk::command_list_translator::execute(const pr::backend::cmd::d
         vkCmdInsertDebugUtilsLabelEXT(_cmd_list, &label);
 }
 
-void pr::backend::vk::command_list_translator::execute(const pr::backend::cmd::update_bottom_level& blas_update)
+void phi::vk::command_list_translator::execute(const phi::cmd::update_bottom_level& blas_update)
 {
     auto& dest_node = _globals.pool_accel_structs->getNode(blas_update.dest);
     auto const src = blas_update.source.is_valid() ? _globals.pool_accel_structs->getNode(blas_update.source).raw_as : nullptr;
@@ -423,7 +423,7 @@ void pr::backend::vk::command_list_translator::execute(const pr::backend::cmd::u
                          1, &mem_barrier, 0, nullptr, 0, nullptr);
 }
 
-void pr::backend::vk::command_list_translator::execute(const pr::backend::cmd::update_top_level& tlas_update)
+void phi::vk::command_list_translator::execute(const phi::cmd::update_top_level& tlas_update)
 {
     auto& dest_node = _globals.pool_accel_structs->getNode(tlas_update.dest);
     auto const dest_scratch = _globals.pool_resources->getRawBuffer(dest_node.buffer_scratch);
@@ -449,11 +449,11 @@ void pr::backend::vk::command_list_translator::execute(const pr::backend::cmd::u
                          1, &mem_barrier, 0, nullptr, 0, nullptr);
 }
 
-void pr::backend::vk::command_list_translator::execute(const cmd::dispatch_rays& dispatch_rays) {}
+void phi::vk::command_list_translator::execute(const cmd::dispatch_rays& dispatch_rays) {}
 
-void pr::backend::vk::command_list_translator::bind_shader_arguments(pr::backend::handle::pipeline_state pso,
+void phi::vk::command_list_translator::bind_shader_arguments(phi::handle::pipeline_state pso,
                                                                      const std::byte* root_consts,
-                                                                     cc::span<const pr::backend::shader_argument> shader_args,
+                                                                     cc::span<const phi::shader_argument> shader_args,
                                                                      VkPipelineBindPoint bind_point)
 {
     auto const& pso_node = _globals.pool_pipeline_states->get(pso);

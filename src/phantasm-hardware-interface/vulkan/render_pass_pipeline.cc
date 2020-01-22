@@ -10,7 +10,7 @@
 #include "resources/transition_barrier.hh"
 #include "shader.hh"
 
-VkRenderPass pr::backend::vk::create_render_pass(VkDevice device, arg::framebuffer_config const& framebuffer, const pr::primitive_pipeline_config& config)
+VkRenderPass phi::vk::create_render_pass(VkDevice device, arg::framebuffer_config const& framebuffer, const phi::primitive_pipeline_config& config)
 {
     auto const sample_bits = util::to_native_sample_flags(static_cast<unsigned>(config.samples));
 
@@ -88,7 +88,7 @@ VkRenderPass pr::backend::vk::create_render_pass(VkDevice device, arg::framebuff
     return render_pass;
 }
 
-VkRenderPass pr::backend::vk::create_render_pass(VkDevice device, const pr::backend::cmd::begin_render_pass& begin_rp, unsigned num_samples, cc::span<const format> override_rt_formats)
+VkRenderPass phi::vk::create_render_pass(VkDevice device, const phi::cmd::begin_render_pass& begin_rp, unsigned num_samples, cc::span<const format> override_rt_formats)
 {
     auto const sample_bits = util::to_native_sample_flags(num_samples);
 
@@ -166,11 +166,11 @@ VkRenderPass pr::backend::vk::create_render_pass(VkDevice device, const pr::back
     return res_rp;
 }
 
-VkPipeline pr::backend::vk::create_pipeline(VkDevice device,
+VkPipeline phi::vk::create_pipeline(VkDevice device,
                                             VkRenderPass render_pass,
                                             VkPipelineLayout pipeline_layout,
                                             arg::graphics_shader_stages shaders,
-                                            const pr::primitive_pipeline_config& config,
+                                            const phi::primitive_pipeline_config& config,
                                             cc::span<const VkVertexInputAttributeDescription> vertex_attribs,
                                             uint32_t vertex_size,
                                             arg::framebuffer_config const& framebuf_config)
@@ -289,7 +289,7 @@ VkPipeline pr::backend::vk::create_pipeline(VkDevice device,
 
     VkPipelineDepthStencilStateCreateInfo depthStencil = {};
     depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-    depthStencil.depthTestEnable = config.depth == pr::depth_function::none ? VK_FALSE : VK_TRUE;
+    depthStencil.depthTestEnable = config.depth == phi::depth_function::none ? VK_FALSE : VK_TRUE;
     depthStencil.depthWriteEnable = config.depth_readonly ? VK_FALSE : VK_TRUE;
     depthStencil.depthCompareOp = util::to_native(config.depth);
     depthStencil.depthBoundsTestEnable = VK_FALSE;
@@ -328,7 +328,7 @@ VkPipeline pr::backend::vk::create_pipeline(VkDevice device,
     return res;
 }
 
-VkPipeline pr::backend::vk::create_compute_pipeline(VkDevice device, VkPipelineLayout pipeline_layout, const pr::backend::arg::shader_stage& compute_shader)
+VkPipeline phi::vk::create_compute_pipeline(VkDevice device, VkPipelineLayout pipeline_layout, const phi::arg::shader_stage& compute_shader)
 {
     shader shader_stage;
     initialize_shader(shader_stage, device, compute_shader.binary.data, compute_shader.binary.size, shader_domain::compute);

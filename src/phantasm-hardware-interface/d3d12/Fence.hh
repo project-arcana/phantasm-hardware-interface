@@ -6,7 +6,7 @@
 #include "common/shared_com_ptr.hh"
 #include "common/verify.hh"
 
-namespace pr::backend::d3d12
+namespace phi::d3d12
 {
 class SimpleFence
 {

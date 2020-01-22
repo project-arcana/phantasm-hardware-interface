@@ -2,7 +2,7 @@
 
 #include <clean-core/array.hh>
 
-namespace pr::backend::detail
+namespace phi::detail
 {
 // Divide ints and round up
 // a > 0, b > 0

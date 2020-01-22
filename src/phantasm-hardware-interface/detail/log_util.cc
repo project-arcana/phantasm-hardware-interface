@@ -3,7 +3,7 @@
 #include <cstdio>
 #include <iostream>
 
-void pr::backend::log::dump_hex(const char* description, const void* data, int length)
+void phi::log::dump_hex(const char* description, const void* data, int length)
 {
     int i;
     unsigned char buff[17];                                         // stores the ASCII data

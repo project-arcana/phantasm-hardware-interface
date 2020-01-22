@@ -15,7 +15,7 @@
 
 #include "verify.hh"
 
-void pr::backend::d3d12::util::diagnostic_state::init()
+void phi::d3d12::util::diagnostic_state::init()
 {
 #ifdef PR_BACKEND_D3D12_HAS_PIX
     // PIX
@@ -31,14 +31,14 @@ void pr::backend::d3d12::util::diagnostic_state::init()
     }
 
     // RenderDoc
-    _renderdoc_handle = backend::detail::load_renderdoc();
+    _renderdoc_handle = ::phi::detail::load_renderdoc();
     if (_renderdoc_handle)
     {
         log::info() << "RenderDoc detected";
     }
 }
 
-void pr::backend::d3d12::util::diagnostic_state::free()
+void phi::d3d12::util::diagnostic_state::free()
 {
     end_capture();
 
@@ -57,7 +57,7 @@ void pr::backend::d3d12::util::diagnostic_state::free()
     }
 }
 
-bool pr::backend::d3d12::util::diagnostic_state::start_capture()
+bool phi::d3d12::util::diagnostic_state::start_capture()
 {
 #ifdef PR_BACKEND_D3D12_HAS_PIX
     if (_pix_handle)
@@ -80,7 +80,7 @@ bool pr::backend::d3d12::util::diagnostic_state::start_capture()
     return false;
 }
 
-bool pr::backend::d3d12::util::diagnostic_state::end_capture()
+bool phi::d3d12::util::diagnostic_state::end_capture()
 {
 #ifdef PR_BACKEND_D3D12_HAS_PIX
     if (_pix_handle && _pix_capture_running)
@@ -103,7 +103,7 @@ bool pr::backend::d3d12::util::diagnostic_state::end_capture()
     return false;
 }
 
-void pr::backend::d3d12::util::set_pix_marker(ID3D12GraphicsCommandList* cmdlist, UINT64 color, const char* string)
+void phi::d3d12::util::set_pix_marker(ID3D12GraphicsCommandList* cmdlist, UINT64 color, const char* string)
 {
 #ifdef PR_BACKEND_D3D12_HAS_PIX
     ::PIXSetMarker(cmdlist, color, string);
@@ -115,7 +115,7 @@ void pr::backend::d3d12::util::set_pix_marker(ID3D12GraphicsCommandList* cmdlist
 #endif
 }
 
-void pr::backend::d3d12::util::set_pix_marker(ID3D12CommandQueue* cmdqueue, UINT64 color, const char* string)
+void phi::d3d12::util::set_pix_marker(ID3D12CommandQueue* cmdqueue, UINT64 color, const char* string)
 {
 #ifdef PR_BACKEND_D3D12_HAS_PIX
     ::PIXSetMarker(cmdqueue, color, string);
@@ -127,7 +127,7 @@ void pr::backend::d3d12::util::set_pix_marker(ID3D12CommandQueue* cmdqueue, UINT
 #endif
 }
 
-void pr::backend::d3d12::util::set_pix_marker_cpu(UINT64 color, const char* string)
+void phi::d3d12::util::set_pix_marker_cpu(UINT64 color, const char* string)
 {
 #ifdef PR_BACKEND_D3D12_HAS_PIX
     ::PIXSetMarker(color, string);

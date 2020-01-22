@@ -4,7 +4,7 @@
 
 typedef struct RENDERDOC_API_1_4_0 RENDERDOC_API_1_4_0;
 
-namespace pr::backend::d3d12::util
+namespace phi::d3d12::util
 {
 struct diagnostic_state
 {

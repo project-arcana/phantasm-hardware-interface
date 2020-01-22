@@ -51,12 +51,12 @@ char const* get_general_error_literal(HRESULT hr)
 
 void print_dred_information(ID3D12Device* device)
 {
-    using namespace pr::backend::d3d12;
+    using namespace phi::d3d12;
 
     HRESULT removal_reason = device->GetDeviceRemovedReason();
     log::dred() << "device removal reason: " << get_device_error_literal(removal_reason);
 
-    pr::backend::d3d12::shared_com_ptr<ID3D12DeviceRemovedExtendedData> dred;
+    phi::d3d12::shared_com_ptr<ID3D12DeviceRemovedExtendedData> dred;
     if (SUCCEEDED(device->QueryInterface(PR_COM_WRITE(dred))))
     {
         log::dred() << "DRED detected, querying outputs";
@@ -149,7 +149,7 @@ void print_dred_information(ID3D12Device* device)
 }
 
 
-void pr::backend::d3d12::detail::verify_failure_handler(HRESULT hr, const char* expression, const char* filename, int line, ID3D12Device* device)
+void phi::d3d12::detail::verify_failure_handler(HRESULT hr, const char* expression, const char* filename, int line, ID3D12Device* device)
 {
     // Make sure this really is a failed HRESULT
     CC_RUNTIME_ASSERT(FAILED(hr));
@@ -169,7 +169,7 @@ void pr::backend::d3d12::detail::verify_failure_handler(HRESULT hr, const char* 
     std::abort();
 }
 
-void pr::backend::d3d12::detail::dred_assert_handler(void* device_child, const char* expression, const char* filename, int line)
+void phi::d3d12::detail::dred_assert_handler(void* device_child, const char* expression, const char* filename, int line)
 {
     fprintf(stderr, "[pr][backend][d3d12] DRED assert on `%s' failed.\n", expression);
     fprintf(stderr, "  file %s:%d\n", filename, line);

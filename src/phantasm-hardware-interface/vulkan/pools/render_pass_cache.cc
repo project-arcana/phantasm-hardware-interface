@@ -3,11 +3,11 @@
 #include <phantasm-hardware-interface/detail/hash.hh>
 #include <phantasm-hardware-interface/vulkan/render_pass_pipeline.hh>
 
-void pr::backend::vk::RenderPassCache::initialize(unsigned max_elements) { mCache.initialize(max_elements); }
+void phi::vk::RenderPassCache::initialize(unsigned max_elements) { mCache.initialize(max_elements); }
 
-void pr::backend::vk::RenderPassCache::destroy(VkDevice device) { reset(device); }
+void phi::vk::RenderPassCache::destroy(VkDevice device) { reset(device); }
 
-VkRenderPass pr::backend::vk::RenderPassCache::getOrCreate(VkDevice device, cmd::begin_render_pass const& brp, unsigned num_samples, cc::span<const format> override_rt_formats)
+VkRenderPass phi::vk::RenderPassCache::getOrCreate(VkDevice device, cmd::begin_render_pass const& brp, unsigned num_samples, cc::span<const format> override_rt_formats)
 {
     // render passes, and the hash, only depend on RT formats, clear ops, and the amount of samples
     auto const hash = hashKey(brp, num_samples, override_rt_formats);
@@ -23,13 +23,13 @@ VkRenderPass pr::backend::vk::RenderPassCache::getOrCreate(VkDevice device, cmd:
     }
 }
 
-void pr::backend::vk::RenderPassCache::reset(VkDevice device)
+void phi::vk::RenderPassCache::reset(VkDevice device)
 {
     mCache.iterate_elements([&](VkRenderPass elem) { vkDestroyRenderPass(device, elem, nullptr); });
     mCache.clear();
 }
 
-cc::hash_t pr::backend::vk::RenderPassCache::hashKey(cmd::begin_render_pass const& brp, unsigned num_samples, cc::span<const format> override_rt_formats)
+cc::hash_t phi::vk::RenderPassCache::hashKey(cmd::begin_render_pass const& brp, unsigned num_samples, cc::span<const format> override_rt_formats)
 {
     cc::hash_t res = 0;
     for (uint8_t i = 0u; i < brp.render_targets.size(); ++i)

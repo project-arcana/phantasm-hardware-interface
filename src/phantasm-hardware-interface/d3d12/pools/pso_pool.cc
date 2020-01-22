@@ -17,15 +17,15 @@
 
 namespace
 {
-constexpr pr::backend::handle::index_t gc_raytracing_handle_offset = 1073741824;
+constexpr phi::handle::index_t gc_raytracing_handle_offset = 1073741824;
 }
 
-pr::backend::handle::pipeline_state pr::backend::d3d12::PipelineStateObjectPool::createPipelineState(pr::backend::arg::vertex_format vertex_format,
-                                                                                                     pr::backend::arg::framebuffer_config const& framebuffer_format,
-                                                                                                     pr::backend::arg::shader_argument_shapes shader_arg_shapes,
-                                                                                                     bool has_root_constants,
-                                                                                                     pr::backend::arg::graphics_shader_stages shader_stages,
-                                                                                                     const pr::primitive_pipeline_config& primitive_config)
+phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createPipelineState(phi::arg::vertex_format vertex_format,
+                                                                                     phi::arg::framebuffer_config const& framebuffer_format,
+                                                                                     phi::arg::shader_argument_shapes shader_arg_shapes,
+                                                                                     bool has_root_constants,
+                                                                                     phi::arg::graphics_shader_stages shader_stages,
+                                                                                     const phi::primitive_pipeline_config& primitive_config)
 {
     root_signature* root_sig;
     unsigned pool_index;
@@ -52,9 +52,9 @@ pr::backend::handle::pipeline_state pr::backend::d3d12::PipelineStateObjectPool:
     return {static_cast<handle::index_t>(pool_index)};
 }
 
-pr::backend::handle::pipeline_state pr::backend::d3d12::PipelineStateObjectPool::createComputePipelineState(pr::backend::arg::shader_argument_shapes shader_arg_shapes,
-                                                                                                            arg::shader_binary compute_shader,
-                                                                                                            bool has_root_constants)
+phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createComputePipelineState(phi::arg::shader_argument_shapes shader_arg_shapes,
+                                                                                            arg::shader_binary compute_shader,
+                                                                                            bool has_root_constants)
 {
     root_signature* root_sig;
     unsigned pool_index;
@@ -77,12 +77,12 @@ pr::backend::handle::pipeline_state pr::backend::d3d12::PipelineStateObjectPool:
     return {static_cast<handle::index_t>(pool_index)};
 }
 
-pr::backend::handle::pipeline_state pr::backend::d3d12::PipelineStateObjectPool::createRaytracingPipelineState(arg::raytracing_shader_libraries libraries,
-                                                                                                               arg::raytracing_argument_associations arg_assocs,
-                                                                                                               arg::raytracing_hit_groups hit_groups,
-                                                                                                               unsigned max_recursion,
-                                                                                                               unsigned max_payload_size_bytes,
-                                                                                                               unsigned max_attribute_size_bytes)
+phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracingPipelineState(arg::raytracing_shader_libraries libraries,
+                                                                                               arg::raytracing_argument_associations arg_assocs,
+                                                                                               arg::raytracing_hit_groups hit_groups,
+                                                                                               unsigned max_recursion,
+                                                                                               unsigned max_payload_size_bytes,
+                                                                                               unsigned max_attribute_size_bytes)
 {
     CC_ASSERT(libraries.size() > 0 && arg_assocs.size() <= limits::max_raytracing_argument_assocs && "zero libraries or too many argument associations");
     CC_ASSERT(hit_groups.size() <= limits::max_raytracing_hit_groups && "too many hit groups");
@@ -266,7 +266,7 @@ pr::backend::handle::pipeline_state pr::backend::d3d12::PipelineStateObjectPool:
     return {static_cast<handle::index_t>(pool_index + gc_raytracing_handle_offset)};
 }
 
-void pr::backend::d3d12::PipelineStateObjectPool::free(pr::backend::handle::pipeline_state ps)
+void phi::d3d12::PipelineStateObjectPool::free(phi::handle::pipeline_state ps)
 {
     // TODO: dangle check
     if (!ps.is_valid())
@@ -299,7 +299,7 @@ void pr::backend::d3d12::PipelineStateObjectPool::free(pr::backend::handle::pipe
     }
 }
 
-void pr::backend::d3d12::PipelineStateObjectPool::initialize(ID3D12Device* device, ID3D12Device5* device_rt, unsigned max_num_psos, unsigned max_num_psos_raytracing)
+void phi::d3d12::PipelineStateObjectPool::initialize(ID3D12Device* device, ID3D12Device5* device_rt, unsigned max_num_psos, unsigned max_num_psos_raytracing)
 {
     CC_ASSERT(max_num_psos < gc_raytracing_handle_offset && "unsupported amount of PSOs");
     CC_ASSERT(max_num_psos_raytracing < gc_raytracing_handle_offset && "unsupported amount of raytracing PSOs");
@@ -316,7 +316,7 @@ void pr::backend::d3d12::PipelineStateObjectPool::initialize(ID3D12Device* devic
     }
 }
 
-void pr::backend::d3d12::PipelineStateObjectPool::destroy()
+void phi::d3d12::PipelineStateObjectPool::destroy()
 {
     auto num_leaks = 0;
     mPool.iterate_allocated_nodes([&](pso_node& leaked_node, unsigned) {
@@ -338,12 +338,12 @@ void pr::backend::d3d12::PipelineStateObjectPool::destroy()
     mRootSigCache.destroy();
 }
 
-const pr::backend::d3d12::PipelineStateObjectPool::rt_pso_node& pr::backend::d3d12::PipelineStateObjectPool::getRaytrace(pr::backend::handle::pipeline_state ps) const
+const phi::d3d12::PipelineStateObjectPool::rt_pso_node& phi::d3d12::PipelineStateObjectPool::getRaytrace(phi::handle::pipeline_state ps) const
 {
     return mPoolRaytracing.get(static_cast<unsigned>(ps.index - gc_raytracing_handle_offset));
 }
 
-bool pr::backend::d3d12::PipelineStateObjectPool::isRaytracingPipeline(pr::backend::handle::pipeline_state ps) const
+bool phi::d3d12::PipelineStateObjectPool::isRaytracingPipeline(phi::handle::pipeline_state ps) const
 {
     return ps.index >= gc_raytracing_handle_offset;
 }

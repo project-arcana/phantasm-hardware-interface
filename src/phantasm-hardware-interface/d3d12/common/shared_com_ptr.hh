@@ -4,7 +4,7 @@
 #undef FAR
 #undef _far
 
-namespace pr::backend::d3d12
+namespace phi::d3d12
 {
 /// A wrapper for WIN32 COM reference counted pointers (custom WRL::ComPtr)
 /// Does not incur additional overhead as the refcounting part is already implemented d3d12-side

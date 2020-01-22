@@ -6,7 +6,7 @@
 #include "limits.hh"
 #include "types.hh"
 
-namespace pr::backend::arg
+namespace phi::arg
 {
 struct framebuffer_config
 {

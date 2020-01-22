@@ -5,7 +5,7 @@
 #include <clean-core/array.hh>
 #include <clean-core/utility.hh>
 
-namespace pr::backend::detail
+namespace phi::detail
 {
 /// Flat hash table with linear probing
 /// Does not store or care for the key type

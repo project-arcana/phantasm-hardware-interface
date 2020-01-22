@@ -6,7 +6,7 @@
 #include <phantasm-hardware-interface/vulkan/loader/vulkan_fwd.hh>
 #include <phantasm-hardware-interface/vulkan/pipeline_layout.hh>
 
-namespace pr::backend::vk
+namespace phi::vk
 {
 class DescriptorAllocator;
 
@@ -28,7 +28,7 @@ public:
 private:
     static size_t hashKey(cc::span<util::spirv_desc_info const> reflected_ranges, bool has_push_constants);
 
-    backend::detail::cache_map<pipeline_layout> mCache;
+    phi::detail::cache_map<pipeline_layout> mCache;
 };
 
 }

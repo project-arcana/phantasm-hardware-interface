@@ -10,7 +10,7 @@
 #include <phantasm-hardware-interface/vulkan/loader/spirv_patch_util.hh>
 #include <phantasm-hardware-interface/vulkan/pipeline_layout.hh>
 
-namespace pr::backend::vk
+namespace phi::vk
 {
 void DescriptorAllocator::initialize(VkDevice device, uint32_t num_cbvs, uint32_t num_srvs, uint32_t num_uavs, uint32_t num_samplers)
 {

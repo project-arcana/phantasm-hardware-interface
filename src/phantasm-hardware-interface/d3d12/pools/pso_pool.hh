@@ -11,7 +11,7 @@
 
 #include "root_sig_cache.hh"
 
-namespace pr::backend::d3d12
+namespace phi::d3d12
 {
 class ResourcePool;
 
@@ -27,7 +27,7 @@ public:
                                                              arg::shader_argument_shapes shader_arg_shapes,
                                                              bool has_root_constants,
                                                              arg::graphics_shader_stages shader_stages,
-                                                             pr::primitive_pipeline_config const& primitive_config);
+                                                             phi::primitive_pipeline_config const& primitive_config);
 
     [[nodiscard]] handle::pipeline_state createComputePipelineState(arg::shader_argument_shapes shader_arg_shapes, arg::shader_binary compute_shader, bool has_root_constants);
 
@@ -74,8 +74,8 @@ private:
     RootSignatureCache mRootSigCache;
     ID3D12RootSignature* mEmptyRaytraceRootSignature = nullptr;
 
-    backend::detail::linked_pool<pso_node, unsigned> mPool;
-    backend::detail::linked_pool<rt_pso_node, unsigned> mPoolRaytracing;
+    phi::detail::linked_pool<pso_node, unsigned> mPool;
+    phi::detail::linked_pool<rt_pso_node, unsigned> mPoolRaytracing;
     std::mutex mMutex;
 };
 

@@ -5,9 +5,9 @@
 
 namespace
 {
-char const* get_root_sig_type_literal(pr::backend::d3d12::root_signature_type type)
+char const* get_root_sig_type_literal(phi::d3d12::root_signature_type type)
 {
-    using rt = pr::backend::d3d12::root_signature_type;
+    using rt = phi::d3d12::root_signature_type;
     switch (type)
     {
     case rt::graphics:
@@ -24,11 +24,11 @@ char const* get_root_sig_type_literal(pr::backend::d3d12::root_signature_type ty
 
 }
 
-void pr::backend::d3d12::RootSignatureCache::initialize(unsigned max_num_root_sigs) { mCache.initialize(max_num_root_sigs); }
+void phi::d3d12::RootSignatureCache::initialize(unsigned max_num_root_sigs) { mCache.initialize(max_num_root_sigs); }
 
-void pr::backend::d3d12::RootSignatureCache::destroy() { reset(); }
+void phi::d3d12::RootSignatureCache::destroy() { reset(); }
 
-pr::backend::d3d12::root_signature* pr::backend::d3d12::RootSignatureCache::getOrCreate(ID3D12Device& device,
+phi::d3d12::root_signature* phi::d3d12::RootSignatureCache::getOrCreate(ID3D12Device& device,
                                                                                         arg::shader_argument_shapes arg_shapes,
                                                                                         bool has_root_constants,
                                                                                         root_signature_type type)
@@ -48,7 +48,7 @@ pr::backend::d3d12::root_signature* pr::backend::d3d12::RootSignatureCache::getO
     }
 }
 
-void pr::backend::d3d12::RootSignatureCache::reset()
+void phi::d3d12::RootSignatureCache::reset()
 {
     mCache.iterate_elements([](root_signature& root_sig) { root_sig.raw_root_sig->Release(); });
     mCache.clear();

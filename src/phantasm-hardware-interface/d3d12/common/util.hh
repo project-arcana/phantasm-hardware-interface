@@ -9,7 +9,7 @@
 #include <phantasm-hardware-interface/assets/vertex_attrib_info.hh>
 #include <phantasm-hardware-interface/d3d12/common/d3d12_sanitized.hh>
 
-namespace pr::backend::d3d12::util
+namespace phi::d3d12::util
 {
 inline void set_viewport(ID3D12GraphicsCommandList* command_list, tg::isize2 size)
 {

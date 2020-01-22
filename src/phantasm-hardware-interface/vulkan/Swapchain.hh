@@ -9,7 +9,7 @@
 
 #include "loader/volk.hh"
 
-namespace pr::backend::vk
+namespace phi::vk
 {
 class Device;
 struct vulkan_gpu_info;

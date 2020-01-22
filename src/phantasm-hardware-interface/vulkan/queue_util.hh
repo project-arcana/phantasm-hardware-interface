@@ -5,7 +5,7 @@
 
 #include "loader/volk.hh"
 
-namespace pr::backend::vk
+namespace phi::vk
 {
 struct suitable_queues
 {

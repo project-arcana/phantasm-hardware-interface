@@ -20,9 +20,9 @@ unsigned calculate_num_mip_levels(unsigned width, unsigned height)
     return static_cast<unsigned>(tg::floor(tg::log2(static_cast<float>(cc::max(width, height))))) + 1u;
 }
 
-constexpr char const* get_tex_dim_literal(pr::backend::texture_dimension tdim)
+constexpr char const* get_tex_dim_literal(phi::texture_dimension tdim)
 {
-    using td = pr::backend::texture_dimension;
+    using td = phi::texture_dimension;
     switch (tdim)
     {
     case td::t1d:
@@ -36,7 +36,7 @@ constexpr char const* get_tex_dim_literal(pr::backend::texture_dimension tdim)
 }
 }
 
-pr::backend::handle::resource pr::backend::vk::ResourcePool::createTexture(
+phi::handle::resource phi::vk::ResourcePool::createTexture(
     format format, unsigned w, unsigned h, unsigned mips, texture_dimension dim, unsigned depth_or_array_size, bool allow_uav)
 {
     VkImageCreateInfo image_info = {};
@@ -83,7 +83,7 @@ pr::backend::handle::resource pr::backend::vk::ResourcePool::createTexture(
     return acquireImage(res_alloc, res_image, format, image_info.mipLevels, image_info.arrayLayers);
 }
 
-pr::backend::handle::resource pr::backend::vk::ResourcePool::createRenderTarget(pr::backend::format format, unsigned w, unsigned h, unsigned samples)
+phi::handle::resource phi::vk::ResourcePool::createRenderTarget(phi::format format, unsigned w, unsigned h, unsigned samples)
 {
     VkImageCreateInfo image_info = {};
     image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -101,7 +101,7 @@ pr::backend::handle::resource pr::backend::vk::ResourcePool::createRenderTarget(
     image_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
     image_info.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
-    if (backend::is_depth_format(format))
+    if (phi::is_depth_format(format))
         image_info.usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
     else
         image_info.usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
@@ -116,7 +116,7 @@ pr::backend::handle::resource pr::backend::vk::ResourcePool::createRenderTarget(
     VkImage res_image;
     PR_VK_VERIFY_SUCCESS(vmaCreateImage(mAllocator, &image_info, &alloc_info, &res_image, &res_alloc, nullptr));
 
-    if (backend::is_depth_format(format))
+    if (phi::is_depth_format(format))
         util::set_object_name(mDevice, res_image, "respool depth stencil target");
     else
         util::set_object_name(mDevice, res_image, "respool render target");
@@ -124,7 +124,7 @@ pr::backend::handle::resource pr::backend::vk::ResourcePool::createRenderTarget(
     return acquireImage(res_alloc, res_image, format, image_info.mipLevels, image_info.arrayLayers);
 }
 
-pr::backend::handle::resource pr::backend::vk::ResourcePool::createBuffer(uint64_t size_bytes, unsigned stride_bytes, bool allow_uav)
+phi::handle::resource phi::vk::ResourcePool::createBuffer(uint64_t size_bytes, unsigned stride_bytes, bool allow_uav)
 {
     VkBufferCreateInfo buffer_info = {};
     buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -148,7 +148,7 @@ pr::backend::handle::resource pr::backend::vk::ResourcePool::createBuffer(uint64
     return acquireBuffer(res_alloc, res_buffer, buffer_info.usage, size_bytes, stride_bytes);
 }
 
-pr::backend::handle::resource pr::backend::vk::ResourcePool::createBufferInternal(uint64_t size_bytes, unsigned stride_bytes, VkBufferUsageFlags usage)
+phi::handle::resource phi::vk::ResourcePool::createBufferInternal(uint64_t size_bytes, unsigned stride_bytes, VkBufferUsageFlags usage)
 {
     VkBufferCreateInfo buffer_info = {};
     buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -165,7 +165,7 @@ pr::backend::handle::resource pr::backend::vk::ResourcePool::createBufferInterna
     return acquireBuffer(res_alloc, res_buffer, buffer_info.usage, size_bytes, stride_bytes);
 }
 
-pr::backend::handle::resource pr::backend::vk::ResourcePool::createMappedBuffer(unsigned size_bytes, unsigned stride_bytes)
+phi::handle::resource phi::vk::ResourcePool::createMappedBuffer(unsigned size_bytes, unsigned stride_bytes)
 {
     VkBufferCreateInfo buffer_info = {};
     buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -188,7 +188,7 @@ pr::backend::handle::resource pr::backend::vk::ResourcePool::createMappedBuffer(
     return acquireBuffer(res_alloc, res_buffer, buffer_info.usage, size_bytes, stride_bytes, cc::bit_cast<std::byte*>(res_alloc_info.pMappedData));
 }
 
-pr::backend::handle::resource pr::backend::vk::ResourcePool::createMappedBufferInternal(uint64_t size_bytes, unsigned stride_bytes, VkBufferUsageFlags usage)
+phi::handle::resource phi::vk::ResourcePool::createMappedBufferInternal(uint64_t size_bytes, unsigned stride_bytes, VkBufferUsageFlags usage)
 {
     VkBufferCreateInfo buffer_info = {};
     buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -208,7 +208,7 @@ pr::backend::handle::resource pr::backend::vk::ResourcePool::createMappedBufferI
     return acquireBuffer(res_alloc, res_buffer, buffer_info.usage, size_bytes, stride_bytes, cc::bit_cast<std::byte*>(res_alloc_info.pMappedData));
 }
 
-void pr::backend::vk::ResourcePool::free(pr::backend::handle::resource res)
+void phi::vk::ResourcePool::free(phi::handle::resource res)
 {
     CC_ASSERT(res != mInjectedBackbufferResource && "the backbuffer resource must not be freed");
     if (!res.is_valid())
@@ -225,7 +225,7 @@ void pr::backend::vk::ResourcePool::free(pr::backend::handle::resource res)
     }
 }
 
-void pr::backend::vk::ResourcePool::free(cc::span<const pr::backend::handle::resource> resources)
+void phi::vk::ResourcePool::free(cc::span<const phi::handle::resource> resources)
 {
     auto lg = std::lock_guard(mMutex);
 
@@ -243,14 +243,14 @@ void pr::backend::vk::ResourcePool::free(cc::span<const pr::backend::handle::res
     }
 }
 
-void pr::backend::vk::ResourcePool::flushMappedMemory(pr::backend::handle::resource res)
+void phi::vk::ResourcePool::flushMappedMemory(phi::handle::resource res)
 {
     auto const& node = internalGet(res);
     CC_ASSERT(node.type == resource_node::resource_type::buffer && node.buffer.map != nullptr && "given resource is not a mapped buffer");
     vmaFlushAllocation(mAllocator, node.allocation, 0, node.buffer.width);
 }
 
-void pr::backend::vk::ResourcePool::initialize(VkPhysicalDevice physical, VkDevice device, unsigned max_num_resources)
+void phi::vk::ResourcePool::initialize(VkPhysicalDevice physical, VkDevice device, unsigned max_num_resources)
 {
     mDevice = device;
     {
@@ -274,7 +274,7 @@ void pr::backend::vk::ResourcePool::initialize(VkPhysicalDevice physical, VkDevi
     mSingleCBVLayoutCompute = mAllocatorDescriptors.createSingleCBVLayout(true);
 }
 
-void pr::backend::vk::ResourcePool::destroy()
+void phi::vk::ResourcePool::destroy()
 {
     auto num_leaks = 0;
     mPool.iterate_allocated_nodes([&](resource_node& leaked_node, unsigned) {
@@ -299,17 +299,17 @@ void pr::backend::vk::ResourcePool::destroy()
     mAllocatorDescriptors.destroy();
 }
 
-VkDeviceMemory pr::backend::vk::ResourcePool::getRawDeviceMemory(pr::backend::handle::resource res) const
+VkDeviceMemory phi::vk::ResourcePool::getRawDeviceMemory(phi::handle::resource res) const
 {
     VmaAllocationInfo alloc_info;
     vmaGetAllocationInfo(mAllocator, internalGet(res).allocation, &alloc_info);
     return alloc_info.deviceMemory;
 }
 
-pr::backend::handle::resource pr::backend::vk::ResourcePool::injectBackbufferResource(VkImage raw_image,
-                                                                                      pr::backend::resource_state state,
+phi::handle::resource phi::vk::ResourcePool::injectBackbufferResource(VkImage raw_image,
+                                                                                      phi::resource_state state,
                                                                                       VkImageView backbuffer_view,
-                                                                                      pr::backend::resource_state& out_prev_state)
+                                                                                      phi::resource_state& out_prev_state)
 {
     resource_node& backbuffer_node = mPool.get(static_cast<unsigned>(mInjectedBackbufferResource.index));
     backbuffer_node.image.raw_image = raw_image;
@@ -325,7 +325,7 @@ pr::backend::handle::resource pr::backend::vk::ResourcePool::injectBackbufferRes
     return mInjectedBackbufferResource;
 }
 
-pr::backend::handle::resource pr::backend::vk::ResourcePool::acquireBuffer(
+phi::handle::resource phi::vk::ResourcePool::acquireBuffer(
     VmaAllocation alloc, VkBuffer buffer, VkBufferUsageFlags usage, uint64_t buffer_width, unsigned buffer_stride, std::byte* buffer_map)
 {
     bool const create_cbv_desc = (buffer_width < 65536) && (usage & VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
@@ -395,7 +395,7 @@ pr::backend::handle::resource pr::backend::vk::ResourcePool::acquireBuffer(
 
     return {static_cast<handle::index_t>(res)};
 }
-pr::backend::handle::resource pr::backend::vk::ResourcePool::acquireImage(VmaAllocation alloc, VkImage image, format pixel_format, unsigned num_mips, unsigned num_array_layers)
+phi::handle::resource phi::vk::ResourcePool::acquireImage(VmaAllocation alloc, VkImage image, format pixel_format, unsigned num_mips, unsigned num_array_layers)
 {
     unsigned res;
     {
@@ -417,7 +417,7 @@ pr::backend::handle::resource pr::backend::vk::ResourcePool::acquireImage(VmaAll
     return {static_cast<handle::index_t>(res)};
 }
 
-void pr::backend::vk::ResourcePool::internalFree(resource_node& node)
+void phi::vk::ResourcePool::internalFree(resource_node& node)
 {
     // This requires no synchronization, as VMA internally syncs
     if (node.type == resource_node::resource_type::image)

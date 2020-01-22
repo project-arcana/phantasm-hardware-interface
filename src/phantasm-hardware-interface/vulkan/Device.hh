@@ -6,7 +6,7 @@
 
 #include "loader/volk.hh"
 
-namespace pr::backend::vk
+namespace phi::vk
 {
 struct vulkan_gpu_info;
 

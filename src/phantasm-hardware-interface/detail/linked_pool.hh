@@ -6,7 +6,7 @@
 #include <clean-core/new.hh>
 #include <clean-core/vector.hh>
 
-namespace pr::backend::detail
+namespace phi::detail
 {
 /// Fixed-size object pool
 /// Uses an in-place linked list in free nodes, for O(1) acquire, release and size overhead

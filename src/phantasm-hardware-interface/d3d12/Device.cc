@@ -5,7 +5,7 @@
 #include "common/log.hh"
 #include "common/verify.hh"
 
-void pr::backend::d3d12::Device::initialize(IDXGIAdapter& adapter, const backend_config& config)
+void phi::d3d12::Device::initialize(IDXGIAdapter& adapter, const backend_config& config)
 {
     if (config.validation >= validation_level::on_extended_dred)
     {

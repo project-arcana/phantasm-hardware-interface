@@ -4,7 +4,7 @@
 #include <phantasm-hardware-interface/vulkan/common/verify.hh>
 #include <phantasm-hardware-interface/vulkan/loader/volk.hh>
 
-pr::backend::handle::event pr::backend::vk::EventPool::createEvent()
+phi::handle::event phi::vk::EventPool::createEvent()
 {
     unsigned pool_index;
     {
@@ -21,7 +21,7 @@ pr::backend::handle::event pr::backend::vk::EventPool::createEvent()
     return {static_cast<handle::index_t>(pool_index)};
 }
 
-void pr::backend::vk::EventPool::free(pr::backend::handle::event event)
+void phi::vk::EventPool::free(phi::handle::event event)
 {
     if (!event.is_valid())
         return;
@@ -35,7 +35,7 @@ void pr::backend::vk::EventPool::free(pr::backend::handle::event event)
     }
 }
 
-void pr::backend::vk::EventPool::free(cc::span<const pr::backend::handle::event> event_span)
+void phi::vk::EventPool::free(cc::span<const phi::handle::event> event_span)
 {
     auto lg = std::lock_guard(mMutex);
 
@@ -50,14 +50,14 @@ void pr::backend::vk::EventPool::free(cc::span<const pr::backend::handle::event>
     }
 }
 
-void pr::backend::vk::EventPool::initialize(VkDevice device, unsigned max_num_events)
+void phi::vk::EventPool::initialize(VkDevice device, unsigned max_num_events)
 {
     CC_ASSERT(mDevice == nullptr && "double init");
     mDevice = device;
     mPool.initialize(max_num_events);
 }
 
-void pr::backend::vk::EventPool::destroy()
+void phi::vk::EventPool::destroy()
 {
     if (mDevice != nullptr)
     {

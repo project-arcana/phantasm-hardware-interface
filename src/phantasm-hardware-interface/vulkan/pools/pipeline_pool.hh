@@ -15,7 +15,7 @@
 #include "pipeline_layout_cache.hh"
 #include "render_pass_cache.hh"
 
-namespace pr::backend::vk
+namespace phi::vk
 {
 /// The high-level allocator for PSOs and root signatures
 /// Synchronized
@@ -29,7 +29,7 @@ public:
                                                              arg::shader_argument_shapes shader_arg_shapes,
                                                              bool should_have_push_constants,
                                                              arg::graphics_shader_stages shader_stages,
-                                                             pr::primitive_pipeline_config const& primitive_config);
+                                                             phi::primitive_pipeline_config const& primitive_config);
 
     [[nodiscard]] handle::pipeline_state createComputePipelineState(arg::shader_argument_shapes shader_arg_shapes,
                                                                     arg::shader_binary compute_shader,
@@ -63,7 +63,7 @@ private:
     PipelineLayoutCache mLayoutCache;
     RenderPassCache mRenderPassCache;
     DescriptorAllocator mDescriptorAllocator;
-    backend::detail::linked_pool<pso_node, unsigned> mPool;
+    phi::detail::linked_pool<pso_node, unsigned> mPool;
     std::mutex mMutex;
 };
 

@@ -9,7 +9,7 @@
 #include "common/shared_com_ptr.hh"
 #include "common/verify.hh"
 
-int pr::backend::d3d12::test_adapter(IDXGIAdapter* adapter, D3D_FEATURE_LEVEL min_features, D3D_FEATURE_LEVEL& out_max_features)
+int phi::d3d12::test_adapter(IDXGIAdapter* adapter, D3D_FEATURE_LEVEL min_features, D3D_FEATURE_LEVEL& out_max_features)
 {
     cc::array const all_feature_levels = {D3D_FEATURE_LEVEL_12_1, D3D_FEATURE_LEVEL_12_0, D3D_FEATURE_LEVEL_11_1, D3D_FEATURE_LEVEL_11_0};
 
@@ -42,7 +42,7 @@ int pr::backend::d3d12::test_adapter(IDXGIAdapter* adapter, D3D_FEATURE_LEVEL mi
     return res_nodes;
 }
 
-cc::vector<pr::backend::gpu_info> pr::backend::d3d12::get_adapter_candidates()
+cc::vector<phi::gpu_info> phi::d3d12::get_adapter_candidates()
 {
     auto constexpr min_candidate_feature_level = D3D_FEATURE_LEVEL_12_0;
 
@@ -98,7 +98,7 @@ cc::vector<pr::backend::gpu_info> pr::backend::d3d12::get_adapter_candidates()
     return res;
 }
 
-pr::backend::gpu_feature_flags pr::backend::d3d12::check_capabilities(ID3D12Device* device)
+phi::gpu_feature_flags phi::d3d12::check_capabilities(ID3D12Device* device)
 {
     gpu_feature_flags res = {};
 

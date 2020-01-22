@@ -6,17 +6,17 @@
 
 #include <phantasm-hardware-interface/detail/renderdoc_loader.hh>
 
-void pr::backend::vk::util::diagnostic_state::init()
+void phi::vk::util::diagnostic_state::init()
 {
     // RenderDoc
-    _renderdoc_handle = backend::detail::load_renderdoc();
+    _renderdoc_handle = detail::load_renderdoc();
     if (_renderdoc_handle)
     {
         std::cout << "[pr][backend][vk] RenderDoc detected" << std::endl;
     }
 }
 
-void pr::backend::vk::util::diagnostic_state::free()
+void phi::vk::util::diagnostic_state::free()
 {
     end_capture();
 
@@ -27,7 +27,7 @@ void pr::backend::vk::util::diagnostic_state::free()
     }
 }
 
-bool pr::backend::vk::util::diagnostic_state::start_capture()
+bool phi::vk::util::diagnostic_state::start_capture()
 {
     if (_renderdoc_handle)
     {
@@ -40,7 +40,7 @@ bool pr::backend::vk::util::diagnostic_state::start_capture()
     return false;
 }
 
-bool pr::backend::vk::util::diagnostic_state::end_capture()
+bool phi::vk::util::diagnostic_state::end_capture()
 {
     if (_renderdoc_handle && _renderdoc_capture_running)
     {

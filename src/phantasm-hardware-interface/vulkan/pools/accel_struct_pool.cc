@@ -41,7 +41,7 @@ void query_accel_struct_buffer_sizes(VkDevice device, VkAccelerationStructureNV 
 
 }
 
-pr::backend::handle::accel_struct pr::backend::vk::AccelStructPool::createBottomLevelAS(cc::span<const pr::backend::arg::blas_element> elements,
+phi::handle::accel_struct phi::vk::AccelStructPool::createBottomLevelAS(cc::span<const phi::arg::blas_element> elements,
                                                                                         accel_struct_build_flags_t flags)
 {
     cc::vector<VkGeometryNV> element_geometries;
@@ -127,7 +127,7 @@ pr::backend::handle::accel_struct pr::backend::vk::AccelStructPool::createBottom
     return res;
 }
 
-pr::backend::handle::accel_struct pr::backend::vk::AccelStructPool::createTopLevelAS(unsigned num_instances)
+phi::handle::accel_struct phi::vk::AccelStructPool::createTopLevelAS(unsigned num_instances)
 {
     VkAccelerationStructureCreateInfoNV as_create_info = {};
     as_create_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_NV;
@@ -170,7 +170,7 @@ pr::backend::handle::accel_struct pr::backend::vk::AccelStructPool::createTopLev
     return acquireAccelStruct(raw_as, {}, buffer_as, buffer_scratch, buffer_instances);
 }
 
-void pr::backend::vk::AccelStructPool::free(pr::backend::handle::accel_struct as)
+void phi::vk::AccelStructPool::free(phi::handle::accel_struct as)
 {
     if (!as.is_valid())
         return;
@@ -184,7 +184,7 @@ void pr::backend::vk::AccelStructPool::free(pr::backend::handle::accel_struct as
     }
 }
 
-void pr::backend::vk::AccelStructPool::free(cc::span<const pr::backend::handle::accel_struct> as_span)
+void phi::vk::AccelStructPool::free(cc::span<const phi::handle::accel_struct> as_span)
 {
     auto lg = std::lock_guard(mMutex);
 
@@ -199,7 +199,7 @@ void pr::backend::vk::AccelStructPool::free(cc::span<const pr::backend::handle::
     }
 }
 
-void pr::backend::vk::AccelStructPool::initialize(VkDevice device, pr::backend::vk::ResourcePool* res_pool, unsigned max_num_accel_structs)
+void phi::vk::AccelStructPool::initialize(VkDevice device, phi::vk::ResourcePool* res_pool, unsigned max_num_accel_structs)
 {
     CC_ASSERT(mDevice == nullptr && mResourcePool == nullptr && "double init");
     mDevice = device;
@@ -207,7 +207,7 @@ void pr::backend::vk::AccelStructPool::initialize(VkDevice device, pr::backend::
     mPool.initialize(max_num_accel_structs);
 }
 
-void pr::backend::vk::AccelStructPool::destroy()
+void phi::vk::AccelStructPool::destroy()
 {
     if (mDevice != nullptr)
     {
@@ -224,13 +224,13 @@ void pr::backend::vk::AccelStructPool::destroy()
     }
 }
 
-pr::backend::vk::AccelStructPool::accel_struct_node& pr::backend::vk::AccelStructPool::getNode(pr::backend::handle::accel_struct as)
+phi::vk::AccelStructPool::accel_struct_node& phi::vk::AccelStructPool::getNode(phi::handle::accel_struct as)
 {
     CC_ASSERT(as.is_valid());
     return mPool.get(static_cast<unsigned>(as.index));
 }
 
-pr::backend::handle::accel_struct pr::backend::vk::AccelStructPool::acquireAccelStruct(VkAccelerationStructureNV raw_as,
+phi::handle::accel_struct phi::vk::AccelStructPool::acquireAccelStruct(VkAccelerationStructureNV raw_as,
                                                                                        accel_struct_build_flags_t flags,
                                                                                        handle::resource buffer_as,
                                                                                        handle::resource buffer_scratch,
@@ -265,13 +265,13 @@ pr::backend::handle::accel_struct pr::backend::vk::AccelStructPool::acquireAccel
     return {static_cast<handle::index_t>(res)};
 }
 
-void pr::backend::vk::AccelStructPool::moveGeometriesToAS(pr::backend::handle::accel_struct as, cc::vector<VkGeometryNV>&& geometries)
+void phi::vk::AccelStructPool::moveGeometriesToAS(phi::handle::accel_struct as, cc::vector<VkGeometryNV>&& geometries)
 {
     CC_ASSERT(as.is_valid());
     mPool.get(static_cast<unsigned>(as.index)).geometries = cc::move(geometries);
 }
 
-void pr::backend::vk::AccelStructPool::internalFree(pr::backend::vk::AccelStructPool::accel_struct_node& node)
+void phi::vk::AccelStructPool::internalFree(phi::vk::AccelStructPool::accel_struct_node& node)
 {
     cc::array const buffers_to_free = {node.buffer_as, node.buffer_scratch, node.buffer_instances};
     mResourcePool->free(buffers_to_free);

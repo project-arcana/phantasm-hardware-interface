@@ -8,12 +8,12 @@
 #include <phantasm-hardware-interface/vulkan/loader/spirv_patch_util.hh>
 #include <phantasm-hardware-interface/vulkan/render_pass_pipeline.hh>
 
-pr::backend::handle::pipeline_state pr::backend::vk::PipelinePool::createPipelineState(pr::backend::arg::vertex_format vertex_format,
-                                                                                       pr::backend::arg::framebuffer_config const& framebuffer_config,
-                                                                                       pr::backend::arg::shader_argument_shapes shader_arg_shapes,
+phi::handle::pipeline_state phi::vk::PipelinePool::createPipelineState(phi::arg::vertex_format vertex_format,
+                                                                                       phi::arg::framebuffer_config const& framebuffer_config,
+                                                                                       phi::arg::shader_argument_shapes shader_arg_shapes,
                                                                                        bool should_have_push_constants,
-                                                                                       pr::backend::arg::graphics_shader_stages shader_stages,
-                                                                                       const pr::primitive_pipeline_config& primitive_config)
+                                                                                       phi::arg::graphics_shader_stages shader_stages,
+                                                                                       const phi::primitive_pipeline_config& primitive_config)
 {
     // Patch and reflect SPIR-V binaries
     cc::capped_vector<arg::shader_stage, 6> patched_shader_stages;
@@ -80,7 +80,7 @@ pr::backend::handle::pipeline_state pr::backend::vk::PipelinePool::createPipelin
     return {static_cast<handle::index_t>(pool_index)};
 }
 
-pr::backend::handle::pipeline_state pr::backend::vk::PipelinePool::createComputePipelineState(pr::backend::arg::shader_argument_shapes shader_arg_shapes,
+phi::handle::pipeline_state phi::vk::PipelinePool::createComputePipelineState(phi::arg::shader_argument_shapes shader_arg_shapes,
                                                                                               arg::shader_binary compute_shader,
                                                                                               bool should_have_push_constants)
 {
@@ -124,7 +124,7 @@ pr::backend::handle::pipeline_state pr::backend::vk::PipelinePool::createCompute
     return {static_cast<handle::index_t>(pool_index)};
 }
 
-void pr::backend::vk::PipelinePool::free(pr::backend::handle::pipeline_state ps)
+void phi::vk::PipelinePool::free(phi::handle::pipeline_state ps)
 {
     // TODO: dangle check
 
@@ -139,7 +139,7 @@ void pr::backend::vk::PipelinePool::free(pr::backend::handle::pipeline_state ps)
     }
 }
 
-void pr::backend::vk::PipelinePool::initialize(VkDevice device, unsigned max_num_psos)
+void phi::vk::PipelinePool::initialize(VkDevice device, unsigned max_num_psos)
 {
     mDevice = device;
     mPool.initialize(max_num_psos);
@@ -152,7 +152,7 @@ void pr::backend::vk::PipelinePool::initialize(VkDevice device, unsigned max_num
     mDescriptorAllocator.initialize(mDevice, 0, 0, 0, max_num_psos);
 }
 
-void pr::backend::vk::PipelinePool::destroy()
+void phi::vk::PipelinePool::destroy()
 {
     auto num_leaks = 0;
 
@@ -171,7 +171,7 @@ void pr::backend::vk::PipelinePool::destroy()
     mDescriptorAllocator.destroy();
 }
 
-VkRenderPass pr::backend::vk::PipelinePool::getOrCreateRenderPass(const pso_node& node, const pr::backend::cmd::begin_render_pass& brp_cmd)
+VkRenderPass phi::vk::PipelinePool::getOrCreateRenderPass(const pso_node& node, const phi::cmd::begin_render_pass& brp_cmd)
 {
     // NOTE: This is a mutex acquire on the hot path (in the DRAW CALL)
     // Its not quite trivial to fix this, all solutions involve tradeoffs,

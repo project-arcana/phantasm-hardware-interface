@@ -16,9 +16,9 @@
 #include "pools/resource_pool.hh"
 #include "pools/shader_view_pool.hh"
 
-pr::backend::shader_table_sizes pr::backend::d3d12::ShaderTableConstructor::calculateShaderTableSizes(pr::backend::arg::shader_table_records ray_gen_records,
-                                                                                                      pr::backend::arg::shader_table_records miss_records,
-                                                                                                      pr::backend::arg::shader_table_records hit_group_records)
+phi::shader_table_sizes phi::d3d12::ShaderTableConstructor::calculateShaderTableSizes(phi::arg::shader_table_records ray_gen_records,
+                                                                                                      phi::arg::shader_table_records miss_records,
+                                                                                                      phi::arg::shader_table_records hit_group_records)
 {
     shader_table_sizes res = {};
     res.ray_gen_stride_bytes = getShaderRecordSize(ray_gen_records);
@@ -27,10 +27,10 @@ pr::backend::shader_table_sizes pr::backend::d3d12::ShaderTableConstructor::calc
     return res;
 }
 
-void pr::backend::d3d12::ShaderTableConstructor::writeShaderTable(std::byte* dest,
-                                                                  pr::backend::handle::pipeline_state pso,
+void phi::d3d12::ShaderTableConstructor::writeShaderTable(std::byte* dest,
+                                                                  phi::handle::pipeline_state pso,
                                                                   unsigned stride_bytes,
-                                                                  pr::backend::arg::shader_table_records records)
+                                                                  phi::arg::shader_table_records records)
 {
     CC_ASSERT(pool_pipeline_states->isRaytracingPipeline(pso) && "invalid or non-raytracing PSO given");
     auto const pso_state_props = pool_pipeline_states->getRaytrace(pso).raw_state_object_props;
@@ -86,11 +86,11 @@ void pr::backend::d3d12::ShaderTableConstructor::writeShaderTable(std::byte* des
     }
 }
 
-void pr::backend::d3d12::ShaderTableConstructor::initialize(ID3D12Device5* device,
-                                                            pr::backend::d3d12::ShaderViewPool* sv_pool,
-                                                            pr::backend::d3d12::ResourcePool* resource_pool,
-                                                            pr::backend::d3d12::PipelineStateObjectPool* pso_pool,
-                                                            pr::backend::d3d12::AccelStructPool* as_pool)
+void phi::d3d12::ShaderTableConstructor::initialize(ID3D12Device5* device,
+                                                            phi::d3d12::ShaderViewPool* sv_pool,
+                                                            phi::d3d12::ResourcePool* resource_pool,
+                                                            phi::d3d12::PipelineStateObjectPool* pso_pool,
+                                                            phi::d3d12::AccelStructPool* as_pool)
 {
     this->device = device;
     this->pool_shader_views = sv_pool;
@@ -100,7 +100,7 @@ void pr::backend::d3d12::ShaderTableConstructor::initialize(ID3D12Device5* devic
 }
 
 
-unsigned pr::backend::d3d12::ShaderTableConstructor::getShaderRecordSize(pr::backend::arg::shader_table_records records)
+unsigned phi::d3d12::ShaderTableConstructor::getShaderRecordSize(phi::arg::shader_table_records records)
 {
     unsigned max_num_args = 0;
     for (auto const& rec : records)
@@ -132,5 +132,5 @@ unsigned pr::backend::d3d12::ShaderTableConstructor::getShaderRecordSize(pr::bac
     }
 
     // size of the program identifier, plus 8 bytes per maximum over the record's arguments, aligned to shader record alignment alignment
-    return pr::backend::mem::align_up(D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES + 8u * max_num_args, D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT);
+    return phi::mem::align_up(D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES + 8u * max_num_args, D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT);
 }

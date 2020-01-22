@@ -4,7 +4,7 @@
 #include <phantasm-hardware-interface/d3d12/common/log.hh>
 #include <phantasm-hardware-interface/d3d12/common/verify.hh>
 
-pr::backend::handle::event pr::backend::d3d12::EventPool::createEvent()
+phi::handle::event phi::d3d12::EventPool::createEvent()
 {
     unsigned pool_index;
     {
@@ -18,7 +18,7 @@ pr::backend::handle::event pr::backend::d3d12::EventPool::createEvent()
     return {static_cast<handle::index_t>(pool_index)};
 }
 
-void pr::backend::d3d12::EventPool::free(pr::backend::handle::event event)
+void phi::d3d12::EventPool::free(phi::handle::event event)
 {
     if (!event.is_valid())
         return;
@@ -31,7 +31,7 @@ void pr::backend::d3d12::EventPool::free(pr::backend::handle::event event)
     }
 }
 
-void pr::backend::d3d12::EventPool::free(cc::span<const pr::backend::handle::event> event_span)
+void phi::d3d12::EventPool::free(cc::span<const phi::handle::event> event_span)
 {
     auto lg = std::lock_guard(mMutex);
 
@@ -45,14 +45,14 @@ void pr::backend::d3d12::EventPool::free(cc::span<const pr::backend::handle::eve
     }
 }
 
-void pr::backend::d3d12::EventPool::initialize(ID3D12Device* device, unsigned max_num_events)
+void phi::d3d12::EventPool::initialize(ID3D12Device* device, unsigned max_num_events)
 {
     CC_ASSERT(mDevice == nullptr && "double init");
     mDevice = device;
     mPool.initialize(max_num_events);
 }
 
-void pr::backend::d3d12::EventPool::destroy()
+void phi::d3d12::EventPool::destroy()
 {
     if (mDevice != nullptr)
     {

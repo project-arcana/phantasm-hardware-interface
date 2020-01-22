@@ -6,7 +6,7 @@
 #include <phantasm-hardware-interface/vulkan/BackendVulkan.hh>
 #include <phantasm-hardware-interface/vulkan/common/util.hh>
 
-void pr::backend::vk::cmd_allocator_node::initialize(VkDevice device, unsigned num_cmd_lists, unsigned queue_family_index, FenceRingbuffer* fence_ring)
+void phi::vk::cmd_allocator_node::initialize(VkDevice device, unsigned num_cmd_lists, unsigned queue_family_index, FenceRingbuffer* fence_ring)
 {
     _fence_ring = fence_ring;
 
@@ -37,13 +37,13 @@ void pr::backend::vk::cmd_allocator_node::initialize(VkDevice device, unsigned n
     _latest_fence.store(unsigned(-1));
 }
 
-void pr::backend::vk::cmd_allocator_node::destroy(VkDevice device)
+void phi::vk::cmd_allocator_node::destroy(VkDevice device)
 {
     do_reset(device);
     vkDestroyCommandPool(device, _cmd_pool, nullptr);
 }
 
-VkCommandBuffer pr::backend::vk::cmd_allocator_node::acquire(VkDevice device)
+VkCommandBuffer phi::vk::cmd_allocator_node::acquire(VkDevice device)
 {
     if (is_full())
     {
@@ -64,7 +64,7 @@ VkCommandBuffer pr::backend::vk::cmd_allocator_node::acquire(VkDevice device)
     return res;
 }
 
-void pr::backend::vk::cmd_allocator_node::on_submit(unsigned num, unsigned fence_index)
+void phi::vk::cmd_allocator_node::on_submit(unsigned num, unsigned fence_index)
 {
     // first, update the latest fence
     auto const previous_fence = _latest_fence.exchange(fence_index);
@@ -79,7 +79,7 @@ void pr::backend::vk::cmd_allocator_node::on_submit(unsigned num, unsigned fence
     _num_pending_execution.fetch_add(num);
 }
 
-bool pr::backend::vk::cmd_allocator_node::try_reset(VkDevice device)
+bool phi::vk::cmd_allocator_node::try_reset(VkDevice device)
 {
     if (can_reset())
     {
@@ -123,7 +123,7 @@ bool pr::backend::vk::cmd_allocator_node::try_reset(VkDevice device)
     }
 }
 
-bool pr::backend::vk::cmd_allocator_node::try_reset_blocking(VkDevice device)
+bool phi::vk::cmd_allocator_node::try_reset_blocking(VkDevice device)
 {
     if (can_reset())
     {
@@ -153,7 +153,7 @@ bool pr::backend::vk::cmd_allocator_node::try_reset_blocking(VkDevice device)
     }
 }
 
-void pr::backend::vk::cmd_allocator_node::do_reset(VkDevice device)
+void phi::vk::cmd_allocator_node::do_reset(VkDevice device)
 {
     PR_VK_VERIFY_SUCCESS(vkResetCommandPool(device, _cmd_pool, VK_COMMAND_POOL_RESET_RELEASE_RESOURCES_BIT));
 
@@ -174,7 +174,7 @@ void pr::backend::vk::cmd_allocator_node::do_reset(VkDevice device)
     _num_pending_execution = 0;
 }
 
-void pr::backend::vk::FenceRingbuffer::initialize(VkDevice device, unsigned num_fences)
+void phi::vk::FenceRingbuffer::initialize(VkDevice device, unsigned num_fences)
 {
     mFences = mFences.defaulted(num_fences);
 
@@ -190,13 +190,13 @@ void pr::backend::vk::FenceRingbuffer::initialize(VkDevice device, unsigned num_
     }
 }
 
-void pr::backend::vk::FenceRingbuffer::destroy(VkDevice device)
+void phi::vk::FenceRingbuffer::destroy(VkDevice device)
 {
     for (auto& fence : mFences)
         vkDestroyFence(device, fence.raw_fence, nullptr);
 }
 
-unsigned pr::backend::vk::FenceRingbuffer::acquireFence(VkDevice device, VkFence& out_fence)
+unsigned phi::vk::FenceRingbuffer::acquireFence(VkDevice device, VkFence& out_fence)
 {
     for (auto i = 0u; i < mFences.size(); ++i)
     {
@@ -222,7 +222,7 @@ unsigned pr::backend::vk::FenceRingbuffer::acquireFence(VkDevice device, VkFence
     return 0;
 }
 
-void pr::backend::vk::FenceRingbuffer::waitForFence(VkDevice device, unsigned index) const
+void phi::vk::FenceRingbuffer::waitForFence(VkDevice device, unsigned index) const
 {
     auto& node = mFences[index];
     CC_ASSERT(node.ref_count.load() > 0);
@@ -230,8 +230,8 @@ void pr::backend::vk::FenceRingbuffer::waitForFence(VkDevice device, unsigned in
     CC_ASSERT(vkres == VK_SUCCESS); // other cases are TIMEOUT (2^64 ns > 584 years) or DEVICE_LOST (dead anyway)
 }
 
-void pr::backend::vk::CommandAllocatorBundle::initialize(
-    VkDevice device, unsigned num_allocators, unsigned num_cmdlists_per_allocator, unsigned queue_family_index, pr::backend::vk::FenceRingbuffer* fence_ring)
+void phi::vk::CommandAllocatorBundle::initialize(
+    VkDevice device, unsigned num_allocators, unsigned num_cmdlists_per_allocator, unsigned queue_family_index, phi::vk::FenceRingbuffer* fence_ring)
 {
     mAllocators = mAllocators.defaulted(num_allocators);
     mActiveAllocator = 0u;
@@ -242,13 +242,13 @@ void pr::backend::vk::CommandAllocatorBundle::initialize(
     }
 }
 
-void pr::backend::vk::CommandAllocatorBundle::destroy(VkDevice device)
+void phi::vk::CommandAllocatorBundle::destroy(VkDevice device)
 {
     for (auto& alloc_node : mAllocators)
         alloc_node.destroy(device);
 }
 
-pr::backend::vk::cmd_allocator_node* pr::backend::vk::CommandAllocatorBundle::acquireMemory(VkDevice device, VkCommandBuffer& out_buffer)
+phi::vk::cmd_allocator_node* phi::vk::CommandAllocatorBundle::acquireMemory(VkDevice device, VkCommandBuffer& out_buffer)
 {
     updateActiveIndex(device);
     auto& active_alloc = mAllocators[mActiveAllocator];
@@ -256,7 +256,7 @@ pr::backend::vk::cmd_allocator_node* pr::backend::vk::CommandAllocatorBundle::ac
     return &active_alloc;
 }
 
-void pr::backend::vk::CommandAllocatorBundle::updateActiveIndex(VkDevice device)
+void phi::vk::CommandAllocatorBundle::updateActiveIndex(VkDevice device)
 {
     for (auto it = 0u; it < mAllocators.size(); ++it)
     {
@@ -291,7 +291,7 @@ void pr::backend::vk::CommandAllocatorBundle::updateActiveIndex(VkDevice device)
     CC_RUNTIME_ASSERT(false && "all allocators overcommitted and unresettable");
 }
 
-pr::backend::handle::command_list pr::backend::vk::CommandListPool::create(VkCommandBuffer& out_cmdlist, pr::backend::vk::CommandAllocatorBundle& thread_allocator)
+phi::handle::command_list phi::vk::CommandListPool::create(VkCommandBuffer& out_cmdlist, phi::vk::CommandAllocatorBundle& thread_allocator)
 {
     unsigned res_handle;
     {
@@ -306,7 +306,7 @@ pr::backend::handle::command_list pr::backend::vk::CommandListPool::create(VkCom
     return {static_cast<handle::index_t>(res_handle)};
 }
 
-void pr::backend::vk::CommandListPool::freeOnSubmit(pr::backend::handle::command_list cl, unsigned fence_index)
+void phi::vk::CommandListPool::freeOnSubmit(phi::handle::command_list cl, unsigned fence_index)
 {
     cmd_list_node& freed_node = mPool.get(static_cast<unsigned>(cl.index));
     {
@@ -316,9 +316,9 @@ void pr::backend::vk::CommandListPool::freeOnSubmit(pr::backend::handle::command
     }
 }
 
-void pr::backend::vk::CommandListPool::freeOnSubmit(cc::span<const pr::backend::handle::command_list> cls, unsigned fence_index)
+void phi::vk::CommandListPool::freeOnSubmit(cc::span<const phi::handle::command_list> cls, unsigned fence_index)
 {
-    backend::detail::capped_flat_map<cmd_allocator_node*, unsigned, 24> unique_allocators;
+    phi::detail::capped_flat_map<cmd_allocator_node*, unsigned, 24> unique_allocators;
 
     // free the cls in the pool and gather the unique allocators
     {
@@ -348,9 +348,9 @@ void pr::backend::vk::CommandListPool::freeOnSubmit(cc::span<const pr::backend::
     }
 }
 
-void pr::backend::vk::CommandListPool::freeOnSubmit(cc::span<const cc::span<const pr::backend::handle::command_list>> cls_nested, unsigned fence_index)
+void phi::vk::CommandListPool::freeOnSubmit(cc::span<const cc::span<const phi::handle::command_list>> cls_nested, unsigned fence_index)
 {
-    backend::detail::capped_flat_map<cmd_allocator_node*, unsigned, 24> unique_allocators;
+    phi::detail::capped_flat_map<cmd_allocator_node*, unsigned, 24> unique_allocators;
 
     // free the cls in the pool and gather the unique allocators
     {
@@ -381,7 +381,7 @@ void pr::backend::vk::CommandListPool::freeOnSubmit(cc::span<const cc::span<cons
     }
 }
 
-void pr::backend::vk::CommandListPool::freeAndDiscard(cc::span<const handle::command_list> cls)
+void phi::vk::CommandListPool::freeAndDiscard(cc::span<const handle::command_list> cls)
 {
     auto lg = std::lock_guard(mMutex);
 
@@ -395,7 +395,7 @@ void pr::backend::vk::CommandListPool::freeAndDiscard(cc::span<const handle::com
     }
 }
 
-unsigned pr::backend::vk::CommandListPool::discardAndFreeAll()
+unsigned phi::vk::CommandListPool::discardAndFreeAll()
 {
     auto lg = std::lock_guard(mMutex);
 
@@ -409,10 +409,10 @@ unsigned pr::backend::vk::CommandListPool::discardAndFreeAll()
     return num_freed;
 }
 
-void pr::backend::vk::CommandListPool::initialize(pr::backend::vk::BackendVulkan& backend,
+void phi::vk::CommandListPool::initialize(phi::vk::BackendVulkan& backend,
                                                   unsigned num_allocators_per_thread,
                                                   unsigned num_cmdlists_per_allocator,
-                                                  cc::span<pr::backend::vk::CommandAllocatorBundle*> thread_allocators)
+                                                  cc::span<phi::vk::CommandAllocatorBundle*> thread_allocators)
 {
     mDevice = backend.mDevice.getDevice();
 
@@ -434,7 +434,7 @@ void pr::backend::vk::CommandListPool::initialize(pr::backend::vk::BackendVulkan
     backend.flushGPU();
 }
 
-void pr::backend::vk::CommandListPool::destroy()
+void phi::vk::CommandListPool::destroy()
 {
     auto const num_leaks = discardAndFreeAll();
     if (num_leaks > 0)

@@ -6,7 +6,7 @@
 #include <phantasm-hardware-interface/d3d12/common/d3d12_fwd.hh>
 #include <phantasm-hardware-interface/d3d12/root_signature.hh>
 
-namespace pr::backend::d3d12
+namespace phi::d3d12
 {
 /// Persistent cache for root signatures
 /// Unsynchronized, only used inside of pso pool
@@ -24,7 +24,7 @@ public:
     void reset();
 
 private:
-    backend::detail::cache_map<root_signature> mCache;
+    phi::detail::cache_map<root_signature> mCache;
 };
 
 }

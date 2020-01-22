@@ -6,7 +6,7 @@
 #include <phantasm-hardware-interface/d3d12/common/native_enum.hh>
 #include <phantasm-hardware-interface/d3d12/common/verify.hh>
 
-ID3D12RootSignature* pr::backend::d3d12::create_root_signature(ID3D12Device& device,
+ID3D12RootSignature* phi::d3d12::create_root_signature(ID3D12Device& device,
                                                                cc::span<const CD3DX12_ROOT_PARAMETER> root_params,
                                                                cc::span<const CD3DX12_STATIC_SAMPLER_DESC> samplers,
                                                                root_signature_type type)
@@ -58,7 +58,7 @@ ID3D12RootSignature* pr::backend::d3d12::create_root_signature(ID3D12Device& dev
     return res;
 }
 
-pr::backend::d3d12::shader_argument_map pr::backend::d3d12::detail::root_signature_params::add_shader_argument_shape(const pr::backend::arg::shader_argument_shape& shape,
+phi::d3d12::shader_argument_map phi::d3d12::detail::root_signature_params::add_shader_argument_shape(const phi::arg::shader_argument_shape& shape,
                                                                                                                      bool add_fixed_root_constants)
 {
     shader_argument_map res_map;
@@ -139,7 +139,7 @@ pr::backend::d3d12::shader_argument_map pr::backend::d3d12::detail::root_signatu
     return res_map;
 }
 
-void pr::backend::d3d12::detail::root_signature_params::add_static_sampler(const sampler_config& config)
+void phi::d3d12::detail::root_signature_params::add_static_sampler(const sampler_config& config)
 {
     CD3DX12_STATIC_SAMPLER_DESC& sampler = samplers.emplace_back();
     sampler.Init(static_cast<UINT>(samplers.size() - 1),                                                //
@@ -158,9 +158,9 @@ void pr::backend::d3d12::detail::root_signature_params::add_static_sampler(const
     );
 }
 
-void pr::backend::d3d12::initialize_root_signature(pr::backend::d3d12::root_signature& root_sig,
+void phi::d3d12::initialize_root_signature(phi::d3d12::root_signature& root_sig,
                                                    ID3D12Device& device,
-                                                   pr::backend::arg::shader_argument_shapes payload_shape,
+                                                   phi::arg::shader_argument_shapes payload_shape,
                                                    bool add_fixed_root_constants,
                                                    root_signature_type type)
 {

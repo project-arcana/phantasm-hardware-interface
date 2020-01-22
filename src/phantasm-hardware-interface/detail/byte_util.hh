@@ -2,7 +2,7 @@
 
 #include <cstddef>
 
-namespace pr::backend::mem
+namespace phi::mem
 {
 // From D3D12 sample MiniEngine
 // https://github.com/Microsoft/DirectX-Graphics-Samples/blob/master/MiniEngine/Core/Math/Common.h

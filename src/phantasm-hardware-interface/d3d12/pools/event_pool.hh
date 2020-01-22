@@ -7,7 +7,7 @@
 
 #include <phantasm-hardware-interface/d3d12/common/d3d12_fwd.hh>
 
-namespace pr::backend::d3d12
+namespace phi::d3d12
 {
 class EventPool
 {
@@ -30,7 +30,7 @@ public:
 private:
     ID3D12Device* mDevice = nullptr;
 
-    backend::detail::linked_pool<ID3D12Fence*, unsigned> mPool;
+    phi::detail::linked_pool<ID3D12Fence*, unsigned> mPool;
 
     std::mutex mMutex;
 };

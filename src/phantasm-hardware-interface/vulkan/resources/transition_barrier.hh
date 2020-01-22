@@ -10,7 +10,7 @@
 #include <phantasm-hardware-interface/vulkan/loader/volk.hh>
 #include <phantasm-hardware-interface/vulkan/shader.hh>
 
-namespace pr::backend::vk
+namespace phi::vk
 {
 struct state_change
 {

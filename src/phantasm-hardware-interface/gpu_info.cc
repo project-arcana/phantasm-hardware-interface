@@ -4,19 +4,19 @@
 
 namespace
 {
-constexpr char const* get_preference_literal(pr::backend::adapter_preference pref)
+constexpr char const* get_preference_literal(phi::adapter_preference pref)
 {
     switch (pref)
     {
-    case pr::backend::adapter_preference::first:
+    case phi::adapter_preference::first:
         return "first";
-    case pr::backend::adapter_preference::integrated:
+    case phi::adapter_preference::integrated:
         return "integrated";
-    case pr::backend::adapter_preference::highest_vram:
+    case phi::adapter_preference::highest_vram:
         return "highest vram";
-    case pr::backend::adapter_preference::explicit_index:
+    case phi::adapter_preference::explicit_index:
         return "explicit index";
-    case pr::backend::adapter_preference::highest_feature_level:
+    case phi::adapter_preference::highest_feature_level:
         return "highest feature level";
     }
     return "";
@@ -24,7 +24,7 @@ constexpr char const* get_preference_literal(pr::backend::adapter_preference pre
 
 }
 
-size_t pr::backend::get_preferred_gpu(cc::span<const pr::backend::gpu_info> candidates, pr::backend::adapter_preference preference, bool verbose)
+size_t phi::get_preferred_gpu(cc::span<const phi::gpu_info> candidates, phi::adapter_preference preference, bool verbose)
 {
     auto const get_first_capable = [&]() -> size_t {
         for (auto i = 0u; i < candidates.size(); ++i)
@@ -108,7 +108,7 @@ size_t pr::backend::get_preferred_gpu(cc::span<const pr::backend::gpu_info> cand
     return choice;
 }
 
-pr::backend::gpu_vendor pr::backend::get_gpu_vendor_from_id(unsigned vendor_id)
+phi::gpu_vendor phi::get_gpu_vendor_from_id(unsigned vendor_id)
 {
     switch (vendor_id)
     {

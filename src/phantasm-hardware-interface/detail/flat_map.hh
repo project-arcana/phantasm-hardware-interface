@@ -3,7 +3,7 @@
 #include <clean-core/capped_vector.hh>
 #include <clean-core/vector.hh>
 
-namespace pr::backend::detail
+namespace phi::detail
 {
 /// very simple, purpose built, flat associative container
 template <class KeyT, class ValT>

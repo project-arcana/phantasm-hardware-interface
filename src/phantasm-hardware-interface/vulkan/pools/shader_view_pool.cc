@@ -10,7 +10,7 @@
 
 #include "resource_pool.hh"
 
-pr::backend::handle::shader_view pr::backend::vk::ShaderViewPool::create(cc::span<shader_view_element const> srvs,
+phi::handle::shader_view phi::vk::ShaderViewPool::create(cc::span<shader_view_element const> srvs,
                                                                          cc::span<shader_view_element const> uavs,
                                                                          cc::span<const sampler_config> sampler_configs,
                                                                          bool usage_compute)
@@ -176,7 +176,7 @@ pr::backend::handle::shader_view pr::backend::vk::ShaderViewPool::create(cc::spa
     return {static_cast<handle::index_t>(pool_index)};
 }
 
-void pr::backend::vk::ShaderViewPool::free(pr::backend::handle::shader_view sv)
+void phi::vk::ShaderViewPool::free(phi::handle::shader_view sv)
 {
     // TODO: dangle check
 
@@ -191,7 +191,7 @@ void pr::backend::vk::ShaderViewPool::free(pr::backend::handle::shader_view sv)
     }
 }
 
-void pr::backend::vk::ShaderViewPool::free(cc::span<const pr::backend::handle::shader_view> svs)
+void phi::vk::ShaderViewPool::free(cc::span<const phi::handle::shader_view> svs)
 {
     // This is a write access to the pool and allocator, and must be synced
     auto lg = std::lock_guard(mMutex);
@@ -204,7 +204,7 @@ void pr::backend::vk::ShaderViewPool::free(cc::span<const pr::backend::handle::s
     }
 }
 
-void pr::backend::vk::ShaderViewPool::initialize(VkDevice device, ResourcePool* res_pool, unsigned num_cbvs, unsigned num_srvs, unsigned num_uavs, unsigned num_samplers)
+void phi::vk::ShaderViewPool::initialize(VkDevice device, ResourcePool* res_pool, unsigned num_cbvs, unsigned num_srvs, unsigned num_uavs, unsigned num_samplers)
 {
     mDevice = device;
     mResourcePool = res_pool;
@@ -214,7 +214,7 @@ void pr::backend::vk::ShaderViewPool::initialize(VkDevice device, ResourcePool* 
     mPool.initialize(num_cbvs);
 }
 
-void pr::backend::vk::ShaderViewPool::destroy()
+void phi::vk::ShaderViewPool::destroy()
 {
     auto num_leaks = 0;
     mPool.iterate_allocated_nodes([&](shader_view_node& leaked_node, unsigned) {
@@ -232,7 +232,7 @@ void pr::backend::vk::ShaderViewPool::destroy()
     mAllocator.destroy();
 }
 
-VkImageView pr::backend::vk::ShaderViewPool::makeImageView(const shader_view_element& sve, bool is_uav) const
+VkImageView phi::vk::ShaderViewPool::makeImageView(const shader_view_element& sve, bool is_uav) const
 {
     VkImageViewCreateInfo info = {};
     info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -259,7 +259,7 @@ VkImageView pr::backend::vk::ShaderViewPool::makeImageView(const shader_view_ele
     return res;
 }
 
-VkSampler pr::backend::vk::ShaderViewPool::makeSampler(const pr::backend::sampler_config& config) const
+VkSampler phi::vk::ShaderViewPool::makeSampler(const phi::sampler_config& config) const
 {
     VkSamplerCreateInfo info = {};
     info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -283,7 +283,7 @@ VkSampler pr::backend::vk::ShaderViewPool::makeSampler(const pr::backend::sample
     return res;
 }
 
-void pr::backend::vk::ShaderViewPool::internalFree(pr::backend::vk::ShaderViewPool::shader_view_node& node) const
+void phi::vk::ShaderViewPool::internalFree(phi::vk::ShaderViewPool::shader_view_node& node) const
 {
     // Destroy the contained image views
     for (auto const iv : node.image_views)

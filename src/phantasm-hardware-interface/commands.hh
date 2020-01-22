@@ -11,7 +11,7 @@
 #include "limits.hh"
 #include "types.hh"
 
-namespace pr::backend
+namespace phi
 {
 namespace cmd
 {
@@ -65,7 +65,7 @@ struct typed_cmd : cmd_base
 }
 
 template <class T, uint8_t N>
-using cmd_vector = backend::detail::trivial_capped_vector<T, N>;
+using cmd_vector = phi::detail::trivial_capped_vector<T, N>;
 
 #define PR_DEFINE_CMD(_type_) struct _type_ final : detail::typed_cmd<detail::cmd_type::_type_>
 
@@ -411,7 +411,7 @@ PR_DEFINE_CMD(dispatch_rays)
 namespace detail
 {
 #define PR_X(_val_)                                                                                                                       \
-    static_assert(std::is_trivially_copyable_v<::pr::backend::cmd::_val_> && std::is_trivially_destructible_v<::pr::backend::cmd::_val_>, \
+    static_assert(std::is_trivially_copyable_v<::phi::cmd::_val_> && std::is_trivially_destructible_v<::phi::cmd::_val_>, \
                   #_val_ " is not trivially copyable / destructible");
 PR_CMD_TYPE_VALUES
 #undef PR_X
@@ -424,7 +424,7 @@ PR_CMD_TYPE_VALUES
     {
 #define PR_X(_val_)               \
     case detail::cmd_type::_val_: \
-        return sizeof(::pr::backend::cmd::_val_);
+        return sizeof(::phi::cmd::_val_);
         PR_CMD_TYPE_VALUES
 #undef PR_X
     }
@@ -454,7 +454,7 @@ void dynamic_dispatch(detail::cmd_base const& base, F& callback)
     {
 #define PR_X(_val_)                                                            \
     case detail::cmd_type::_val_:                                              \
-        callback.execute(static_cast<::pr::backend::cmd::_val_ const&>(base)); \
+        callback.execute(static_cast<::phi::cmd::_val_ const&>(base)); \
         break;
         PR_CMD_TYPE_VALUES
 #undef PR_X
@@ -464,7 +464,7 @@ void dynamic_dispatch(detail::cmd_base const& base, F& callback)
 [[nodiscard]] inline constexpr size_t compute_max_command_size()
 {
     size_t res = 0;
-#define PR_X(_val_) res = cc::max(res, sizeof(::pr::backend::cmd::_val_));
+#define PR_X(_val_) res = cc::max(res, sizeof(::phi::cmd::_val_));
     PR_CMD_TYPE_VALUES
 #undef PR_X
     return res;

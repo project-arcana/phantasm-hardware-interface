@@ -7,14 +7,14 @@
 #include <phantasm-hardware-interface/d3d12/common/d3d12_fwd.hh>
 #include <phantasm-hardware-interface/d3d12/pools/linear_descriptor_allocator.hh>
 
-namespace pr::backend::detail
+namespace phi::detail
 {
 template <class StateT>
 struct generic_incomplete_state_cache;
 using incomplete_state_cache = generic_incomplete_state_cache<resource_state>;
 }
 
-namespace pr::backend::d3d12
+namespace phi::d3d12
 {
 class ShaderViewPool;
 class ResourcePool;
@@ -55,7 +55,7 @@ struct command_list_translator
 
     void translateCommandList(ID3D12GraphicsCommandList* list,
                               ID3D12GraphicsCommandList5* list5,
-                              pr::backend::detail::incomplete_state_cache* state_cache,
+                              phi::detail::incomplete_state_cache* state_cache,
                               std::byte* buffer,
                               size_t buffer_size);
 
@@ -95,7 +95,7 @@ private:
     translator_thread_local_memory _thread_local;
 
     // non-owning dynamic
-    pr::backend::detail::incomplete_state_cache* _state_cache = nullptr;
+    phi::detail::incomplete_state_cache* _state_cache = nullptr;
     ID3D12GraphicsCommandList* _cmd_list = nullptr;
     ID3D12GraphicsCommandList5* _cmd_list_5 = nullptr;
 

@@ -10,7 +10,7 @@
 #include "loader/volk.hh"
 #include "queue_util.hh"
 
-namespace pr::backend::vk
+namespace phi::vk
 {
 struct vulkan_gpu_info
 {

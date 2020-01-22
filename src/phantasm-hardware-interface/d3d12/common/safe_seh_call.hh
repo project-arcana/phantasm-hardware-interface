@@ -2,7 +2,7 @@
 
 typedef struct _EXCEPTION_POINTERS* PEXCEPTION_POINTERS;
 
-namespace pr::backend::d3d12::detail
+namespace phi::d3d12::detail
 {
 [[nodiscard]] bool is_delay_load_exception(PEXCEPTION_POINTERS e);
 

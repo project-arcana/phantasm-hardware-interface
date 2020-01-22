@@ -11,7 +11,7 @@
 
 #include <phantasm-hardware-interface/vulkan/loader/vulkan_fwd.hh>
 
-namespace pr::backend::vk
+namespace phi::vk
 {
 class ResourcePool;
 
@@ -61,7 +61,7 @@ private:
     VkDevice mDevice = nullptr;
     ResourcePool* mResourcePool = nullptr;
 
-    backend::detail::linked_pool<accel_struct_node, unsigned> mPool;
+    phi::detail::linked_pool<accel_struct_node, unsigned> mPool;
 
     std::mutex mMutex;
 };

@@ -7,7 +7,7 @@
 #include <phantasm-hardware-interface/vulkan/resources/descriptor_allocator.hh>
 #include <phantasm-hardware-interface/vulkan/resources/transition_barrier.hh>
 
-void pr::backend::vk::detail::pipeline_layout_params::descriptor_set_params::add_descriptor(VkDescriptorType type, unsigned binding, unsigned array_size, VkShaderStageFlagBits visibility)
+void phi::vk::detail::pipeline_layout_params::descriptor_set_params::add_descriptor(VkDescriptorType type, unsigned binding, unsigned array_size, VkShaderStageFlagBits visibility)
 {
     VkDescriptorSetLayoutBinding& new_binding = bindings.emplace_back();
     new_binding = {};
@@ -23,7 +23,7 @@ void pr::backend::vk::detail::pipeline_layout_params::descriptor_set_params::add
     new_binding.pImmutableSamplers = nullptr; // Optional
 }
 
-void pr::backend::vk::detail::pipeline_layout_params::descriptor_set_params::fill_in_samplers(cc::span<VkSampler const> samplers)
+void phi::vk::detail::pipeline_layout_params::descriptor_set_params::fill_in_samplers(cc::span<VkSampler const> samplers)
 {
     for (auto& binding : bindings)
     {
@@ -37,7 +37,7 @@ void pr::backend::vk::detail::pipeline_layout_params::descriptor_set_params::fil
     CC_ASSERT(false && "Failed to fill in samplers - not present in shader");
 }
 
-VkDescriptorSetLayout pr::backend::vk::detail::pipeline_layout_params::descriptor_set_params::create_layout(VkDevice device) const
+VkDescriptorSetLayout phi::vk::detail::pipeline_layout_params::descriptor_set_params::create_layout(VkDevice device) const
 {
     VkDescriptorSetLayoutCreateInfo layout_info = {};
     layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -51,7 +51,7 @@ VkDescriptorSetLayout pr::backend::vk::detail::pipeline_layout_params::descripto
     return res;
 }
 
-void pr::backend::vk::pipeline_layout::initialize(VkDevice device, cc::span<const util::spirv_desc_info> range_infos, bool add_push_constants)
+void phi::vk::pipeline_layout::initialize(VkDevice device, cc::span<const util::spirv_desc_info> range_infos, bool add_push_constants)
 {
     detail::pipeline_layout_params params;
     params.initialize_from_reflection_info(range_infos);
@@ -104,14 +104,14 @@ void pr::backend::vk::pipeline_layout::initialize(VkDevice device, cc::span<cons
     PR_VK_VERIFY_SUCCESS(vkCreatePipelineLayout(device, &layout_info, nullptr, &raw_layout));
 }
 
-void pr::backend::vk::pipeline_layout::print() const
+void phi::vk::pipeline_layout::print() const
 {
     std::cout << "[pr][backend][vk] pipeline_layout:" << std::endl;
     std::cout << "  " << descriptor_set_layouts.size() << " descriptor set layouts, " << descriptor_set_visibilities.size() << " visibilities" << std::endl;
     std::cout << "  raw layout: " << raw_layout << ", has push consts: " << (has_push_constants() ? "yes" : "no") << std::endl;
 }
 
-void pr::backend::vk::pipeline_layout::free(VkDevice device)
+void phi::vk::pipeline_layout::free(VkDevice device)
 {
     for (auto const layout : descriptor_set_layouts)
         vkDestroyDescriptorSetLayout(device, layout, nullptr);
@@ -119,7 +119,7 @@ void pr::backend::vk::pipeline_layout::free(VkDevice device)
     vkDestroyPipelineLayout(device, raw_layout, nullptr);
 }
 
-void pr::backend::vk::detail::pipeline_layout_params::initialize_from_reflection_info(cc::span<const util::spirv_desc_info> reflection_info)
+void phi::vk::detail::pipeline_layout_params::initialize_from_reflection_info(cc::span<const util::spirv_desc_info> reflection_info)
 {
     auto const add_set = [this]() {
         descriptor_sets.emplace_back();

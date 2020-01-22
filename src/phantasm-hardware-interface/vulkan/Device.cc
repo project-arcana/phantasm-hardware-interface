@@ -8,7 +8,7 @@
 #include "gpu_choice_util.hh"
 #include "queue_util.hh"
 
-void pr::backend::vk::Device::initialize(vulkan_gpu_info const& device, backend_config const& config)
+void phi::vk::Device::initialize(vulkan_gpu_info const& device, backend_config const& config)
 {
     mPhysicalDevice = device.physical_device;
     CC_ASSERT(mDevice == nullptr && "vk::Device initialized twice");
@@ -84,13 +84,13 @@ void pr::backend::vk::Device::initialize(vulkan_gpu_info const& device, backend_
     }
 }
 
-void pr::backend::vk::Device::destroy()
+void phi::vk::Device::destroy()
 {
     PR_VK_VERIFY_SUCCESS(vkDeviceWaitIdle(mDevice));
     vkDestroyDevice(mDevice, nullptr);
 }
 
-void pr::backend::vk::Device::initializeRaytracing()
+void phi::vk::Device::initializeRaytracing()
 {
     mInformation.raytrace_properties = {};
     mInformation.raytrace_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PROPERTIES_NV;

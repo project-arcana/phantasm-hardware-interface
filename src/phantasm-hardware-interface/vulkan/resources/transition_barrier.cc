@@ -1,6 +1,6 @@
 #include "transition_barrier.hh"
 
-VkImageMemoryBarrier pr::backend::vk::get_image_memory_barrier(VkImage image, const state_change& state_change, VkImageAspectFlags aspect, unsigned mip_start, unsigned num_mips, unsigned array_start, unsigned num_layers)
+VkImageMemoryBarrier phi::vk::get_image_memory_barrier(VkImage image, const state_change& state_change, VkImageAspectFlags aspect, unsigned mip_start, unsigned num_mips, unsigned array_start, unsigned num_layers)
 {
     VkImageMemoryBarrier barrier = {};
     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -19,7 +19,7 @@ VkImageMemoryBarrier pr::backend::vk::get_image_memory_barrier(VkImage image, co
     return barrier;
 }
 
-VkBufferMemoryBarrier pr::backend::vk::get_buffer_memory_barrier(VkBuffer buffer, const pr::backend::vk::state_change& state_change, uint64_t buffer_size)
+VkBufferMemoryBarrier phi::vk::get_buffer_memory_barrier(VkBuffer buffer, const phi::vk::state_change& state_change, uint64_t buffer_size)
 {
     VkBufferMemoryBarrier barrier = {};
     barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
@@ -33,7 +33,7 @@ VkBufferMemoryBarrier pr::backend::vk::get_buffer_memory_barrier(VkBuffer buffer
     return barrier;
 }
 
-void pr::backend::vk::submit_barriers(VkCommandBuffer cmd_buf,
+void phi::vk::submit_barriers(VkCommandBuffer cmd_buf,
                                       const stage_dependencies& stage_deps,
                                       cc::span<VkImageMemoryBarrier const> image_barriers,
                                       cc::span<VkBufferMemoryBarrier const> buffer_barriers,

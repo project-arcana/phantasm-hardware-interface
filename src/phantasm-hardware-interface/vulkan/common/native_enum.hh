@@ -7,7 +7,7 @@
 
 #include <phantasm-hardware-interface/vulkan/loader/volk.hh>
 
-namespace pr::backend::vk::util
+namespace phi::vk::util
 {
 [[nodiscard]] inline constexpr VkAccessFlags to_access_flags(resource_state state)
 {
@@ -109,36 +109,36 @@ namespace pr::backend::vk::util
     return {};
 }
 
-[[nodiscard]] inline constexpr VkPipelineStageFlags to_pipeline_stage_flags(pr::backend::shader_domain domain)
+[[nodiscard]] inline constexpr VkPipelineStageFlags to_pipeline_stage_flags(phi::shader_domain domain)
 {
     switch (domain)
     {
-    case pr::backend::shader_domain::pixel:
+    case phi::shader_domain::pixel:
         return VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-    case pr::backend::shader_domain::vertex:
+    case phi::shader_domain::vertex:
         return VK_PIPELINE_STAGE_VERTEX_SHADER_BIT;
-    case pr::backend::shader_domain::hull:
+    case phi::shader_domain::hull:
         return VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT;
-    case pr::backend::shader_domain::domain:
+    case phi::shader_domain::domain:
         return VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT;
-    case pr::backend::shader_domain::geometry:
+    case phi::shader_domain::geometry:
         return VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT;
 
-    case pr::backend::shader_domain::compute:
+    case phi::shader_domain::compute:
         return VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
 
-    case pr::backend::shader_domain::ray_gen:
-    case pr::backend::shader_domain::ray_miss:
-    case pr::backend::shader_domain::ray_closest_hit:
-    case pr::backend::shader_domain::ray_intersect:
-    case pr::backend::shader_domain::ray_any_hit:
+    case phi::shader_domain::ray_gen:
+    case phi::shader_domain::ray_miss:
+    case phi::shader_domain::ray_closest_hit:
+    case phi::shader_domain::ray_intersect:
+    case phi::shader_domain::ray_any_hit:
         return VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV;
     }
     CC_ASSERT(false && "to_native uncaught argument");
     return {};
 }
 
-[[nodiscard]] inline constexpr VkPipelineStageFlags to_pipeline_stage_flags_bitwise(pr::backend::shader_domain_flags_t domain)
+[[nodiscard]] inline constexpr VkPipelineStageFlags to_pipeline_stage_flags_bitwise(phi::shader_domain_flags_t domain)
 {
     VkPipelineStageFlags res = 0;
 
@@ -222,59 +222,59 @@ namespace pr::backend::vk::util
     return to_pipeline_stage_dependency(state, to_pipeline_stage_flags(domain));
 }
 
-[[nodiscard]] inline constexpr VkPrimitiveTopology to_native(pr::primitive_topology topology)
+[[nodiscard]] inline constexpr VkPrimitiveTopology to_native(phi::primitive_topology topology)
 {
     switch (topology)
     {
-    case pr::primitive_topology::triangles:
+    case phi::primitive_topology::triangles:
         return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-    case pr::primitive_topology::lines:
+    case phi::primitive_topology::lines:
         return VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
-    case pr::primitive_topology::points:
+    case phi::primitive_topology::points:
         return VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
-    case pr::primitive_topology::patches:
+    case phi::primitive_topology::patches:
         return VK_PRIMITIVE_TOPOLOGY_PATCH_LIST;
     }
     CC_ASSERT(false && "to_native uncaught argument");
     return {};
 }
 
-[[nodiscard]] inline constexpr VkCompareOp to_native(pr::depth_function depth_func)
+[[nodiscard]] inline constexpr VkCompareOp to_native(phi::depth_function depth_func)
 {
     switch (depth_func)
     {
-    case pr::depth_function::none:
+    case phi::depth_function::none:
         return VK_COMPARE_OP_LESS; // sane defaults
-    case pr::depth_function::less:
+    case phi::depth_function::less:
         return VK_COMPARE_OP_LESS;
-    case pr::depth_function::less_equal:
+    case phi::depth_function::less_equal:
         return VK_COMPARE_OP_LESS_OR_EQUAL;
-    case pr::depth_function::greater:
+    case phi::depth_function::greater:
         return VK_COMPARE_OP_GREATER;
-    case pr::depth_function::greater_equal:
+    case phi::depth_function::greater_equal:
         return VK_COMPARE_OP_GREATER_OR_EQUAL;
-    case pr::depth_function::equal:
+    case phi::depth_function::equal:
         return VK_COMPARE_OP_EQUAL;
-    case pr::depth_function::not_equal:
+    case phi::depth_function::not_equal:
         return VK_COMPARE_OP_NOT_EQUAL;
-    case pr::depth_function::always:
+    case phi::depth_function::always:
         return VK_COMPARE_OP_ALWAYS;
-    case pr::depth_function::never:
+    case phi::depth_function::never:
         return VK_COMPARE_OP_NEVER;
     }
     CC_ASSERT(false && "to_native uncaught argument");
     return {};
 }
 
-[[nodiscard]] inline constexpr VkCullModeFlags to_native(pr::cull_mode cull_mode)
+[[nodiscard]] inline constexpr VkCullModeFlags to_native(phi::cull_mode cull_mode)
 {
     switch (cull_mode)
     {
-    case pr::cull_mode::none:
+    case phi::cull_mode::none:
         return VK_CULL_MODE_NONE;
-    case pr::cull_mode::back:
+    case phi::cull_mode::back:
         return VK_CULL_MODE_BACK_BIT;
-    case pr::cull_mode::front:
+    case phi::cull_mode::front:
         return VK_CULL_MODE_FRONT_BIT;
     }
     CC_ASSERT(false && "to_native uncaught argument");
@@ -282,33 +282,33 @@ namespace pr::backend::vk::util
 }
 
 
-[[nodiscard]] inline constexpr VkShaderStageFlagBits to_shader_stage_flags(pr::backend::shader_domain domain)
+[[nodiscard]] inline constexpr VkShaderStageFlagBits to_shader_stage_flags(phi::shader_domain domain)
 {
     switch (domain)
     {
-    case pr::backend::shader_domain::pixel:
+    case phi::shader_domain::pixel:
         return VK_SHADER_STAGE_FRAGMENT_BIT;
-    case pr::backend::shader_domain::vertex:
+    case phi::shader_domain::vertex:
         return VK_SHADER_STAGE_VERTEX_BIT;
-    case pr::backend::shader_domain::domain:
+    case phi::shader_domain::domain:
         return VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
-    case pr::backend::shader_domain::hull:
+    case phi::shader_domain::hull:
         return VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;
-    case pr::backend::shader_domain::geometry:
+    case phi::shader_domain::geometry:
         return VK_SHADER_STAGE_GEOMETRY_BIT;
 
-    case pr::backend::shader_domain::compute:
+    case phi::shader_domain::compute:
         return VK_SHADER_STAGE_COMPUTE_BIT;
 
-    case pr::backend::shader_domain::ray_gen:
+    case phi::shader_domain::ray_gen:
         return VK_SHADER_STAGE_RAYGEN_BIT_NV;
-    case pr::backend::shader_domain::ray_miss:
+    case phi::shader_domain::ray_miss:
         return VK_SHADER_STAGE_MISS_BIT_NV;
-    case pr::backend::shader_domain::ray_closest_hit:
+    case phi::shader_domain::ray_closest_hit:
         return VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV;
-    case pr::backend::shader_domain::ray_intersect:
+    case phi::shader_domain::ray_intersect:
         return VK_SHADER_STAGE_INTERSECTION_BIT_NV;
-    case pr::backend::shader_domain::ray_any_hit:
+    case phi::shader_domain::ray_any_hit:
         return VK_SHADER_STAGE_ANY_HIT_BIT_NV;
     }
     CC_ASSERT(false && "to_native uncaught argument");
@@ -320,19 +320,19 @@ namespace pr::backend::vk::util
 {
     switch (sv_dim)
     {
-    case pr::backend::shader_view_dimension::buffer:
+    case phi::shader_view_dimension::buffer:
         return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    case pr::backend::shader_view_dimension::raytracing_accel_struct:
+    case phi::shader_view_dimension::raytracing_accel_struct:
         return VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV;
-    case pr::backend::shader_view_dimension::texture1d:
-    case pr::backend::shader_view_dimension::texture1d_array:
-    case pr::backend::shader_view_dimension::texture2d:
-    case pr::backend::shader_view_dimension::texture2d_ms:
-    case pr::backend::shader_view_dimension::texture2d_array:
-    case pr::backend::shader_view_dimension::texture2d_ms_array:
-    case pr::backend::shader_view_dimension::texture3d:
-    case pr::backend::shader_view_dimension::texturecube:
-    case pr::backend::shader_view_dimension::texturecube_array:
+    case phi::shader_view_dimension::texture1d:
+    case phi::shader_view_dimension::texture1d_array:
+    case phi::shader_view_dimension::texture2d:
+    case phi::shader_view_dimension::texture2d_ms:
+    case phi::shader_view_dimension::texture2d_array:
+    case phi::shader_view_dimension::texture2d_ms_array:
+    case phi::shader_view_dimension::texture3d:
+    case phi::shader_view_dimension::texturecube:
+    case phi::shader_view_dimension::texturecube_array:
         return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
     }
     CC_ASSERT(false && "to_native uncaught argument");
@@ -342,20 +342,20 @@ namespace pr::backend::vk::util
 {
     switch (sv_dim)
     {
-    case pr::backend::shader_view_dimension::buffer:
+    case phi::shader_view_dimension::buffer:
         return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    case pr::backend::shader_view_dimension::texture1d:
-    case pr::backend::shader_view_dimension::texture1d_array:
-    case pr::backend::shader_view_dimension::texture2d:
-    case pr::backend::shader_view_dimension::texture2d_ms:
-    case pr::backend::shader_view_dimension::texture2d_array:
-    case pr::backend::shader_view_dimension::texture2d_ms_array:
-    case pr::backend::shader_view_dimension::texture3d:
-    case pr::backend::shader_view_dimension::texturecube:
-    case pr::backend::shader_view_dimension::texturecube_array:
+    case phi::shader_view_dimension::texture1d:
+    case phi::shader_view_dimension::texture1d_array:
+    case phi::shader_view_dimension::texture2d:
+    case phi::shader_view_dimension::texture2d_ms:
+    case phi::shader_view_dimension::texture2d_array:
+    case phi::shader_view_dimension::texture2d_ms_array:
+    case phi::shader_view_dimension::texture3d:
+    case phi::shader_view_dimension::texturecube:
+    case phi::shader_view_dimension::texturecube_array:
         return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
 
-    case pr::backend::shader_view_dimension::raytracing_accel_struct:
+    case phi::shader_view_dimension::raytracing_accel_struct:
         return VK_DESCRIPTOR_TYPE_MAX_ENUM;
     }
     CC_ASSERT(false && "to_native uncaught argument");
@@ -371,25 +371,25 @@ namespace pr::backend::vk::util
 {
     switch (sv_dim)
     {
-    case pr::backend::shader_view_dimension::texture1d:
+    case phi::shader_view_dimension::texture1d:
         return VK_IMAGE_VIEW_TYPE_1D;
-    case pr::backend::shader_view_dimension::texture1d_array:
+    case phi::shader_view_dimension::texture1d_array:
         return VK_IMAGE_VIEW_TYPE_1D_ARRAY;
-    case pr::backend::shader_view_dimension::texture2d:
-    case pr::backend::shader_view_dimension::texture2d_ms:
+    case phi::shader_view_dimension::texture2d:
+    case phi::shader_view_dimension::texture2d_ms:
         return VK_IMAGE_VIEW_TYPE_2D;
-    case pr::backend::shader_view_dimension::texture2d_array:
-    case pr::backend::shader_view_dimension::texture2d_ms_array:
+    case phi::shader_view_dimension::texture2d_array:
+    case phi::shader_view_dimension::texture2d_ms_array:
         return VK_IMAGE_VIEW_TYPE_2D_ARRAY;
-    case pr::backend::shader_view_dimension::texture3d:
+    case phi::shader_view_dimension::texture3d:
         return VK_IMAGE_VIEW_TYPE_3D;
-    case pr::backend::shader_view_dimension::texturecube:
+    case phi::shader_view_dimension::texturecube:
         return VK_IMAGE_VIEW_TYPE_CUBE;
-    case pr::backend::shader_view_dimension::texturecube_array:
+    case phi::shader_view_dimension::texturecube_array:
         return VK_IMAGE_VIEW_TYPE_CUBE_ARRAY;
 
-    case pr::backend::shader_view_dimension::buffer:
-    case pr::backend::shader_view_dimension::raytracing_accel_struct:
+    case phi::shader_view_dimension::buffer:
+    case phi::shader_view_dimension::raytracing_accel_struct:
         CC_ASSERT(false && "requested image view for buffer or raytracing structure");
         return VK_IMAGE_VIEW_TYPE_MAX_ENUM;
     }

@@ -10,7 +10,7 @@
 #include <dlfcn.h>
 #endif
 
-RENDERDOC_API_1_4_0* pr::backend::detail::load_renderdoc()
+RENDERDOC_API_1_4_0* phi::detail::load_renderdoc()
 {
     RENDERDOC_API_1_4_0* res = nullptr;
 

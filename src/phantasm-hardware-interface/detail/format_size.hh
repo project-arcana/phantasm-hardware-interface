@@ -4,7 +4,7 @@
 
 #include <phantasm-hardware-interface/types.hh>
 
-namespace pr::backend::detail
+namespace phi::detail
 {
 [[nodiscard]] inline constexpr unsigned pr_format_size_bytes(format fmt)
 {

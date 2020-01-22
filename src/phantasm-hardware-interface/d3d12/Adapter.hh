@@ -6,7 +6,7 @@
 
 #include "common/shared_com_ptr.hh"
 
-namespace pr::backend::d3d12
+namespace phi::d3d12
 {
 /// Represents a IDXGIAdapter, the uppermost object in the D3D12 hierarchy
 class Adapter

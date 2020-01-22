@@ -12,7 +12,7 @@
 #include <phantasm-hardware-interface/assets/vertex_attrib_info.hh>
 #include <phantasm-hardware-interface/vulkan/loader/volk.hh>
 
-namespace pr::backend::vk::util
+namespace phi::vk::util
 {
 inline void set_viewport(VkCommandBuffer command_buf, tg::isize2 size, int start_x = 0, int start_y = 0)
 {

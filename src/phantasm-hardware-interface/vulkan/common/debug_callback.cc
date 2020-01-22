@@ -36,7 +36,7 @@ constexpr char const* to_literal(VkDebugUtilsMessageTypeFlagsEXT type)
 }
 }
 
-VkBool32 pr::backend::vk::detail::debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT severity,
+VkBool32 phi::vk::detail::debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT severity,
                                                  VkDebugUtilsMessageTypeFlagsEXT type,
                                                  const VkDebugUtilsMessengerCallbackDataEXT* callback_data,
                                                  void* /*user_data*/)

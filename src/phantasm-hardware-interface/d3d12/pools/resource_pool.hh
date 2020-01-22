@@ -7,7 +7,7 @@
 
 #include <phantasm-hardware-interface/d3d12/memory/ResourceAllocator.hh>
 
-namespace pr::backend::d3d12
+namespace phi::d3d12
 {
 /// The high-level allocator for resources
 /// Synchronized
@@ -22,7 +22,7 @@ public:
         format format, unsigned w, unsigned h, unsigned mips, texture_dimension dim = texture_dimension::t2d, unsigned depth_or_array_size = 1, bool allow_uav = false);
 
     /// create a render- or depth-stencil target
-    [[nodiscard]] handle::resource createRenderTarget(backend::format format, unsigned w, unsigned h, unsigned samples);
+    [[nodiscard]] handle::resource createRenderTarget(phi::format format, unsigned w, unsigned h, unsigned samples);
 
     /// create a buffer, with an element stride if its an index or vertex buffer
     [[nodiscard]] handle::resource createBuffer(uint64_t size_bytes, unsigned stride_bytes, bool allow_uav);
@@ -135,8 +135,8 @@ public:
     // Swapchain backbuffer resource injection
     // Swapchain backbuffers are exposed as handle::resource, so they can be interchangably
     // used with any other render target, and follow the same transition semantics
-    // these handles have a limited lifetime: valid from Backend::acquireBackbuffer until
-    // the first of either Backend::present or Backend::resize
+    // these handles have a limited lifetime: valid from phi::acquireBackbuffer until
+    // the first of either phi::present or phi::resize
     //
 
     [[nodiscard]] handle::resource injectBackbufferResource(ID3D12Resource* raw_resource, resource_state state);
@@ -162,7 +162,7 @@ private:
 
 private:
     /// The main pool data
-    backend::detail::linked_pool<resource_node, unsigned> mPool;
+    phi::detail::linked_pool<resource_node, unsigned> mPool;
 
     handle::resource mInjectedBackbufferResource = handle::null_resource;
 

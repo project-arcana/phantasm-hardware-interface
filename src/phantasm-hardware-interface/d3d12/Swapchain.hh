@@ -11,7 +11,7 @@
 
 #include "Fence.hh"
 
-namespace pr::backend::d3d12
+namespace phi::d3d12
 {
 class Swapchain
 {

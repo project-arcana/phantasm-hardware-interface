@@ -4,7 +4,7 @@
 #include <phantasm-hardware-interface/d3d12/common/util.hh>
 #include <phantasm-hardware-interface/d3d12/common/verify.hh>
 
-void pr::backend::d3d12::cmd_allocator_node::initialize(ID3D12Device& device, D3D12_COMMAND_LIST_TYPE type, int max_num_cmdlists)
+void phi::d3d12::cmd_allocator_node::initialize(ID3D12Device& device, D3D12_COMMAND_LIST_TYPE type, int max_num_cmdlists)
 {
     _max_num_in_flight = max_num_cmdlists;
     _submit_counter = 0;
@@ -19,9 +19,9 @@ void pr::backend::d3d12::cmd_allocator_node::initialize(ID3D12Device& device, D3
     PR_D3D12_VERIFY(device.CreateCommandAllocator(type, IID_PPV_ARGS(&_allocator)));
 }
 
-void pr::backend::d3d12::cmd_allocator_node::destroy() { _allocator->Release(); }
+void phi::d3d12::cmd_allocator_node::destroy() { _allocator->Release(); }
 
-void pr::backend::d3d12::cmd_allocator_node::acquire(ID3D12GraphicsCommandList* cmd_list)
+void phi::d3d12::cmd_allocator_node::acquire(ID3D12GraphicsCommandList* cmd_list)
 {
     if (is_full())
     {
@@ -38,7 +38,7 @@ void pr::backend::d3d12::cmd_allocator_node::acquire(ID3D12GraphicsCommandList* 
         _full_and_waiting = true;
 }
 
-bool pr::backend::d3d12::cmd_allocator_node::try_reset()
+bool phi::d3d12::cmd_allocator_node::try_reset()
 {
     if (can_reset())
     {
@@ -65,7 +65,7 @@ bool pr::backend::d3d12::cmd_allocator_node::try_reset()
     }
 }
 
-bool pr::backend::d3d12::cmd_allocator_node::try_reset_blocking()
+bool phi::d3d12::cmd_allocator_node::try_reset_blocking()
 {
     if (can_reset())
     {
@@ -81,7 +81,7 @@ bool pr::backend::d3d12::cmd_allocator_node::try_reset_blocking()
     }
 }
 
-void pr::backend::d3d12::cmd_allocator_node::do_reset()
+void phi::d3d12::cmd_allocator_node::do_reset()
 {
     PR_D3D12_VERIFY(_allocator->Reset());
     _full_and_waiting = false;
@@ -90,7 +90,7 @@ void pr::backend::d3d12::cmd_allocator_node::do_reset()
     _submit_counter_at_last_reset = _submit_counter;
 }
 
-bool pr::backend::d3d12::cmd_allocator_node::is_submit_counter_up_to_date() const
+bool phi::d3d12::cmd_allocator_node::is_submit_counter_up_to_date() const
 {
     // two atomics are being loaded in this function, _submit_counter and _num_discarded
     // both are monotonously increasing, so submits_since_reset grows, possible_submits_remaining shrinks
@@ -115,7 +115,7 @@ bool pr::backend::d3d12::cmd_allocator_node::is_submit_counter_up_to_date() cons
     return (submits_since_reset == possible_submits_remaining);
 }
 
-pr::backend::handle::command_list pr::backend::d3d12::CommandListPool::create(ID3D12GraphicsCommandList*& out_cmdlist,
+phi::handle::command_list phi::d3d12::CommandListPool::create(ID3D12GraphicsCommandList*& out_cmdlist,
                                                                               ID3D12GraphicsCommandList5** out_cmdlist5,
                                                                               CommandAllocatorBundle& thread_allocator,
                                                                               ID3D12Fence* fence_to_set)
@@ -140,7 +140,7 @@ pr::backend::handle::command_list pr::backend::d3d12::CommandListPool::create(ID
     return {static_cast<handle::index_t>(res_handle)};
 }
 
-void pr::backend::d3d12::CommandListPool::initialize(pr::backend::d3d12::BackendD3D12& backend,
+void phi::d3d12::CommandListPool::initialize(phi::d3d12::BackendD3D12& backend,
                                                      int num_allocators_per_thread,
                                                      int num_cmdlists_per_allocator,
                                                      cc::span<CommandAllocatorBundle*> thread_allocators)
@@ -173,7 +173,7 @@ void pr::backend::d3d12::CommandListPool::initialize(pr::backend::d3d12::Backend
     backend.flushGPU();
 }
 
-void pr::backend::d3d12::CommandListPool::destroy()
+void phi::d3d12::CommandListPool::destroy()
 {
     if (mHasLists5)
     {
@@ -189,7 +189,7 @@ void pr::backend::d3d12::CommandListPool::destroy()
     }
 }
 
-void pr::backend::d3d12::CommandListPool::queryList5()
+void phi::d3d12::CommandListPool::queryList5()
 {
     mHasLists5 = true;
     mRawLists5 = mRawLists5.uninitialized(mRawLists.size());
@@ -210,7 +210,7 @@ void pr::backend::d3d12::CommandListPool::queryList5()
     }
 }
 
-void pr::backend::d3d12::CommandAllocatorBundle::initialize(ID3D12Device& device, int num_allocators, int num_cmdlists_per_allocator, cc::span<ID3D12GraphicsCommandList*> initial_lists)
+void phi::d3d12::CommandAllocatorBundle::initialize(ID3D12Device& device, int num_allocators, int num_cmdlists_per_allocator, cc::span<ID3D12GraphicsCommandList*> initial_lists)
 {
     // NOTE: Eventually, we'll need multiple
     constexpr auto list_type = D3D12_COMMAND_LIST_TYPE_DIRECT;
@@ -238,7 +238,7 @@ void pr::backend::d3d12::CommandAllocatorBundle::initialize(ID3D12Device& device
     }
 }
 
-void pr::backend::d3d12::CommandAllocatorBundle::destroy()
+void phi::d3d12::CommandAllocatorBundle::destroy()
 {
     for (cmd_allocator_node& alloc_node : mAllocators)
     {
@@ -248,14 +248,14 @@ void pr::backend::d3d12::CommandAllocatorBundle::destroy()
     }
 }
 
-pr::backend::d3d12::cmd_allocator_node* pr::backend::d3d12::CommandAllocatorBundle::acquireMemory(ID3D12GraphicsCommandList* list)
+phi::d3d12::cmd_allocator_node* phi::d3d12::CommandAllocatorBundle::acquireMemory(ID3D12GraphicsCommandList* list)
 {
     updateActiveIndex();
     mAllocators[mActiveAllocator].acquire(list);
     return &mAllocators[mActiveAllocator];
 }
 
-void pr::backend::d3d12::CommandAllocatorBundle::updateActiveIndex()
+void phi::d3d12::CommandAllocatorBundle::updateActiveIndex()
 {
     for (auto it = 0u; it < mAllocators.size(); ++it)
     {

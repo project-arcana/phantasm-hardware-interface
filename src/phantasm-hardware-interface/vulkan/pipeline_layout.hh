@@ -10,7 +10,7 @@
 #include <phantasm-hardware-interface/vulkan/loader/spirv_patch_util.hh>
 #include <phantasm-hardware-interface/vulkan/loader/volk.hh>
 
-namespace pr::backend::vk
+namespace phi::vk
 {
 namespace detail
 {

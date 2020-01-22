@@ -11,7 +11,7 @@
 
 #include <phantasm-hardware-interface/types.hh>
 
-namespace pr::backend::assets
+namespace phi::assets
 {
 /// Returns a capped vector of vertex attribute infos
 template <class VertT>

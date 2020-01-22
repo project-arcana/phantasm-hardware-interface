@@ -8,7 +8,7 @@ typedef struct _XDisplay Display;
 typedef unsigned long XID;
 typedef XID Window;
 
-namespace pr::backend
+namespace phi
 {
 /// opaque native window handle
 struct window_handle

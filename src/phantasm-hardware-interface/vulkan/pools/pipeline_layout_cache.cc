@@ -2,11 +2,11 @@
 
 #include <phantasm-hardware-interface/detail/hash.hh>
 
-void pr::backend::vk::PipelineLayoutCache::initialize(unsigned max_elements) { mCache.initialize(max_elements); }
+void phi::vk::PipelineLayoutCache::initialize(unsigned max_elements) { mCache.initialize(max_elements); }
 
-void pr::backend::vk::PipelineLayoutCache::destroy(VkDevice device) { reset(device); }
+void phi::vk::PipelineLayoutCache::destroy(VkDevice device) { reset(device); }
 
-pr::backend::vk::pipeline_layout* pr::backend::vk::PipelineLayoutCache::getOrCreate(VkDevice device, cc::span<const util::spirv_desc_info> reflected_ranges, bool has_push_constants)
+phi::vk::pipeline_layout* phi::vk::PipelineLayoutCache::getOrCreate(VkDevice device, cc::span<const util::spirv_desc_info> reflected_ranges, bool has_push_constants)
 {
     auto const hash = hashKey(reflected_ranges, has_push_constants);
 
@@ -21,13 +21,13 @@ pr::backend::vk::pipeline_layout* pr::backend::vk::PipelineLayoutCache::getOrCre
     }
 }
 
-void pr::backend::vk::PipelineLayoutCache::reset(VkDevice device)
+void phi::vk::PipelineLayoutCache::reset(VkDevice device)
 {
     mCache.iterate_elements([&](pipeline_layout& elem) { elem.free(device); });
     mCache.clear();
 }
 
-size_t pr::backend::vk::PipelineLayoutCache::hashKey(cc::span<const pr::backend::vk::util::spirv_desc_info> reflected_ranges, bool has_push_constants)
+size_t phi::vk::PipelineLayoutCache::hashKey(cc::span<const phi::vk::util::spirv_desc_info> reflected_ranges, bool has_push_constants)
 {
     size_t res = cc::make_hash(has_push_constants);
     for (auto const& elem : reflected_ranges)

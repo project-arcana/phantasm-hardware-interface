@@ -11,7 +11,7 @@
 
 #include "volk.hh"
 
-namespace pr::backend::vk::spv
+namespace phi::vk::spv
 {
 // We will configure DXC to shift registers (per space) in the following way to match our bindings:
 // CBVs (b): 0          - Starts first
@@ -36,7 +36,7 @@ inline constexpr auto sampler_binding_start = 3000u;
 
 }
 
-namespace pr::backend::vk::util
+namespace phi::vk::util
 {
 struct spirv_desc_info
 {

@@ -6,11 +6,11 @@
 
 #include <phantasm-hardware-interface/vulkan/loader/volk.hh>
 
-namespace pr::backend::vk::util
+namespace phi::vk::util
 {
-[[nodiscard]] inline constexpr VkFormat to_vk_format(backend::format format)
+[[nodiscard]] inline constexpr VkFormat to_vk_format(phi::format format)
 {
-    using bf = backend::format;
+    using bf = phi::format;
     switch (format)
     {
     case bf::rgba32f:
@@ -98,9 +98,9 @@ namespace pr::backend::vk::util
     return VK_FORMAT_UNDEFINED;
 }
 
-[[nodiscard]] inline constexpr pr::backend::format to_pr_format(VkFormat format)
+[[nodiscard]] inline constexpr phi::format to_pr_format(VkFormat format)
 {
-    using bf = backend::format;
+    using bf = phi::format;
     switch (format)
     {
     case VK_FORMAT_R32G32B32A32_SFLOAT:

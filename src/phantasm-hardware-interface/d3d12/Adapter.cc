@@ -7,7 +7,7 @@
 #include "common/log.hh"
 #include "common/verify.hh"
 
-void pr::backend::d3d12::Adapter::initialize(const backend_config& config)
+void phi::d3d12::Adapter::initialize(const backend_config& config)
 {
     if (config.validation != validation_level::off)
     {
@@ -125,7 +125,7 @@ void pr::backend::d3d12::Adapter::initialize(const backend_config& config)
     }
 }
 
-void pr::backend::d3d12::Adapter::invalidate()
+void phi::d3d12::Adapter::invalidate()
 {
     mInfoQueue = nullptr;
     mFactory = nullptr;

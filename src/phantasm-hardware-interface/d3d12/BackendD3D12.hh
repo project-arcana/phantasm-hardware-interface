@@ -15,18 +15,18 @@
 #include "common/diagnostic_util.hh"
 #include "pools/accel_struct_pool.hh"
 #include "pools/cmd_list_pool.hh"
+#include "pools/event_pool.hh"
 #include "pools/pso_pool.hh"
 #include "pools/resource_pool.hh"
 #include "pools/shader_view_pool.hh"
-#include "pools/event_pool.hh"
 #include "shader_table_construction.hh"
 
-namespace pr::backend::device
+namespace phi::device
 {
 class Window;
 };
 
-namespace pr::backend::d3d12
+namespace phi::d3d12
 {
 class BackendD3D12 final : public Backend
 {
@@ -56,12 +56,12 @@ public:
     // Resource interface
     //
 
-    [[nodiscard]] handle::resource createTexture(backend::format format, unsigned w, unsigned h, unsigned mips, texture_dimension dim, unsigned depth_or_array_size, bool allow_uav) override
+    [[nodiscard]] handle::resource createTexture(phi::format format, unsigned w, unsigned h, unsigned mips, texture_dimension dim, unsigned depth_or_array_size, bool allow_uav) override
     {
         return mPoolResources.createTexture(format, w, h, mips, dim, depth_or_array_size, allow_uav);
     }
 
-    [[nodiscard]] handle::resource createRenderTarget(backend::format format, unsigned w, unsigned h, unsigned samples) override
+    [[nodiscard]] handle::resource createRenderTarget(phi::format format, unsigned w, unsigned h, unsigned samples) override
     {
         return mPoolResources.createRenderTarget(format, w, h, samples);
     }
@@ -113,7 +113,7 @@ public:
                                                              arg::shader_argument_shapes shader_arg_shapes,
                                                              bool has_root_constants,
                                                              arg::graphics_shader_stages shader_stages,
-                                                             pr::primitive_pipeline_config const& primitive_config) override
+                                                             phi::primitive_pipeline_config const& primitive_config) override
     {
         return mPoolPSOs.createPipelineState(vertex_format, framebuffer_conf, shader_arg_shapes, has_root_constants, shader_stages, primitive_config);
     }
@@ -215,7 +215,7 @@ private:
     // Logic
     struct per_thread_component;
     cc::fwd_array<per_thread_component> mThreadComponents;
-    backend::detail::thread_association mThreadAssociation;
+    phi::detail::thread_association mThreadAssociation;
     ShaderTableConstructor mShaderTableCtor;
 
     // Misc

@@ -11,7 +11,7 @@
 
 #include <phantasm-hardware-interface/d3d12/common/d3d12_fwd.hh>
 
-namespace pr::backend::d3d12
+namespace phi::d3d12
 {
 class ResourcePool;
 
@@ -70,7 +70,7 @@ private:
     ID3D12Device5* mDevice = nullptr;
     ResourcePool* mResourcePool = nullptr;
 
-    backend::detail::linked_pool<accel_struct_node, unsigned> mPool;
+    phi::detail::linked_pool<accel_struct_node, unsigned> mPool;
 
     std::mutex mMutex;
 };

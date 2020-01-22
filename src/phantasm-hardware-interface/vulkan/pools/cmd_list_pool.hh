@@ -12,7 +12,7 @@
 #include <phantasm-hardware-interface/vulkan/common/vk_incomplete_state_cache.hh>
 #include <phantasm-hardware-interface/vulkan/loader/volk.hh>
 
-namespace pr::backend::vk
+namespace phi::vk
 {
 class FenceRingbuffer
 {
@@ -242,7 +242,7 @@ private:
 
     /// the pool itself, managing handle association as well as additional
     /// bookkeeping data structures
-    backend::detail::linked_pool<cmd_list_node, unsigned> mPool;
+    phi::detail::linked_pool<cmd_list_node, unsigned> mPool;
 
     std::mutex mMutex;
 };

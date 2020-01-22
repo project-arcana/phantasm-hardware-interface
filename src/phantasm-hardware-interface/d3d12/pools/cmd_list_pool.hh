@@ -13,7 +13,7 @@
 #include <phantasm-hardware-interface/d3d12/Fence.hh>
 #include <phantasm-hardware-interface/d3d12/common/d3d12_sanitized.hh>
 
-namespace pr::backend::d3d12
+namespace phi::d3d12
 {
 /// A single command allocator that keeps track of its lists
 /// Unsynchronized
@@ -173,7 +173,7 @@ public:
     ID3D12GraphicsCommandList* getRawList(handle::command_list cl) const { return mRawLists[static_cast<unsigned>(cl.index)]; }
     ID3D12GraphicsCommandList5* getRawList5(handle::command_list cl) const { return mRawLists5[static_cast<unsigned>(cl.index)]; }
 
-    backend::detail::incomplete_state_cache* getStateCache(handle::command_list cl)
+    phi::detail::incomplete_state_cache* getStateCache(handle::command_list cl)
     {
         return &mPool.get(static_cast<unsigned>(cl.index)).state_cache;
     }
@@ -193,12 +193,12 @@ private:
         // - the responsible_allocator must be informed on submit or discard
         cmd_allocator_node* responsible_allocator;
         ID3D12Fence* fence_to_set; ///< the fence to signal to 1 directly after submission, can be nullptr (not related to internal sync, for handle::event API)
-        backend::detail::incomplete_state_cache state_cache;
+        phi::detail::incomplete_state_cache state_cache;
     };
 
     /// the pool itself, managing handle association as well as additional
     /// bookkeeping data structures
-    backend::detail::linked_pool<cmd_list_node, unsigned> mPool;
+    phi::detail::linked_pool<cmd_list_node, unsigned> mPool;
 
     /// a parallel array to the pool, identically indexed
     /// the cmdlists must stay alive even while "unallocated"

@@ -6,7 +6,7 @@
 
 #include <phantasm-hardware-interface/types.hh>
 
-namespace pr::backend::vk
+namespace phi::vk
 {
 struct vk_incomplete_state_cache
 {

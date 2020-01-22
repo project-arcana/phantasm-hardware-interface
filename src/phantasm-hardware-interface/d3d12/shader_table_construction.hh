@@ -5,7 +5,7 @@
 
 #include <phantasm-hardware-interface/d3d12/common/d3d12_fwd.hh>
 
-namespace pr::backend::d3d12
+namespace phi::d3d12
 {
 class ShaderViewPool;
 class ResourcePool;
@@ -15,7 +15,7 @@ class AccelStructPool;
 class ShaderTableConstructor
 {
 public:
-    [[nodiscard]] pr::backend::shader_table_sizes calculateShaderTableSizes(arg::shader_table_records ray_gen_records,
+    [[nodiscard]] phi::shader_table_sizes calculateShaderTableSizes(arg::shader_table_records ray_gen_records,
                                                                             arg::shader_table_records miss_records,
                                                                             arg::shader_table_records hit_group_records);
 
@@ -25,7 +25,7 @@ public:
     void initialize(ID3D12Device5* device, ShaderViewPool* sv_pool, ResourcePool* resource_pool, PipelineStateObjectPool* pso_pool, AccelStructPool* as_pool);
 
 private:
-    unsigned getShaderRecordSize(pr::backend::arg::shader_table_records records);
+    unsigned getShaderRecordSize(phi::arg::shader_table_records records);
 
 private:
     ID3D12Device5* device;

@@ -8,7 +8,7 @@ class Allocator;
 class Allocation;
 }
 
-namespace pr::backend::d3d12
+namespace phi::d3d12
 {
 class ResourceAllocator
 {

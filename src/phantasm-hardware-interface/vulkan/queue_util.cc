@@ -2,7 +2,7 @@
 
 #include "common/verify.hh"
 
-pr::backend::vk::suitable_queues pr::backend::vk::get_suitable_queues(VkPhysicalDevice physical, VkSurfaceKHR surface)
+phi::vk::suitable_queues phi::vk::get_suitable_queues(VkPhysicalDevice physical, VkSurfaceKHR surface)
 {
     uint32_t num_families;
     vkGetPhysicalDeviceQueueFamilyProperties(physical, &num_families, nullptr);
@@ -45,7 +45,7 @@ pr::backend::vk::suitable_queues pr::backend::vk::get_suitable_queues(VkPhysical
     return res;
 }
 
-pr::backend::vk::chosen_queues pr::backend::vk::get_chosen_queues(const pr::backend::vk::suitable_queues& suitable)
+phi::vk::chosen_queues phi::vk::get_chosen_queues(const phi::vk::suitable_queues& suitable)
 {
     chosen_queues res;
 

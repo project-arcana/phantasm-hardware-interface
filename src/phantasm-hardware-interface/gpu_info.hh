@@ -8,7 +8,7 @@
 
 #include "config.hh"
 
-namespace pr::backend
+namespace phi
 {
 enum class gpu_vendor : uint8_t
 {

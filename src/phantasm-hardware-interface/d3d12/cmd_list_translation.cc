@@ -16,19 +16,19 @@
 #include "pools/root_sig_cache.hh"
 #include "pools/shader_view_pool.hh"
 
-void pr::backend::d3d12::command_list_translator::initialize(ID3D12Device* device,
-                                                             pr::backend::d3d12::ShaderViewPool* sv_pool,
-                                                             pr::backend::d3d12::ResourcePool* resource_pool,
-                                                             pr::backend::d3d12::PipelineStateObjectPool* pso_pool,
+void phi::d3d12::command_list_translator::initialize(ID3D12Device* device,
+                                                             phi::d3d12::ShaderViewPool* sv_pool,
+                                                             phi::d3d12::ResourcePool* resource_pool,
+                                                             phi::d3d12::PipelineStateObjectPool* pso_pool,
                                                              AccelStructPool* as_pool)
 {
     _globals.initialize(device, sv_pool, resource_pool, pso_pool, as_pool);
     _thread_local.initialize(*_globals.device);
 }
 
-void pr::backend::d3d12::command_list_translator::translateCommandList(ID3D12GraphicsCommandList* list,
+void phi::d3d12::command_list_translator::translateCommandList(ID3D12GraphicsCommandList* list,
                                                                        ID3D12GraphicsCommandList5* list5,
-                                                                       backend::detail::incomplete_state_cache* state_cache,
+                                                                       phi::detail::incomplete_state_cache* state_cache,
                                                                        std::byte* buffer,
                                                                        size_t buffer_size)
 {
@@ -53,7 +53,7 @@ void pr::backend::d3d12::command_list_translator::translateCommandList(ID3D12Gra
     // done
 }
 
-void pr::backend::d3d12::command_list_translator::execute(const pr::backend::cmd::begin_render_pass& begin_rp)
+void phi::d3d12::command_list_translator::execute(const phi::cmd::begin_render_pass& begin_rp)
 {
     util::set_viewport(_cmd_list, begin_rp.viewport);
 
@@ -112,7 +112,7 @@ void pr::backend::d3d12::command_list_translator::execute(const pr::backend::cmd
     _thread_local.lin_alloc_dsvs.reset();
 }
 
-void pr::backend::d3d12::command_list_translator::execute(const pr::backend::cmd::draw& draw)
+void phi::d3d12::command_list_translator::execute(const phi::cmd::draw& draw)
 {
     auto const& pso_node = _globals.pool_pipeline_states->get(draw.pipeline_state);
 
@@ -214,7 +214,7 @@ void pr::backend::d3d12::command_list_translator::execute(const pr::backend::cmd
     }
 }
 
-void pr::backend::d3d12::command_list_translator::execute(const pr::backend::cmd::dispatch& dispatch)
+void phi::d3d12::command_list_translator::execute(const phi::cmd::dispatch& dispatch)
 {
     auto const& pso_node = _globals.pool_pipeline_states->get(dispatch.pipeline_state);
 
@@ -282,12 +282,12 @@ void pr::backend::d3d12::command_list_translator::execute(const pr::backend::cmd
     _cmd_list->Dispatch(dispatch.dispatch_x, dispatch.dispatch_y, dispatch.dispatch_z);
 }
 
-void pr::backend::d3d12::command_list_translator::execute(const pr::backend::cmd::end_render_pass&)
+void phi::d3d12::command_list_translator::execute(const phi::cmd::end_render_pass&)
 {
     // do nothing
 }
 
-void pr::backend::d3d12::command_list_translator::execute(const pr::backend::cmd::transition_resources& transition_res)
+void phi::d3d12::command_list_translator::execute(const phi::cmd::transition_resources& transition_res)
 {
     cc::capped_vector<D3D12_RESOURCE_BARRIER, limits::max_resource_transitions> barriers;
 
@@ -309,7 +309,7 @@ void pr::backend::d3d12::command_list_translator::execute(const pr::backend::cmd
     }
 }
 
-void pr::backend::d3d12::command_list_translator::execute(const pr::backend::cmd::transition_image_slices& transition_images)
+void phi::d3d12::command_list_translator::execute(const phi::cmd::transition_image_slices& transition_images)
 {
     // Image slice transitions are entirely explicit, and require the user to synchronize before/after resource states
     // NOTE: we do not update the master state as it does not encompass subresource states
@@ -329,13 +329,13 @@ void pr::backend::d3d12::command_list_translator::execute(const pr::backend::cmd
     }
 }
 
-void pr::backend::d3d12::command_list_translator::execute(const pr::backend::cmd::copy_buffer& copy_buf)
+void phi::d3d12::command_list_translator::execute(const phi::cmd::copy_buffer& copy_buf)
 {
     _cmd_list->CopyBufferRegion(_globals.pool_resources->getRawResource(copy_buf.destination), copy_buf.dest_offset,
                                 _globals.pool_resources->getRawResource(copy_buf.source), copy_buf.source_offset, copy_buf.size);
 }
 
-void pr::backend::d3d12::command_list_translator::execute(const pr::backend::cmd::copy_texture& copy_text)
+void phi::d3d12::command_list_translator::execute(const phi::cmd::copy_texture& copy_text)
 {
     auto const& src_info = _globals.pool_resources->getImageInfo(copy_text.source);
     auto const& dest_info = _globals.pool_resources->getImageInfo(copy_text.destination);
@@ -351,10 +351,10 @@ void pr::backend::d3d12::command_list_translator::execute(const pr::backend::cmd
     }
 }
 
-void pr::backend::d3d12::command_list_translator::execute(const pr::backend::cmd::copy_buffer_to_texture& copy_text)
+void phi::d3d12::command_list_translator::execute(const phi::cmd::copy_buffer_to_texture& copy_text)
 {
     auto const& dest_info = _globals.pool_resources->getImageInfo(copy_text.destination);
-    auto const pixel_bytes = backend::detail::pr_format_size_bytes(dest_info.pixel_format);
+    auto const pixel_bytes = phi::detail::pr_format_size_bytes(dest_info.pixel_format);
     auto const format_dxgi = util::to_dxgi_format(dest_info.pixel_format);
 
     D3D12_SUBRESOURCE_FOOTPRINT footprint;
@@ -375,7 +375,7 @@ void pr::backend::d3d12::command_list_translator::execute(const pr::backend::cmd
     _cmd_list->CopyTextureRegion(&dest, 0, 0, 0, &source, nullptr);
 }
 
-void pr::backend::d3d12::command_list_translator::execute(const pr::backend::cmd::resolve_texture& resolve)
+void phi::d3d12::command_list_translator::execute(const phi::cmd::resolve_texture& resolve)
 {
     auto const src_raw = _globals.pool_resources->getRawResource(resolve.source);
     auto const dest_raw = _globals.pool_resources->getRawResource(resolve.destination);
@@ -388,12 +388,12 @@ void pr::backend::d3d12::command_list_translator::execute(const pr::backend::cmd
     _cmd_list->ResolveSubresource(dest_raw, dest_subres_index, src_raw, src_subres_index, util::to_dxgi_format(dest_info.pixel_format));
 }
 
-void pr::backend::d3d12::command_list_translator::execute(const pr::backend::cmd::debug_marker& marker)
+void phi::d3d12::command_list_translator::execute(const phi::cmd::debug_marker& marker)
 {
     util::set_pix_marker(_cmd_list, 0, marker.string_literal);
 }
 
-void pr::backend::d3d12::command_list_translator::execute(const pr::backend::cmd::update_bottom_level& blas_update)
+void phi::d3d12::command_list_translator::execute(const phi::cmd::update_bottom_level& blas_update)
 {
     CC_ASSERT(_cmd_list_5 != nullptr && "Used feature requires Windows 10 1903 or newer");
 
@@ -415,7 +415,7 @@ void pr::backend::d3d12::command_list_translator::execute(const pr::backend::cmd
     _cmd_list_5->ResourceBarrier(1, &uav_barrier);
 }
 
-void pr::backend::d3d12::command_list_translator::execute(const pr::backend::cmd::update_top_level& tlas_update)
+void phi::d3d12::command_list_translator::execute(const phi::cmd::update_top_level& tlas_update)
 {
     CC_ASSERT(_cmd_list_5 != nullptr && "Used feature requires Windows 10 1903 or newer");
 
@@ -438,7 +438,7 @@ void pr::backend::d3d12::command_list_translator::execute(const pr::backend::cmd
     //    _cmd_list_rt->ResourceBarrier(1, &uav_barrier);
 }
 
-void pr::backend::d3d12::command_list_translator::execute(const cmd::dispatch_rays& dispatch_rays)
+void phi::d3d12::command_list_translator::execute(const cmd::dispatch_rays& dispatch_rays)
 {
     CC_ASSERT(_cmd_list_5 != nullptr && "Used feature requires Windows 10 1903 or newer");
 
@@ -483,7 +483,7 @@ void pr::backend::d3d12::command_list_translator::execute(const cmd::dispatch_ra
     _cmd_list_5->DispatchRays(&desc);
 }
 
-void pr::backend::d3d12::translator_thread_local_memory::initialize(ID3D12Device& device)
+void phi::d3d12::translator_thread_local_memory::initialize(ID3D12Device& device)
 {
     lin_alloc_rtvs.initialize(device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, limits::max_render_targets);
     lin_alloc_dsvs.initialize(device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1);

@@ -4,7 +4,7 @@
 
 #include <phantasm-hardware-interface/types.hh>
 
-namespace pr::backend::detail
+namespace phi::detail
 {
 /// A thread-local, incomplete-information resource state cache
 /// Keeps track of locally known resource states, and stores the required initial states

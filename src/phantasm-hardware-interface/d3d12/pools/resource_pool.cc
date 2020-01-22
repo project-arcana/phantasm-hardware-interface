@@ -12,9 +12,9 @@
 
 namespace
 {
-constexpr char const* get_tex_dim_literal(pr::backend::texture_dimension tdim)
+constexpr char const* get_tex_dim_literal(phi::texture_dimension tdim)
 {
-    using td = pr::backend::texture_dimension;
+    using td = phi::texture_dimension;
     switch (tdim)
     {
     case td::t1d:
@@ -28,7 +28,7 @@ constexpr char const* get_tex_dim_literal(pr::backend::texture_dimension tdim)
 }
 }
 
-void pr::backend::d3d12::ResourcePool::initialize(ID3D12Device& device, unsigned max_num_resources)
+void phi::d3d12::ResourcePool::initialize(ID3D12Device& device, unsigned max_num_resources)
 {
     mAllocator.initialize(device);
     // TODO: think about reserved bits for dangle check, assert max_num < 2^free bits
@@ -36,7 +36,7 @@ void pr::backend::d3d12::ResourcePool::initialize(ID3D12Device& device, unsigned
     mInjectedBackbufferResource = {static_cast<handle::index_t>(mPool.acquire())};
 }
 
-void pr::backend::d3d12::ResourcePool::destroy()
+void phi::d3d12::ResourcePool::destroy()
 {
     auto num_leaks = 0;
     mPool.iterate_allocated_nodes([&](resource_node& leaked_node, unsigned) {
@@ -55,7 +55,7 @@ void pr::backend::d3d12::ResourcePool::destroy()
     mAllocator.destroy();
 }
 
-pr::backend::handle::resource pr::backend::d3d12::ResourcePool::injectBackbufferResource(ID3D12Resource* raw_resource, pr::backend::resource_state state)
+phi::handle::resource phi::d3d12::ResourcePool::injectBackbufferResource(ID3D12Resource* raw_resource, phi::resource_state state)
 {
     resource_node& backbuffer_node = mPool.get(static_cast<unsigned>(mInjectedBackbufferResource.index));
     backbuffer_node.type = resource_node::resource_type::image;
@@ -64,7 +64,7 @@ pr::backend::handle::resource pr::backend::d3d12::ResourcePool::injectBackbuffer
     return mInjectedBackbufferResource;
 }
 
-pr::backend::handle::resource pr::backend::d3d12::ResourcePool::createTexture(
+phi::handle::resource phi::d3d12::ResourcePool::createTexture(
     format format, unsigned w, unsigned h, unsigned mips, texture_dimension dim, unsigned depth_or_array_size, bool allow_uav)
 {
     constexpr auto initial_state = resource_state::copy_dest;
@@ -92,7 +92,7 @@ pr::backend::handle::resource pr::backend::d3d12::ResourcePool::createTexture(
     return acquireImage(alloc, format, initial_state, real_mip_levels, desc.DepthOrArraySize);
 }
 
-pr::backend::handle::resource pr::backend::d3d12::ResourcePool::createRenderTarget(backend::format format, unsigned w, unsigned h, unsigned samples)
+phi::handle::resource phi::d3d12::ResourcePool::createRenderTarget(phi::format format, unsigned w, unsigned h, unsigned samples)
 {
     auto const format_dxgi = util::to_dxgi_format(format);
     if (is_depth_format(format))
@@ -133,7 +133,7 @@ pr::backend::handle::resource pr::backend::d3d12::ResourcePool::createRenderTarg
     }
 }
 
-pr::backend::handle::resource pr::backend::d3d12::ResourcePool::createBuffer(uint64_t size_bytes, unsigned stride_bytes, bool allow_uav)
+phi::handle::resource phi::d3d12::ResourcePool::createBuffer(uint64_t size_bytes, unsigned stride_bytes, bool allow_uav)
 {
     auto desc = CD3DX12_RESOURCE_DESC::Buffer(size_bytes);
 
@@ -145,7 +145,7 @@ pr::backend::handle::resource pr::backend::d3d12::ResourcePool::createBuffer(uin
     return acquireBuffer(alloc, resource_state::undefined, size_bytes, stride_bytes);
 }
 
-pr::backend::handle::resource pr::backend::d3d12::ResourcePool::createBufferInternal(uint64_t size_bytes, unsigned stride_bytes, bool allow_uav, D3D12_RESOURCE_STATES initial_state)
+phi::handle::resource phi::d3d12::ResourcePool::createBufferInternal(uint64_t size_bytes, unsigned stride_bytes, bool allow_uav, D3D12_RESOURCE_STATES initial_state)
 {
     auto desc = CD3DX12_RESOURCE_DESC::Buffer(size_bytes);
 
@@ -157,7 +157,7 @@ pr::backend::handle::resource pr::backend::d3d12::ResourcePool::createBufferInte
     return acquireBuffer(alloc, resource_state::unknown, size_bytes, stride_bytes);
 }
 
-pr::backend::handle::resource pr::backend::d3d12::ResourcePool::createMappedBuffer(uint64_t size_bytes, unsigned stride_bytes)
+phi::handle::resource phi::d3d12::ResourcePool::createMappedBuffer(uint64_t size_bytes, unsigned stride_bytes)
 {
     auto const desc = CD3DX12_RESOURCE_DESC::Buffer(size_bytes);
     auto* const alloc = mAllocator.allocate(desc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, D3D12_HEAP_TYPE_UPLOAD);
@@ -169,7 +169,7 @@ pr::backend::handle::resource pr::backend::d3d12::ResourcePool::createMappedBuff
     return acquireBuffer(alloc, resource_state::unknown, size_bytes, stride_bytes, cc::bit_cast<std::byte*>(data_start_void));
 }
 
-void pr::backend::d3d12::ResourcePool::free(pr::backend::handle::resource res)
+void phi::d3d12::ResourcePool::free(phi::handle::resource res)
 {
     CC_ASSERT(res != mInjectedBackbufferResource && "the backbuffer resource must not be freed");
     if (!res.is_valid())
@@ -188,7 +188,7 @@ void pr::backend::d3d12::ResourcePool::free(pr::backend::handle::resource res)
     }
 }
 
-void pr::backend::d3d12::ResourcePool::free(cc::span<const pr::backend::handle::resource> resources)
+void phi::d3d12::ResourcePool::free(cc::span<const phi::handle::resource> resources)
 {
     auto lg = std::lock_guard(mMutex);
 
@@ -206,8 +206,8 @@ void pr::backend::d3d12::ResourcePool::free(cc::span<const pr::backend::handle::
     }
 }
 
-pr::backend::handle::resource pr::backend::d3d12::ResourcePool::acquireBuffer(
-    D3D12MA::Allocation* alloc, pr::backend::resource_state initial_state, uint64_t buffer_width, unsigned buffer_stride, std::byte* buffer_map)
+phi::handle::resource phi::d3d12::ResourcePool::acquireBuffer(
+    D3D12MA::Allocation* alloc, phi::resource_state initial_state, uint64_t buffer_width, unsigned buffer_stride, std::byte* buffer_map)
 {
     unsigned res;
     {
@@ -227,8 +227,8 @@ pr::backend::handle::resource pr::backend::d3d12::ResourcePool::acquireBuffer(
     return {static_cast<handle::index_t>(res)};
 }
 
-pr::backend::handle::resource pr::backend::d3d12::ResourcePool::acquireImage(
-    D3D12MA::Allocation* alloc, pr::backend::format pixel_format, pr::backend::resource_state initial_state, unsigned num_mips, unsigned num_array_layers)
+phi::handle::resource phi::d3d12::ResourcePool::acquireImage(
+    D3D12MA::Allocation* alloc, phi::format pixel_format, phi::resource_state initial_state, unsigned num_mips, unsigned num_array_layers)
 {
     unsigned res;
     {

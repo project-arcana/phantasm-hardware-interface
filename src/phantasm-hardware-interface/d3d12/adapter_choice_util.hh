@@ -7,7 +7,7 @@
 
 #include "common/d3d12_sanitized.hh"
 
-namespace pr::backend::d3d12
+namespace phi::d3d12
 {
 [[nodiscard]] gpu_feature_flags check_capabilities(ID3D12Device* device);
 

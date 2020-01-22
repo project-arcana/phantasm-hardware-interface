@@ -10,7 +10,7 @@
 typedef struct VmaAllocator_T* VmaAllocator;
 typedef struct VmaAllocation_T* VmaAllocation;
 
-namespace pr::backend::vk
+namespace phi::vk
 {
 /// The high-level allocator for resources
 /// Synchronized
@@ -24,7 +24,7 @@ public:
     [[nodiscard]] handle::resource createTexture(format format, unsigned w, unsigned h, unsigned mips, texture_dimension dim, unsigned depth_or_array_size, bool allow_uav);
 
     /// create a render- or depth-stencil target
-    [[nodiscard]] handle::resource createRenderTarget(backend::format format, unsigned w, unsigned h, unsigned samples);
+    [[nodiscard]] handle::resource createRenderTarget(format format, unsigned w, unsigned h, unsigned samples);
 
     /// create a buffer, with an element stride if its an index or vertex buffer
     [[nodiscard]] handle::resource createBuffer(uint64_t size_bytes, unsigned stride_bytes, bool allow_uav);
@@ -136,8 +136,8 @@ public:
     // Swapchain backbuffer resource injection
     // Swapchain backbuffers are exposed as handle::resource, so they can be interchangably
     // used with any other render target, and follow the same transition semantics
-    // these handles have a limited lifetime: valid from Backend::acquireBackbuffer until
-    // the first of either Backend::present or Backend::resize
+    // these handles have a limited lifetime: valid from phi::acquireBackbuffer until
+    // the first of either phi::present or phi::resize
     //
 
     [[nodiscard]] handle::resource injectBackbufferResource(VkImage raw_image, resource_state state, VkImageView backbuffer_view, resource_state& out_prev_state);
@@ -159,7 +159,7 @@ private:
 
 private:
     /// The main pool data
-    backend::detail::linked_pool<resource_node, unsigned> mPool;
+    phi::detail::linked_pool<resource_node, unsigned> mPool;
 
     /// The handle of the injected backbuffer resource
     handle::resource mInjectedBackbufferResource = handle::null_resource;

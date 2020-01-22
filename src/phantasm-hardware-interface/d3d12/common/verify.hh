@@ -7,7 +7,7 @@
 struct ID3D12Device;
 typedef long HRESULT;
 
-namespace pr::backend::d3d12::detail
+namespace phi::d3d12::detail
 {
 [[noreturn]] CC_COLD_FUNC CC_DONT_INLINE void verify_failure_handler(HRESULT hr, char const* expression, char const* filename, int line, ID3D12Device* device);
 
@@ -24,21 +24,21 @@ namespace pr::backend::d3d12::detail
 /// Attempts to recover the parent d3d12device from the given device child and
 /// query DRED diagnostic information
 #define PR_D3D12_DRED_ASSERT(_expr_, _device_child_) \
-    (CC_UNLIKELY(!(_expr_)) ? ::pr::backend::d3d12::detail::dred_assert_handler(_device_child_, #_expr_, __FILE__, __LINE__) : void(0))
+    (CC_UNLIKELY(!(_expr_)) ? ::phi::d3d12::detail::dred_assert_handler(_device_child_, #_expr_, __FILE__, __LINE__) : void(0))
 
 /// Terminates with a detailed error message if the given HRESULT lvalue indicates failure
 #define PR_D3D12_ASSERT(_val_)                                                                                           \
     static_assert(PR_IS_LVALUE_EXPRESSION(_val_), "Use PR_D3D12_VERIFY for prvalue expressions");                        \
-    (CC_UNLIKELY(::pr::backend::d3d12::detail::hr_failed(_val_))                                                         \
-         ? ::pr::backend::d3d12::detail::verify_failure_handler(_val_, #_val_ " is failed", __FILE__, __LINE__, nullptr) \
+    (CC_UNLIKELY(::phi::d3d12::detail::hr_failed(_val_))                                                         \
+         ? ::phi::d3d12::detail::verify_failure_handler(_val_, #_val_ " is failed", __FILE__, __LINE__, nullptr) \
          : void(0))
 
 
 /// Terminates with a detailed error message if the given HRESULT lvalue indicates failure, takes the current ID3D12 Device for further information
 #define PR_D3D12_ASSERT_FULL(_val_, _device_ptr_)                                                                             \
     static_assert(PR_IS_LVALUE_EXPRESSION(_val_), "Use PR_D3D12_VERIFY_FULL for prvalue expressions");                        \
-    (CC_UNLIKELY(::pr::backend::d3d12::detail::hr_failed(_val_))                                                              \
-         ? ::pr::backend::d3d12::detail::verify_failure_handler(_val_, #_val_ " is failed", __FILE__, __LINE__, _device_ptr_) \
+    (CC_UNLIKELY(::phi::d3d12::detail::hr_failed(_val_))                                                              \
+         ? ::phi::d3d12::detail::verify_failure_handler(_val_, #_val_ " is failed", __FILE__, __LINE__, _device_ptr_) \
          : void(0))
 
 /// Executes the given expression and terminates with a detailed error message if the HRESULT indicates failure
@@ -47,9 +47,9 @@ namespace pr::backend::d3d12::detail
     do                                                                                                          \
     {                                                                                                           \
         ::HRESULT const op_res = (_expr_);                                                                      \
-        if (CC_UNLIKELY(::pr::backend::d3d12::detail::hr_failed(op_res)))                                       \
+        if (CC_UNLIKELY(::phi::d3d12::detail::hr_failed(op_res)))                                       \
         {                                                                                                       \
-            ::pr::backend::d3d12::detail::verify_failure_handler(op_res, #_expr_, __FILE__, __LINE__, nullptr); \
+            ::phi::d3d12::detail::verify_failure_handler(op_res, #_expr_, __FILE__, __LINE__, nullptr); \
         }                                                                                                       \
     } while (0)
 
@@ -59,8 +59,8 @@ namespace pr::backend::d3d12::detail
     do                                                                                                               \
     {                                                                                                                \
         ::HRESULT const op_res = (_expr_);                                                                           \
-        if (CC_UNLIKELY(::pr::backend::d3d12::detail::hr_failed(op_res)))                                            \
+        if (CC_UNLIKELY(::phi::d3d12::detail::hr_failed(op_res)))                                            \
         {                                                                                                            \
-            ::pr::backend::d3d12::detail::verify_failure_handler(op_res, #_expr_, __FILE__, __LINE__, _device_ptr_); \
+            ::phi::d3d12::detail::verify_failure_handler(op_res, #_expr_, __FILE__, __LINE__, _device_ptr_); \
         }                                                                                                            \
     } while (0)

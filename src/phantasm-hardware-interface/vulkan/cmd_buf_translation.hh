@@ -7,7 +7,7 @@
 #include <phantasm-hardware-interface/vulkan/common/vk_incomplete_state_cache.hh>
 #include <phantasm-hardware-interface/vulkan/loader/volk.hh>
 
-namespace pr::backend::vk
+namespace phi::vk
 {
 class ShaderViewPool;
 class ResourcePool;

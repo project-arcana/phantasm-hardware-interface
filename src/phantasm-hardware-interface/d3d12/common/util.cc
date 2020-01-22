@@ -6,7 +6,7 @@
 #include <phantasm-hardware-interface/d3d12/common/dxgi_format.hh>
 #include <phantasm-hardware-interface/d3d12/common/native_enum.hh>
 
-cc::capped_vector<D3D12_INPUT_ELEMENT_DESC, 16> pr::backend::d3d12::util::get_native_vertex_format(cc::span<const pr::backend::vertex_attribute_info> attrib_info)
+cc::capped_vector<D3D12_INPUT_ELEMENT_DESC, 16> phi::d3d12::util::get_native_vertex_format(cc::span<const phi::vertex_attribute_info> attrib_info)
 {
     cc::capped_vector<D3D12_INPUT_ELEMENT_DESC, 16> res;
     for (auto const& ai : attrib_info)
@@ -24,7 +24,7 @@ cc::capped_vector<D3D12_INPUT_ELEMENT_DESC, 16> pr::backend::d3d12::util::get_na
     return res;
 }
 
-void pr::backend::d3d12::util::set_object_name(ID3D12Object* object, const char* name, ...)
+void phi::d3d12::util::set_object_name(ID3D12Object* object, const char* name, ...)
 {
     if (name != nullptr)
     {
@@ -42,7 +42,7 @@ void pr::backend::d3d12::util::set_object_name(ID3D12Object* object, const char*
     }
 }
 
-D3D12_SHADER_RESOURCE_VIEW_DESC pr::backend::d3d12::util::create_srv_desc(const pr::backend::shader_view_element& sve, ID3D12Resource* raw_resource)
+D3D12_SHADER_RESOURCE_VIEW_DESC phi::d3d12::util::create_srv_desc(const phi::shader_view_element& sve, ID3D12Resource* raw_resource)
 {
     D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
     srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
@@ -134,7 +134,7 @@ D3D12_SHADER_RESOURCE_VIEW_DESC pr::backend::d3d12::util::create_srv_desc(const 
     return srv_desc;
 }
 
-D3D12_UNORDERED_ACCESS_VIEW_DESC pr::backend::d3d12::util::create_uav_desc(const pr::backend::shader_view_element& sve)
+D3D12_UNORDERED_ACCESS_VIEW_DESC phi::d3d12::util::create_uav_desc(const phi::shader_view_element& sve)
 {
     D3D12_UNORDERED_ACCESS_VIEW_DESC uav_desc = {};
     uav_desc.ViewDimension = util::to_native_uav_dim(sve.dimension);
@@ -202,7 +202,7 @@ D3D12_UNORDERED_ACCESS_VIEW_DESC pr::backend::d3d12::util::create_uav_desc(const
     return uav_desc;
 }
 
-D3D12_RENDER_TARGET_VIEW_DESC pr::backend::d3d12::util::create_rtv_desc(const pr::backend::shader_view_element& sve)
+D3D12_RENDER_TARGET_VIEW_DESC phi::d3d12::util::create_rtv_desc(const phi::shader_view_element& sve)
 {
     D3D12_RENDER_TARGET_VIEW_DESC rtv_desc = {};
     rtv_desc.Format = util::to_dxgi_format(sve.pixel_format);
@@ -256,7 +256,7 @@ D3D12_RENDER_TARGET_VIEW_DESC pr::backend::d3d12::util::create_rtv_desc(const pr
     return rtv_desc;
 }
 
-D3D12_DEPTH_STENCIL_VIEW_DESC pr::backend::d3d12::util::create_dsv_desc(const pr::backend::shader_view_element& sve)
+D3D12_DEPTH_STENCIL_VIEW_DESC phi::d3d12::util::create_dsv_desc(const phi::shader_view_element& sve)
 {
     D3D12_DEPTH_STENCIL_VIEW_DESC dsv_desc = {};
     dsv_desc.Format = util::to_dxgi_format(sve.pixel_format);
@@ -297,7 +297,7 @@ D3D12_DEPTH_STENCIL_VIEW_DESC pr::backend::d3d12::util::create_dsv_desc(const pr
     return dsv_desc;
 }
 
-D3D12_SAMPLER_DESC pr::backend::d3d12::util::create_sampler_desc(const pr::backend::sampler_config& config)
+D3D12_SAMPLER_DESC phi::d3d12::util::create_sampler_desc(const phi::sampler_config& config)
 {
     D3D12_SAMPLER_DESC sampler_desc = {};
     sampler_desc.Filter = util::to_native(config.filter, config.compare_func != sampler_compare_func::disabled);
@@ -321,8 +321,8 @@ D3D12_SAMPLER_DESC pr::backend::d3d12::util::create_sampler_desc(const pr::backe
     return sampler_desc;
 }
 
-D3D12_RESOURCE_BARRIER pr::backend::d3d12::util::get_barrier_desc(
-    ID3D12Resource* res, pr::backend::resource_state before, pr::backend::resource_state after, int mip_level, int array_slice, unsigned mip_size)
+D3D12_RESOURCE_BARRIER phi::d3d12::util::get_barrier_desc(
+    ID3D12Resource* res, phi::resource_state before, phi::resource_state after, int mip_level, int array_slice, unsigned mip_size)
 {
     D3D12_RESOURCE_BARRIER out_barrier;
     out_barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;

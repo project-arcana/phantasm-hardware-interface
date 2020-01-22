@@ -9,7 +9,7 @@
 
 #include <phantasm-hardware-interface/vulkan/loader/volk.hh>
 
-namespace pr::backend::vk
+namespace phi::vk
 {
 enum class vk_name_type
 {

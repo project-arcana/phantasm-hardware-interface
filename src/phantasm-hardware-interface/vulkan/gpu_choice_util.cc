@@ -13,17 +13,17 @@ namespace
 {
 [[nodiscard]] bool are_device_properties_sufficient(VkPhysicalDeviceProperties const& props)
 {
-    if (props.limits.maxBoundDescriptorSets < pr::backend::limits::max_shader_arguments * 2)
+    if (props.limits.maxBoundDescriptorSets < phi::limits::max_shader_arguments * 2)
         return false;
 
-    if (props.limits.maxColorAttachments < pr::backend::limits::max_render_targets)
+    if (props.limits.maxColorAttachments < phi::limits::max_render_targets)
         return false;
 
     return true;
 }
 }
 
-cc::array<VkPhysicalDevice> pr::backend::vk::get_physical_devices(VkInstance instance)
+cc::array<VkPhysicalDevice> phi::vk::get_physical_devices(VkInstance instance)
 {
     uint32_t num_physical_devices;
     PR_VK_VERIFY_NONERROR(vkEnumeratePhysicalDevices(instance, &num_physical_devices, nullptr));
@@ -32,7 +32,7 @@ cc::array<VkPhysicalDevice> pr::backend::vk::get_physical_devices(VkInstance ins
     return res;
 }
 
-pr::backend::vk::vulkan_gpu_info pr::backend::vk::get_vulkan_gpu_info(VkPhysicalDevice device, VkSurfaceKHR surface)
+phi::vk::vulkan_gpu_info phi::vk::get_vulkan_gpu_info(VkPhysicalDevice device, VkSurfaceKHR surface)
 {
     vulkan_gpu_info res;
     res.physical_device = device;
@@ -94,7 +94,7 @@ pr::backend::vk::vulkan_gpu_info pr::backend::vk::get_vulkan_gpu_info(VkPhysical
     return res;
 }
 
-cc::array<pr::backend::vk::vulkan_gpu_info> pr::backend::vk::get_all_vulkan_gpu_infos(VkInstance instance, VkSurfaceKHR surface)
+cc::array<phi::vk::vulkan_gpu_info> phi::vk::get_all_vulkan_gpu_infos(VkInstance instance, VkSurfaceKHR surface)
 {
     auto const physical_devices = get_physical_devices(instance);
     cc::array<vulkan_gpu_info> res(physical_devices.size());
@@ -105,7 +105,7 @@ cc::array<pr::backend::vk::vulkan_gpu_info> pr::backend::vk::get_all_vulkan_gpu_
     return res;
 }
 
-pr::backend::vk::backbuffer_information pr::backend::vk::get_backbuffer_information(VkPhysicalDevice device, VkSurfaceKHR surface)
+phi::vk::backbuffer_information phi::vk::get_backbuffer_information(VkPhysicalDevice device, VkSurfaceKHR surface)
 {
     backbuffer_information res;
 
@@ -124,14 +124,14 @@ pr::backend::vk::backbuffer_information pr::backend::vk::get_backbuffer_informat
     return res;
 }
 
-VkSurfaceCapabilitiesKHR pr::backend::vk::get_surface_capabilities(VkPhysicalDevice device, VkSurfaceKHR surface)
+VkSurfaceCapabilitiesKHR phi::vk::get_surface_capabilities(VkPhysicalDevice device, VkSurfaceKHR surface)
 {
     VkSurfaceCapabilitiesKHR res;
     PR_VK_VERIFY_NONERROR(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &res));
     return res;
 }
 
-VkSurfaceFormatKHR pr::backend::vk::choose_backbuffer_format(cc::span<const VkSurfaceFormatKHR> available_formats)
+VkSurfaceFormatKHR phi::vk::choose_backbuffer_format(cc::span<const VkSurfaceFormatKHR> available_formats)
 {
     for (auto const& f : available_formats)
         if (f.format == VK_FORMAT_B8G8R8A8_UNORM && f.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
@@ -140,7 +140,7 @@ VkSurfaceFormatKHR pr::backend::vk::choose_backbuffer_format(cc::span<const VkSu
     return available_formats[0];
 }
 
-VkPresentModeKHR pr::backend::vk::choose_present_mode(cc::span<const VkPresentModeKHR> available_modes, present_mode mode)
+VkPresentModeKHR phi::vk::choose_present_mode(cc::span<const VkPresentModeKHR> available_modes, present_mode mode)
 {
     VkPresentModeKHR preferred;
     switch (mode)
@@ -161,7 +161,7 @@ VkPresentModeKHR pr::backend::vk::choose_present_mode(cc::span<const VkPresentMo
     return VK_PRESENT_MODE_FIFO_KHR;
 }
 
-VkExtent2D pr::backend::vk::get_swap_extent(const VkSurfaceCapabilitiesKHR& caps, VkExtent2D extent_hint)
+VkExtent2D phi::vk::get_swap_extent(const VkSurfaceCapabilitiesKHR& caps, VkExtent2D extent_hint)
 {
     if (caps.currentExtent.width != UINT32_MAX)
     {
@@ -176,7 +176,7 @@ VkExtent2D pr::backend::vk::get_swap_extent(const VkSurfaceCapabilitiesKHR& caps
     }
 }
 
-cc::vector<pr::backend::gpu_info> pr::backend::vk::get_available_gpus(cc::span<const vulkan_gpu_info> vk_gpu_infos)
+cc::vector<phi::gpu_info> phi::vk::get_available_gpus(cc::span<const vulkan_gpu_info> vk_gpu_infos)
 {
     cc::vector<gpu_info> res;
     res.reserve(vk_gpu_infos.size());

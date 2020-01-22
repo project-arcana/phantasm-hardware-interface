@@ -7,12 +7,12 @@
 
 #include <phantasm-hardware-interface/vulkan/loader/vulkan_fwd.hh>
 
-namespace pr::backend::cmd
+namespace phi::cmd
 {
 struct begin_render_pass;
 }
 
-namespace pr::backend::vk
+namespace phi::vk
 {
 /// Persistent cache for render passes
 /// Unsynchronized, only used inside of pipeline pool
@@ -33,7 +33,7 @@ public:
 private:
     static cc::hash_t hashKey(cmd::begin_render_pass const& brp, unsigned num_samples, cc::span<const format> override_rt_formats);
 
-    backend::detail::cache_map<VkRenderPass> mCache;
+    phi::detail::cache_map<VkRenderPass> mCache;
 };
 
 }

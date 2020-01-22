@@ -5,7 +5,7 @@
 #include <phantasm-hardware-interface/d3d12/common/util.hh>
 #include <phantasm-hardware-interface/d3d12/common/verify.hh>
 
-void pr::backend::d3d12::CPUDescriptorLinearAllocator::initialize(ID3D12Device& device, D3D12_DESCRIPTOR_HEAP_TYPE type, unsigned size)
+void phi::d3d12::CPUDescriptorLinearAllocator::initialize(ID3D12Device& device, D3D12_DESCRIPTOR_HEAP_TYPE type, unsigned size)
 {
     CC_RUNTIME_ASSERT(((type == D3D12_DESCRIPTOR_HEAP_TYPE_RTV) || (type == D3D12_DESCRIPTOR_HEAP_TYPE_DSV)) && "Only use this class for CPU-visible descriptors");
 
@@ -23,7 +23,7 @@ void pr::backend::d3d12::CPUDescriptorLinearAllocator::initialize(ID3D12Device& 
     mHandleCPU = mHeap->GetCPUDescriptorHandleForHeapStart();
 }
 
-pr::backend::d3d12::resource_view_cpu_only pr::backend::d3d12::CPUDescriptorLinearAllocator::allocate(unsigned num)
+phi::d3d12::resource_view_cpu_only phi::d3d12::CPUDescriptorLinearAllocator::allocate(unsigned num)
 {
     auto const res = D3D12_CPU_DESCRIPTOR_HANDLE{mHandleCPU.ptr + mNumAllocatedDescriptors * mDescriptorSize};
 

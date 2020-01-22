@@ -13,7 +13,7 @@
 
 #include <phantasm-hardware-interface/vulkan/resources/descriptor_allocator.hh>
 
-namespace pr::backend::vk
+namespace phi::vk
 {
 class ResourcePool;
 
@@ -77,7 +77,7 @@ private:
     ResourcePool* mResourcePool;
 
     /// The main pool data
-    backend::detail::linked_pool<shader_view_node, unsigned> mPool;
+    phi::detail::linked_pool<shader_view_node, unsigned> mPool;
 
     /// "Backing" allocator
     DescriptorAllocator mAllocator;

@@ -5,7 +5,7 @@
 
 #include "vk_format.hh"
 
-cc::capped_vector<VkVertexInputAttributeDescription, 16> pr::backend::vk::util::get_native_vertex_format(cc::span<const pr::backend::vertex_attribute_info> attrib_info)
+cc::capped_vector<VkVertexInputAttributeDescription, 16> phi::vk::util::get_native_vertex_format(cc::span<const phi::vertex_attribute_info> attrib_info)
 {
     cc::capped_vector<VkVertexInputAttributeDescription, 16> res;
     for (auto const& ai : attrib_info)
@@ -20,7 +20,7 @@ cc::capped_vector<VkVertexInputAttributeDescription, 16> pr::backend::vk::util::
     return res;
 }
 
-VkVertexInputBindingDescription pr::backend::vk::util::get_vertex_binding(uint32_t vertex_size)
+VkVertexInputBindingDescription phi::vk::util::get_vertex_binding(uint32_t vertex_size)
 {
     VkVertexInputBindingDescription res = {};
     res.binding = 0;
@@ -29,7 +29,7 @@ VkVertexInputBindingDescription pr::backend::vk::util::get_vertex_binding(uint32
     return res;
 }
 
-void pr::backend::vk::util::set_object_name(VkDevice device, VkObjectType obj_type, void* obj_handle, const char* string)
+void phi::vk::util::set_object_name(VkDevice device, VkObjectType obj_type, void* obj_handle, const char* string)
 {
     if (vkSetDebugUtilsObjectNameEXT)
     {

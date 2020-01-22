@@ -9,7 +9,7 @@
 #include <clean-core/move.hh>
 #include <clean-core/new.hh>
 
-namespace pr::backend::detail
+namespace phi::detail
 {
 /// cc::capped_vector, but trivial (no move/copy, no dtor)
 /// For serialization purposes

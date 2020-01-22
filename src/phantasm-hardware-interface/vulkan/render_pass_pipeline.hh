@@ -9,17 +9,17 @@
 
 #include "loader/volk.hh"
 
-namespace pr::backend::vk
+namespace phi::vk
 {
-[[nodiscard]] VkRenderPass create_render_pass(VkDevice device, const arg::framebuffer_config& framebuffer, pr::primitive_pipeline_config const& config);
+[[nodiscard]] VkRenderPass create_render_pass(VkDevice device, const arg::framebuffer_config& framebuffer, phi::primitive_pipeline_config const& config);
 
-[[nodiscard]] VkRenderPass create_render_pass(VkDevice device, const pr::backend::cmd::begin_render_pass& begin_rp, unsigned num_samples, cc::span<const format> override_rt_formats);
+[[nodiscard]] VkRenderPass create_render_pass(VkDevice device, const phi::cmd::begin_render_pass& begin_rp, unsigned num_samples, cc::span<const format> override_rt_formats);
 
 [[nodiscard]] VkPipeline create_pipeline(VkDevice device,
                                          VkRenderPass render_pass,
                                          VkPipelineLayout pipeline_layout,
                                          arg::graphics_shader_stages shaders,
-                                         pr::primitive_pipeline_config const& config,
+                                         phi::primitive_pipeline_config const& config,
                                          cc::span<VkVertexInputAttributeDescription const> vertex_attribs,
                                          uint32_t vertex_size,
                                          const arg::framebuffer_config& framebuf_config);

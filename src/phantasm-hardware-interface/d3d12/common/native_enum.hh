@@ -7,7 +7,7 @@
 
 #include "d3d12_sanitized.hh"
 
-namespace pr::backend::d3d12::util
+namespace phi::d3d12::util
 {
 [[nodiscard]] inline constexpr D3D12_RESOURCE_STATES to_native(resource_state state)
 {
@@ -61,76 +61,76 @@ namespace pr::backend::d3d12::util
     return D3D12_RESOURCE_STATE_COMMON;
 }
 
-[[nodiscard]] inline constexpr D3D12_PRIMITIVE_TOPOLOGY_TYPE to_native(pr::primitive_topology topology)
+[[nodiscard]] inline constexpr D3D12_PRIMITIVE_TOPOLOGY_TYPE to_native(phi::primitive_topology topology)
 {
     switch (topology)
     {
-    case pr::primitive_topology::triangles:
+    case phi::primitive_topology::triangles:
         return D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-    case pr::primitive_topology::lines:
+    case phi::primitive_topology::lines:
         return D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
-    case pr::primitive_topology::points:
+    case phi::primitive_topology::points:
         return D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
-    case pr::primitive_topology::patches:
+    case phi::primitive_topology::patches:
         return D3D12_PRIMITIVE_TOPOLOGY_TYPE_PATCH;
     }
     CC_ASSERT(false && "to_native uncaught argument");
     return D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 }
 
-[[nodiscard]] inline constexpr D3D12_PRIMITIVE_TOPOLOGY to_native_topology(pr::primitive_topology topology)
+[[nodiscard]] inline constexpr D3D12_PRIMITIVE_TOPOLOGY to_native_topology(phi::primitive_topology topology)
 {
     switch (topology)
     {
-    case pr::primitive_topology::triangles:
+    case phi::primitive_topology::triangles:
         return D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-    case pr::primitive_topology::lines:
+    case phi::primitive_topology::lines:
         return D3D_PRIMITIVE_TOPOLOGY_LINELIST;
-    case pr::primitive_topology::points:
+    case phi::primitive_topology::points:
         return D3D_PRIMITIVE_TOPOLOGY_POINTLIST;
-    case pr::primitive_topology::patches:
+    case phi::primitive_topology::patches:
         return D3D_PRIMITIVE_TOPOLOGY_1_CONTROL_POINT_PATCHLIST; // TODO
     }
     CC_ASSERT(false && "to_native uncaught argument");
     return D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 }
 
-[[nodiscard]] inline constexpr D3D12_COMPARISON_FUNC to_native(pr::depth_function depth_func)
+[[nodiscard]] inline constexpr D3D12_COMPARISON_FUNC to_native(phi::depth_function depth_func)
 {
     switch (depth_func)
     {
-    case pr::depth_function::none:
+    case phi::depth_function::none:
         return D3D12_COMPARISON_FUNC_LESS; // sane defaults
-    case pr::depth_function::less:
+    case phi::depth_function::less:
         return D3D12_COMPARISON_FUNC_LESS;
-    case pr::depth_function::less_equal:
+    case phi::depth_function::less_equal:
         return D3D12_COMPARISON_FUNC_LESS_EQUAL;
-    case pr::depth_function::greater:
+    case phi::depth_function::greater:
         return D3D12_COMPARISON_FUNC_GREATER;
-    case pr::depth_function::greater_equal:
+    case phi::depth_function::greater_equal:
         return D3D12_COMPARISON_FUNC_GREATER_EQUAL;
-    case pr::depth_function::equal:
+    case phi::depth_function::equal:
         return D3D12_COMPARISON_FUNC_EQUAL;
-    case pr::depth_function::not_equal:
+    case phi::depth_function::not_equal:
         return D3D12_COMPARISON_FUNC_NOT_EQUAL;
-    case pr::depth_function::always:
+    case phi::depth_function::always:
         return D3D12_COMPARISON_FUNC_ALWAYS;
-    case pr::depth_function::never:
+    case phi::depth_function::never:
         return D3D12_COMPARISON_FUNC_NEVER;
     }
     CC_ASSERT(false && "to_native uncaught argument");
     return D3D12_COMPARISON_FUNC_LESS;
 }
 
-[[nodiscard]] inline constexpr D3D12_CULL_MODE to_native(pr::cull_mode cull_mode)
+[[nodiscard]] inline constexpr D3D12_CULL_MODE to_native(phi::cull_mode cull_mode)
 {
     switch (cull_mode)
     {
-    case pr::cull_mode::none:
+    case phi::cull_mode::none:
         return D3D12_CULL_MODE_NONE;
-    case pr::cull_mode::back:
+    case phi::cull_mode::back:
         return D3D12_CULL_MODE_BACK;
-    case pr::cull_mode::front:
+    case phi::cull_mode::front:
         return D3D12_CULL_MODE_FRONT;
     }
     CC_ASSERT(false && "to_native uncaught argument");

@@ -4,7 +4,7 @@
 #include "common/verify.hh"
 #include "gpu_choice_util.hh"
 
-void pr::backend::vk::Swapchain::initialize(const pr::backend::vk::Device& device, VkSurfaceKHR surface, unsigned num_backbuffers, int w, int h, present_mode sync)
+void phi::vk::Swapchain::initialize(const phi::vk::Device& device, VkSurfaceKHR surface, unsigned num_backbuffers, int w, int h, present_mode sync)
 {
     mSurface = surface;
     mDevice = device.getDevice();
@@ -123,7 +123,7 @@ void pr::backend::vk::Swapchain::initialize(const pr::backend::vk::Device& devic
     createSwapchain(w, h);
 }
 
-void pr::backend::vk::Swapchain::destroy()
+void phi::vk::Swapchain::destroy()
 {
     destroySwapchain();
 
@@ -139,13 +139,13 @@ void pr::backend::vk::Swapchain::destroy()
     }
 }
 
-void pr::backend::vk::Swapchain::onResize(int width_hint, int height_hint)
+void phi::vk::Swapchain::onResize(int width_hint, int height_hint)
 {
     destroySwapchain();
     createSwapchain(width_hint, height_hint);
 }
 
-bool pr::backend::vk::Swapchain::present()
+bool phi::vk::Swapchain::present()
 {
     VkPresentInfoKHR present = {};
     present.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -177,7 +177,7 @@ bool pr::backend::vk::Swapchain::present()
     return true;
 }
 
-bool pr::backend::vk::Swapchain::waitForBackbuffer()
+bool phi::vk::Swapchain::waitForBackbuffer()
 {
     auto const res = vkAcquireNextImageKHR(mDevice, mSwapchain, UINT64_MAX, mBackbuffers[mActiveFenceIndex].sem_image_available, nullptr, &mActiveImageIndex);
 
@@ -194,7 +194,7 @@ bool pr::backend::vk::Swapchain::waitForBackbuffer()
     return true;
 }
 
-void pr::backend::vk::Swapchain::performPresentSubmit()
+void phi::vk::Swapchain::performPresentSubmit()
 {
     auto& active_backbuffer = mBackbuffers[mActiveFenceIndex];
 
@@ -218,7 +218,7 @@ void pr::backend::vk::Swapchain::performPresentSubmit()
     PR_VK_VERIFY_SUCCESS(vkQueueSubmit(mPresentQueue, 1, &submit_info, active_backbuffer.fence_command_buf_executed));
 }
 
-void pr::backend::vk::Swapchain::createSwapchain(int width_hint, int height_hint)
+void phi::vk::Swapchain::createSwapchain(int width_hint, int height_hint)
 {
     auto const surface_capabilities = get_surface_capabilities(mPhysicalDevice, mSurface);
     auto const present_format_info = get_backbuffer_information(mPhysicalDevice, mSurface);
@@ -315,7 +315,7 @@ void pr::backend::vk::Swapchain::createSwapchain(int width_hint, int height_hint
     mActiveImageIndex = 0;
 }
 
-void pr::backend::vk::Swapchain::destroySwapchain()
+void phi::vk::Swapchain::destroySwapchain()
 {
     vkDeviceWaitIdle(mDevice);
     for (auto& backbuffer : mBackbuffers)

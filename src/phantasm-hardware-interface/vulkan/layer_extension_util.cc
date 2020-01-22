@@ -7,7 +7,7 @@
 #include "common/verify.hh"
 #include "surface_util.hh"
 
-void pr::backend::vk::layer_extension_bundle::fill_with_instance_extensions(const char* layername)
+void phi::vk::layer_extension_bundle::fill_with_instance_extensions(const char* layername)
 {
     VkResult res;
     do
@@ -25,7 +25,7 @@ void pr::backend::vk::layer_extension_bundle::fill_with_instance_extensions(cons
     } while (res == VK_INCOMPLETE);
 }
 
-void pr::backend::vk::layer_extension_bundle::fill_with_device_extensions(VkPhysicalDevice device, const char* layername)
+void phi::vk::layer_extension_bundle::fill_with_device_extensions(VkPhysicalDevice device, const char* layername)
 {
     VkResult res;
     do
@@ -43,7 +43,7 @@ void pr::backend::vk::layer_extension_bundle::fill_with_device_extensions(VkPhys
     } while (res == VK_INCOMPLETE);
 }
 
-pr::backend::vk::lay_ext_set pr::backend::vk::get_available_instance_lay_ext()
+phi::vk::lay_ext_set phi::vk::get_available_instance_lay_ext()
 {
     lay_ext_set available_res;
 
@@ -89,7 +89,7 @@ pr::backend::vk::lay_ext_set pr::backend::vk::get_available_instance_lay_ext()
 }
 
 
-pr::backend::vk::lay_ext_set pr::backend::vk::get_available_device_lay_ext(VkPhysicalDevice physical)
+phi::vk::lay_ext_set phi::vk::get_available_device_lay_ext(VkPhysicalDevice physical)
 {
     lay_ext_set available_res;
 
@@ -135,7 +135,7 @@ pr::backend::vk::lay_ext_set pr::backend::vk::get_available_device_lay_ext(VkPhy
 }
 
 
-pr::backend::vk::lay_ext_array pr::backend::vk::get_used_instance_lay_ext(const pr::backend::vk::lay_ext_set& available, const pr::backend::backend_config& config)
+phi::vk::lay_ext_array phi::vk::get_used_instance_lay_ext(const phi::vk::lay_ext_set& available, const phi::backend_config& config)
 {
     lay_ext_array used_res;
 
@@ -203,8 +203,8 @@ pr::backend::vk::lay_ext_array pr::backend::vk::get_used_instance_lay_ext(const 
     return used_res;
 }
 
-pr::backend::vk::lay_ext_array pr::backend::vk::get_used_device_lay_ext(const pr::backend::vk::lay_ext_set& available,
-                                                                        const pr::backend::backend_config& config,
+phi::vk::lay_ext_array phi::vk::get_used_device_lay_ext(const phi::vk::lay_ext_set& available,
+                                                                        const phi::backend_config& config,
                                                                         bool& has_raytracing)
 {
     lay_ext_array used_res;

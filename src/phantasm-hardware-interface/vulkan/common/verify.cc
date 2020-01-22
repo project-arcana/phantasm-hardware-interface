@@ -62,7 +62,7 @@ char const* get_vk_error_literal(VkResult vr)
 }
 
 
-void pr::backend::vk::detail::verify_failure_handler(VkResult vr, const char* expression, const char* filename, int line)
+void phi::vk::detail::verify_failure_handler(VkResult vr, const char* expression, const char* filename, int line)
 {
     // Make sure this really is a failed VkResult
     CC_ASSERT(vr != VK_SUCCESS);

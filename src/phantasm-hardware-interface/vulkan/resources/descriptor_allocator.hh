@@ -6,7 +6,7 @@
 
 #include <phantasm-hardware-interface/arguments.hh>
 
-namespace pr::backend::vk
+namespace phi::vk
 {
 /// Unsynchronized
 class DescriptorAllocator

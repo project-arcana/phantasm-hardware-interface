@@ -13,13 +13,13 @@ thread_local thread_index_info tl_index_info;
 
 }
 
-void pr::backend::detail::thread_association::initialize()
+void phi::detail::thread_association::initialize()
 {
     _id = s_global_threadstorage_id++;
     _num_associations.store(0);
 }
 
-unsigned pr::backend::detail::thread_association::get_current_index()
+unsigned phi::detail::thread_association::get_current_index()
 {
     if (tl_index_info.ts_id != _id)
     {

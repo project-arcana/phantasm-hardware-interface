@@ -13,7 +13,7 @@
 #include <phantasm-hardware-interface/d3d12/common/d3d12_sanitized.hh>
 #include <phantasm-hardware-interface/d3d12/common/shared_com_ptr.hh>
 
-namespace pr::backend::d3d12
+namespace phi::d3d12
 {
 /// A page allocator for variable-sized, GPU-visible descriptors
 /// Currently unused, but planned to be the main descriptor allocator used throughout the application
@@ -85,7 +85,7 @@ private:
     shared_com_ptr<ID3D12DescriptorHeap> mHeap;
     D3D12_CPU_DESCRIPTOR_HANDLE mHeapStartCPU;
     D3D12_GPU_DESCRIPTOR_HANDLE mHeapStartGPU;
-    backend::detail::page_allocator mPageAllocator;
+    phi::detail::page_allocator mPageAllocator;
     unsigned mDescriptorSize = 0;
 };
 
@@ -177,7 +177,7 @@ private:
     ID3D12Device* mDevice;
     ResourcePool* mResourcePool;
 
-    backend::detail::linked_pool<shader_view_data, unsigned> mPool;
+    phi::detail::linked_pool<shader_view_data, unsigned> mPool;
     DescriptorPageAllocator mSRVUAVAllocator;
     DescriptorPageAllocator mSamplerAllocator;
     std::mutex mMutex;

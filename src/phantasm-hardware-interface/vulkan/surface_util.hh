@@ -6,7 +6,7 @@
 
 #include "loader/vulkan_fwd.hh"
 
-namespace pr::backend::vk
+namespace phi::vk
 {
 [[nodiscard]] VkSurfaceKHR create_platform_surface(VkInstance instance, window_handle const& window_handle);
 

@@ -1,6 +1,6 @@
 #pragma once
 
-namespace pr::backend::limits
+namespace phi::limits
 {
 /// the maximum amount of render targets per render pass, excluding the depthstencil target
 /// NOTE: D3D12 only supports up to 8 render targets

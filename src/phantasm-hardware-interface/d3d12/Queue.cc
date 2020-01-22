@@ -5,7 +5,7 @@
 #include "common/verify.hh"
 #include "common/util.hh"
 
-void pr::backend::d3d12::Queue::initialize(ID3D12Device& device, queue_type type)
+void phi::d3d12::Queue::initialize(ID3D12Device& device, queue_type type)
 {
     D3D12_COMMAND_QUEUE_DESC queueDesc = {};
     queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;

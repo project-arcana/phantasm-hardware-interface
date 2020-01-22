@@ -4,7 +4,7 @@
 
 #include <delayimp.h>
 
-bool pr::backend::d3d12::detail::is_delay_load_exception(PEXCEPTION_POINTERS e)
+bool phi::d3d12::detail::is_delay_load_exception(PEXCEPTION_POINTERS e)
 {
 #if WINVER > 0x502
     switch (e->ExceptionRecord->ExceptionCode)

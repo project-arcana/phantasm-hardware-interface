@@ -3,7 +3,7 @@
 #include <phantasm-hardware-interface/d3d12/common/d3d12_sanitized.hh>
 #include <phantasm-hardware-interface/d3d12/common/shared_com_ptr.hh>
 
-namespace pr::backend::d3d12
+namespace phi::d3d12
 {
 /// There are two places where "resource views" are API exposed:
 /// handle::shader_view
