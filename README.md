@@ -1,7 +1,7 @@
 
 # Phantasm Hardware Interface
 
-Phantasm hardware interface (phi) is an abstraction over Vulkan and D3D12, aiming to be succinct without restricting access to the underlying APIs within reason. Primary goals:
+Phantasm hardware interface (PHI) is an abstraction over Vulkan and D3D12, aiming to be succinct without restricting access to the underlying APIs within reason. Primary goals:
 
 - Small API surface
 - High performance
@@ -11,9 +11,9 @@ Phantasm hardware interface (phi) is an abstraction over Vulkan and D3D12, aimin
 
 ## Objects
 
-The core of phi is the backend. This is the only type in the library with methods<sup>[1](#footnote1)</sup>. Everything happening with regards to the real graphics API is instructed through the backend. The two backends  (`BackendD3D12` and `BackendVulkan`) share a virtual interface and can be used interchangably.
+The core of PHI is the backend. This is the only type in the library with methods<sup>[1](#footnote1)</sup>. Everything happening with regards to the real graphics API is instructed through the backend. The two backends  (`BackendD3D12` and `BackendVulkan`) share a virtual interface and can be used interchangably.
 
-phi has four main objects, accessed using lightweight, POD handles.
+PHI has four main objects, accessed using lightweight, POD handles.
 
 1. `handle::resource`
 
@@ -33,7 +33,7 @@ phi has four main objects, accessed using lightweight, POD handles.
 
 ### Commands
 
-Commands do the heavy lifting in communicating with a phi backend. They are simple structs, which are written contiguously into a piece of memory ("software command buffer"). This memory is then passed to the backend,
+Commands do the heavy lifting in communicating with a PHI backend. They are simple structs, which are written contiguously into a piece of memory ("software command buffer"). This memory is then passed to the backend,
 
 ```C++
 handle::command_list recordCommandList(std::byte* buffer, size_t size);
@@ -88,7 +88,7 @@ There are four shader input types, following D3D12 conventions:
     SamplerState g_sampler                              : register(s0, space0);
     ```
 
-Shaders in phi can be fed with up to 4 "shader arguments". Each shader argument consists of SRVs, UAVs and samplers, all of which combine into a single `handle::shader_view`, and a separate CBV (`handle::resource`). Shader arguments correspond to HLSL spaces. Argument 0 is `space0`, 1 is `space1`, and so forth. The supplied order of inputs corresponds to the HLSL registers.
+Shaders in PHI can be fed with up to 4 "shader arguments". Each shader argument consists of SRVs, UAVs and samplers, all of which combine into a single `handle::shader_view`, and a separate CBV (`handle::resource`). Shader arguments correspond to HLSL spaces. Argument 0 is `space0`, 1 is `space1`, and so forth. The supplied order of inputs corresponds to the HLSL registers.
 
 Shader argument "shapes", as in the amount of arguments, and the amount of inputs per argument type, are supplied when creating a `handle::pipeline_state`. The actual argument values are supplied in commands, like `cmd::draw`.
 
@@ -96,17 +96,17 @@ Inputs are not strictly typed, for example, a `Texture2D` can be supplied by sim
 
 ## Threading
 
-With one exception, phi is entirely free-threaded and internally synchronized. The synchronization is minimal, and parallel recording of command lists is encouraged, which takes place on thread-local components. The exception is the `Backend::submit` method, which must only be called on one thread at a time.
+With one exception, PHI is entirely free-threaded and internally synchronized. The synchronization is minimal, and parallel recording of command lists is encouraged, which takes place on thread-local components. The exception is the `Backend::submit` method, which must only be called on one thread at a time.
 
 ## Resource States
 
-phi exposes a simplified version of resource states, especially when compared to Vulkan. Additionally, resource transitions only ever specify the after-state, the before-state is internally tracked (including thread- and record-order safety).
+PHI exposes a simplified version of resource states, especially when compared to Vulkan. Additionally, resource transitions only ever specify the after-state, the before-state is internally tracked (including thread- and record-order safety).
 
 When transitioning towards `shader_resource` or `unordered_access`, the shader stage(s) which will use the resource next must also be specified.
 
 ## Main Loop
 
-In the steady state, there is very little interaction with the backend apart from `command_list` recording and submission. A prototypical phi main loop looks like this:
+In the steady state, there is very little interaction with the backend apart from `command_list` recording and submission. A prototypical PHI main loop looks like this:
 
 ```C++
 while (window_open)
@@ -142,7 +142,7 @@ while (window_open)
 
 ### Shader Compilation
 
-All shaders passed to phi must be in binary format: DXIL for D3D12, SPIR-V for Vulkan. Shaders are to be compiled from HLSL, using [DirectXShaderCompiler](https://github.com/microsoft/DirectXShaderCompiler/releases) (find Linux binaries [here](https://github.com/project-arcana/arcana-samples/tree/develop/res/pr/liveness_sample/shader/dxc_bin/linux) or use [docker](https://hub.docker.com/r/gwihlidal/dxc/)).
+All shaders passed to PHI must be in binary format: DXIL for D3D12, SPIR-V for Vulkan. Shaders are to be compiled from HLSL, using [DirectXShaderCompiler](https://github.com/microsoft/DirectXShaderCompiler/releases) (find Linux binaries [here](https://github.com/project-arcana/arcana-samples/tree/develop/res/pr/liveness_sample/shader/dxc_bin/linux) or use [docker](https://hub.docker.com/r/gwihlidal/dxc/)).
 
 When compiling HLSL to SPIR-V for Vulkan, use these flags: `-spirv -fspv-target-env=vulkan1.1 -fvk-b-shift 0 all -fvk-t-shift 1000 all -fvk-u-shift 2000 all -fvk-s-shift 3000 all`. If it is a vertex, geometry or domain shader, the `-fvk-invert-y` must also be added.
 
@@ -150,7 +150,7 @@ For Vulkan, the shader `main` function must be named as such: Vertex - `main_vs`
 
 ### D3D12 MIP alignment
 
-As phi is a relatively thin layer over the native APIs, memory access to mapped buffers is unchanged from usual behavior. In D3D12, texture MIP pixel rows are aligned by 256 bytes, which must be respected. See arcana-samples for texture upload examples.
+As PHI is a relatively thin layer over the native APIs, memory access to mapped buffers is unchanged from usual behavior. In D3D12, texture MIP pixel rows are aligned by 256 bytes, which must be respected. See arcana-samples for texture upload examples.
 
 ### D3D12 Relaxed API
 
@@ -186,11 +186,11 @@ In HLSL, root constants are simply CBVs, always in register `b1`, `space0`. When
 
 ### Window Handles
 
-phi currently does not support a headless mode and requires a `native_window_handle` at initialization for swapchain creation. Supported types are Win32 windows (`HWND`), SDL2 windows (`SDL_Window*`), and Xlib windows (`Window` and `Display*`).
+PHI currently does not support a headless mode and requires a `native_window_handle` at initialization for swapchain creation. Supported types are Win32 windows (`HWND`), SDL2 windows (`SDL_Window*`), and Xlib windows (`Window` and `Display*`).
 
 ### Render Diagnostic Integration
 
-phi detects RenderDoc and PIX, and can force a capture, using `Backend::startForcedDiagnosticCapture` and `Backend::endForcedDiagnosticCapture` respectively. PIX integration requires enabling the cmake option `PR_ENABLE_D3D12_PIX`, and requires having the PIX DLL available (next to) the executable. It is included here: `extern/win32_pix_runtime/bin/WinPixEventRuntime.dll`
+PHI detects RenderDoc and PIX, and can force a capture, using `Backend::startForcedDiagnosticCapture` and `Backend::endForcedDiagnosticCapture` respectively. PIX integration requires enabling the cmake option `PR_ENABLE_D3D12_PIX`, and requires having the PIX DLL available (next to) the executable. It is included here: `extern/win32_pix_runtime/bin/WinPixEventRuntime.dll`
 
 ### Backend Configuration
 
