@@ -10,7 +10,7 @@
 #include "resources/transition_barrier.hh"
 #include "shader.hh"
 
-VkRenderPass phi::vk::create_render_pass(VkDevice device, arg::framebuffer_config const& framebuffer, const phi::primitive_pipeline_config& config)
+VkRenderPass phi::vk::create_render_pass(VkDevice device, arg::framebuffer_config const& framebuffer, const phi::graphics_pipeline_config& config)
 {
     auto const sample_bits = util::to_native_sample_flags(static_cast<unsigned>(config.samples));
 
@@ -170,7 +170,7 @@ VkPipeline phi::vk::create_pipeline(VkDevice device,
                                             VkRenderPass render_pass,
                                             VkPipelineLayout pipeline_layout,
                                             arg::graphics_shader_stages shaders,
-                                            const phi::primitive_pipeline_config& config,
+                                            const phi::graphics_pipeline_config& config,
                                             cc::span<const VkVertexInputAttributeDescription> vertex_attribs,
                                             uint32_t vertex_size,
                                             arg::framebuffer_config const& framebuf_config)

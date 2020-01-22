@@ -113,7 +113,7 @@ public:
                                                              arg::shader_argument_shapes shader_arg_shapes,
                                                              bool has_root_constants,
                                                              arg::graphics_shader_stages shader_stages,
-                                                             phi::primitive_pipeline_config const& primitive_config) override
+                                                             phi::graphics_pipeline_config const& primitive_config) override
     {
         return mPoolPSOs.createPipelineState(vertex_format, framebuffer_conf, shader_arg_shapes, has_root_constants, shader_stages, primitive_config);
     }

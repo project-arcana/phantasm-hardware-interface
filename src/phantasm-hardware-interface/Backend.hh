@@ -118,7 +118,7 @@ public:
                                                                      arg::shader_argument_shapes shader_arg_shapes,
                                                                      bool has_root_constants,
                                                                      arg::graphics_shader_stages shader_stages,
-                                                                     phi::primitive_pipeline_config const& primitive_config)
+                                                                     phi::graphics_pipeline_config const& primitive_config)
         = 0;
 
     [[nodiscard]] virtual handle::pipeline_state createComputePipelineState(arg::shader_argument_shapes shader_arg_shapes,

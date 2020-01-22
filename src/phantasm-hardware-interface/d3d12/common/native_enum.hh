@@ -1,7 +1,6 @@
 #pragma once
 
 #include <phantasm-hardware-interface/types.hh>
-#include <phantasm-hardware-interface/primitive_pipeline_config.hh>
 
 #include <clean-core/assert.hh>
 

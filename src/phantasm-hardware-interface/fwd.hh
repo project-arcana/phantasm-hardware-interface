@@ -9,7 +9,7 @@ struct shader_view_element;
 struct sampler_config;
 struct render_target_config;
 struct window_handle;
-struct primitive_pipeline_config;
+struct graphics_pipeline_config;
 
 struct gpu_info;
 

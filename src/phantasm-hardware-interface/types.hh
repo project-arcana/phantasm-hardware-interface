@@ -11,7 +11,7 @@ namespace handle
 using index_t = int32_t;
 inline constexpr index_t null_handle_index = index_t(-1);
 
-#define PHI_DEFINE_HANDLE(_type_)                                                                          \
+#define PHI_DEFINE_HANDLE(_type_)                                                                         \
     struct _type_                                                                                         \
     {                                                                                                     \
         index_t index;                                                                                    \
@@ -369,6 +369,42 @@ inline constexpr bool operator==(sampler_config const& lhs, sampler_config const
            lhs.border_color == rhs.border_color;       //
 }
 
+enum class primitive_topology : uint8_t
+{
+    triangles,
+    lines,
+    points,
+    patches
+};
+
+enum class depth_function : uint8_t
+{
+    none,
+    less,
+    less_equal,
+    greater,
+    greater_equal,
+    equal,
+    not_equal,
+    always,
+    never
+};
+
+enum class cull_mode : uint8_t
+{
+    none,
+    back,
+    front
+};
+
+struct graphics_pipeline_config
+{
+    primitive_topology topology = primitive_topology::triangles;
+    depth_function depth = depth_function::less;
+    bool depth_readonly = false;
+    cull_mode cull = cull_mode::back;
+    int samples = 1;
+};
 
 enum class rt_clear_type : uint8_t
 {

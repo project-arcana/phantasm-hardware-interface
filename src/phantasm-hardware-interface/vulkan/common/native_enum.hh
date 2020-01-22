@@ -3,7 +3,6 @@
 #include <clean-core/assert.hh>
 
 #include <phantasm-hardware-interface/types.hh>
-#include <phantasm-hardware-interface/primitive_pipeline_config.hh>
 
 #include <phantasm-hardware-interface/vulkan/loader/volk.hh>
 

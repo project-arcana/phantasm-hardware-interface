@@ -25,7 +25,7 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createPipelineS
                                                                                      phi::arg::shader_argument_shapes shader_arg_shapes,
                                                                                      bool has_root_constants,
                                                                                      phi::arg::graphics_shader_stages shader_stages,
-                                                                                     const phi::primitive_pipeline_config& primitive_config)
+                                                                                     const phi::graphics_pipeline_config& primitive_config)
 {
     root_signature* root_sig;
     unsigned pool_index;

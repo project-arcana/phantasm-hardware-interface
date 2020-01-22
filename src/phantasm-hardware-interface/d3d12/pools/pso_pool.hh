@@ -5,7 +5,6 @@
 #include <phantasm-hardware-interface/arguments.hh>
 #include <phantasm-hardware-interface/detail/linked_pool.hh>
 #include <phantasm-hardware-interface/types.hh>
-#include <phantasm-hardware-interface/primitive_pipeline_config.hh>
 
 #include <phantasm-hardware-interface/d3d12/common/d3d12_fwd.hh>
 
@@ -27,7 +26,7 @@ public:
                                                              arg::shader_argument_shapes shader_arg_shapes,
                                                              bool has_root_constants,
                                                              arg::graphics_shader_stages shader_stages,
-                                                             phi::primitive_pipeline_config const& primitive_config);
+                                                             phi::graphics_pipeline_config const& primitive_config);
 
     [[nodiscard]] handle::pipeline_state createComputePipelineState(arg::shader_argument_shapes shader_arg_shapes, arg::shader_binary compute_shader, bool has_root_constants);
 
