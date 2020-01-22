@@ -91,7 +91,7 @@ size_t phi::get_preferred_gpu(cc::span<const phi::gpu_info> candidates, phi::ada
 
     if (verbose)
     {
-        std::cout << "[pr][backend] ";
+        std::cout << "[phi] ";
         if (choice < candidates.size())
         {
             auto const& chosen = candidates[choice];

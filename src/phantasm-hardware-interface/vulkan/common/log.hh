@@ -7,13 +7,13 @@ namespace phi::vk::log
 inline rlog::MessageBuilder info()
 {
     //
-    return rlog::MessageBuilder(rlog::prefix("[pr][backend][vk] "));
+    return rlog::MessageBuilder(rlog::prefix("[phi][vk] "));
 }
 
 inline rlog::MessageBuilder err()
 {
     //
-    return rlog::MessageBuilder(rlog::prefix("[pr][backend][vk] "), rlog::err_out);
+    return rlog::MessageBuilder(rlog::prefix("[phi][vk] "), rlog::err_out);
 }
 
 }

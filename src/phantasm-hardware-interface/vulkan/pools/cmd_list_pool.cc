@@ -439,7 +439,7 @@ void phi::vk::CommandListPool::destroy()
     auto const num_leaks = discardAndFreeAll();
     if (num_leaks > 0)
     {
-        std::cout << "[pr][backend][vk] warning: leaked " << num_leaks << " handle::command_list object" << (num_leaks == 1 ? "" : "s") << std::endl;
+        std::cout << "[phi][vk] warning: leaked " << num_leaks << " handle::command_list object" << (num_leaks == 1 ? "" : "s") << std::endl;
     }
 
     mFenceRing.destroy(mDevice);

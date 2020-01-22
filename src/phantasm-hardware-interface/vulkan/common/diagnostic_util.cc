@@ -12,7 +12,7 @@ void phi::vk::util::diagnostic_state::init()
     _renderdoc_handle = detail::load_renderdoc();
     if (_renderdoc_handle)
     {
-        std::cout << "[pr][backend][vk] RenderDoc detected" << std::endl;
+        std::cout << "[phi][vk] RenderDoc detected" << std::endl;
     }
 }
 
@@ -31,7 +31,7 @@ bool phi::vk::util::diagnostic_state::start_capture()
 {
     if (_renderdoc_handle)
     {
-        std::cout << "[pr][backend][vk] starting RenderDoc capture" << std::endl;
+        std::cout << "[phi][vk] starting RenderDoc capture" << std::endl;
         _renderdoc_handle->StartFrameCapture(nullptr, nullptr);
         _renderdoc_capture_running = true;
         return true;
@@ -44,7 +44,7 @@ bool phi::vk::util::diagnostic_state::end_capture()
 {
     if (_renderdoc_handle && _renderdoc_capture_running)
     {
-        std::cout << "[pr][backend][vk] ending RenderDoc capture" << std::endl;
+        std::cout << "[phi][vk] ending RenderDoc capture" << std::endl;
         _renderdoc_handle->EndFrameCapture(nullptr, nullptr);
         _renderdoc_capture_running = false;
         return true;

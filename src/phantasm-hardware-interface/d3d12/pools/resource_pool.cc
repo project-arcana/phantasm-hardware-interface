@@ -49,7 +49,7 @@ void phi::d3d12::ResourcePool::destroy()
 
     if (num_leaks > 0)
     {
-        std::cout << "[pr][backend][d3d12] warning: leaked " << num_leaks << " handle::resource object" << (num_leaks == 1 ? "" : "s") << std::endl;
+        std::cout << "[phi][d3d12] warning: leaked " << num_leaks << " handle::resource object" << (num_leaks == 1 ? "" : "s") << std::endl;
     }
 
     mAllocator.destroy();

@@ -251,24 +251,24 @@ bool phi::vk::util::is_consistent_with_reflection(cc::span<const phi::vk::util::
 
         if (ri.num_cbvs != (shape.has_cb ? 1 : 0))
         {
-            std::cerr << "[pr][backend][vk] SPIR-V reflection inconsistent - CBVs: " << ri.num_cbvs << " reflected, vs " << (shape.has_cb ? 1 : 0)
+            std::cerr << "[phi][vk] SPIR-V reflection inconsistent - CBVs: " << ri.num_cbvs << " reflected, vs " << (shape.has_cb ? 1 : 0)
                       << " in shape #" << i << std::endl;
             return false;
         }
 
         if (ri.num_srvs != shape.num_srvs)
         {
-            std::cerr << "[pr][backend][vk] SPIR-V reflection inconsistent - SRVs: " << ri.num_srvs << " reflected, vs " << shape.num_srvs
+            std::cerr << "[phi][vk] SPIR-V reflection inconsistent - SRVs: " << ri.num_srvs << " reflected, vs " << shape.num_srvs
                       << " in shape #" << i << std::endl;
         }
         if (ri.num_uavs != shape.num_uavs)
         {
-            std::cerr << "[pr][backend][vk] SPIR-V reflection inconsistent - UAVs: " << ri.num_uavs << " reflected, vs " << shape.num_uavs
+            std::cerr << "[phi][vk] SPIR-V reflection inconsistent - UAVs: " << ri.num_uavs << " reflected, vs " << shape.num_uavs
                       << " in shape #" << i << std::endl;
         }
         if (ri.num_samplers != shape.num_samplers)
         {
-            std::cerr << "[pr][backend][vk] SPIR-V reflection inconsistent - Samplers: " << ri.num_samplers << " reflected, vs " << shape.num_samplers
+            std::cerr << "[phi][vk] SPIR-V reflection inconsistent - Samplers: " << ri.num_samplers << " reflected, vs " << shape.num_samplers
                       << " in shape #" << i << std::endl;
         }
     }
@@ -277,7 +277,7 @@ bool phi::vk::util::is_consistent_with_reflection(cc::span<const phi::vk::util::
 
 void phi::vk::util::print_spirv_info(cc::span<const phi::vk::util::spirv_desc_info> info)
 {
-    std::cout << "[pr][backend][vk] SPIR-V descriptor info: " << std::endl;
+    std::cout << "[phi][vk] SPIR-V descriptor info: " << std::endl;
     for (auto const& i : info)
     {
         std::cout << "  set " << i.set << ", binding " << i.binding << ", array size " << i.binding_array_size << ", VkDescriptorType " << i.type << std::endl;

@@ -155,7 +155,7 @@ void phi::d3d12::detail::verify_failure_handler(HRESULT hr, const char* expressi
     CC_RUNTIME_ASSERT(FAILED(hr));
 
     // TODO: Proper logging
-    fprintf(stderr, "[pr][backend][d3d12] backend verify on `%s' failed.\n", expression);
+    fprintf(stderr, "[phi][d3d12] backend verify on `%s' failed.\n", expression);
     fprintf(stderr, "  error: %s\n", get_general_error_literal(hr));
     fprintf(stderr, "  file %s:%d\n", filename, line);
     fflush(stderr);
@@ -171,7 +171,7 @@ void phi::d3d12::detail::verify_failure_handler(HRESULT hr, const char* expressi
 
 void phi::d3d12::detail::dred_assert_handler(void* device_child, const char* expression, const char* filename, int line)
 {
-    fprintf(stderr, "[pr][backend][d3d12] DRED assert on `%s' failed.\n", expression);
+    fprintf(stderr, "[phi][d3d12] DRED assert on `%s' failed.\n", expression);
     fprintf(stderr, "  file %s:%d\n", filename, line);
     fflush(stderr);
 

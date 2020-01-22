@@ -163,7 +163,7 @@ void phi::vk::PipelinePool::destroy()
 
     if (num_leaks > 0)
     {
-        std::cout << "[pr][backend][vk] warning: leaked " << num_leaks << " handle::pipeline_state object" << (num_leaks == 1 ? "" : "s") << std::endl;
+        std::cout << "[phi][vk] warning: leaked " << num_leaks << " handle::pipeline_state object" << (num_leaks == 1 ? "" : "s") << std::endl;
     }
 
     mLayoutCache.destroy(mDevice);

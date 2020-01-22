@@ -69,7 +69,7 @@ void phi::vk::detail::verify_failure_handler(VkResult vr, const char* expression
     auto const error_string = get_vk_error_literal(vr);
 
     // TODO: Proper logging
-    fprintf(stderr, "[pr][backend][vk] backend verify on `%s' failed.\n", expression);
+    fprintf(stderr, "[phi][vk] backend verify on `%s' failed.\n", expression);
     fprintf(stderr, "  error: %s\n", error_string);
     fprintf(stderr, "  file %s:%d\n", filename, line);
     fflush(stderr);
