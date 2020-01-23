@@ -16,7 +16,7 @@ struct shader
     void free(VkDevice device) { vkDestroyShaderModule(device, module, nullptr); }
 };
 
-void initialize_shader(shader& s, VkDevice device, std::byte const* data, size_t size, shader_domain domain);
+void initialize_shader(shader& s, VkDevice device, std::byte const* data, size_t size, const char* entrypoint, shader_domain domain);
 
 [[nodiscard]] VkPipelineShaderStageCreateInfo get_shader_create_info(shader const& shader);
 

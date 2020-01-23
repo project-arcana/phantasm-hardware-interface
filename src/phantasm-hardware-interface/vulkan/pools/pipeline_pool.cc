@@ -16,7 +16,7 @@ phi::handle::pipeline_state phi::vk::PipelinePool::createPipelineState(phi::arg:
                                                                                        const phi::graphics_pipeline_config& primitive_config)
 {
     // Patch and reflect SPIR-V binaries
-    cc::capped_vector<arg::shader_stage, 6> patched_shader_stages;
+    cc::capped_vector<util::patched_spirv_stage, 6> patched_shader_stages;
     cc::vector<util::spirv_desc_info> shader_descriptor_ranges;
     bool has_push_constants = false;
     CC_DEFER
@@ -85,7 +85,7 @@ phi::handle::pipeline_state phi::vk::PipelinePool::createComputePipelineState(ph
                                                                                               bool should_have_push_constants)
 {
     // Patch and reflect SPIR-V binary
-    arg::shader_stage patched_shader_stage;
+    util::patched_spirv_stage patched_shader_stage;
     cc::vector<util::spirv_desc_info> shader_descriptor_ranges;
     bool has_push_constants = false;
     CC_DEFER { util::free_patched_spirv(patched_shader_stage); };
