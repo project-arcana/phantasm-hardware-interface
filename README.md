@@ -146,8 +146,6 @@ All shaders passed to PHI must be in binary format: DXIL for D3D12, SPIR-V for V
 
 When compiling HLSL to SPIR-V for Vulkan, use these flags: `-spirv -fspv-target-env=vulkan1.1 -fvk-b-shift 0 all -fvk-t-shift 1000 all -fvk-u-shift 2000 all -fvk-s-shift 3000 all`. If it is a vertex, geometry or domain shader, the `-fvk-invert-y` must also be added.
 
-For Vulkan, the shader `main` function must be named as such: Vertex - `main_vs`, hull - `main_hs`, domain - `main_ds`, geometry - `main_gs`, pixel - `main_ps`, compute - `main_cs`.
-
 ### D3D12 MIP alignment
 
 As PHI is a relatively thin layer over the native APIs, memory access to mapped buffers is unchanged from usual behavior. In D3D12, texture MIP pixel rows are aligned by 256 bytes, which must be respected. See arcana-samples for texture upload examples.
@@ -169,8 +167,7 @@ Some other fields of `cmd` structs might also be optional, which is noted in com
 - clean-core
 - typed-geometry
 - rich-log
-- reflector (optional)
-- SDL2 (optional)
+- SDL2 (optional, enables SDL window support)
 
 The Vulkan backend requires Vulkan SDK 1.1.260 or newer. The D3D12 backend requires Windows 1903 or newer, and the corresponding Windows SDK.
 
@@ -190,7 +187,7 @@ PHI currently does not support a headless mode and requires a `native_window_han
 
 ### Render Diagnostic Integration
 
-PHI detects RenderDoc and PIX, and can force a capture, using `Backend::startForcedDiagnosticCapture` and `Backend::endForcedDiagnosticCapture` respectively. PIX integration requires enabling the cmake option `PR_ENABLE_D3D12_PIX`, and requires having the PIX DLL available (next to) the executable. It is included here: `extern/win32_pix_runtime/bin/WinPixEventRuntime.dll`
+PHI detects RenderDoc and PIX, and can force a capture, using `Backend::startForcedDiagnosticCapture` and `Backend::endForcedDiagnosticCapture` respectively. PIX integration requires enabling the cmake option `PHI_ENABLE_D3D12_PIX`, and requires having the PIX DLL available (next to) the executable. It is included here: `extern/win32_pix_runtime/bin/WinPixEventRuntime.dll`
 
 ### Backend Configuration
 
