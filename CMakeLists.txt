@@ -88,9 +88,8 @@ else()
     target_link_libraries(phantasm-hardware-interface PUBLIC -fuse-ld=gold -lX11 PRIVATE Threads::Threads)
 endif()
 
-
 # =========================================
-# optional dependencies
+# backends
 
 if (PHI_BACKEND_VULKAN)
     message(STATUS "[phantasm hardware interface] Vulkan backend enabled")
@@ -124,10 +123,8 @@ else()
     message(STATUS "[phantasm hardware interface] D3D12 backend disabled")
 endif()
 
-if (MSVC)
-    # For device_tentative
-    target_link_libraries(phantasm-hardware-interface PRIVATE "Shcore.lib")
-endif()
+# =========================================
+# optional dependencies
 
 if (PHI_ENABLE_SDL2)
     find_package(SDL2)
@@ -139,10 +136,4 @@ if (PHI_ENABLE_SDL2)
     else()
         message(STATUS "[phantasm hardware interface] SDL2 not found")
     endif()
-endif()
-
-if (TARGET reflector)
-    target_link_libraries(phantasm-hardware-interface PUBLIC reflector)
-    target_compile_definitions(phantasm-hardware-interface PUBLIC PHI_HAS_REFLECTOR)
-    message(STATUS "[phantasm hardware interface] reflector found")
 endif()
