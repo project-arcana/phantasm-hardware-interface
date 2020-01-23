@@ -1,7 +1,6 @@
 #include "pipeline_layout.hh"
 
-#include <iostream>
-
+#include <phantasm-hardware-interface/vulkan/common/log.hh>
 #include <phantasm-hardware-interface/vulkan/common/native_enum.hh>
 #include <phantasm-hardware-interface/vulkan/common/verify.hh>
 #include <phantasm-hardware-interface/vulkan/resources/descriptor_allocator.hh>
@@ -106,9 +105,12 @@ void phi::vk::pipeline_layout::initialize(VkDevice device, cc::span<const util::
 
 void phi::vk::pipeline_layout::print() const
 {
-    std::cout << "[phi][vk] pipeline_layout:" << std::endl;
-    std::cout << "  " << descriptor_set_layouts.size() << " descriptor set layouts, " << descriptor_set_visibilities.size() << " visibilities" << std::endl;
-    std::cout << "  raw layout: " << raw_layout << ", has push consts: " << (has_push_constants() ? "yes" : "no") << std::endl;
+    log::info() << "pipeline_layout:\n"
+                   "  "
+                << descriptor_set_layouts.size() << " descriptor set layouts, " << descriptor_set_visibilities.size()
+                << " visibilities\n"
+                   "  raw layout: "
+                << raw_layout << ", has push consts: " << (has_push_constants() ? "yes" : "no");
 }
 
 void phi::vk::pipeline_layout::free(VkDevice device)

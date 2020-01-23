@@ -1,9 +1,8 @@
 #include "cmd_list_pool.hh"
 
-#include <iostream>
-
 #include <phantasm-hardware-interface/detail/flat_map.hh>
 #include <phantasm-hardware-interface/vulkan/BackendVulkan.hh>
+#include <phantasm-hardware-interface/vulkan/common/log.hh>
 #include <phantasm-hardware-interface/vulkan/common/util.hh>
 
 void phi::vk::cmd_allocator_node::initialize(VkDevice device, unsigned num_cmd_lists, unsigned queue_family_index, FenceRingbuffer* fence_ring)
@@ -410,9 +409,9 @@ unsigned phi::vk::CommandListPool::discardAndFreeAll()
 }
 
 void phi::vk::CommandListPool::initialize(phi::vk::BackendVulkan& backend,
-                                                  unsigned num_allocators_per_thread,
-                                                  unsigned num_cmdlists_per_allocator,
-                                                  cc::span<phi::vk::CommandAllocatorBundle*> thread_allocators)
+                                          unsigned num_allocators_per_thread,
+                                          unsigned num_cmdlists_per_allocator,
+                                          cc::span<phi::vk::CommandAllocatorBundle*> thread_allocators)
 {
     mDevice = backend.mDevice.getDevice();
 
@@ -439,7 +438,7 @@ void phi::vk::CommandListPool::destroy()
     auto const num_leaks = discardAndFreeAll();
     if (num_leaks > 0)
     {
-        std::cout << "[phi][vk] warning: leaked " << num_leaks << " handle::command_list object" << (num_leaks == 1 ? "" : "s") << std::endl;
+        log::info()("warning: leaked {} handle::command_list object{}", num_leaks, (num_leaks == 1 ? "" : "s"));
     }
 
     mFenceRing.destroy(mDevice);

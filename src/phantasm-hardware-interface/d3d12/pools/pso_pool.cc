@@ -1,7 +1,5 @@
 #include "pso_pool.hh"
 
-#include <iostream>
-
 #include <clean-core/utility.hh>
 #include <clean-core/vector.hh>
 
@@ -332,7 +330,7 @@ void phi::d3d12::PipelineStateObjectPool::destroy()
 
     if (num_leaks > 0)
     {
-        std::cout << "[phi][d3d12] warning: leaked " << num_leaks << " handle::pipeline_state object" << (num_leaks == 1 ? "" : "s") << std::endl;
+        log::info()("warning: leaked {} handle::pipeline_state object{}", num_leaks, (num_leaks == 1 ? "" : "s"));
     }
 
     mRootSigCache.destroy();
