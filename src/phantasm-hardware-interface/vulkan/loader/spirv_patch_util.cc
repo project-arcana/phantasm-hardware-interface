@@ -1,7 +1,6 @@
 #include "spirv_patch_util.hh"
 
 #include <algorithm>
-#include <iostream>
 
 #include <clean-core/array.hh>
 #include <clean-core/assert.hh>
@@ -12,6 +11,7 @@
 #include <phantasm-hardware-interface/lib/spirv_reflect.hh>
 #include <phantasm-hardware-interface/limits.hh>
 
+#include <phantasm-hardware-interface/vulkan/common/log.hh>
 #include <phantasm-hardware-interface/vulkan/common/native_enum.hh>
 #include <phantasm-hardware-interface/vulkan/loader/volk.hh>
 
@@ -117,9 +117,9 @@ void patchSpvReflectShader(SpvReflectShaderModule& module, phi::shader_domain cu
 
 }
 
-phi::arg::shader_stage phi::vk::util::create_patched_spirv(std::byte const* bytecode, size_t bytecode_size, spirv_refl_info& out_info)
+phi::vk::util::patched_spirv_stage phi::vk::util::create_patched_spirv(std::byte const* bytecode, size_t bytecode_size, spirv_refl_info& out_info)
 {
-    arg::shader_stage res;
+    patched_spirv_stage res;
 
     SpvReflectShaderModule module;
     spvReflectCreateShaderModule(bytecode_size, bytecode, &module);
@@ -127,8 +127,8 @@ phi::arg::shader_stage phi::vk::util::create_patched_spirv(std::byte const* byte
     res.domain = reflect_to_pr(module.shader_stage);
     patchSpvReflectShader(module, res.domain, out_info.descriptor_infos);
 
-    res.binary.size = spvReflectGetCodeSize(&module);
-    res.binary.data = cc::bit_cast<std::byte*>(module._internal->spirv_code);
+    res.size = spvReflectGetCodeSize(&module);
+    res.data = cc::bit_cast<std::byte*>(module._internal->spirv_code);
 
     // check for push constants
     {
@@ -142,6 +142,8 @@ phi::arg::shader_stage phi::vk::util::create_patched_spirv(std::byte const* byte
         }
     }
 
+    res.entrypoint_name = module.entry_point_name;
+
     // spirv-reflect internally checks if this field is a nullptr before calling ::free,
     // so we can keep it alive by setting this
     module._internal->spirv_code = nullptr;
@@ -150,10 +152,10 @@ phi::arg::shader_stage phi::vk::util::create_patched_spirv(std::byte const* byte
 }
 
 
-void phi::vk::util::free_patched_spirv(const arg::shader_stage& val)
+void phi::vk::util::free_patched_spirv(const patched_spirv_stage& val)
 {
     // do the same thing spirv-reflect would have done in spvReflectDestroyShaderModule
-    ::free(val.binary.data);
+    ::free(val.data);
 }
 
 cc::vector<phi::vk::util::spirv_desc_info> phi::vk::util::merge_spirv_descriptors(cc::span<spirv_desc_info> desc_infos)
@@ -205,8 +207,7 @@ cc::vector<phi::vk::util::spirv_desc_info> phi::vk::util::merge_spirv_descriptor
     return sorted_merged_res;
 }
 
-bool phi::vk::util::is_consistent_with_reflection(cc::span<const phi::vk::util::spirv_desc_info> spirv_ranges,
-                                                          phi::arg::shader_argument_shapes arg_shapes)
+bool phi::vk::util::is_consistent_with_reflection(cc::span<const phi::vk::util::spirv_desc_info> spirv_ranges, phi::arg::shader_argument_shapes arg_shapes)
 {
     struct reflected_range_infos
     {
@@ -251,25 +252,23 @@ bool phi::vk::util::is_consistent_with_reflection(cc::span<const phi::vk::util::
 
         if (ri.num_cbvs != (shape.has_cb ? 1 : 0))
         {
-            std::cerr << "[phi][vk] SPIR-V reflection inconsistent - CBVs: " << ri.num_cbvs << " reflected, vs " << (shape.has_cb ? 1 : 0)
-                      << " in shape #" << i << std::endl;
+            log::err() << "[phi][vk] SPIR-V reflection inconsistent - CBVs: " << ri.num_cbvs << " reflected, vs " << (shape.has_cb ? 1 : 0)
+                       << " in shape #" << i;
             return false;
         }
 
         if (ri.num_srvs != shape.num_srvs)
         {
-            std::cerr << "[phi][vk] SPIR-V reflection inconsistent - SRVs: " << ri.num_srvs << " reflected, vs " << shape.num_srvs
-                      << " in shape #" << i << std::endl;
+            log::err() << "[phi][vk] SPIR-V reflection inconsistent - SRVs: " << ri.num_srvs << " reflected, vs " << shape.num_srvs << " in shape #" << i;
         }
         if (ri.num_uavs != shape.num_uavs)
         {
-            std::cerr << "[phi][vk] SPIR-V reflection inconsistent - UAVs: " << ri.num_uavs << " reflected, vs " << shape.num_uavs
-                      << " in shape #" << i << std::endl;
+            log::err() << "[phi][vk] SPIR-V reflection inconsistent - UAVs: " << ri.num_uavs << " reflected, vs " << shape.num_uavs << " in shape #" << i;
         }
         if (ri.num_samplers != shape.num_samplers)
         {
-            std::cerr << "[phi][vk] SPIR-V reflection inconsistent - Samplers: " << ri.num_samplers << " reflected, vs " << shape.num_samplers
-                      << " in shape #" << i << std::endl;
+            log::err() << "[phi][vk] SPIR-V reflection inconsistent - Samplers: " << ri.num_samplers << " reflected, vs " << shape.num_samplers
+                       << " in shape #" << i;
         }
     }
     return true;
@@ -277,9 +276,10 @@ bool phi::vk::util::is_consistent_with_reflection(cc::span<const phi::vk::util::
 
 void phi::vk::util::print_spirv_info(cc::span<const phi::vk::util::spirv_desc_info> info)
 {
-    std::cout << "[phi][vk] SPIR-V descriptor info: " << std::endl;
+    auto log_obj = log::info();
+    log_obj << "SPIR-V descriptor info:\n";
     for (auto const& i : info)
     {
-        std::cout << "  set " << i.set << ", binding " << i.binding << ", array size " << i.binding_array_size << ", VkDescriptorType " << i.type << std::endl;
+        log_obj << "  set " << i.set << ", binding " << i.binding << ", array size " << i.binding_array_size << ", VkDescriptorType " << i.type << '\n';
     }
 }

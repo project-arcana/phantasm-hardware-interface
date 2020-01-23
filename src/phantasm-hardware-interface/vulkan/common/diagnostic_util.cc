@@ -1,10 +1,9 @@
 #include "diagnostic_util.hh"
 
-#include <iostream>
-
 #include <renderdoc_app/renderdoc_app.h>
 
 #include <phantasm-hardware-interface/detail/renderdoc_loader.hh>
+#include <phantasm-hardware-interface/vulkan/common/log.hh>
 
 void phi::vk::util::diagnostic_state::init()
 {
@@ -12,7 +11,7 @@ void phi::vk::util::diagnostic_state::init()
     _renderdoc_handle = detail::load_renderdoc();
     if (_renderdoc_handle)
     {
-        std::cout << "[phi][vk] RenderDoc detected" << std::endl;
+        log::info()("RenderDoc detected");
     }
 }
 
@@ -31,7 +30,7 @@ bool phi::vk::util::diagnostic_state::start_capture()
 {
     if (_renderdoc_handle)
     {
-        std::cout << "[phi][vk] starting RenderDoc capture" << std::endl;
+        log::info()("starting RenderDoc capture");
         _renderdoc_handle->StartFrameCapture(nullptr, nullptr);
         _renderdoc_capture_running = true;
         return true;
@@ -44,7 +43,7 @@ bool phi::vk::util::diagnostic_state::end_capture()
 {
     if (_renderdoc_handle && _renderdoc_capture_running)
     {
-        std::cout << "[phi][vk] ending RenderDoc capture" << std::endl;
+        log::info()("ending RenderDoc capture");
         _renderdoc_handle->EndFrameCapture(nullptr, nullptr);
         _renderdoc_capture_running = false;
         return true;

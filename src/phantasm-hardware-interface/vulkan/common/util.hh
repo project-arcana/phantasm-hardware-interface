@@ -9,7 +9,7 @@
 #include <clean-core/capped_vector.hh>
 #include <clean-core/span.hh>
 
-#include <phantasm-hardware-interface/assets/vertex_attrib_info.hh>
+#include <phantasm-hardware-interface/types.hh>
 #include <phantasm-hardware-interface/vulkan/loader/volk.hh>
 
 namespace phi::vk::util

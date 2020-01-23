@@ -1,22 +1,21 @@
 #include "pipeline_pool.hh"
 
-#include <iostream>
-
 #include <clean-core/defer.hh>
 
+#include <phantasm-hardware-interface/vulkan/common/log.hh>
 #include <phantasm-hardware-interface/vulkan/common/util.hh>
 #include <phantasm-hardware-interface/vulkan/loader/spirv_patch_util.hh>
 #include <phantasm-hardware-interface/vulkan/render_pass_pipeline.hh>
 
 phi::handle::pipeline_state phi::vk::PipelinePool::createPipelineState(phi::arg::vertex_format vertex_format,
-                                                                                       phi::arg::framebuffer_config const& framebuffer_config,
-                                                                                       phi::arg::shader_argument_shapes shader_arg_shapes,
-                                                                                       bool should_have_push_constants,
-                                                                                       phi::arg::graphics_shader_stages shader_stages,
-                                                                                       const phi::graphics_pipeline_config& primitive_config)
+                                                                       phi::arg::framebuffer_config const& framebuffer_config,
+                                                                       phi::arg::shader_argument_shapes shader_arg_shapes,
+                                                                       bool should_have_push_constants,
+                                                                       phi::arg::graphics_shader_stages shader_stages,
+                                                                       const phi::graphics_pipeline_config& primitive_config)
 {
     // Patch and reflect SPIR-V binaries
-    cc::capped_vector<arg::shader_stage, 6> patched_shader_stages;
+    cc::capped_vector<util::patched_spirv_stage, 6> patched_shader_stages;
     cc::vector<util::spirv_desc_info> shader_descriptor_ranges;
     bool has_push_constants = false;
     CC_DEFER
@@ -81,11 +80,11 @@ phi::handle::pipeline_state phi::vk::PipelinePool::createPipelineState(phi::arg:
 }
 
 phi::handle::pipeline_state phi::vk::PipelinePool::createComputePipelineState(phi::arg::shader_argument_shapes shader_arg_shapes,
-                                                                                              arg::shader_binary compute_shader,
-                                                                                              bool should_have_push_constants)
+                                                                              arg::shader_binary compute_shader,
+                                                                              bool should_have_push_constants)
 {
     // Patch and reflect SPIR-V binary
-    arg::shader_stage patched_shader_stage;
+    util::patched_spirv_stage patched_shader_stage;
     cc::vector<util::spirv_desc_info> shader_descriptor_ranges;
     bool has_push_constants = false;
     CC_DEFER { util::free_patched_spirv(patched_shader_stage); };
@@ -163,7 +162,7 @@ void phi::vk::PipelinePool::destroy()
 
     if (num_leaks > 0)
     {
-        std::cout << "[phi][vk] warning: leaked " << num_leaks << " handle::pipeline_state object" << (num_leaks == 1 ? "" : "s") << std::endl;
+        log::info()("warning: leaked {} handle::pipeline_state object{}", num_leaks, (num_leaks == 1 ? "" : "s"));
     }
 
     mLayoutCache.destroy(mDevice);

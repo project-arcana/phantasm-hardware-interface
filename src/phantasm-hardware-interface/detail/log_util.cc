@@ -1,7 +1,6 @@
 #include "log_util.hh"
 
 #include <cstdio>
-#include <iostream>
 
 void phi::log::dump_hex(const char* description, const void* data, int length)
 {

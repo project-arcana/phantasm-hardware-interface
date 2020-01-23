@@ -3,8 +3,11 @@
 #include <cstdarg>
 #include <cstdio>
 
+#include <clean-core/span.hh>
+
 #include <phantasm-hardware-interface/d3d12/common/dxgi_format.hh>
 #include <phantasm-hardware-interface/d3d12/common/native_enum.hh>
+#include <phantasm-hardware-interface/types.hh>
 
 cc::capped_vector<D3D12_INPUT_ELEMENT_DESC, 16> phi::d3d12::util::get_native_vertex_format(cc::span<const phi::vertex_attribute_info> attrib_info)
 {
@@ -321,8 +324,7 @@ D3D12_SAMPLER_DESC phi::d3d12::util::create_sampler_desc(const phi::sampler_conf
     return sampler_desc;
 }
 
-D3D12_RESOURCE_BARRIER phi::d3d12::util::get_barrier_desc(
-    ID3D12Resource* res, phi::resource_state before, phi::resource_state after, int mip_level, int array_slice, unsigned mip_size)
+D3D12_RESOURCE_BARRIER phi::d3d12::util::get_barrier_desc(ID3D12Resource* res, phi::resource_state before, phi::resource_state after, int mip_level, int array_slice, unsigned mip_size)
 {
     D3D12_RESOURCE_BARRIER out_barrier;
     out_barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
