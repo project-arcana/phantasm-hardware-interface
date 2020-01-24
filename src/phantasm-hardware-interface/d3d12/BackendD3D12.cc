@@ -232,7 +232,7 @@ void phi::d3d12::BackendD3D12::submit(cc::span<const phi::handle::command_list> 
         submit_flush();
 }
 
-bool phi::d3d12::BackendD3D12::tryUnsetEvent(phi::handle::event event)
+bool phi::d3d12::BackendD3D12::clearEvent(phi::handle::event event)
 {
     auto* const raw_fence = mPoolEvents.get(event);
 

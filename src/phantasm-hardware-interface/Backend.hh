@@ -149,8 +149,8 @@ public:
     /// create an event, starts out unset
     [[nodiscard]] virtual handle::event createEvent() = 0;
 
-    /// if the event is set, unsets it and returns true, otherwise returns false
-    [[nodiscard]] virtual bool tryUnsetEvent(handle::event event) = 0;
+    /// unsets the event, returns true if it was previously set, false otherwise
+    virtual bool clearEvent(handle::event event) = 0;
 
     virtual void free(cc::span<handle::event const> events) = 0;
 

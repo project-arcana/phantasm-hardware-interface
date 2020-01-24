@@ -141,7 +141,7 @@ public:
     [[nodiscard]] handle::event createEvent() override { return mPoolEvents.createEvent(); }
 
     /// if the event is set, unsets it and returns true, otherwise returns false
-    [[nodiscard]] bool tryUnsetEvent(handle::event event) override;
+    bool clearEvent(handle::event event) override;
 
     void free(cc::span<handle::event const> events) override { mPoolEvents.free(events); }
 
