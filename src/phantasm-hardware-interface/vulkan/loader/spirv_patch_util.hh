@@ -82,6 +82,6 @@ void print_spirv_info(cc::span<spirv_desc_info const> info);
 
 /// returns true if the reflected descriptors are consistent with the passed arguments
 /// currently only checks if the amounts are equal
-[[nodiscard]] bool is_consistent_with_reflection(cc::span<spirv_desc_info const> spirv_ranges, arg::shader_argument_shapes arg_shapes);
+[[nodiscard]] bool is_consistent_with_reflection(cc::span<spirv_desc_info const> spirv_ranges, arg::shader_arg_shapes arg_shapes);
 
 }

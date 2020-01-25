@@ -44,7 +44,7 @@ PHI_DEFINE_HANDLE(accel_struct);
 #undef PHI_DEFINE_HANDLE
 }
 
-struct shader_argument
+struct shader_arg
 {
     handle::resource constant_buffer;
     handle::shader_view shader_view;
@@ -204,7 +204,7 @@ enum class shader_view_dimension : uint8_t
     raytracing_accel_struct
 };
 
-struct shader_view_element
+struct shader_view_elem
 {
     handle::resource resource;
 
@@ -280,6 +280,46 @@ public:
         resource = as_buffer;
         dimension = shader_view_dimension::raytracing_accel_struct;
     }
+
+public:
+    // static convenience
+
+    static shader_view_elem null()
+    {
+        shader_view_elem rv;
+        rv.init_as_null();
+        return rv;
+    }
+    static shader_view_elem backbuffer(handle::resource res)
+    {
+        shader_view_elem rv;
+        rv.init_as_backbuffer(res);
+        return rv;
+    }
+    static shader_view_elem tex2d(handle::resource res, format pf, bool multisampled = false, unsigned mip_start = 0, unsigned mip_size = unsigned(-1))
+    {
+        shader_view_elem rv;
+        rv.init_as_tex2d(res, pf, multisampled, mip_start, mip_size);
+        return rv;
+    }
+    static shader_view_elem texcube(handle::resource res, format pf)
+    {
+        shader_view_elem rv;
+        rv.init_as_texcube(res, pf);
+        return rv;
+    }
+    static shader_view_elem structured_buffer(handle::resource res, unsigned num_elements, unsigned stride_bytes)
+    {
+        shader_view_elem rv;
+        rv.init_as_structured_buffer(res, num_elements, stride_bytes);
+        return rv;
+    }
+    static shader_view_elem accel_struct(handle::resource as_buffer)
+    {
+        shader_view_elem rv;
+        rv.init_as_accel_struct(as_buffer);
+        return rv;
+    }
 };
 
 enum class sampler_filter : uint8_t
@@ -353,6 +393,9 @@ struct sampler_config
         compare_func = sampler_compare_func::disabled;
         border_color = sampler_border_color::white_float;
     }
+
+    sampler_config(sampler_filter filter, unsigned anisotropy = 16u) { init_default(filter, anisotropy); }
+    sampler_config() = default;
 };
 
 inline constexpr bool operator==(sampler_config const& lhs, sampler_config const& rhs) noexcept

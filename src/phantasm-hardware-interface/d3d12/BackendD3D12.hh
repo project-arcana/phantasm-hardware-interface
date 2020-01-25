@@ -92,8 +92,8 @@ public:
     // Shader view interface
     //
 
-    [[nodiscard]] handle::shader_view createShaderView(cc::span<shader_view_element const> srvs,
-                                                       cc::span<shader_view_element const> uavs,
+    [[nodiscard]] handle::shader_view createShaderView(cc::span<shader_view_elem const> srvs,
+                                                       cc::span<shader_view_elem const> uavs,
                                                        cc::span<sampler_config const> samplers,
                                                        bool /*usage_compute*/) override
     {
@@ -110,7 +110,7 @@ public:
 
     [[nodiscard]] handle::pipeline_state createPipelineState(arg::vertex_format vertex_format,
                                                              arg::framebuffer_config const& framebuffer_conf,
-                                                             arg::shader_argument_shapes shader_arg_shapes,
+                                                             arg::shader_arg_shapes shader_arg_shapes,
                                                              bool has_root_constants,
                                                              arg::graphics_shader_stages shader_stages,
                                                              phi::graphics_pipeline_config const& primitive_config) override
@@ -118,7 +118,7 @@ public:
         return mPoolPSOs.createPipelineState(vertex_format, framebuffer_conf, shader_arg_shapes, has_root_constants, shader_stages, primitive_config);
     }
 
-    [[nodiscard]] handle::pipeline_state createComputePipelineState(arg::shader_argument_shapes shader_arg_shapes, arg::shader_binary compute_shader, bool has_root_constants) override
+    [[nodiscard]] handle::pipeline_state createComputePipelineState(arg::shader_arg_shapes shader_arg_shapes, arg::shader_binary compute_shader, bool has_root_constants) override
     {
         return mPoolPSOs.createComputePipelineState(shader_arg_shapes, compute_shader, has_root_constants);
     }

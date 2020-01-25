@@ -6,9 +6,9 @@
 
 namespace phi::hash
 {
-inline cc::hash_t compute(arg::shader_argument_shape const& v) { return cc::make_hash(v.num_srvs, v.num_uavs, v.num_samplers, v.has_cb); }
+inline cc::hash_t compute(arg::shader_arg_shape const& v) { return cc::make_hash(v.num_srvs, v.num_uavs, v.num_samplers, v.has_cbv); }
 
-inline cc::hash_t compute(arg::shader_argument_shapes const v)
+inline cc::hash_t compute(arg::shader_arg_shapes const v)
 {
     cc::hash_t res = 0;
     for (auto const& e : v)

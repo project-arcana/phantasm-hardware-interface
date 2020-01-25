@@ -9,7 +9,7 @@
 
 phi::handle::pipeline_state phi::vk::PipelinePool::createPipelineState(phi::arg::vertex_format vertex_format,
                                                                        phi::arg::framebuffer_config const& framebuffer_config,
-                                                                       phi::arg::shader_argument_shapes shader_arg_shapes,
+                                                                       phi::arg::shader_arg_shapes shader_arg_shapes,
                                                                        bool should_have_push_constants,
                                                                        phi::arg::graphics_shader_stages shader_stages,
                                                                        const phi::graphics_pipeline_config& primitive_config)
@@ -79,7 +79,7 @@ phi::handle::pipeline_state phi::vk::PipelinePool::createPipelineState(phi::arg:
     return {static_cast<handle::index_t>(pool_index)};
 }
 
-phi::handle::pipeline_state phi::vk::PipelinePool::createComputePipelineState(phi::arg::shader_argument_shapes shader_arg_shapes,
+phi::handle::pipeline_state phi::vk::PipelinePool::createComputePipelineState(phi::arg::shader_arg_shapes shader_arg_shapes,
                                                                               arg::shader_binary compute_shader,
                                                                               bool should_have_push_constants)
 {

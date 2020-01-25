@@ -29,7 +29,7 @@ void phi::d3d12::RootSignatureCache::initialize(unsigned max_num_root_sigs) { mC
 void phi::d3d12::RootSignatureCache::destroy() { reset(); }
 
 phi::d3d12::root_signature* phi::d3d12::RootSignatureCache::getOrCreate(ID3D12Device& device,
-                                                                                        arg::shader_argument_shapes arg_shapes,
+                                                                                        arg::shader_arg_shapes arg_shapes,
                                                                                         bool has_root_constants,
                                                                                         root_signature_type type)
 {

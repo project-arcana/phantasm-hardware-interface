@@ -10,8 +10,8 @@
 
 #include "resource_pool.hh"
 
-phi::handle::shader_view phi::vk::ShaderViewPool::create(cc::span<shader_view_element const> srvs,
-                                                                         cc::span<shader_view_element const> uavs,
+phi::handle::shader_view phi::vk::ShaderViewPool::create(cc::span<shader_view_elem const> srvs,
+                                                                         cc::span<shader_view_elem const> uavs,
                                                                          cc::span<const sampler_config> sampler_configs,
                                                                          bool usage_compute)
 {
@@ -232,7 +232,7 @@ void phi::vk::ShaderViewPool::destroy()
     mAllocator.destroy();
 }
 
-VkImageView phi::vk::ShaderViewPool::makeImageView(const shader_view_element& sve, bool is_uav) const
+VkImageView phi::vk::ShaderViewPool::makeImageView(const shader_view_elem& sve, bool is_uav) const
 {
     VkImageViewCreateInfo info = {};
     info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;

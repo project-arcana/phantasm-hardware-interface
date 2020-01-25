@@ -20,7 +20,7 @@ constexpr phi::handle::index_t gc_raytracing_handle_offset = 1073741824;
 
 phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createPipelineState(phi::arg::vertex_format vertex_format,
                                                                                      phi::arg::framebuffer_config const& framebuffer_format,
-                                                                                     phi::arg::shader_argument_shapes shader_arg_shapes,
+                                                                                     phi::arg::shader_arg_shapes shader_arg_shapes,
                                                                                      bool has_root_constants,
                                                                                      phi::arg::graphics_shader_stages shader_stages,
                                                                                      const phi::graphics_pipeline_config& primitive_config)
@@ -50,7 +50,7 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createPipelineS
     return {static_cast<handle::index_t>(pool_index)};
 }
 
-phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createComputePipelineState(phi::arg::shader_argument_shapes shader_arg_shapes,
+phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createComputePipelineState(phi::arg::shader_arg_shapes shader_arg_shapes,
                                                                                             arg::shader_binary compute_shader,
                                                                                             bool has_root_constants)
 {

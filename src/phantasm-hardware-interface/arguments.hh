@@ -34,21 +34,27 @@ struct vertex_format
 };
 
 /// A shader argument consists of SRVs, UAVs, an optional CBV, and an offset into it
-struct shader_argument_shape
+struct shader_arg_shape
 {
     unsigned num_srvs = 0;
     unsigned num_uavs = 0;
     unsigned num_samplers = 0;
-    bool has_cb = false;
+    bool has_cbv = false;
 
-    constexpr bool operator==(shader_argument_shape const& rhs) const noexcept
+    shader_arg_shape(unsigned srvs, unsigned uavs = 0, unsigned samplers = 0, bool cbv = false)
+      : num_srvs(srvs), num_uavs(uavs), num_samplers(samplers), has_cbv(cbv)
     {
-        return num_srvs == rhs.num_srvs && num_uavs == rhs.num_uavs && has_cb == rhs.has_cb && num_samplers == rhs.num_samplers;
+    }
+    shader_arg_shape() = default;
+
+    constexpr bool operator==(shader_arg_shape const& rhs) const noexcept
+    {
+        return num_srvs == rhs.num_srvs && num_uavs == rhs.num_uavs && has_cbv == rhs.has_cbv && num_samplers == rhs.num_samplers;
     }
 };
 
 /// A shader payload consists of [1, 4] shader arguments
-using shader_argument_shapes = cc::span<shader_argument_shape const>;
+using shader_arg_shapes = cc::span<shader_arg_shape const>;
 
 struct shader_binary
 {
@@ -65,7 +71,7 @@ struct shader_stage
 /// A graphics shader bundle consists of up to 1 shader per graphics stage
 using graphics_shader_stages = cc::span<shader_stage const>;
 
-inline bool operator==(shader_argument_shapes const& lhs, shader_argument_shapes const& rhs) noexcept
+inline bool operator==(shader_arg_shapes const& lhs, shader_arg_shapes const& rhs) noexcept
 {
     if (lhs.size() != rhs.size())
         return false;
@@ -90,21 +96,21 @@ struct blas_element
 };
 
 /// a raytracing shader library lists the symbol names it exports
-struct raytracing_shader_library
+struct rt_shader_library
 {
     shader_binary binary;
     cc::capped_vector<wchar_t const*, 16> symbols;
 };
 
 /// associates symbols exported from libraries with their argument shapes
-struct raytracing_argument_association
+struct rt_argument_association
 {
     cc::capped_vector<wchar_t const*, 16> symbols;
-    cc::capped_vector<shader_argument_shape, limits::max_shader_arguments> argument_shapes;
+    cc::capped_vector<shader_arg_shape, limits::max_shader_arguments> argument_shapes;
     bool has_root_constants = false;
 };
 
-struct raytracing_hit_group
+struct rt_hit_group
 {
     wchar_t const* name = nullptr;
     wchar_t const* closest_hit_symbol = nullptr;
@@ -117,11 +123,11 @@ struct shader_table_record
     wchar_t const* symbol = nullptr;     ///< name of the shader or hit group
     void const* root_arg_data = nullptr; ///< optional, data of the root constant data
     uint32_t root_arg_size = 0;          ///< size of the root constant data
-    cc::capped_vector<shader_argument, limits::max_shader_arguments> shader_arguments;
+    cc::capped_vector<shader_arg, limits::max_shader_arguments> shader_arguments;
 };
 
-using raytracing_shader_libraries = cc::span<raytracing_shader_library const>;
-using raytracing_argument_associations = cc::span<raytracing_argument_association const>;
-using raytracing_hit_groups = cc::span<raytracing_hit_group const>;
+using raytracing_shader_libraries = cc::span<rt_shader_library const>;
+using raytracing_argument_associations = cc::span<rt_argument_association const>;
+using raytracing_hit_groups = cc::span<rt_hit_group const>;
 using shader_table_records = cc::span<shader_table_record const>;
 }

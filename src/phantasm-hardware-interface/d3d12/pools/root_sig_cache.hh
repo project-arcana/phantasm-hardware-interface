@@ -18,7 +18,7 @@ public:
 
     /// receive an existing root signature matching the shape, or create a new one
     /// returns a pointer which remains stable
-    [[nodiscard]] root_signature* getOrCreate(ID3D12Device& device, arg::shader_argument_shapes arg_shapes, bool has_root_constants, root_signature_type type);
+    [[nodiscard]] root_signature* getOrCreate(ID3D12Device& device, arg::shader_arg_shapes arg_shapes, bool has_root_constants, root_signature_type type);
 
     /// destroys all elements inside, and clears the map
     void reset();

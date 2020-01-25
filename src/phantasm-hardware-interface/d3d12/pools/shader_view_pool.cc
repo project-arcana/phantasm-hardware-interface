@@ -24,8 +24,8 @@ void phi::d3d12::DescriptorPageAllocator::initialize(ID3D12Device& device, D3D12
     mHeapStartGPU = mHeap->GetGPUDescriptorHandleForHeapStart();
 }
 
-phi::handle::shader_view phi::d3d12::ShaderViewPool::create(cc::span<shader_view_element const> srvs,
-                                                                            cc::span<shader_view_element const> uavs,
+phi::handle::shader_view phi::d3d12::ShaderViewPool::create(cc::span<shader_view_elem const> srvs,
+                                                                            cc::span<shader_view_elem const> uavs,
                                                                             cc::span<sampler_config const> samplers)
 {
     auto const srv_uav_size = int(srvs.size() + uavs.size());

@@ -453,7 +453,7 @@ void phi::vk::command_list_translator::execute(const cmd::dispatch_rays& dispatc
 
 void phi::vk::command_list_translator::bind_shader_arguments(phi::handle::pipeline_state pso,
                                                                      const std::byte* root_consts,
-                                                                     cc::span<const phi::shader_argument> shader_args,
+                                                                     cc::span<const phi::shader_arg> shader_args,
                                                                      VkPipelineBindPoint bind_point)
 {
     auto const& pso_node = _globals.pool_pipeline_states->get(pso);
