@@ -207,6 +207,18 @@ public:
 
     virtual bool isRaytracingEnabled() const = 0;
 
+    //
+    // Non-virtual utility
+    //
+
+    /// free multiple handles of different types
+    /// convenience, for more efficiency use freeRange
+    template <class... Args>
+    void freeVariadic(Args... handles)
+    {
+        (free(handles), ...);
+    }
+
 protected:
     Backend() = default;
 
