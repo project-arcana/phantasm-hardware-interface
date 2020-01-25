@@ -70,11 +70,11 @@ public:
     /// if mips is 0, the maximum amount will be used
     /// if the texture will be used as a UAV, allow_uav must be true
     [[nodiscard]] virtual handle::resource createTexture(
-        phi::format format, unsigned w, unsigned h, unsigned mips, texture_dimension dim = texture_dimension::t2d, unsigned depth_or_array_size = 1, bool allow_uav = false)
+        phi::format format, tg::isize2 size, unsigned mips, texture_dimension dim = texture_dimension::t2d, unsigned depth_or_array_size = 1, bool allow_uav = false)
         = 0;
 
     /// create a [multisampled] 2D render- or depth-stencil target
-    [[nodiscard]] virtual handle::resource createRenderTarget(phi::format format, unsigned w, unsigned h, unsigned samples = 1) = 0;
+    [[nodiscard]] virtual handle::resource createRenderTarget(phi::format format, tg::isize2 size, unsigned samples = 1) = 0;
 
     /// create a buffer, with an element stride if its an index or vertex buffer
     [[nodiscard]] virtual handle::resource createBuffer(unsigned size_bytes, unsigned stride_bytes = 0, bool allow_uav = false) = 0;
