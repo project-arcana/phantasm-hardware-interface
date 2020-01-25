@@ -112,15 +112,15 @@ public:
                                                              arg::framebuffer_config const& framebuffer_conf,
                                                              arg::shader_arg_shapes shader_arg_shapes,
                                                              bool has_root_constants,
-                                                             arg::graphics_shaders shader_stages,
+                                                             arg::graphics_shaders shaders,
                                                              phi::graphics_pipeline_config const& primitive_config) override
     {
-        return mPoolPSOs.createPipelineState(vertex_format, framebuffer_conf, shader_arg_shapes, has_root_constants, shader_stages, primitive_config);
+        return mPoolPSOs.createPipelineState(vertex_format, framebuffer_conf, shader_arg_shapes, has_root_constants, shaders, primitive_config);
     }
 
-    [[nodiscard]] handle::pipeline_state createComputePipelineState(arg::shader_arg_shapes shader_arg_shapes, arg::shader_binary compute_shader, bool has_root_constants) override
+    [[nodiscard]] handle::pipeline_state createComputePipelineState(arg::shader_arg_shapes shader_arg_shapes, arg::shader_binary shader, bool has_root_constants) override
     {
-        return mPoolPSOs.createComputePipelineState(shader_arg_shapes, compute_shader, has_root_constants);
+        return mPoolPSOs.createComputePipelineState(shader_arg_shapes, shader, has_root_constants);
     }
 
     void free(handle::pipeline_state ps) override { mPoolPSOs.free(ps); }
@@ -149,9 +149,9 @@ public:
     // Raytracing interface
     //
 
-    [[nodiscard]] handle::pipeline_state createRaytracingPipelineState(arg::raytracing_shader_libraries libraries,
-                                                                       arg::raytracing_argument_associations arg_assocs,
-                                                                       arg::raytracing_hit_groups hit_groups,
+    [[nodiscard]] handle::pipeline_state createRaytracingPipelineState(arg::rt_shader_libraries libraries,
+                                                                       arg::rt_argument_associations arg_assocs,
+                                                                       arg::rt_hit_groups hit_groups,
                                                                        unsigned max_recursion,
                                                                        unsigned max_payload_size_bytes,
                                                                        unsigned max_attribute_size_bytes) override;

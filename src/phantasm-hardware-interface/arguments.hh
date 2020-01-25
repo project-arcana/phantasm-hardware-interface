@@ -126,8 +126,8 @@ struct shader_table_record
     cc::capped_vector<shader_arg, limits::max_shader_arguments> shader_arguments;
 };
 
-using raytracing_shader_libraries = cc::span<rt_shader_library const>;
-using raytracing_argument_associations = cc::span<rt_argument_association const>;
-using raytracing_hit_groups = cc::span<rt_hit_group const>;
+using rt_shader_libraries = cc::span<rt_shader_library const>;
+using rt_argument_associations = cc::span<rt_argument_association const>;
+using rt_hit_groups = cc::span<rt_hit_group const>;
 using shader_table_records = cc::span<shader_table_record const>;
 }

@@ -30,9 +30,9 @@ public:
 
     [[nodiscard]] handle::pipeline_state createComputePipelineState(arg::shader_arg_shapes shader_arg_shapes, arg::shader_binary compute_shader, bool has_root_constants);
 
-    [[nodiscard]] handle::pipeline_state createRaytracingPipelineState(arg::raytracing_shader_libraries libraries,
-                                                                       arg::raytracing_argument_associations arg_assocs,
-                                                                       arg::raytracing_hit_groups hit_groups,
+    [[nodiscard]] handle::pipeline_state createRaytracingPipelineState(arg::rt_shader_libraries libraries,
+                                                                       arg::rt_argument_associations arg_assocs,
+                                                                       arg::rt_hit_groups hit_groups,
                                                                        unsigned max_recursion,
                                                                        unsigned max_payload_size_bytes,
                                                                        unsigned max_attribute_size_bytes);

@@ -75,9 +75,9 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createComputePi
     return {static_cast<handle::index_t>(pool_index)};
 }
 
-phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracingPipelineState(arg::raytracing_shader_libraries libraries,
-                                                                                               arg::raytracing_argument_associations arg_assocs,
-                                                                                               arg::raytracing_hit_groups hit_groups,
+phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracingPipelineState(arg::rt_shader_libraries libraries,
+                                                                                               arg::rt_argument_associations arg_assocs,
+                                                                                               arg::rt_hit_groups hit_groups,
                                                                                                unsigned max_recursion,
                                                                                                unsigned max_payload_size_bytes,
                                                                                                unsigned max_attribute_size_bytes)

@@ -117,13 +117,11 @@ public:
                                                                      arg::framebuffer_config const& framebuffer_conf,
                                                                      arg::shader_arg_shapes shader_arg_shapes,
                                                                      bool has_root_constants,
-                                                                     arg::graphics_shaders shader_stages,
+                                                                     arg::graphics_shaders shaders,
                                                                      phi::graphics_pipeline_config const& primitive_config)
         = 0;
 
-    [[nodiscard]] virtual handle::pipeline_state createComputePipelineState(arg::shader_arg_shapes shader_arg_shapes,
-                                                                            arg::shader_binary compute_shader,
-                                                                            bool has_root_constants = false)
+    [[nodiscard]] virtual handle::pipeline_state createComputePipelineState(arg::shader_arg_shapes shader_arg_shapes, arg::shader_binary shader, bool has_root_constants = false)
         = 0;
 
     virtual void free(handle::pipeline_state ps) = 0;
@@ -158,9 +156,9 @@ public:
     // Raytracing interface
     //
 
-    [[nodiscard]] virtual handle::pipeline_state createRaytracingPipelineState(arg::raytracing_shader_libraries libraries,
-                                                                               arg::raytracing_argument_associations arg_assocs,
-                                                                               arg::raytracing_hit_groups hit_groups,
+    [[nodiscard]] virtual handle::pipeline_state createRaytracingPipelineState(arg::rt_shader_libraries libraries,
+                                                                               arg::rt_argument_associations arg_assocs,
+                                                                               arg::rt_hit_groups hit_groups,
                                                                                unsigned max_recursion,
                                                                                unsigned max_payload_size_bytes,
                                                                                unsigned max_attribute_size_bytes)

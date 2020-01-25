@@ -328,9 +328,9 @@ bool phi::vk::BackendVulkan::clearEvent(phi::handle::event event)
     }
 }
 
-phi::handle::pipeline_state phi::vk::BackendVulkan::createRaytracingPipelineState(phi::arg::raytracing_shader_libraries libraries,
-                                                                                                  arg::raytracing_argument_associations arg_assocs,
-                                                                                                  phi::arg::raytracing_hit_groups hit_groups,
+phi::handle::pipeline_state phi::vk::BackendVulkan::createRaytracingPipelineState(phi::arg::rt_shader_libraries libraries,
+                                                                                                  arg::rt_argument_associations arg_assocs,
+                                                                                                  phi::arg::rt_hit_groups hit_groups,
                                                                                                   unsigned max_recursion,
                                                                                                   unsigned max_payload_size_bytes,
                                                                                                   unsigned max_attribute_size_bytes)
