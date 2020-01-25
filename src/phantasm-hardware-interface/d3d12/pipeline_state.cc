@@ -9,32 +9,32 @@ ID3D12PipelineState* phi::d3d12::create_pipeline_state(ID3D12Device& device,
                                                                ID3D12RootSignature* root_sig,
                                                                cc::span<const D3D12_INPUT_ELEMENT_DESC> vertex_input_layout,
                                                                phi::arg::framebuffer_config const& framebuffer_format,
-                                                               phi::arg::graphics_shader_stages shader_stages,
+                                                               phi::arg::graphics_shaders shader_stages,
                                                                const phi::graphics_pipeline_config& config)
 {
     D3D12_GRAPHICS_PIPELINE_STATE_DESC pso_desc = {};
     pso_desc.InputLayout = {!vertex_input_layout.empty() ? vertex_input_layout.data() : nullptr, UINT(vertex_input_layout.size())};
     pso_desc.pRootSignature = root_sig;
 
-    constexpr auto const to_bytecode = [](arg::shader_stage const& s) { return D3D12_SHADER_BYTECODE{s.binary.data, s.binary.size}; };
+    constexpr auto const to_bytecode = [](arg::graphics_shader const& s) { return D3D12_SHADER_BYTECODE{s.binary.data, s.binary.size}; };
 
-    for (arg::shader_stage const& s : shader_stages)
+    for (arg::graphics_shader const& s : shader_stages)
     {
-        switch (s.domain)
+        switch (s.stage)
         {
-        case shader_domain::pixel:
+        case shader_stage::pixel:
             pso_desc.PS = to_bytecode(s);
             break;
-        case shader_domain::vertex:
+        case shader_stage::vertex:
             pso_desc.VS = to_bytecode(s);
             break;
-        case shader_domain::domain:
+        case shader_stage::domain:
             pso_desc.DS = to_bytecode(s);
             break;
-        case shader_domain::hull:
+        case shader_stage::hull:
             pso_desc.HS = to_bytecode(s);
             break;
-        case shader_domain::geometry:
+        case shader_stage::geometry:
             pso_desc.GS = to_bytecode(s);
             break;
         default:

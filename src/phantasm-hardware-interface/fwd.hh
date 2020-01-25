@@ -24,5 +24,5 @@ namespace phi::arg
 struct framebuffer_config;
 struct vertex_format;
 struct shader_arg_shape;
-struct shader_stage;
+struct graphics_shader;
 }

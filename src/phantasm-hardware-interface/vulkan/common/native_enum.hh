@@ -108,60 +108,60 @@ namespace phi::vk::util
     return {};
 }
 
-[[nodiscard]] inline constexpr VkPipelineStageFlags to_pipeline_stage_flags(phi::shader_domain domain)
+[[nodiscard]] inline constexpr VkPipelineStageFlags to_pipeline_stage_flags(phi::shader_stage stage)
 {
-    switch (domain)
+    switch (stage)
     {
-    case phi::shader_domain::pixel:
+    case phi::shader_stage::pixel:
         return VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-    case phi::shader_domain::vertex:
+    case phi::shader_stage::vertex:
         return VK_PIPELINE_STAGE_VERTEX_SHADER_BIT;
-    case phi::shader_domain::hull:
+    case phi::shader_stage::hull:
         return VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT;
-    case phi::shader_domain::domain:
+    case phi::shader_stage::domain:
         return VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT;
-    case phi::shader_domain::geometry:
+    case phi::shader_stage::geometry:
         return VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT;
 
-    case phi::shader_domain::compute:
+    case phi::shader_stage::compute:
         return VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
 
-    case phi::shader_domain::ray_gen:
-    case phi::shader_domain::ray_miss:
-    case phi::shader_domain::ray_closest_hit:
-    case phi::shader_domain::ray_intersect:
-    case phi::shader_domain::ray_any_hit:
+    case phi::shader_stage::ray_gen:
+    case phi::shader_stage::ray_miss:
+    case phi::shader_stage::ray_closest_hit:
+    case phi::shader_stage::ray_intersect:
+    case phi::shader_stage::ray_any_hit:
         return VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV;
     }
     CC_ASSERT(false && "to_native uncaught argument");
     return {};
 }
 
-[[nodiscard]] inline constexpr VkPipelineStageFlags to_pipeline_stage_flags_bitwise(phi::shader_domain_flags_t domain)
+[[nodiscard]] inline constexpr VkPipelineStageFlags to_pipeline_stage_flags_bitwise(phi::shader_stage_flags_t stage_flags)
 {
     VkPipelineStageFlags res = 0;
 
-    if (domain & shader_domain::vertex)
+    if (stage_flags & shader_stage::vertex)
         res |= VK_PIPELINE_STAGE_VERTEX_SHADER_BIT;
 
-    if (domain & shader_domain::hull)
+    if (stage_flags & shader_stage::hull)
         res |= VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT;
 
-    if (domain & shader_domain::domain)
+    if (stage_flags & shader_stage::domain)
         res |= VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT;
 
-    if (domain & shader_domain::geometry)
+    if (stage_flags & shader_stage::geometry)
         res |= VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT;
 
-    if (domain & shader_domain::pixel)
+    if (stage_flags & shader_stage::pixel)
         res |= VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
 
 
-    if (domain & shader_domain::compute)
+    if (stage_flags & shader_stage::compute)
         res |= VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
 
 
-    if (domain.has_any_of(shader_domain_mask_all_ray))
+    if (stage_flags.has_any_of(shader_stage_mask_all_ray))
         res |= VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV;
 
     return res;
@@ -216,9 +216,9 @@ namespace phi::vk::util
     return {};
 }
 
-[[nodiscard]] inline constexpr VkPipelineStageFlags to_pipeline_stage_dependency(resource_state state, shader_domain domain = shader_domain::pixel)
+[[nodiscard]] inline constexpr VkPipelineStageFlags to_pipeline_stage_dependency(resource_state state, shader_stage stage = shader_stage::pixel)
 {
-    return to_pipeline_stage_dependency(state, to_pipeline_stage_flags(domain));
+    return to_pipeline_stage_dependency(state, to_pipeline_stage_flags(stage));
 }
 
 [[nodiscard]] inline constexpr VkPrimitiveTopology to_native(phi::primitive_topology topology)
@@ -281,33 +281,33 @@ namespace phi::vk::util
 }
 
 
-[[nodiscard]] inline constexpr VkShaderStageFlagBits to_shader_stage_flags(phi::shader_domain domain)
+[[nodiscard]] inline constexpr VkShaderStageFlagBits to_shader_stage_flags(phi::shader_stage stage)
 {
-    switch (domain)
+    switch (stage)
     {
-    case phi::shader_domain::pixel:
+    case phi::shader_stage::pixel:
         return VK_SHADER_STAGE_FRAGMENT_BIT;
-    case phi::shader_domain::vertex:
+    case phi::shader_stage::vertex:
         return VK_SHADER_STAGE_VERTEX_BIT;
-    case phi::shader_domain::domain:
+    case phi::shader_stage::domain:
         return VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
-    case phi::shader_domain::hull:
+    case phi::shader_stage::hull:
         return VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;
-    case phi::shader_domain::geometry:
+    case phi::shader_stage::geometry:
         return VK_SHADER_STAGE_GEOMETRY_BIT;
 
-    case phi::shader_domain::compute:
+    case phi::shader_stage::compute:
         return VK_SHADER_STAGE_COMPUTE_BIT;
 
-    case phi::shader_domain::ray_gen:
+    case phi::shader_stage::ray_gen:
         return VK_SHADER_STAGE_RAYGEN_BIT_NV;
-    case phi::shader_domain::ray_miss:
+    case phi::shader_stage::ray_miss:
         return VK_SHADER_STAGE_MISS_BIT_NV;
-    case phi::shader_domain::ray_closest_hit:
+    case phi::shader_stage::ray_closest_hit:
         return VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV;
-    case phi::shader_domain::ray_intersect:
+    case phi::shader_stage::ray_intersect:
         return VK_SHADER_STAGE_INTERSECTION_BIT_NV;
-    case phi::shader_domain::ray_any_hit:
+    case phi::shader_stage::ray_any_hit:
         return VK_SHADER_STAGE_ANY_HIT_BIT_NV;
     }
     CC_ASSERT(false && "to_native uncaught argument");

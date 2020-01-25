@@ -22,7 +22,7 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createPipelineS
                                                                                      phi::arg::framebuffer_config const& framebuffer_format,
                                                                                      phi::arg::shader_arg_shapes shader_arg_shapes,
                                                                                      bool has_root_constants,
-                                                                                     phi::arg::graphics_shader_stages shader_stages,
+                                                                                     phi::arg::graphics_shaders shader_stages,
                                                                                      const phi::graphics_pipeline_config& primitive_config)
 {
     root_signature* root_sig;

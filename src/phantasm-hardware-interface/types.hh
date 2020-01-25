@@ -51,7 +51,7 @@ struct shader_arg
     unsigned constant_buffer_offset;
 };
 
-enum class shader_domain : uint8_t
+enum class shader_stage : uint8_t
 {
     // graphics
     vertex,
@@ -71,14 +71,14 @@ enum class shader_domain : uint8_t
     ray_any_hit,
 };
 
-using shader_domain_flags_t = cc::flags<shader_domain, 16>;
-CC_FLAGS_ENUM_SIZED(shader_domain, 16);
+using shader_stage_flags_t = cc::flags<shader_stage, 16>;
+CC_FLAGS_ENUM_SIZED(shader_stage, 16);
 
-inline constexpr shader_domain_flags_t shader_domain_mask_all_graphics
-    = shader_domain::vertex | shader_domain::hull | shader_domain::domain | shader_domain::geometry | shader_domain::pixel;
+inline constexpr shader_stage_flags_t shader_stage_mask_all_graphics
+    = shader_stage::vertex | shader_stage::hull | shader_stage::domain | shader_stage::geometry | shader_stage::pixel;
 
-inline constexpr shader_domain_flags_t shader_domain_mask_all_ray
-    = shader_domain::ray_gen | shader_domain::ray_miss | shader_domain::ray_closest_hit | shader_domain::ray_intersect | shader_domain::ray_any_hit;
+inline constexpr shader_stage_flags_t shader_stage_mask_all_ray
+    = shader_stage::ray_gen | shader_stage::ray_miss | shader_stage::ray_closest_hit | shader_stage::ray_intersect | shader_stage::ray_any_hit;
 
 enum class queue_type : uint8_t
 {

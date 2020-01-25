@@ -124,7 +124,7 @@ PHI_DEFINE_CMD(transition_resources)
     {
         handle::resource resource;
         resource_state target_state;
-        shader_domain_flags_t dependant_shaders;
+        shader_stage_flags_t dependant_shaders;
     };
 
     cmd_vector<transition_info, limits::max_resource_transitions> transitions;
@@ -135,7 +135,7 @@ public:
     /// add a barrier for resource [res] into new state [target]
     /// if the target state is a CBV/SRV/UAV, depending_shader must be
     /// the union of shaders depending upon this resource next (can be omitted on d3d12)
-    void add(handle::resource res, resource_state target, shader_domain_flags_t depending_shader = {})
+    void add(handle::resource res, resource_state target, shader_stage_flags_t depending_shader = {})
     {
         transitions.push_back(transition_info{res, target, depending_shader});
     }
@@ -150,8 +150,8 @@ PHI_DEFINE_CMD(transition_image_slices)
         handle::resource resource;
         resource_state source_state;
         resource_state target_state;
-        shader_domain_flags_t source_dependencies;
-        shader_domain_flags_t target_dependencies;
+        shader_stage_flags_t source_dependencies;
+        shader_stage_flags_t target_dependencies;
         int mip_level;
         int array_slice;
     };
@@ -165,7 +165,7 @@ public:
     /// if the source/target state is a CBV/SRV/UAV, source/target_dep
     /// must be the union of shaders {previously accessing the resource (source) / depending upon this resource next (target)}
     /// (both can be omitted on d3d12)
-    void add(handle::resource res, resource_state source, resource_state target, shader_domain_flags_t source_dep, shader_domain_flags_t target_dep,
+    void add(handle::resource res, resource_state source, resource_state target, shader_stage_flags_t source_dep, shader_stage_flags_t target_dep,
              int level, int slice)
     {
         transitions.push_back(slice_transition_info{res, source, target, source_dep, target_dep, level, slice});

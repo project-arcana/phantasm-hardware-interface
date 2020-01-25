@@ -64,7 +64,7 @@ struct patched_spirv_stage
 {
     std::byte* data;
     size_t size;
-    shader_domain domain;
+    shader_stage stage;
     cc::string entrypoint_name;
 };
 

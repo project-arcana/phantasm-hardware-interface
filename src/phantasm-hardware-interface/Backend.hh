@@ -117,7 +117,7 @@ public:
                                                                      arg::framebuffer_config const& framebuffer_conf,
                                                                      arg::shader_arg_shapes shader_arg_shapes,
                                                                      bool has_root_constants,
-                                                                     arg::graphics_shader_stages shader_stages,
+                                                                     arg::graphics_shaders shader_stages,
                                                                      phi::graphics_pipeline_config const& primitive_config)
         = 0;
 

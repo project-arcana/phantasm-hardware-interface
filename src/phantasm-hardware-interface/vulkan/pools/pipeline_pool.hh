@@ -27,7 +27,7 @@ public:
                                                              const arg::framebuffer_config& framebuffer_config,
                                                              arg::shader_arg_shapes shader_arg_shapes,
                                                              bool should_have_push_constants,
-                                                             arg::graphics_shader_stages shader_stages,
+                                                             arg::graphics_shaders shader_stages,
                                                              phi::graphics_pipeline_config const& primitive_config);
 
     [[nodiscard]] handle::pipeline_state createComputePipelineState(arg::shader_arg_shapes shader_arg_shapes,

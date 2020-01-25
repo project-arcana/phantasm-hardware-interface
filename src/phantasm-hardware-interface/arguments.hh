@@ -62,14 +62,14 @@ struct shader_binary
     size_t size;
 };
 
-struct shader_stage
+struct graphics_shader
 {
     shader_binary binary;
-    shader_domain domain;
+    shader_stage stage;
 };
 
 /// A graphics shader bundle consists of up to 1 shader per graphics stage
-using graphics_shader_stages = cc::span<shader_stage const>;
+using graphics_shaders = cc::span<graphics_shader const>;
 
 inline bool operator==(shader_arg_shapes const& lhs, shader_arg_shapes const& rhs) noexcept
 {

@@ -48,9 +48,9 @@ namespace
     return {};
 }
 
-[[nodiscard]] constexpr phi::shader_domain reflect_to_pr(SpvReflectShaderStageFlagBits shader_stage_flags)
+[[nodiscard]] constexpr phi::shader_stage reflect_to_pr(SpvReflectShaderStageFlagBits shader_stage_flags)
 {
-    using sd = phi::shader_domain;
+    using sd = phi::shader_stage;
     switch (shader_stage_flags)
     {
     case SPV_REFLECT_SHADER_STAGE_VERTEX_BIT:
@@ -70,7 +70,7 @@ namespace
     return {};
 }
 
-void patchSpvReflectShader(SpvReflectShaderModule& module, phi::shader_domain current_stage, cc::vector<phi::vk::util::spirv_desc_info>& out_desc_infos)
+void patchSpvReflectShader(SpvReflectShaderModule& module, phi::shader_stage current_stage, cc::vector<phi::vk::util::spirv_desc_info>& out_desc_infos)
 {
     using namespace phi::vk;
 
@@ -124,8 +124,8 @@ phi::vk::util::patched_spirv_stage phi::vk::util::create_patched_spirv(std::byte
     SpvReflectShaderModule module;
     spvReflectCreateShaderModule(bytecode_size, bytecode, &module);
 
-    res.domain = reflect_to_pr(module.shader_stage);
-    patchSpvReflectShader(module, res.domain, out_info.descriptor_infos);
+    res.stage = reflect_to_pr(module.shader_stage);
+    patchSpvReflectShader(module, res.stage, out_info.descriptor_infos);
 
     res.size = spvReflectGetCodeSize(&module);
     res.data = cc::bit_cast<std::byte*>(module._internal->spirv_code);

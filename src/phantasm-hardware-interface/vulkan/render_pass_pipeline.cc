@@ -188,7 +188,7 @@ VkPipeline phi::vk::create_pipeline(VkDevice device,
     for (auto const& shader : shaders)
     {
         auto& new_shader = shader_stages.emplace_back();
-        initialize_shader(new_shader, device, shader.data, shader.size, shader.entrypoint_name.c_str(), shader.domain);
+        initialize_shader(new_shader, device, shader.data, shader.size, shader.entrypoint_name.c_str(), shader.stage);
 
         shader_stage_create_infos.push_back(get_shader_create_info(new_shader));
     }
@@ -332,7 +332,7 @@ VkPipeline phi::vk::create_pipeline(VkDevice device,
 VkPipeline phi::vk::create_compute_pipeline(VkDevice device, VkPipelineLayout pipeline_layout, const util::patched_spirv_stage& compute_shader)
 {
     shader shader_stage;
-    initialize_shader(shader_stage, device, compute_shader.data, compute_shader.size, compute_shader.entrypoint_name.c_str(), shader_domain::compute);
+    initialize_shader(shader_stage, device, compute_shader.data, compute_shader.size, compute_shader.entrypoint_name.c_str(), shader_stage::compute);
 
     VkComputePipelineCreateInfo pipeline_info = {};
     pipeline_info.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;

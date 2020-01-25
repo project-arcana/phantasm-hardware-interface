@@ -11,7 +11,7 @@ phi::handle::pipeline_state phi::vk::PipelinePool::createPipelineState(phi::arg:
                                                                        phi::arg::framebuffer_config const& framebuffer_config,
                                                                        phi::arg::shader_arg_shapes shader_arg_shapes,
                                                                        bool should_have_push_constants,
-                                                                       phi::arg::graphics_shader_stages shader_stages,
+                                                                       phi::arg::graphics_shaders shader_stages,
                                                                        const phi::graphics_pipeline_config& primitive_config)
 {
     // Patch and reflect SPIR-V binaries
