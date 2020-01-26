@@ -44,7 +44,7 @@ PHI_DEFINE_HANDLE(accel_struct);
 #undef PHI_DEFINE_HANDLE
 }
 
-struct shader_arg
+struct shader_argument
 {
     handle::resource constant_buffer;
     handle::shader_view shader_view;
@@ -189,7 +189,7 @@ enum class texture_dimension : uint8_t
     t3d
 };
 
-enum class shader_view_dimension : uint8_t
+enum class resource_view_dimension : uint8_t
 {
     buffer,
     texture1d,
@@ -204,14 +204,14 @@ enum class shader_view_dimension : uint8_t
     raytracing_accel_struct
 };
 
-struct shader_view_elem
+struct resource_view
 {
     handle::resource resource;
 
     format pixel_format;
-    shader_view_dimension dimension;
+    resource_view_dimension dimension;
 
-    struct sve_texture_info
+    struct texture_info_t
     {
         unsigned mip_start;   ///< index of the first usable mipmap (usually: 0)
         unsigned mip_size;    ///< amount of usable mipmaps, starting from mip_start (usually: -1 / all)
@@ -219,7 +219,7 @@ struct shader_view_elem
         unsigned array_size;  ///< amount of usable array elements [if applicable]
     };
 
-    struct sve_buffer_info
+    struct buffer_info_t
     {
         unsigned element_start;        ///< index of the first element in the buffer
         unsigned num_elements;         ///< amount of elements in the buffer
@@ -227,8 +227,8 @@ struct shader_view_elem
     };
 
     union {
-        sve_texture_info texture_info;
-        sve_buffer_info buffer_info;
+        texture_info_t texture_info;
+        buffer_info_t buffer_info;
     };
 
 public:
@@ -247,7 +247,7 @@ public:
     {
         resource = res;
         pixel_format = pf;
-        dimension = multisampled ? shader_view_dimension::texture2d_ms : shader_view_dimension::texture2d;
+        dimension = multisampled ? resource_view_dimension::texture2d_ms : resource_view_dimension::texture2d;
         texture_info.mip_start = mip_start;
         texture_info.mip_size = mip_size;
         texture_info.array_start = 0;
@@ -258,7 +258,7 @@ public:
     {
         resource = res;
         pixel_format = pf;
-        dimension = shader_view_dimension::texturecube;
+        dimension = resource_view_dimension::texturecube;
         texture_info.mip_start = 0;
         texture_info.mip_size = unsigned(-1);
         texture_info.array_start = 0;
@@ -268,7 +268,7 @@ public:
     void init_as_structured_buffer(handle::resource res, unsigned num_elements, unsigned stride_bytes)
     {
         resource = res;
-        dimension = shader_view_dimension::buffer;
+        dimension = resource_view_dimension::buffer;
         buffer_info.num_elements = num_elements;
         buffer_info.element_start = 0;
         buffer_info.element_stride_bytes = stride_bytes;
@@ -278,45 +278,45 @@ public:
     void init_as_accel_struct(handle::resource as_buffer)
     {
         resource = as_buffer;
-        dimension = shader_view_dimension::raytracing_accel_struct;
+        dimension = resource_view_dimension::raytracing_accel_struct;
     }
 
 public:
     // static convenience
 
-    static shader_view_elem null()
+    static resource_view null()
     {
-        shader_view_elem rv;
+        resource_view rv;
         rv.init_as_null();
         return rv;
     }
-    static shader_view_elem backbuffer(handle::resource res)
+    static resource_view backbuffer(handle::resource res)
     {
-        shader_view_elem rv;
+        resource_view rv;
         rv.init_as_backbuffer(res);
         return rv;
     }
-    static shader_view_elem tex2d(handle::resource res, format pf, bool multisampled = false, unsigned mip_start = 0, unsigned mip_size = unsigned(-1))
+    static resource_view tex2d(handle::resource res, format pf, bool multisampled = false, unsigned mip_start = 0, unsigned mip_size = unsigned(-1))
     {
-        shader_view_elem rv;
+        resource_view rv;
         rv.init_as_tex2d(res, pf, multisampled, mip_start, mip_size);
         return rv;
     }
-    static shader_view_elem texcube(handle::resource res, format pf)
+    static resource_view texcube(handle::resource res, format pf)
     {
-        shader_view_elem rv;
+        resource_view rv;
         rv.init_as_texcube(res, pf);
         return rv;
     }
-    static shader_view_elem structured_buffer(handle::resource res, unsigned num_elements, unsigned stride_bytes)
+    static resource_view structured_buffer(handle::resource res, unsigned num_elements, unsigned stride_bytes)
     {
-        shader_view_elem rv;
+        resource_view rv;
         rv.init_as_structured_buffer(res, num_elements, stride_bytes);
         return rv;
     }
-    static shader_view_elem accel_struct(handle::resource as_buffer)
+    static resource_view accel_struct(handle::resource as_buffer)
     {
-        shader_view_elem rv;
+        resource_view rv;
         rv.init_as_accel_struct(as_buffer);
         return rv;
     }
@@ -440,7 +440,7 @@ enum class cull_mode : uint8_t
     front
 };
 
-struct graphics_pipeline_config
+struct pipeline_config
 {
     primitive_topology topology = primitive_topology::triangles;
     depth_function depth = depth_function::less;

@@ -95,22 +95,22 @@ struct blas_element
     bool is_opaque = true;
 };
 
-/// a raytracing shader library lists the symbol names it exports
-struct rt_shader_library
+/// a shader library lists the symbol names it exports
+struct raytracing_shader_library
 {
     shader_binary binary;
     cc::capped_vector<wchar_t const*, 16> symbols;
 };
 
 /// associates symbols exported from libraries with their argument shapes
-struct rt_argument_association
+struct raytracing_argument_association
 {
     cc::capped_vector<wchar_t const*, 16> symbols;
     cc::capped_vector<shader_arg_shape, limits::max_shader_arguments> argument_shapes;
     bool has_root_constants = false;
 };
 
-struct rt_hit_group
+struct raytracing_hit_group
 {
     wchar_t const* name = nullptr;
     wchar_t const* closest_hit_symbol = nullptr;
@@ -123,11 +123,11 @@ struct shader_table_record
     wchar_t const* symbol = nullptr;     ///< name of the shader or hit group
     void const* root_arg_data = nullptr; ///< optional, data of the root constant data
     uint32_t root_arg_size = 0;          ///< size of the root constant data
-    cc::capped_vector<shader_arg, limits::max_shader_arguments> shader_arguments;
+    cc::capped_vector<shader_argument, limits::max_shader_arguments> shader_arguments;
 };
 
-using rt_shader_libraries = cc::span<rt_shader_library const>;
-using rt_argument_associations = cc::span<rt_argument_association const>;
-using rt_hit_groups = cc::span<rt_hit_group const>;
+using raytracing_shader_libraries = cc::span<raytracing_shader_library const>;
+using raytracing_argument_associations = cc::span<raytracing_argument_association const>;
+using raytracing_hit_groups = cc::span<raytracing_hit_group const>;
 using shader_table_records = cc::span<shader_table_record const>;
 }

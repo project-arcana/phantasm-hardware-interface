@@ -24,8 +24,8 @@ class ShaderViewPool
 public:
     // frontend-facing API
 
-    [[nodiscard]] handle::shader_view create(cc::span<shader_view_elem const> srvs,
-                                             cc::span<shader_view_elem const> uavs,
+    [[nodiscard]] handle::shader_view create(cc::span<resource_view const> srvs,
+                                             cc::span<resource_view const> uavs,
                                              cc::span<sampler_config const> samplers,
                                              bool usage_compute);
 
@@ -43,7 +43,7 @@ public:
         return mPool.get(static_cast<unsigned>(sv.index)).resources;
     }
 
-    [[nodiscard]] VkImageView makeImageView(shader_view_elem const& sve, bool is_uav = false) const;
+    [[nodiscard]] VkImageView makeImageView(resource_view const& sve, bool is_uav = false) const;
 
 
 private:

@@ -2,14 +2,14 @@
 
 namespace phi
 {
-struct shader_arg;
+struct shader_argument;
 struct backend_config;
 struct vertex_attribute_info;
-struct shader_view_elem;
+struct resource_view;
 struct sampler_config;
 struct render_target_config;
 struct window_handle;
-struct graphics_pipeline_config;
+struct pipeline_config;
 
 struct gpu_info;
 

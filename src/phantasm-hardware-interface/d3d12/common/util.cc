@@ -45,13 +45,13 @@ void phi::d3d12::util::set_object_name(ID3D12Object* object, const char* name, .
     }
 }
 
-D3D12_SHADER_RESOURCE_VIEW_DESC phi::d3d12::util::create_srv_desc(const phi::shader_view_elem& sve, ID3D12Resource* raw_resource)
+D3D12_SHADER_RESOURCE_VIEW_DESC phi::d3d12::util::create_srv_desc(const phi::resource_view& sve, ID3D12Resource* raw_resource)
 {
     D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
     srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
     srv_desc.ViewDimension = util::to_native_srv_dim(sve.dimension);
 
-    using svd = shader_view_dimension;
+    using svd = resource_view_dimension;
     switch (sve.dimension)
     {
     case svd::buffer:
@@ -137,13 +137,13 @@ D3D12_SHADER_RESOURCE_VIEW_DESC phi::d3d12::util::create_srv_desc(const phi::sha
     return srv_desc;
 }
 
-D3D12_UNORDERED_ACCESS_VIEW_DESC phi::d3d12::util::create_uav_desc(const phi::shader_view_elem& sve)
+D3D12_UNORDERED_ACCESS_VIEW_DESC phi::d3d12::util::create_uav_desc(const phi::resource_view& sve)
 {
     D3D12_UNORDERED_ACCESS_VIEW_DESC uav_desc = {};
     uav_desc.ViewDimension = util::to_native_uav_dim(sve.dimension);
     CC_ASSERT(uav_desc.ViewDimension != D3D12_UAV_DIMENSION_UNKNOWN && "Invalid UAV dimension");
 
-    using svd = shader_view_dimension;
+    using svd = resource_view_dimension;
     switch (sve.dimension)
     {
     case svd::buffer:
@@ -205,13 +205,13 @@ D3D12_UNORDERED_ACCESS_VIEW_DESC phi::d3d12::util::create_uav_desc(const phi::sh
     return uav_desc;
 }
 
-D3D12_RENDER_TARGET_VIEW_DESC phi::d3d12::util::create_rtv_desc(const phi::shader_view_elem& sve)
+D3D12_RENDER_TARGET_VIEW_DESC phi::d3d12::util::create_rtv_desc(const phi::resource_view& sve)
 {
     D3D12_RENDER_TARGET_VIEW_DESC rtv_desc = {};
     rtv_desc.Format = util::to_dxgi_format(sve.pixel_format);
     rtv_desc.ViewDimension = util::to_native_rtv_dim(sve.dimension);
 
-    using svd = shader_view_dimension;
+    using svd = resource_view_dimension;
     switch (sve.dimension)
     {
     case svd::buffer:
@@ -259,13 +259,13 @@ D3D12_RENDER_TARGET_VIEW_DESC phi::d3d12::util::create_rtv_desc(const phi::shade
     return rtv_desc;
 }
 
-D3D12_DEPTH_STENCIL_VIEW_DESC phi::d3d12::util::create_dsv_desc(const phi::shader_view_elem& sve)
+D3D12_DEPTH_STENCIL_VIEW_DESC phi::d3d12::util::create_dsv_desc(const phi::resource_view& sve)
 {
     D3D12_DEPTH_STENCIL_VIEW_DESC dsv_desc = {};
     dsv_desc.Format = util::to_dxgi_format(sve.pixel_format);
     dsv_desc.ViewDimension = util::to_native_dsv_dim(sve.dimension);
 
-    using svd = shader_view_dimension;
+    using svd = resource_view_dimension;
     switch (sve.dimension)
     {
     case svd::texture1d:

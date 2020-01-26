@@ -151,31 +151,31 @@ namespace phi::d3d12::util
     return D3D12_COMMAND_LIST_TYPE_DIRECT;
 }
 
-[[nodiscard]] inline constexpr D3D12_SRV_DIMENSION to_native_srv_dim(shader_view_dimension sv_dim)
+[[nodiscard]] inline constexpr D3D12_SRV_DIMENSION to_native_srv_dim(resource_view_dimension sv_dim)
 {
     switch (sv_dim)
     {
-    case shader_view_dimension::buffer:
+    case resource_view_dimension::buffer:
         return D3D12_SRV_DIMENSION_BUFFER;
-    case shader_view_dimension::texture1d:
+    case resource_view_dimension::texture1d:
         return D3D12_SRV_DIMENSION_TEXTURE1D;
-    case shader_view_dimension::texture1d_array:
+    case resource_view_dimension::texture1d_array:
         return D3D12_SRV_DIMENSION_TEXTURE1DARRAY;
-    case shader_view_dimension::texture2d:
+    case resource_view_dimension::texture2d:
         return D3D12_SRV_DIMENSION_TEXTURE2D;
-    case shader_view_dimension::texture2d_ms:
+    case resource_view_dimension::texture2d_ms:
         return D3D12_SRV_DIMENSION_TEXTURE2DMS;
-    case shader_view_dimension::texture2d_array:
+    case resource_view_dimension::texture2d_array:
         return D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
-    case shader_view_dimension::texture2d_ms_array:
+    case resource_view_dimension::texture2d_ms_array:
         return D3D12_SRV_DIMENSION_TEXTURE2DMSARRAY;
-    case shader_view_dimension::texture3d:
+    case resource_view_dimension::texture3d:
         return D3D12_SRV_DIMENSION_TEXTURE3D;
-    case shader_view_dimension::texturecube:
+    case resource_view_dimension::texturecube:
         return D3D12_SRV_DIMENSION_TEXTURECUBE;
-    case shader_view_dimension::texturecube_array:
+    case resource_view_dimension::texturecube_array:
         return D3D12_SRV_DIMENSION_TEXTURECUBEARRAY;
-    case shader_view_dimension::raytracing_accel_struct:
+    case resource_view_dimension::raytracing_accel_struct:
         return D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
     }
 
@@ -183,27 +183,27 @@ namespace phi::d3d12::util
     return D3D12_SRV_DIMENSION_BUFFER;
 }
 
-[[nodiscard]] inline constexpr D3D12_UAV_DIMENSION to_native_uav_dim(shader_view_dimension sv_dim)
+[[nodiscard]] inline constexpr D3D12_UAV_DIMENSION to_native_uav_dim(resource_view_dimension sv_dim)
 {
     switch (sv_dim)
     {
-    case shader_view_dimension::buffer:
+    case resource_view_dimension::buffer:
         return D3D12_UAV_DIMENSION_BUFFER;
 
-    case shader_view_dimension::texture1d:
+    case resource_view_dimension::texture1d:
         return D3D12_UAV_DIMENSION_TEXTURE1D;
 
-    case shader_view_dimension::texture1d_array:
+    case resource_view_dimension::texture1d_array:
         return D3D12_UAV_DIMENSION_TEXTURE1DARRAY;
 
-    case shader_view_dimension::texture2d:
+    case resource_view_dimension::texture2d:
         return D3D12_UAV_DIMENSION_TEXTURE2D;
 
-    case shader_view_dimension::texture2d_array:
-    case shader_view_dimension::texturecube:
+    case resource_view_dimension::texture2d_array:
+    case resource_view_dimension::texturecube:
         return D3D12_UAV_DIMENSION_TEXTURE2DARRAY;
 
-    case shader_view_dimension::texture3d:
+    case resource_view_dimension::texture3d:
         return D3D12_UAV_DIMENSION_TEXTURE3D;
 
     default:
@@ -211,30 +211,30 @@ namespace phi::d3d12::util
     }
 }
 
-[[nodiscard]] inline constexpr bool is_valid_as_uav_dim(shader_view_dimension sv_dim)
+[[nodiscard]] inline constexpr bool is_valid_as_uav_dim(resource_view_dimension sv_dim)
 {
     return to_native_uav_dim(sv_dim) != D3D12_UAV_DIMENSION_UNKNOWN;
 }
 
-[[nodiscard]] inline constexpr D3D12_RTV_DIMENSION to_native_rtv_dim(shader_view_dimension sv_dim)
+[[nodiscard]] inline constexpr D3D12_RTV_DIMENSION to_native_rtv_dim(resource_view_dimension sv_dim)
 {
     switch (sv_dim)
     {
-    case shader_view_dimension::buffer:
+    case resource_view_dimension::buffer:
         return D3D12_RTV_DIMENSION_BUFFER;
-    case shader_view_dimension::texture1d:
+    case resource_view_dimension::texture1d:
         return D3D12_RTV_DIMENSION_TEXTURE1D;
-    case shader_view_dimension::texture1d_array:
+    case resource_view_dimension::texture1d_array:
         return D3D12_RTV_DIMENSION_TEXTURE1DARRAY;
-    case shader_view_dimension::texture2d:
+    case resource_view_dimension::texture2d:
         return D3D12_RTV_DIMENSION_TEXTURE2D;
-    case shader_view_dimension::texture2d_ms:
+    case resource_view_dimension::texture2d_ms:
         return D3D12_RTV_DIMENSION_TEXTURE2DMS;
-    case shader_view_dimension::texture2d_array:
+    case resource_view_dimension::texture2d_array:
         return D3D12_RTV_DIMENSION_TEXTURE2DARRAY;
-    case shader_view_dimension::texture2d_ms_array:
+    case resource_view_dimension::texture2d_ms_array:
         return D3D12_RTV_DIMENSION_TEXTURE2DMSARRAY;
-    case shader_view_dimension::texture3d:
+    case resource_view_dimension::texture3d:
         return D3D12_RTV_DIMENSION_TEXTURE3D;
     default:
         CC_ASSERT(false && "to_native uncaught argument");
@@ -242,26 +242,26 @@ namespace phi::d3d12::util
     }
 }
 
-[[nodiscard]] inline constexpr bool is_valid_as_rtv_dim(shader_view_dimension sv_dim)
+[[nodiscard]] inline constexpr bool is_valid_as_rtv_dim(resource_view_dimension sv_dim)
 {
     return to_native_rtv_dim(sv_dim) != D3D12_RTV_DIMENSION_UNKNOWN;
 }
 
-[[nodiscard]] inline constexpr D3D12_DSV_DIMENSION to_native_dsv_dim(shader_view_dimension sv_dim)
+[[nodiscard]] inline constexpr D3D12_DSV_DIMENSION to_native_dsv_dim(resource_view_dimension sv_dim)
 {
     switch (sv_dim)
     {
-    case shader_view_dimension::texture1d:
+    case resource_view_dimension::texture1d:
         return D3D12_DSV_DIMENSION_TEXTURE1D;
-    case shader_view_dimension::texture1d_array:
+    case resource_view_dimension::texture1d_array:
         return D3D12_DSV_DIMENSION_TEXTURE1DARRAY;
-    case shader_view_dimension::texture2d:
+    case resource_view_dimension::texture2d:
         return D3D12_DSV_DIMENSION_TEXTURE2D;
-    case shader_view_dimension::texture2d_ms:
+    case resource_view_dimension::texture2d_ms:
         return D3D12_DSV_DIMENSION_TEXTURE2DMS;
-    case shader_view_dimension::texture2d_array:
+    case resource_view_dimension::texture2d_array:
         return D3D12_DSV_DIMENSION_TEXTURE2DARRAY;
-    case shader_view_dimension::texture2d_ms_array:
+    case resource_view_dimension::texture2d_ms_array:
         return D3D12_DSV_DIMENSION_TEXTURE2DMSARRAY;
     default:
         CC_ASSERT(false && "to_native uncaught argument");

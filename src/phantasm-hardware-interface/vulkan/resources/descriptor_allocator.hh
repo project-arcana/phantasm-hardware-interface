@@ -24,8 +24,8 @@ public:
     // free-threaded
     [[nodiscard]] VkDescriptorSetLayout createSingleCBVLayout(bool usage_compute) const;
 
-    [[nodiscard]] VkDescriptorSetLayout createLayoutFromShaderViewArgs(cc::span<shader_view_elem const> srvs,
-                                                                       cc::span<shader_view_elem const> uavs,
+    [[nodiscard]] VkDescriptorSetLayout createLayoutFromShaderViewArgs(cc::span<resource_view const> srvs,
+                                                                       cc::span<resource_view const> uavs,
                                                                        unsigned num_samplers,
                                                                        bool usage_compute) const;
 

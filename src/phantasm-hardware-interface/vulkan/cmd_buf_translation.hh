@@ -76,7 +76,7 @@ struct command_list_translator
     void execute(cmd::dispatch_rays const& dispatch_rays);
 
 private:
-    void bind_shader_arguments(handle::pipeline_state pso, std::byte const* root_consts, cc::span<shader_arg const> shader_args, VkPipelineBindPoint bind_point);
+    void bind_shader_arguments(handle::pipeline_state pso, std::byte const* root_consts, cc::span<shader_argument const> shader_args, VkPipelineBindPoint bind_point);
 
 private:
     // non-owning constant (global)

@@ -99,8 +99,8 @@ public:
     // Shader view interface
     //
 
-    [[nodiscard]] virtual handle::shader_view createShaderView(cc::span<shader_view_elem const> srvs,
-                                                               cc::span<shader_view_elem const> uavs,
+    [[nodiscard]] virtual handle::shader_view createShaderView(cc::span<resource_view const> srvs,
+                                                               cc::span<resource_view const> uavs,
                                                                cc::span<sampler_config const> samplers,
                                                                bool usage_compute = false)
         = 0;
@@ -118,7 +118,7 @@ public:
                                                                      arg::shader_arg_shapes shader_arg_shapes,
                                                                      bool has_root_constants,
                                                                      arg::graphics_shaders shaders,
-                                                                     phi::graphics_pipeline_config const& primitive_config)
+                                                                     phi::pipeline_config const& primitive_config)
         = 0;
 
     [[nodiscard]] virtual handle::pipeline_state createComputePipelineState(arg::shader_arg_shapes shader_arg_shapes, arg::shader_binary shader, bool has_root_constants = false)
@@ -156,9 +156,9 @@ public:
     // Raytracing interface
     //
 
-    [[nodiscard]] virtual handle::pipeline_state createRaytracingPipelineState(arg::rt_shader_libraries libraries,
-                                                                               arg::rt_argument_associations arg_assocs,
-                                                                               arg::rt_hit_groups hit_groups,
+    [[nodiscard]] virtual handle::pipeline_state createRaytracingPipelineState(arg::raytracing_shader_libraries libraries,
+                                                                               arg::raytracing_argument_associations arg_assocs,
+                                                                               arg::raytracing_hit_groups hit_groups,
                                                                                unsigned max_recursion,
                                                                                unsigned max_payload_size_bytes,
                                                                                unsigned max_attribute_size_bytes)

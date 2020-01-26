@@ -73,14 +73,14 @@ PHI_DEFINE_CMD(begin_render_pass)
 {
     struct render_target_info
     {
-        shader_view_elem sve;
+        resource_view sve;
         float clear_value[4];
         rt_clear_type clear_type;
     };
 
     struct depth_stencil_info
     {
-        shader_view_elem sve;
+        resource_view sve;
         float clear_value_depth;
         uint8_t clear_value_stencil;
         rt_clear_type clear_type;
@@ -183,7 +183,7 @@ PHI_DEFINE_CMD(draw)
     static_assert(limits::max_root_constant_bytes > 0, "root constant size must be nonzero");
 
     std::byte root_constants[limits::max_root_constant_bytes];
-    cmd_vector<shader_arg, limits::max_shader_arguments> shader_arguments;
+    cmd_vector<shader_argument, limits::max_shader_arguments> shader_arguments;
     handle::pipeline_state pipeline_state = handle::null_pipeline_state;
     handle::resource vertex_buffer = handle::null_resource;
     handle::resource index_buffer = handle::null_resource;
@@ -211,7 +211,7 @@ public:
 
     void add_shader_arg(handle::resource cbv, unsigned cbv_off = 0, handle::shader_view sv = handle::null_shader_view)
     {
-        shader_arguments.push_back(shader_arg{cbv, sv, cbv_off});
+        shader_arguments.push_back(shader_argument{cbv, sv, cbv_off});
     }
 
     template <class T>
@@ -231,7 +231,7 @@ PHI_DEFINE_CMD(dispatch)
     static_assert(limits::max_root_constant_bytes > 0, "root constant size must be nonzero");
 
     std::byte root_constants[limits::max_root_constant_bytes];
-    cmd_vector<shader_arg, limits::max_shader_arguments> shader_arguments;
+    cmd_vector<shader_argument, limits::max_shader_arguments> shader_arguments;
     unsigned dispatch_x = 0;
     unsigned dispatch_y = 0;
     unsigned dispatch_z = 0;
@@ -250,7 +250,7 @@ public:
 
     void add_shader_arg(handle::resource cbv, unsigned cbv_off = 0, handle::shader_view sv = handle::null_shader_view)
     {
-        shader_arguments.push_back(shader_arg{cbv, sv, cbv_off});
+        shader_arguments.push_back(shader_argument{cbv, sv, cbv_off});
     }
 
     template <class T>
@@ -410,7 +410,7 @@ PHI_DEFINE_CMD(dispatch_rays)
 
 namespace detail
 {
-#define PHI_X(_val_)                                                                                                                       \
+#define PHI_X(_val_)                                                                                                      \
     static_assert(std::is_trivially_copyable_v<::phi::cmd::_val_> && std::is_trivially_destructible_v<::phi::cmd::_val_>, \
                   #_val_ " is not trivially copyable / destructible");
 PHI_CMD_TYPE_VALUES
@@ -422,7 +422,7 @@ PHI_CMD_TYPE_VALUES
 {
     switch (type)
     {
-#define PHI_X(_val_)               \
+#define PHI_X(_val_)              \
     case detail::cmd_type::_val_: \
         return sizeof(::phi::cmd::_val_);
         PHI_CMD_TYPE_VALUES
@@ -436,7 +436,7 @@ PHI_CMD_TYPE_VALUES
 {
     switch (type)
     {
-#define PHI_X(_val_)               \
+#define PHI_X(_val_)              \
     case detail::cmd_type::_val_: \
         return #_val_;
         PHI_CMD_TYPE_VALUES
@@ -452,8 +452,8 @@ void dynamic_dispatch(detail::cmd_base const& base, F& callback)
 {
     switch (base.s_internal_type)
     {
-#define PHI_X(_val_)                                                            \
-    case detail::cmd_type::_val_:                                              \
+#define PHI_X(_val_)                                                   \
+    case detail::cmd_type::_val_:                                      \
         callback.execute(static_cast<::phi::cmd::_val_ const&>(base)); \
         break;
         PHI_CMD_TYPE_VALUES

@@ -315,80 +315,80 @@ namespace phi::vk::util
 }
 
 
-[[nodiscard]] inline constexpr VkDescriptorType to_native_srv_desc_type(shader_view_dimension sv_dim)
+[[nodiscard]] inline constexpr VkDescriptorType to_native_srv_desc_type(resource_view_dimension sv_dim)
 {
     switch (sv_dim)
     {
-    case phi::shader_view_dimension::buffer:
+    case phi::resource_view_dimension::buffer:
         return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    case phi::shader_view_dimension::raytracing_accel_struct:
+    case phi::resource_view_dimension::raytracing_accel_struct:
         return VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV;
-    case phi::shader_view_dimension::texture1d:
-    case phi::shader_view_dimension::texture1d_array:
-    case phi::shader_view_dimension::texture2d:
-    case phi::shader_view_dimension::texture2d_ms:
-    case phi::shader_view_dimension::texture2d_array:
-    case phi::shader_view_dimension::texture2d_ms_array:
-    case phi::shader_view_dimension::texture3d:
-    case phi::shader_view_dimension::texturecube:
-    case phi::shader_view_dimension::texturecube_array:
+    case phi::resource_view_dimension::texture1d:
+    case phi::resource_view_dimension::texture1d_array:
+    case phi::resource_view_dimension::texture2d:
+    case phi::resource_view_dimension::texture2d_ms:
+    case phi::resource_view_dimension::texture2d_array:
+    case phi::resource_view_dimension::texture2d_ms_array:
+    case phi::resource_view_dimension::texture3d:
+    case phi::resource_view_dimension::texturecube:
+    case phi::resource_view_dimension::texturecube_array:
         return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
     }
     CC_ASSERT(false && "to_native uncaught argument");
     return {};
 }
-[[nodiscard]] inline constexpr VkDescriptorType to_native_uav_desc_type(shader_view_dimension sv_dim)
+[[nodiscard]] inline constexpr VkDescriptorType to_native_uav_desc_type(resource_view_dimension sv_dim)
 {
     switch (sv_dim)
     {
-    case phi::shader_view_dimension::buffer:
+    case phi::resource_view_dimension::buffer:
         return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    case phi::shader_view_dimension::texture1d:
-    case phi::shader_view_dimension::texture1d_array:
-    case phi::shader_view_dimension::texture2d:
-    case phi::shader_view_dimension::texture2d_ms:
-    case phi::shader_view_dimension::texture2d_array:
-    case phi::shader_view_dimension::texture2d_ms_array:
-    case phi::shader_view_dimension::texture3d:
-    case phi::shader_view_dimension::texturecube:
-    case phi::shader_view_dimension::texturecube_array:
+    case phi::resource_view_dimension::texture1d:
+    case phi::resource_view_dimension::texture1d_array:
+    case phi::resource_view_dimension::texture2d:
+    case phi::resource_view_dimension::texture2d_ms:
+    case phi::resource_view_dimension::texture2d_array:
+    case phi::resource_view_dimension::texture2d_ms_array:
+    case phi::resource_view_dimension::texture3d:
+    case phi::resource_view_dimension::texturecube:
+    case phi::resource_view_dimension::texturecube_array:
         return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
 
-    case phi::shader_view_dimension::raytracing_accel_struct:
+    case phi::resource_view_dimension::raytracing_accel_struct:
         return VK_DESCRIPTOR_TYPE_MAX_ENUM;
     }
     CC_ASSERT(false && "to_native uncaught argument");
     return {};
 }
 
-[[nodiscard]] inline constexpr bool is_valid_as_uav_desc_type(shader_view_dimension sv_dim)
+[[nodiscard]] inline constexpr bool is_valid_as_uav_desc_type(resource_view_dimension sv_dim)
 {
     return to_native_uav_desc_type(sv_dim) != VK_DESCRIPTOR_TYPE_MAX_ENUM;
 }
 
-[[nodiscard]] inline constexpr VkImageViewType to_native_image_view_type(shader_view_dimension sv_dim)
+[[nodiscard]] inline constexpr VkImageViewType to_native_image_view_type(resource_view_dimension sv_dim)
 {
     switch (sv_dim)
     {
-    case phi::shader_view_dimension::texture1d:
+    case phi::resource_view_dimension::texture1d:
         return VK_IMAGE_VIEW_TYPE_1D;
-    case phi::shader_view_dimension::texture1d_array:
+    case phi::resource_view_dimension::texture1d_array:
         return VK_IMAGE_VIEW_TYPE_1D_ARRAY;
-    case phi::shader_view_dimension::texture2d:
-    case phi::shader_view_dimension::texture2d_ms:
+    case phi::resource_view_dimension::texture2d:
+    case phi::resource_view_dimension::texture2d_ms:
         return VK_IMAGE_VIEW_TYPE_2D;
-    case phi::shader_view_dimension::texture2d_array:
-    case phi::shader_view_dimension::texture2d_ms_array:
+    case phi::resource_view_dimension::texture2d_array:
+    case phi::resource_view_dimension::texture2d_ms_array:
         return VK_IMAGE_VIEW_TYPE_2D_ARRAY;
-    case phi::shader_view_dimension::texture3d:
+    case phi::resource_view_dimension::texture3d:
         return VK_IMAGE_VIEW_TYPE_3D;
-    case phi::shader_view_dimension::texturecube:
+    case phi::resource_view_dimension::texturecube:
         return VK_IMAGE_VIEW_TYPE_CUBE;
-    case phi::shader_view_dimension::texturecube_array:
+    case phi::resource_view_dimension::texturecube_array:
         return VK_IMAGE_VIEW_TYPE_CUBE_ARRAY;
 
-    case phi::shader_view_dimension::buffer:
-    case phi::shader_view_dimension::raytracing_accel_struct:
+    case phi::resource_view_dimension::buffer:
+    case phi::resource_view_dimension::raytracing_accel_struct:
         CC_ASSERT(false && "requested image view for buffer or raytracing structure");
         return VK_IMAGE_VIEW_TYPE_MAX_ENUM;
     }
