@@ -101,8 +101,8 @@ VkDescriptorSetLayout DescriptorAllocator::createSingleCBVLayout(bool usage_comp
     return layout;
 }
 
-VkDescriptorSetLayout DescriptorAllocator::createLayoutFromShaderViewArgs(cc::span<const shader_view_element> srvs,
-                                                                          cc::span<const shader_view_element> uavs,
+VkDescriptorSetLayout DescriptorAllocator::createLayoutFromShaderViewArgs(cc::span<const resource_view> srvs,
+                                                                          cc::span<const resource_view> uavs,
                                                                           unsigned num_samplers,
                                                                           bool usage_compute) const
 {

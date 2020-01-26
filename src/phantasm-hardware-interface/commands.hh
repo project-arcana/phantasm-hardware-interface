@@ -73,14 +73,14 @@ PHI_DEFINE_CMD(begin_render_pass)
 {
     struct render_target_info
     {
-        shader_view_element sve;
+        resource_view rv;
         float clear_value[4];
         rt_clear_type clear_type;
     };
 
     struct depth_stencil_info
     {
-        shader_view_element sve;
+        resource_view rv;
         float clear_value_depth;
         uint8_t clear_value_stencil;
         rt_clear_type clear_type;
@@ -96,22 +96,22 @@ public:
     void add_backbuffer_rt(handle::resource res, bool clear = true)
     {
         render_targets.push_back(render_target_info{{}, {0.f, 0.f, 0.f, 1.f}, clear ? rt_clear_type::clear : rt_clear_type::load});
-        render_targets.back().sve.init_as_backbuffer(res);
+        render_targets.back().rv.init_as_backbuffer(res);
     }
 
     void add_2d_rt(handle::resource res, format pixel_format, rt_clear_type clear_op = rt_clear_type::clear, bool multisampled = false)
     {
         render_targets.push_back(render_target_info{{}, {0.f, 0.f, 0.f, 1.f}, clear_op});
-        render_targets.back().sve.init_as_tex2d(res, pixel_format, multisampled);
+        render_targets.back().rv.init_as_tex2d(res, pixel_format, multisampled);
     }
 
     void set_2d_depth_stencil(handle::resource res, format pixel_format, rt_clear_type clear_op = rt_clear_type::clear, bool multisampled = false)
     {
         depth_target = depth_stencil_info{{}, 1.f, 0, clear_op};
-        depth_target.sve.init_as_tex2d(res, pixel_format, multisampled);
+        depth_target.rv.init_as_tex2d(res, pixel_format, multisampled);
     }
 
-    void set_null_depth_stencil() { depth_target.sve.init_as_null(); }
+    void set_null_depth_stencil() { depth_target.rv.init_as_null(); }
 };
 
 PHI_DEFINE_CMD(end_render_pass){
@@ -124,7 +124,7 @@ PHI_DEFINE_CMD(transition_resources)
     {
         handle::resource resource;
         resource_state target_state;
-        shader_domain_flags_t dependant_shaders;
+        shader_stage_flags_t dependant_shaders;
     };
 
     cmd_vector<transition_info, limits::max_resource_transitions> transitions;
@@ -135,7 +135,7 @@ public:
     /// add a barrier for resource [res] into new state [target]
     /// if the target state is a CBV/SRV/UAV, depending_shader must be
     /// the union of shaders depending upon this resource next (can be omitted on d3d12)
-    void add(handle::resource res, resource_state target, shader_domain_flags_t depending_shader = {})
+    void add(handle::resource res, resource_state target, shader_stage_flags_t depending_shader = {})
     {
         transitions.push_back(transition_info{res, target, depending_shader});
     }
@@ -150,8 +150,8 @@ PHI_DEFINE_CMD(transition_image_slices)
         handle::resource resource;
         resource_state source_state;
         resource_state target_state;
-        shader_domain_flags_t source_dependencies;
-        shader_domain_flags_t target_dependencies;
+        shader_stage_flags_t source_dependencies;
+        shader_stage_flags_t target_dependencies;
         int mip_level;
         int array_slice;
     };
@@ -165,7 +165,7 @@ public:
     /// if the source/target state is a CBV/SRV/UAV, source/target_dep
     /// must be the union of shaders {previously accessing the resource (source) / depending upon this resource next (target)}
     /// (both can be omitted on d3d12)
-    void add(handle::resource res, resource_state source, resource_state target, shader_domain_flags_t source_dep, shader_domain_flags_t target_dep,
+    void add(handle::resource res, resource_state source, resource_state target, shader_stage_flags_t source_dep, shader_stage_flags_t target_dep,
              int level, int slice)
     {
         transitions.push_back(slice_transition_info{res, source, target, source_dep, target_dep, level, slice});
@@ -410,7 +410,7 @@ PHI_DEFINE_CMD(dispatch_rays)
 
 namespace detail
 {
-#define PHI_X(_val_)                                                                                                                       \
+#define PHI_X(_val_)                                                                                                      \
     static_assert(std::is_trivially_copyable_v<::phi::cmd::_val_> && std::is_trivially_destructible_v<::phi::cmd::_val_>, \
                   #_val_ " is not trivially copyable / destructible");
 PHI_CMD_TYPE_VALUES
@@ -422,7 +422,7 @@ PHI_CMD_TYPE_VALUES
 {
     switch (type)
     {
-#define PHI_X(_val_)               \
+#define PHI_X(_val_)              \
     case detail::cmd_type::_val_: \
         return sizeof(::phi::cmd::_val_);
         PHI_CMD_TYPE_VALUES
@@ -436,7 +436,7 @@ PHI_CMD_TYPE_VALUES
 {
     switch (type)
     {
-#define PHI_X(_val_)               \
+#define PHI_X(_val_)              \
     case detail::cmd_type::_val_: \
         return #_val_;
         PHI_CMD_TYPE_VALUES
@@ -452,8 +452,8 @@ void dynamic_dispatch(detail::cmd_base const& base, F& callback)
 {
     switch (base.s_internal_type)
     {
-#define PHI_X(_val_)                                                            \
-    case detail::cmd_type::_val_:                                              \
+#define PHI_X(_val_)                                                   \
+    case detail::cmd_type::_val_:                                      \
         callback.execute(static_cast<::phi::cmd::_val_ const&>(base)); \
         break;
         PHI_CMD_TYPE_VALUES

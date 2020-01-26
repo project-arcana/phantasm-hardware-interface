@@ -90,20 +90,20 @@ void phi::vk::command_list_translator::execute(const phi::cmd::draw& draw)
 
                 for (auto const& rt : _bound.current_render_pass.render_targets)
                 {
-                    if (_globals.pool_resources->isBackbuffer(rt.sve.resource))
+                    if (_globals.pool_resources->isBackbuffer(rt.rv.resource))
                     {
                         fb_image_views.push_back(_globals.pool_resources->getBackbufferView());
                     }
                     else
                     {
-                        fb_image_views.push_back(_globals.pool_shader_views->makeImageView(rt.sve));
+                        fb_image_views.push_back(_globals.pool_shader_views->makeImageView(rt.rv));
                         fb_image_views_to_clean_up.push_back(fb_image_views.back());
                     }
                 }
 
-                if (_bound.current_render_pass.depth_target.sve.resource.is_valid())
+                if (_bound.current_render_pass.depth_target.rv.resource.is_valid())
                 {
-                    fb_image_views.push_back(_globals.pool_shader_views->makeImageView(_bound.current_render_pass.depth_target.sve));
+                    fb_image_views.push_back(_globals.pool_shader_views->makeImageView(_bound.current_render_pass.depth_target.rv));
                     fb_image_views_to_clean_up.push_back(fb_image_views.back());
                 }
 
@@ -142,7 +142,7 @@ void phi::vk::command_list_translator::execute(const phi::cmd::draw& draw)
                     std::memcpy(&cv.color.float32, &rt.clear_value, sizeof(rt.clear_value));
                 }
 
-                if (_bound.current_render_pass.depth_target.sve.resource.is_valid())
+                if (_bound.current_render_pass.depth_target.rv.resource.is_valid())
                 {
                     auto& cv = clear_values.emplace_back();
                     cv.depthStencil = {_bound.current_render_pass.depth_target.clear_value_depth,

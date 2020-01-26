@@ -56,14 +56,14 @@ public:
     // Resource interface
     //
 
-    [[nodiscard]] handle::resource createTexture(phi::format format, unsigned w, unsigned h, unsigned mips, texture_dimension dim, unsigned depth_or_array_size, bool allow_uav) override
+    [[nodiscard]] handle::resource createTexture(phi::format format, tg::isize2 size, unsigned mips, texture_dimension dim, unsigned depth_or_array_size, bool allow_uav) override
     {
-        return mPoolResources.createTexture(format, w, h, mips, dim, depth_or_array_size, allow_uav);
+        return mPoolResources.createTexture(format, static_cast<unsigned>(size.width), static_cast<unsigned>(size.height), mips, dim, depth_or_array_size, allow_uav);
     }
 
-    [[nodiscard]] handle::resource createRenderTarget(phi::format format, unsigned w, unsigned h, unsigned samples) override
+    [[nodiscard]] handle::resource createRenderTarget(phi::format format, tg::isize2 size, unsigned samples) override
     {
-        return mPoolResources.createRenderTarget(format, w, h, samples);
+        return mPoolResources.createRenderTarget(format, static_cast<unsigned>(size.width), static_cast<unsigned>(size.height), samples);
     }
 
     [[nodiscard]] handle::resource createBuffer(unsigned size_bytes, unsigned stride_bytes, bool allow_uav) override
@@ -92,8 +92,8 @@ public:
     // Shader view interface
     //
 
-    [[nodiscard]] handle::shader_view createShaderView(cc::span<shader_view_element const> srvs,
-                                                       cc::span<shader_view_element const> uavs,
+    [[nodiscard]] handle::shader_view createShaderView(cc::span<resource_view const> srvs,
+                                                       cc::span<resource_view const> uavs,
                                                        cc::span<sampler_config const> samplers,
                                                        bool /*usage_compute*/) override
     {
@@ -110,17 +110,17 @@ public:
 
     [[nodiscard]] handle::pipeline_state createPipelineState(arg::vertex_format vertex_format,
                                                              arg::framebuffer_config const& framebuffer_conf,
-                                                             arg::shader_argument_shapes shader_arg_shapes,
+                                                             arg::shader_arg_shapes shader_arg_shapes,
                                                              bool has_root_constants,
-                                                             arg::graphics_shader_stages shader_stages,
-                                                             phi::graphics_pipeline_config const& primitive_config) override
+                                                             arg::graphics_shaders shaders,
+                                                             phi::pipeline_config const& primitive_config) override
     {
-        return mPoolPSOs.createPipelineState(vertex_format, framebuffer_conf, shader_arg_shapes, has_root_constants, shader_stages, primitive_config);
+        return mPoolPSOs.createPipelineState(vertex_format, framebuffer_conf, shader_arg_shapes, has_root_constants, shaders, primitive_config);
     }
 
-    [[nodiscard]] handle::pipeline_state createComputePipelineState(arg::shader_argument_shapes shader_arg_shapes, arg::shader_binary compute_shader, bool has_root_constants) override
+    [[nodiscard]] handle::pipeline_state createComputePipelineState(arg::shader_arg_shapes shader_arg_shapes, arg::shader_binary shader, bool has_root_constants) override
     {
-        return mPoolPSOs.createComputePipelineState(shader_arg_shapes, compute_shader, has_root_constants);
+        return mPoolPSOs.createComputePipelineState(shader_arg_shapes, shader, has_root_constants);
     }
 
     void free(handle::pipeline_state ps) override { mPoolPSOs.free(ps); }
@@ -141,7 +141,7 @@ public:
     [[nodiscard]] handle::event createEvent() override { return mPoolEvents.createEvent(); }
 
     /// if the event is set, unsets it and returns true, otherwise returns false
-    [[nodiscard]] bool tryUnsetEvent(handle::event event) override;
+    bool clearEvent(handle::event event) override;
 
     void free(cc::span<handle::event const> events) override { mPoolEvents.free(events); }
 

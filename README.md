@@ -92,7 +92,7 @@ Shaders in PHI can be fed with up to 4 "shader arguments". Each shader argument 
 
 Shader argument "shapes", as in the amount of arguments, and the amount of inputs per argument type, are supplied when creating a `handle::pipeline_state`. The actual argument values are supplied in commands, like `cmd::draw`.
 
-Inputs are not strictly typed, for example, a `Texture2D` can be supplied by simply "viewing" a single array slice of a texture array. Details regarding this process can be inferred from the creation of `handle::shader_view`, and the `shader_view_element` type.
+Inputs are not strictly typed, for example, a `Texture2D` can be supplied by simply "viewing" a single array slice of a texture array. Details regarding this process can be inferred from the creation of `handle::shader_view`, and the `shader_view_elem` type.
 
 ## Threading
 

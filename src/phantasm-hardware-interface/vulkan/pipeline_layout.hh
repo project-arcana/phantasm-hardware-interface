@@ -62,7 +62,7 @@ struct pipeline_layout
     /// One for samplers, SRVs and UAVs, one for CBVs, shifted behind the first types
     cc::capped_vector<VkDescriptorSetLayout, limits::max_shader_arguments * 2> descriptor_set_layouts;
 
-    /// The pipeline stages (shader domains only) which have access to
+    /// The pipeline stages (only shader stages) which have access to
     /// the respective descriptor sets (parallel array)
     cc::capped_vector<VkPipelineStageFlags, limits::max_shader_arguments * 2> descriptor_set_visibilities;
 

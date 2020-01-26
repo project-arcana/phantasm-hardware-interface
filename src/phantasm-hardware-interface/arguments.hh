@@ -34,21 +34,27 @@ struct vertex_format
 };
 
 /// A shader argument consists of SRVs, UAVs, an optional CBV, and an offset into it
-struct shader_argument_shape
+struct shader_arg_shape
 {
     unsigned num_srvs = 0;
     unsigned num_uavs = 0;
     unsigned num_samplers = 0;
-    bool has_cb = false;
+    bool has_cbv = false;
 
-    constexpr bool operator==(shader_argument_shape const& rhs) const noexcept
+    shader_arg_shape(unsigned srvs, unsigned uavs = 0, unsigned samplers = 0, bool cbv = false)
+      : num_srvs(srvs), num_uavs(uavs), num_samplers(samplers), has_cbv(cbv)
     {
-        return num_srvs == rhs.num_srvs && num_uavs == rhs.num_uavs && has_cb == rhs.has_cb && num_samplers == rhs.num_samplers;
+    }
+    shader_arg_shape() = default;
+
+    constexpr bool operator==(shader_arg_shape const& rhs) const noexcept
+    {
+        return num_srvs == rhs.num_srvs && num_uavs == rhs.num_uavs && has_cbv == rhs.has_cbv && num_samplers == rhs.num_samplers;
     }
 };
 
 /// A shader payload consists of [1, 4] shader arguments
-using shader_argument_shapes = cc::span<shader_argument_shape const>;
+using shader_arg_shapes = cc::span<shader_arg_shape const>;
 
 struct shader_binary
 {
@@ -56,16 +62,16 @@ struct shader_binary
     size_t size;
 };
 
-struct shader_stage
+struct graphics_shader
 {
     shader_binary binary;
-    shader_domain domain;
+    shader_stage stage;
 };
 
 /// A graphics shader bundle consists of up to 1 shader per graphics stage
-using graphics_shader_stages = cc::span<shader_stage const>;
+using graphics_shaders = cc::span<graphics_shader const>;
 
-inline bool operator==(shader_argument_shapes const& lhs, shader_argument_shapes const& rhs) noexcept
+inline bool operator==(shader_arg_shapes const& lhs, shader_arg_shapes const& rhs) noexcept
 {
     if (lhs.size() != rhs.size())
         return false;
@@ -89,7 +95,7 @@ struct blas_element
     bool is_opaque = true;
 };
 
-/// a raytracing shader library lists the symbol names it exports
+/// a shader library lists the symbol names it exports
 struct raytracing_shader_library
 {
     shader_binary binary;
@@ -100,7 +106,7 @@ struct raytracing_shader_library
 struct raytracing_argument_association
 {
     cc::capped_vector<wchar_t const*, 16> symbols;
-    cc::capped_vector<shader_argument_shape, limits::max_shader_arguments> argument_shapes;
+    cc::capped_vector<shader_arg_shape, limits::max_shader_arguments> argument_shapes;
     bool has_root_constants = false;
 };
 

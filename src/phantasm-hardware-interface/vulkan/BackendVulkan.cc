@@ -311,7 +311,7 @@ void phi::vk::BackendVulkan::submit(cc::span<const phi::handle::command_list> cl
         submit_flush();
 }
 
-bool phi::vk::BackendVulkan::tryUnsetEvent(phi::handle::event event)
+bool phi::vk::BackendVulkan::clearEvent(phi::handle::event event)
 {
     auto const raw_event = mPoolEvents.get(event);
     auto const status = vkGetEventStatus(mDevice.getDevice(), raw_event);

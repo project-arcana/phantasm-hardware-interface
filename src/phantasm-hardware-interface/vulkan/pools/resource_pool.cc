@@ -36,8 +36,7 @@ constexpr char const* get_tex_dim_literal(phi::texture_dimension tdim)
 }
 }
 
-phi::handle::resource phi::vk::ResourcePool::createTexture(
-    format format, unsigned w, unsigned h, unsigned mips, texture_dimension dim, unsigned depth_or_array_size, bool allow_uav)
+phi::handle::resource phi::vk::ResourcePool::createTexture(format format, unsigned w, unsigned h, unsigned mips, texture_dimension dim, unsigned depth_or_array_size, bool allow_uav)
 {
     VkImageCreateInfo image_info = {};
     image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -46,10 +45,10 @@ phi::handle::resource phi::vk::ResourcePool::createTexture(
     image_info.imageType = util::to_native(dim);
     image_info.format = util::to_vk_format(format);
 
-    image_info.extent.width = uint32_t(w);
-    image_info.extent.height = uint32_t(h);
+    image_info.extent.width = w;
+    image_info.extent.height = h;
     image_info.extent.depth = dim == texture_dimension::t3d ? depth_or_array_size : 1;
-    image_info.mipLevels = mips < 1 ? calculate_num_mip_levels(w, h) : uint32_t(mips);
+    image_info.mipLevels = mips < 1 ? calculate_num_mip_levels(w, h) : mips;
     image_info.arrayLayers = dim == texture_dimension::t3d ? 1 : depth_or_array_size;
 
     image_info.samples = VK_SAMPLE_COUNT_1_BIT;
@@ -306,10 +305,7 @@ VkDeviceMemory phi::vk::ResourcePool::getRawDeviceMemory(phi::handle::resource r
     return alloc_info.deviceMemory;
 }
 
-phi::handle::resource phi::vk::ResourcePool::injectBackbufferResource(VkImage raw_image,
-                                                                                      phi::resource_state state,
-                                                                                      VkImageView backbuffer_view,
-                                                                                      phi::resource_state& out_prev_state)
+phi::handle::resource phi::vk::ResourcePool::injectBackbufferResource(VkImage raw_image, phi::resource_state state, VkImageView backbuffer_view, phi::resource_state& out_prev_state)
 {
     resource_node& backbuffer_node = mPool.get(static_cast<unsigned>(mInjectedBackbufferResource.index));
     backbuffer_node.image.raw_image = raw_image;

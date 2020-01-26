@@ -11,7 +11,7 @@
 #include "resources/transition_barrier.hh"
 #include "shader.hh"
 
-VkRenderPass phi::vk::create_render_pass(VkDevice device, arg::framebuffer_config const& framebuffer, const phi::graphics_pipeline_config& config)
+VkRenderPass phi::vk::create_render_pass(VkDevice device, arg::framebuffer_config const& framebuffer, const phi::pipeline_config& config)
 {
     auto const sample_bits = util::to_native_sample_flags(static_cast<unsigned>(config.samples));
 
@@ -118,12 +118,12 @@ VkRenderPass phi::vk::create_render_pass(VkDevice device, const phi::cmd::begin_
         ref.layout = util::to_image_layout(resource_state::render_target);
     }
 
-    if (begin_rp.depth_target.sve.resource != handle::null_resource)
+    if (begin_rp.depth_target.rv.resource != handle::null_resource)
     {
         auto const& ds = begin_rp.depth_target;
         auto& desc = attachments.emplace_back();
         desc = {};
-        desc.format = util::to_vk_format(ds.sve.pixel_format);
+        desc.format = util::to_vk_format(ds.rv.pixel_format);
         desc.samples = sample_bits;
         desc.loadOp = util::to_native(ds.clear_type);
         desc.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -171,7 +171,7 @@ VkPipeline phi::vk::create_pipeline(VkDevice device,
                                     VkRenderPass render_pass,
                                     VkPipelineLayout pipeline_layout,
                                     cc::span<const util::patched_spirv_stage> shaders,
-                                    const phi::graphics_pipeline_config& config,
+                                    const phi::pipeline_config& config,
                                     cc::span<const VkVertexInputAttributeDescription> vertex_attribs,
                                     uint32_t vertex_size,
                                     arg::framebuffer_config const& framebuf_config)
@@ -188,7 +188,7 @@ VkPipeline phi::vk::create_pipeline(VkDevice device,
     for (auto const& shader : shaders)
     {
         auto& new_shader = shader_stages.emplace_back();
-        initialize_shader(new_shader, device, shader.data, shader.size, shader.entrypoint_name.c_str(), shader.domain);
+        initialize_shader(new_shader, device, shader.data, shader.size, shader.entrypoint_name.c_str(), shader.stage);
 
         shader_stage_create_infos.push_back(get_shader_create_info(new_shader));
     }
@@ -332,7 +332,7 @@ VkPipeline phi::vk::create_pipeline(VkDevice device,
 VkPipeline phi::vk::create_compute_pipeline(VkDevice device, VkPipelineLayout pipeline_layout, const util::patched_spirv_stage& compute_shader)
 {
     shader shader_stage;
-    initialize_shader(shader_stage, device, compute_shader.data, compute_shader.size, compute_shader.entrypoint_name.c_str(), shader_domain::compute);
+    initialize_shader(shader_stage, device, compute_shader.data, compute_shader.size, compute_shader.entrypoint_name.c_str(), shader_stage::compute);
 
     VkComputePipelineCreateInfo pipeline_info = {};
     pipeline_info.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;

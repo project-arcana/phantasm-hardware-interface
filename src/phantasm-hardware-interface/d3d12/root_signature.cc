@@ -58,14 +58,14 @@ ID3D12RootSignature* phi::d3d12::create_root_signature(ID3D12Device& device,
     return res;
 }
 
-phi::d3d12::shader_argument_map phi::d3d12::detail::root_signature_params::add_shader_argument_shape(const phi::arg::shader_argument_shape& shape,
+phi::d3d12::shader_argument_map phi::d3d12::detail::root_signature_params::add_shader_argument_shape(const phi::arg::shader_arg_shape& shape,
                                                                                                                      bool add_fixed_root_constants)
 {
     shader_argument_map res_map;
     auto const argument_visibility = D3D12_SHADER_VISIBILITY_ALL; // NOTE: Eventually arguments could be constrained to stages
 
     // create root descriptor to CBV
-    if (shape.has_cb)
+    if (shape.has_cbv)
     {
         CD3DX12_ROOT_PARAMETER& root_cbv = root_params.emplace_back();
         root_cbv.InitAsConstantBufferView(0, _space, argument_visibility);
@@ -160,7 +160,7 @@ void phi::d3d12::detail::root_signature_params::add_static_sampler(const sampler
 
 void phi::d3d12::initialize_root_signature(phi::d3d12::root_signature& root_sig,
                                                    ID3D12Device& device,
-                                                   phi::arg::shader_argument_shapes payload_shape,
+                                                   phi::arg::shader_arg_shapes payload_shape,
                                                    bool add_fixed_root_constants,
                                                    root_signature_type type)
 {

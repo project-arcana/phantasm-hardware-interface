@@ -37,7 +37,7 @@ struct root_signature_params
 
     /// add_fixed_root_constants: additionally create a fixed root constant field in b1, current space
     /// size: limits::max_root_constant_bytes
-    [[nodiscard]] shader_argument_map add_shader_argument_shape(arg::shader_argument_shape const& shape, bool add_fixed_root_constants);
+    [[nodiscard]] shader_argument_map add_shader_argument_shape(arg::shader_arg_shape const& shape, bool add_fixed_root_constants);
     void add_static_sampler(sampler_config const& config);
 
 private:
@@ -61,5 +61,5 @@ struct root_signature
 /// add_fixed_root_constants: create a fixed root constant field in register(b1, space0)
 /// size: limits::max_root_constant_bytes
 /// is_non_graphics: compute or raytracing
-void initialize_root_signature(root_signature& root_sig, ID3D12Device& device, arg::shader_argument_shapes payload_shape, bool add_fixed_root_constants, root_signature_type type);
+void initialize_root_signature(root_signature& root_sig, ID3D12Device& device, arg::shader_arg_shapes payload_shape, bool add_fixed_root_constants, root_signature_type type);
 }

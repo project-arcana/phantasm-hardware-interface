@@ -10,8 +10,8 @@
 
 #include "resource_pool.hh"
 
-phi::handle::shader_view phi::vk::ShaderViewPool::create(cc::span<shader_view_element const> srvs,
-                                                                         cc::span<shader_view_element const> uavs,
+phi::handle::shader_view phi::vk::ShaderViewPool::create(cc::span<resource_view const> srvs,
+                                                                         cc::span<resource_view const> uavs,
                                                                          cc::span<const sampler_config> sampler_configs,
                                                                          bool usage_compute)
 {
@@ -71,7 +71,7 @@ phi::handle::shader_view phi::vk::ShaderViewPool::create(cc::span<shader_view_el
             auto const uav_native_type = util::to_native_uav_desc_type(uav.dimension);
             auto const binding = spv::uav_binding_start + i;
 
-            if (uav.dimension == shader_view_dimension::buffer)
+            if (uav.dimension == resource_view_dimension::buffer)
             {
                 auto& uav_info = buffer_infos.emplace_back();
                 uav_info.buffer = mResourcePool->getRawBuffer(uav.resource);
@@ -83,7 +83,7 @@ phi::handle::shader_view phi::vk::ShaderViewPool::create(cc::span<shader_view_el
             else
             {
                 // shader_view_dimension::textureX
-                CC_ASSERT(uav.dimension != shader_view_dimension::raytracing_accel_struct && "Raytracing acceleration structures not allowed as UAVs");
+                CC_ASSERT(uav.dimension != resource_view_dimension::raytracing_accel_struct && "Raytracing acceleration structures not allowed as UAVs");
 
                 auto& img_info = image_infos.emplace_back();
                 img_info.imageView = makeImageView(uav, true);
@@ -103,7 +103,7 @@ phi::handle::shader_view phi::vk::ShaderViewPool::create(cc::span<shader_view_el
             auto const srv_native_type = util::to_native_srv_desc_type(srv.dimension);
             auto const binding = spv::srv_binding_start + i;
 
-            if (srv.dimension == shader_view_dimension::buffer)
+            if (srv.dimension == resource_view_dimension::buffer)
             {
                 auto& uav_info = buffer_infos.emplace_back();
                 uav_info.buffer = mResourcePool->getRawBuffer(srv.resource);
@@ -112,7 +112,7 @@ phi::handle::shader_view phi::vk::ShaderViewPool::create(cc::span<shader_view_el
 
                 perform_write(srv_native_type, binding, false);
             }
-            else if (srv.dimension == shader_view_dimension::raytracing_accel_struct)
+            else if (srv.dimension == resource_view_dimension::raytracing_accel_struct)
             {
                 CC_RUNTIME_ASSERT(false && "Unimplemented!");
 
@@ -232,7 +232,7 @@ void phi::vk::ShaderViewPool::destroy()
     mAllocator.destroy();
 }
 
-VkImageView phi::vk::ShaderViewPool::makeImageView(const shader_view_element& sve, bool is_uav) const
+VkImageView phi::vk::ShaderViewPool::makeImageView(const resource_view& sve, bool is_uav) const
 {
     VkImageViewCreateInfo info = {};
     info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;

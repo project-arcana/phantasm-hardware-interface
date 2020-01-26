@@ -60,7 +60,6 @@ public:
 private:
     /// recreate RTVs, re-query resource pointers, reset state to present
     void updateBackbuffers();
-
     void releaseBackbuffers();
 
 private:

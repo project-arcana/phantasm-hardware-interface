@@ -48,9 +48,9 @@ namespace
     return {};
 }
 
-[[nodiscard]] constexpr phi::shader_domain reflect_to_pr(SpvReflectShaderStageFlagBits shader_stage_flags)
+[[nodiscard]] constexpr phi::shader_stage reflect_to_pr(SpvReflectShaderStageFlagBits shader_stage_flags)
 {
-    using sd = phi::shader_domain;
+    using sd = phi::shader_stage;
     switch (shader_stage_flags)
     {
     case SPV_REFLECT_SHADER_STAGE_VERTEX_BIT:
@@ -70,7 +70,7 @@ namespace
     return {};
 }
 
-void patchSpvReflectShader(SpvReflectShaderModule& module, phi::shader_domain current_stage, cc::vector<phi::vk::util::spirv_desc_info>& out_desc_infos)
+void patchSpvReflectShader(SpvReflectShaderModule& module, phi::shader_stage current_stage, cc::vector<phi::vk::util::spirv_desc_info>& out_desc_infos)
 {
     using namespace phi::vk;
 
@@ -124,8 +124,8 @@ phi::vk::util::patched_spirv_stage phi::vk::util::create_patched_spirv(std::byte
     SpvReflectShaderModule module;
     spvReflectCreateShaderModule(bytecode_size, bytecode, &module);
 
-    res.domain = reflect_to_pr(module.shader_stage);
-    patchSpvReflectShader(module, res.domain, out_info.descriptor_infos);
+    res.stage = reflect_to_pr(module.shader_stage);
+    patchSpvReflectShader(module, res.stage, out_info.descriptor_infos);
 
     res.size = spvReflectGetCodeSize(&module);
     res.data = cc::bit_cast<std::byte*>(module._internal->spirv_code);
@@ -207,7 +207,7 @@ cc::vector<phi::vk::util::spirv_desc_info> phi::vk::util::merge_spirv_descriptor
     return sorted_merged_res;
 }
 
-bool phi::vk::util::is_consistent_with_reflection(cc::span<const phi::vk::util::spirv_desc_info> spirv_ranges, phi::arg::shader_argument_shapes arg_shapes)
+bool phi::vk::util::is_consistent_with_reflection(cc::span<const phi::vk::util::spirv_desc_info> spirv_ranges, phi::arg::shader_arg_shapes arg_shapes)
 {
     struct reflected_range_infos
     {
@@ -250,9 +250,9 @@ bool phi::vk::util::is_consistent_with_reflection(cc::span<const phi::vk::util::
         auto const& ri = range_infos[i];
         auto const& shape = arg_shapes[i];
 
-        if (ri.num_cbvs != (shape.has_cb ? 1 : 0))
+        if (ri.num_cbvs != (shape.has_cbv ? 1 : 0))
         {
-            log::err() << "[phi][vk] SPIR-V reflection inconsistent - CBVs: " << ri.num_cbvs << " reflected, vs " << (shape.has_cb ? 1 : 0)
+            log::err() << "[phi][vk] SPIR-V reflection inconsistent - CBVs: " << ri.num_cbvs << " reflected, vs " << (shape.has_cbv ? 1 : 0)
                        << " in shape #" << i;
             return false;
         }

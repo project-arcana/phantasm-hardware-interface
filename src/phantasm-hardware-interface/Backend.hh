@@ -70,11 +70,11 @@ public:
     /// if mips is 0, the maximum amount will be used
     /// if the texture will be used as a UAV, allow_uav must be true
     [[nodiscard]] virtual handle::resource createTexture(
-        phi::format format, unsigned w, unsigned h, unsigned mips, texture_dimension dim = texture_dimension::t2d, unsigned depth_or_array_size = 1, bool allow_uav = false)
+        phi::format format, tg::isize2 size, unsigned mips, texture_dimension dim = texture_dimension::t2d, unsigned depth_or_array_size = 1, bool allow_uav = false)
         = 0;
 
     /// create a [multisampled] 2D render- or depth-stencil target
-    [[nodiscard]] virtual handle::resource createRenderTarget(phi::format format, unsigned w, unsigned h, unsigned samples = 1) = 0;
+    [[nodiscard]] virtual handle::resource createRenderTarget(phi::format format, tg::isize2 size, unsigned samples = 1) = 0;
 
     /// create a buffer, with an element stride if its an index or vertex buffer
     [[nodiscard]] virtual handle::resource createBuffer(unsigned size_bytes, unsigned stride_bytes = 0, bool allow_uav = false) = 0;
@@ -99,8 +99,8 @@ public:
     // Shader view interface
     //
 
-    [[nodiscard]] virtual handle::shader_view createShaderView(cc::span<shader_view_element const> srvs,
-                                                               cc::span<shader_view_element const> uavs,
+    [[nodiscard]] virtual handle::shader_view createShaderView(cc::span<resource_view const> srvs,
+                                                               cc::span<resource_view const> uavs,
                                                                cc::span<sampler_config const> samplers,
                                                                bool usage_compute = false)
         = 0;
@@ -115,15 +115,13 @@ public:
 
     [[nodiscard]] virtual handle::pipeline_state createPipelineState(arg::vertex_format vertex_format,
                                                                      arg::framebuffer_config const& framebuffer_conf,
-                                                                     arg::shader_argument_shapes shader_arg_shapes,
+                                                                     arg::shader_arg_shapes shader_arg_shapes,
                                                                      bool has_root_constants,
-                                                                     arg::graphics_shader_stages shader_stages,
-                                                                     phi::graphics_pipeline_config const& primitive_config)
+                                                                     arg::graphics_shaders shaders,
+                                                                     phi::pipeline_config const& primitive_config)
         = 0;
 
-    [[nodiscard]] virtual handle::pipeline_state createComputePipelineState(arg::shader_argument_shapes shader_arg_shapes,
-                                                                            arg::shader_binary compute_shader,
-                                                                            bool has_root_constants = false)
+    [[nodiscard]] virtual handle::pipeline_state createComputePipelineState(arg::shader_arg_shapes shader_arg_shapes, arg::shader_binary shader, bool has_root_constants = false)
         = 0;
 
     virtual void free(handle::pipeline_state ps) = 0;
@@ -149,8 +147,8 @@ public:
     /// create an event, starts out unset
     [[nodiscard]] virtual handle::event createEvent() = 0;
 
-    /// if the event is set, unsets it and returns true, otherwise returns false
-    [[nodiscard]] virtual bool tryUnsetEvent(handle::event event) = 0;
+    /// unsets the event, returns true if it was previously set, false otherwise
+    virtual bool clearEvent(handle::event event) = 0;
 
     virtual void free(cc::span<handle::event const> events) = 0;
 
@@ -208,6 +206,18 @@ public:
     //
 
     virtual bool isRaytracingEnabled() const = 0;
+
+    //
+    // Non-virtual utility
+    //
+
+    /// free multiple handles of different types
+    /// convenience, for more efficiency use freeRange
+    template <class... Args>
+    void freeVariadic(Args... handles)
+    {
+        (free(handles), ...);
+    }
 
 protected:
     Backend() = default;

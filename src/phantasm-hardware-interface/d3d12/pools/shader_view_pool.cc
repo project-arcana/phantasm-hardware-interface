@@ -24,8 +24,8 @@ void phi::d3d12::DescriptorPageAllocator::initialize(ID3D12Device& device, D3D12
     mHeapStartGPU = mHeap->GetGPUDescriptorHandleForHeapStart();
 }
 
-phi::handle::shader_view phi::d3d12::ShaderViewPool::create(cc::span<shader_view_element const> srvs,
-                                                                            cc::span<shader_view_element const> uavs,
+phi::handle::shader_view phi::d3d12::ShaderViewPool::create(cc::span<resource_view const> srvs,
+                                                                            cc::span<resource_view const> uavs,
                                                                             cc::span<sampler_config const> samplers)
 {
     auto const srv_uav_size = int(srvs.size() + uavs.size());
@@ -61,7 +61,7 @@ phi::handle::shader_view phi::d3d12::ShaderViewPool::create(cc::span<shader_view
                 auto const cpu_handle = mSRVUAVAllocator.incrementToIndex(srv_uav_cpu_base, srv_uav_desc_index++);
                 // Create a SRV based on the shader_view_element
                 auto const srv_desc = util::create_srv_desc(srv, raw_resource);
-                mDevice->CreateShaderResourceView(srv.dimension == shader_view_dimension::raytracing_accel_struct ? nullptr : raw_resource, &srv_desc, cpu_handle);
+                mDevice->CreateShaderResourceView(srv.dimension == resource_view_dimension::raytracing_accel_struct ? nullptr : raw_resource, &srv_desc, cpu_handle);
             }
 
             for (auto const& uav : uavs)

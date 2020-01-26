@@ -15,7 +15,7 @@ namespace util
 struct patched_spirv_stage;
 }
 
-[[nodiscard]] VkRenderPass create_render_pass(VkDevice device, const arg::framebuffer_config& framebuffer, phi::graphics_pipeline_config const& config);
+[[nodiscard]] VkRenderPass create_render_pass(VkDevice device, const arg::framebuffer_config& framebuffer, phi::pipeline_config const& config);
 
 [[nodiscard]] VkRenderPass create_render_pass(VkDevice device, const phi::cmd::begin_render_pass& begin_rp, unsigned num_samples, cc::span<const format> override_rt_formats);
 
@@ -23,7 +23,7 @@ struct patched_spirv_stage;
                                          VkRenderPass render_pass,
                                          VkPipelineLayout pipeline_layout,
                                          cc::span<util::patched_spirv_stage const> shaders,
-                                         phi::graphics_pipeline_config const& config,
+                                         phi::pipeline_config const& config,
                                          cc::span<VkVertexInputAttributeDescription const> vertex_attribs,
                                          uint32_t vertex_size,
                                          const arg::framebuffer_config& framebuf_config);

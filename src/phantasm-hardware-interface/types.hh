@@ -51,7 +51,7 @@ struct shader_argument
     unsigned constant_buffer_offset;
 };
 
-enum class shader_domain : uint8_t
+enum class shader_stage : uint8_t
 {
     // graphics
     vertex,
@@ -71,14 +71,14 @@ enum class shader_domain : uint8_t
     ray_any_hit,
 };
 
-using shader_domain_flags_t = cc::flags<shader_domain, 16>;
-CC_FLAGS_ENUM_SIZED(shader_domain, 16);
+using shader_stage_flags_t = cc::flags<shader_stage, 16>;
+CC_FLAGS_ENUM_SIZED(shader_stage, 16);
 
-inline constexpr shader_domain_flags_t shader_domain_mask_all_graphics
-    = shader_domain::vertex | shader_domain::hull | shader_domain::domain | shader_domain::geometry | shader_domain::pixel;
+inline constexpr shader_stage_flags_t shader_stage_mask_all_graphics
+    = shader_stage::vertex | shader_stage::hull | shader_stage::domain | shader_stage::geometry | shader_stage::pixel;
 
-inline constexpr shader_domain_flags_t shader_domain_mask_all_ray
-    = shader_domain::ray_gen | shader_domain::ray_miss | shader_domain::ray_closest_hit | shader_domain::ray_intersect | shader_domain::ray_any_hit;
+inline constexpr shader_stage_flags_t shader_stage_mask_all_ray
+    = shader_stage::ray_gen | shader_stage::ray_miss | shader_stage::ray_closest_hit | shader_stage::ray_intersect | shader_stage::ray_any_hit;
 
 enum class queue_type : uint8_t
 {
@@ -189,7 +189,7 @@ enum class texture_dimension : uint8_t
     t3d
 };
 
-enum class shader_view_dimension : uint8_t
+enum class resource_view_dimension : uint8_t
 {
     buffer,
     texture1d,
@@ -204,14 +204,14 @@ enum class shader_view_dimension : uint8_t
     raytracing_accel_struct
 };
 
-struct shader_view_element
+struct resource_view
 {
     handle::resource resource;
 
     format pixel_format;
-    shader_view_dimension dimension;
+    resource_view_dimension dimension;
 
-    struct sve_texture_info
+    struct texture_info_t
     {
         unsigned mip_start;   ///< index of the first usable mipmap (usually: 0)
         unsigned mip_size;    ///< amount of usable mipmaps, starting from mip_start (usually: -1 / all)
@@ -219,7 +219,7 @@ struct shader_view_element
         unsigned array_size;  ///< amount of usable array elements [if applicable]
     };
 
-    struct sve_buffer_info
+    struct buffer_info_t
     {
         unsigned element_start;        ///< index of the first element in the buffer
         unsigned num_elements;         ///< amount of elements in the buffer
@@ -227,8 +227,8 @@ struct shader_view_element
     };
 
     union {
-        sve_texture_info texture_info;
-        sve_buffer_info buffer_info;
+        texture_info_t texture_info;
+        buffer_info_t buffer_info;
     };
 
 public:
@@ -247,7 +247,7 @@ public:
     {
         resource = res;
         pixel_format = pf;
-        dimension = multisampled ? shader_view_dimension::texture2d_ms : shader_view_dimension::texture2d;
+        dimension = multisampled ? resource_view_dimension::texture2d_ms : resource_view_dimension::texture2d;
         texture_info.mip_start = mip_start;
         texture_info.mip_size = mip_size;
         texture_info.array_start = 0;
@@ -258,7 +258,7 @@ public:
     {
         resource = res;
         pixel_format = pf;
-        dimension = shader_view_dimension::texturecube;
+        dimension = resource_view_dimension::texturecube;
         texture_info.mip_start = 0;
         texture_info.mip_size = unsigned(-1);
         texture_info.array_start = 0;
@@ -268,7 +268,7 @@ public:
     void init_as_structured_buffer(handle::resource res, unsigned num_elements, unsigned stride_bytes)
     {
         resource = res;
-        dimension = shader_view_dimension::buffer;
+        dimension = resource_view_dimension::buffer;
         buffer_info.num_elements = num_elements;
         buffer_info.element_start = 0;
         buffer_info.element_stride_bytes = stride_bytes;
@@ -278,7 +278,47 @@ public:
     void init_as_accel_struct(handle::resource as_buffer)
     {
         resource = as_buffer;
-        dimension = shader_view_dimension::raytracing_accel_struct;
+        dimension = resource_view_dimension::raytracing_accel_struct;
+    }
+
+public:
+    // static convenience
+
+    static resource_view null()
+    {
+        resource_view rv;
+        rv.init_as_null();
+        return rv;
+    }
+    static resource_view backbuffer(handle::resource res)
+    {
+        resource_view rv;
+        rv.init_as_backbuffer(res);
+        return rv;
+    }
+    static resource_view tex2d(handle::resource res, format pf, bool multisampled = false, unsigned mip_start = 0, unsigned mip_size = unsigned(-1))
+    {
+        resource_view rv;
+        rv.init_as_tex2d(res, pf, multisampled, mip_start, mip_size);
+        return rv;
+    }
+    static resource_view texcube(handle::resource res, format pf)
+    {
+        resource_view rv;
+        rv.init_as_texcube(res, pf);
+        return rv;
+    }
+    static resource_view structured_buffer(handle::resource res, unsigned num_elements, unsigned stride_bytes)
+    {
+        resource_view rv;
+        rv.init_as_structured_buffer(res, num_elements, stride_bytes);
+        return rv;
+    }
+    static resource_view accel_struct(handle::resource as_buffer)
+    {
+        resource_view rv;
+        rv.init_as_accel_struct(as_buffer);
+        return rv;
     }
 };
 
@@ -353,6 +393,9 @@ struct sampler_config
         compare_func = sampler_compare_func::disabled;
         border_color = sampler_border_color::white_float;
     }
+
+    sampler_config(sampler_filter filter, unsigned anisotropy = 16u) { init_default(filter, anisotropy); }
+    sampler_config() = default;
 };
 
 inline constexpr bool operator==(sampler_config const& lhs, sampler_config const& rhs) noexcept
@@ -397,7 +440,7 @@ enum class cull_mode : uint8_t
     front
 };
 
-struct graphics_pipeline_config
+struct pipeline_config
 {
     primitive_topology topology = primitive_topology::triangles;
     depth_function depth = depth_function::less;
