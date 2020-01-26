@@ -73,14 +73,14 @@ PHI_DEFINE_CMD(begin_render_pass)
 {
     struct render_target_info
     {
-        resource_view sve;
+        resource_view rv;
         float clear_value[4];
         rt_clear_type clear_type;
     };
 
     struct depth_stencil_info
     {
-        resource_view sve;
+        resource_view rv;
         float clear_value_depth;
         uint8_t clear_value_stencil;
         rt_clear_type clear_type;
@@ -96,22 +96,22 @@ public:
     void add_backbuffer_rt(handle::resource res, bool clear = true)
     {
         render_targets.push_back(render_target_info{{}, {0.f, 0.f, 0.f, 1.f}, clear ? rt_clear_type::clear : rt_clear_type::load});
-        render_targets.back().sve.init_as_backbuffer(res);
+        render_targets.back().rv.init_as_backbuffer(res);
     }
 
     void add_2d_rt(handle::resource res, format pixel_format, rt_clear_type clear_op = rt_clear_type::clear, bool multisampled = false)
     {
         render_targets.push_back(render_target_info{{}, {0.f, 0.f, 0.f, 1.f}, clear_op});
-        render_targets.back().sve.init_as_tex2d(res, pixel_format, multisampled);
+        render_targets.back().rv.init_as_tex2d(res, pixel_format, multisampled);
     }
 
     void set_2d_depth_stencil(handle::resource res, format pixel_format, rt_clear_type clear_op = rt_clear_type::clear, bool multisampled = false)
     {
         depth_target = depth_stencil_info{{}, 1.f, 0, clear_op};
-        depth_target.sve.init_as_tex2d(res, pixel_format, multisampled);
+        depth_target.rv.init_as_tex2d(res, pixel_format, multisampled);
     }
 
-    void set_null_depth_stencil() { depth_target.sve.init_as_null(); }
+    void set_null_depth_stencil() { depth_target.rv.init_as_null(); }
 };
 
 PHI_DEFINE_CMD(end_render_pass){

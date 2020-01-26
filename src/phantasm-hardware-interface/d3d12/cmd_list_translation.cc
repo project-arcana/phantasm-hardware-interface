@@ -62,13 +62,12 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::begin_render_p
     for (uint8_t i = 0; i < begin_rp.render_targets.size(); ++i)
     {
         auto const& rt = begin_rp.render_targets[i];
-        auto const& sve = rt.sve;
 
-        auto* const resource = _globals.pool_resources->getRawResource(sve.resource);
+        auto* const resource = _globals.pool_resources->getRawResource(rt.rv.resource);
         auto const rtv = dynamic_rtvs.get_index(i);
 
         // create the default RTV on the fly
-        if (_globals.pool_resources->isBackbuffer(sve.resource))
+        if (_globals.pool_resources->isBackbuffer(rt.rv.resource))
         {
             // Create a default RTV for the backbuffer
             _globals.device->CreateRenderTargetView(resource, nullptr, rtv);
@@ -76,7 +75,7 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::begin_render_p
         else
         {
             // Create an RTV based on the supplied info
-            auto const rtv_desc = util::create_rtv_desc(sve);
+            auto const rtv_desc = util::create_rtv_desc(rt.rv);
             _globals.device->CreateRenderTargetView(resource, &rtv_desc, rtv);
         }
 
@@ -87,13 +86,13 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::begin_render_p
     }
 
     resource_view_cpu_only dynamic_dsv;
-    if (begin_rp.depth_target.sve.resource.is_valid())
+    if (begin_rp.depth_target.rv.resource.is_valid())
     {
         dynamic_dsv = _thread_local.lin_alloc_dsvs.allocate(1u);
-        auto* const resource = _globals.pool_resources->getRawResource(begin_rp.depth_target.sve.resource);
+        auto* const resource = _globals.pool_resources->getRawResource(begin_rp.depth_target.rv.resource);
 
         // Create an DSV based on the supplied info
-        auto const dsv_desc = util::create_dsv_desc(begin_rp.depth_target.sve);
+        auto const dsv_desc = util::create_dsv_desc(begin_rp.depth_target.rv);
         _globals.device->CreateDepthStencilView(resource, &dsv_desc, dynamic_dsv.get_start());
 
         if (begin_rp.depth_target.clear_type == rt_clear_type::clear)
