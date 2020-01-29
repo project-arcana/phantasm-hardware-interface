@@ -11,7 +11,7 @@ Phantasm hardware interface (PHI) is an abstraction over Vulkan and D3D12, aimin
 
 ## Objects
 
-The core of PHI is the backend. This is the only type in the library with methods<sup>[1](#footnote1)</sup>. Everything happening with regards to the real graphics API is instructed through the backend. The two backends  (`BackendD3D12` and `BackendVulkan`) share a virtual interface and can be used interchangably.
+The core of PHI is the backend. This is the only type in the library with methods<sup>[1](#footnote1)</sup>, everything happening with regards to the real graphics API is instructed through it. The two implementations (`BackendD3D12` and `BackendVulkan`) share a virtual interface and can be used interchangably, or standalone.
 
 PHI has four main objects, accessed using lightweight, POD handles.
 
@@ -43,7 +43,7 @@ creating a `handle::command_list`. Command list recording is CPU-only, and entir
 
 Commands live in the `cmd` namespace, found in `commands.hh`. For easy command buffer writing, `command_stream_writer` is provided in the same header.
 
-Commands are almost entirely stateless. The only state is the currently active render pass, marked by `cmd::begin_render_pass` and `cmd::end_render_pass` respectively. Other commands like `cmd::draw`, or `cmd::dispatch` (compute) contain all of the state they require, including their `handle::pipeline_state`.
+Command lists are almost entirely stateless. The only state is the currently active render pass, marked by `cmd::begin_render_pass` and `cmd::end_render_pass` respectively. Other commands like `cmd::draw`, or `cmd::dispatch` (compute) contain all of the state they require, including `handle::pipeline_state`.
 
 ### Shader Arguments
 
@@ -88,11 +88,13 @@ There are four shader input types, following D3D12 conventions:
     SamplerState g_sampler                              : register(s0, space0);
     ```
 
-Shaders in PHI can be fed with up to 4 "shader arguments". Each shader argument consists of SRVs, UAVs and samplers, all of which combine into a single `handle::shader_view`, and a separate CBV (`handle::resource`). Shader arguments correspond to HLSL spaces. Argument 0 is `space0`, 1 is `space1`, and so forth. The supplied order of inputs corresponds to the HLSL registers.
+Multiple SRVs, UAVs, and samplers make up a single `handle::shader_view`. Shaders in PHI can be fed with up to 4 "shader arguments", each containing a `handle::shader_view` and a `handle::resource` for a single CBV. Both handles are optional. 
 
-Shader argument "shapes", as in the amount of arguments, and the amount of inputs per argument type, are supplied when creating a `handle::pipeline_state`. The actual argument values are supplied in commands, like `cmd::draw`.
+Shader arguments correspond to HLSL spaces (Argument 0 is `space0`, 1 is `space1`, ...). The order of elements in the `handle::shader_view` corresponds to the HLSL registers (SRVs from `t0` onwards, UAVs from `u0`, samplers from `s0`). The optional CBV is always in `b0`.
 
-Inputs are not strictly typed, for example, a `Texture2D` can be supplied by simply "viewing" a single array slice of a texture array. Details regarding this process can be inferred from the creation of `handle::shader_view`, and the `shader_view_elem` type.
+Shader argument "shapes", as in the amount of arguments, and the amount of inputs per type (SRV, UAV, sampler), are specified when creating a `handle::pipeline_state`. The actual argument values are supplied in commands, like `cmd::draw`.
+
+Inputs are not strictly typed, for example, a `Texture2D` can be filled by simply "viewing" a single array slice of a texture array. Details regarding this process can be inferred from the creation of `handle::shader_view`, and the `resource_view` type.
 
 ## Threading
 
@@ -102,11 +104,11 @@ With one exception, PHI is entirely free-threaded and internally synchronized. T
 
 PHI exposes a simplified version of resource states, especially when compared to Vulkan. Additionally, resource transitions only ever specify the after-state, the before-state is internally tracked (including thread- and record-order safety).
 
-When transitioning towards `shader_resource` or `unordered_access`, the shader stage(s) which will use the resource next must also be specified.
+When transitioning towards shader input states (SRV: `shader_resource`, UAV: `unordered_access`, CBV: `constant_buffer`), the shader stage(s) which will use the resource next must also be specified.
 
 ## Main Loop
 
-In the steady state, there is very little interaction with the backend apart from `command_list` recording and submission. A prototypical PHI main loop looks like this:
+In the steady state, there is little interaction with the backend itself apart from `command_list` recording and submission. Most of the application will write command structs into buffers instead. A prototypical PHI main loop looks like this:
 
 ```C++
 while (window_open)
@@ -142,9 +144,9 @@ while (window_open)
 
 ### Shader Compilation
 
-All shaders passed to PHI must be in binary format: DXIL for D3D12, SPIR-V for Vulkan. Shaders are to be compiled from HLSL, using [DirectXShaderCompiler](https://github.com/microsoft/DirectXShaderCompiler/releases) (find Linux binaries [here](https://github.com/project-arcana/arcana-samples/tree/develop/res/pr/liveness_sample/shader/dxc_bin/linux) or use [docker](https://hub.docker.com/r/gwihlidal/dxc/)).
+Shaders passed to PHI must be in binary format: DXIL for D3D12, SPIR-V for Vulkan. Shaders should compiled from HLSL, using [DirectXShaderCompiler](https://github.com/microsoft/DirectXShaderCompiler/releases) (find Linux binaries [here](https://github.com/project-arcana/arcana-samples/tree/develop/res/pr/liveness_sample/shader/dxc_bin/linux) or use [docker](https://hub.docker.com/r/gwihlidal/dxc/)).
 
-When compiling HLSL to SPIR-V for Vulkan, use these flags: `-spirv -fspv-target-env=vulkan1.1 -fvk-b-shift 0 all -fvk-t-shift 1000 all -fvk-u-shift 2000 all -fvk-s-shift 3000 all`. If it is a vertex, geometry or domain shader, the `-fvk-invert-y` must also be added.
+When compiling HLSL to SPIR-V for Vulkan, use these flags: `-spirv -fspv-target-env=vulkan1.1 -fvk-b-shift 0 all -fvk-t-shift 1000 all -fvk-u-shift 2000 all -fvk-s-shift 3000 all`. If it is a vertex, geometry or domain shader, the `-fvk-invert-y` must also be added<sup>[2](#footnote2)</sup>.
 
 ### D3D12 MIP alignment
 
@@ -200,3 +202,5 @@ Work in progress. The features are functional in D3D12, but API is very likely t
 ---
 
 <a name="footnote1">1</a>: Methods with side-effects, other types do have convenience initializers and so forth.
+
+<a name="footnote2">2</a>: As SPIR-V has no equivalent of HLSL registers, specific descriptor binding offsets are required. CBVs must start at binding 0, SRVs at 1000, UAVs at 2000 and samplers at 3000. GLSL-to-SPIR-V paths, or others, are perfectly viable as long as this is being followed. `-fvk-invert-y` is not a hard requirement, and just serves to make both APIs behave the same, as Vulkan has a flipped y-axis in its viewport.

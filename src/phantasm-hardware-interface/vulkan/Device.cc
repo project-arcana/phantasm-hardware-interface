@@ -56,6 +56,14 @@ void phi::vk::Device::initialize(vulkan_gpu_info const& device, backend_config c
     VkPhysicalDeviceFeatures features = {};
     features.samplerAnisotropy = VK_TRUE;
     features.geometryShader = VK_TRUE;
+
+    if (config.validation >= validation_level::on_extended)
+    {
+        // GPU-based validation requires additional features
+        features.fragmentStoresAndAtomics = VK_TRUE;
+        features.vertexPipelineStoresAndAtomics = VK_TRUE;
+    }
+
     device_info.pEnabledFeatures = &features;
 
     PHI_VK_VERIFY_SUCCESS(vkCreateDevice(mPhysicalDevice, &device_info, nullptr, &mDevice));
