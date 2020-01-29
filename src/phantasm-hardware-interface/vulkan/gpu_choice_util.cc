@@ -6,6 +6,7 @@
 
 #include <phantasm-hardware-interface/limits.hh>
 
+#include "common/log.hh"
 #include "common/verify.hh"
 #include "queue_util.hh"
 
@@ -58,12 +59,24 @@ phi::vk::vulkan_gpu_info phi::vk::get_vulkan_gpu_info(VkPhysicalDevice device, V
     }
 
     // required features
+    bool supports_gpu_based_validation = true;
     {
         VkPhysicalDeviceFeatures supported_features;
         vkGetPhysicalDeviceFeatures(device, &supported_features);
 
-        if (!supported_features.samplerAnisotropy || !supported_features.geometryShader)
+        if (!supported_features.samplerAnisotropy || //
+            !supported_features.geometryShader       //
+        )
+        {
+            // generally unsuitable
             res.is_suitable = false;
+        }
+
+        if (!supported_features.fragmentStoresAndAtomics || !supported_features.vertexPipelineStoresAndAtomics)
+        {
+            // no support for GPU based validation
+            supports_gpu_based_validation = false;
+        }
     }
 
     // present modes and swapchain formats
@@ -89,6 +102,13 @@ phi::vk::vulkan_gpu_info phi::vk::get_vulkan_gpu_info(VkPhysicalDevice device, V
     {
         vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &res.surface_capabilities);
         vkGetPhysicalDeviceMemoryProperties(device, &res.mem_props);
+    }
+
+    if (res.is_suitable && !supports_gpu_based_validation)
+    {
+        log::info()("GPU {} does not support GPU based validation but is suitable otherwise", device);
+        // NOTE: if this comes up, consider disabling GBV instead of throwing out the candidate
+        res.is_suitable = false;
     }
 
     return res;

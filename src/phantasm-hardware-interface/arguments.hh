@@ -58,7 +58,7 @@ using shader_arg_shapes = cc::span<shader_arg_shape const>;
 
 struct shader_binary
 {
-    std::byte* data; ///< pointer to the (backend-dependent) shader binary data
+    std::byte const* data; ///< pointer to the (backend-dependent) shader binary data
     size_t size;
 };
 

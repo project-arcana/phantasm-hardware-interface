@@ -82,11 +82,8 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg, const 
     // TODO: More fine-grained error handling
     PHI_VK_ASSERT_SUCCESS(create_res);
 
-    // Load Vulkan entrypoints (instance-based)
-    // NOTE: volk is up to 7% slower if using this method (over i.e. volkLoadDevice(VkDevice))
-    // We could possibly fastpath somehow for single-device use, or use volkLoadDeviceTable
-    // See https://github.com/zeux/volk#optimizing-device-calls
-    volkLoadInstance(mInstance);
+    // Load instance-based Vulkan entrypoints
+    volkLoadInstanceOnly(mInstance);
 
     if (config.validation != validation_level::off)
     {
@@ -107,6 +104,10 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg, const 
         auto const& chosen_vk_gpu = vk_gpu_infos[chosen_gpu.index];
 
         mDevice.initialize(chosen_vk_gpu, config);
+
+        // Load device-based Vulkan entrypoints
+        volkLoadDevice(mDevice.getDevice());
+
         mSwapchain.initialize(mDevice, mSurface, config.num_backbuffers, 250, 250, config.present_mode);
     }
 
@@ -329,11 +330,11 @@ bool phi::vk::BackendVulkan::clearEvent(phi::handle::event event)
 }
 
 phi::handle::pipeline_state phi::vk::BackendVulkan::createRaytracingPipelineState(phi::arg::raytracing_shader_libraries libraries,
-                                                                                                  arg::raytracing_argument_associations arg_assocs,
-                                                                                                  phi::arg::raytracing_hit_groups hit_groups,
-                                                                                                  unsigned max_recursion,
-                                                                                                  unsigned max_payload_size_bytes,
-                                                                                                  unsigned max_attribute_size_bytes)
+                                                                                  arg::raytracing_argument_associations arg_assocs,
+                                                                                  phi::arg::raytracing_hit_groups hit_groups,
+                                                                                  unsigned max_recursion,
+                                                                                  unsigned max_payload_size_bytes,
+                                                                                  unsigned max_attribute_size_bytes)
 {
     CC_ASSERT(isRaytracingEnabled() && "raytracing is not enabled");
     log::err()("createRaytracingPipelineState unimplemented");
@@ -347,8 +348,8 @@ phi::handle::accel_struct phi::vk::BackendVulkan::createTopLevelAccelStruct(unsi
 }
 
 phi::handle::accel_struct phi::vk::BackendVulkan::createBottomLevelAccelStruct(cc::span<const phi::arg::blas_element> elements,
-                                                                                               accel_struct_build_flags_t flags,
-                                                                                               uint64_t* out_native_handle)
+                                                                               accel_struct_build_flags_t flags,
+                                                                               uint64_t* out_native_handle)
 {
     CC_ASSERT(isRaytracingEnabled() && "raytracing is not enabled");
     auto const res = mPoolAccelStructs.createBottomLevelAS(elements, flags);
@@ -374,8 +375,8 @@ phi::handle::resource phi::vk::BackendVulkan::getAccelStructBuffer(phi::handle::
 }
 
 phi::shader_table_sizes phi::vk::BackendVulkan::calculateShaderTableSize(phi::arg::shader_table_records ray_gen_records,
-                                                                                         phi::arg::shader_table_records miss_records,
-                                                                                         phi::arg::shader_table_records hit_group_records)
+                                                                         phi::arg::shader_table_records miss_records,
+                                                                         phi::arg::shader_table_records hit_group_records)
 {
     log::err()("calculateShaderTableSize unimplemented");
     return {};
