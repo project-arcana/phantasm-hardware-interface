@@ -33,7 +33,7 @@ endif()
 # =========================================
 # define library
 
-file(GLOB_RECURSE SOURCES "src/*.cc" "src/*.hh")
+file(GLOB_RECURSE SOURCES "src/*.cc" "src/*.hh" "src/*.c" "src/*.h")
 
 # disable backends
 if (NOT PHI_BACKEND_D3D12)

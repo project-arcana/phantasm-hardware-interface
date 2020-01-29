@@ -82,8 +82,8 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg, const 
     // TODO: More fine-grained error handling
     PHI_VK_ASSERT_SUCCESS(create_res);
 
-    // Load Vulkan entrypoints (instance-based)
-    volkLoadInstance(mInstance);
+    // Load instance-based Vulkan entrypoints
+    volkLoadInstanceOnly(mInstance);
 
     if (config.validation != validation_level::off)
     {
@@ -105,9 +105,7 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg, const 
 
         mDevice.initialize(chosen_vk_gpu, config);
 
-        // re-load device specific entrypoints for faster dispatch
-        // See https://github.com/zeux/volk#optimizing-device-calls
-        // this would have to change for multi-device support
+        // Load device-based Vulkan entrypoints
         volkLoadDevice(mDevice.getDevice());
 
         mSwapchain.initialize(mDevice, mSurface, config.num_backbuffers, 250, 250, config.present_mode);
