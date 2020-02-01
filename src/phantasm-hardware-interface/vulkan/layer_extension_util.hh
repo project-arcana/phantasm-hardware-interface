@@ -13,14 +13,14 @@ namespace phi::vk
 struct layer_extension_bundle
 {
     VkLayerProperties layer_properties;
-    std::vector<VkExtensionProperties> extension_properties;
+    cc::vector<VkExtensionProperties> extension_properties;
 
     layer_extension_bundle() { layer_properties = {}; }
     layer_extension_bundle(VkLayerProperties layer_props) : layer_properties(layer_props) {}
-
-    void fill_with_instance_extensions(char const* layername = nullptr);
-    void fill_with_device_extensions(VkPhysicalDevice device, char const* layername = nullptr);
 };
+
+void write_instance_extensions(cc::vector<VkExtensionProperties>& out_extensions, const char* layername);
+void write_device_extensions(cc::vector<VkExtensionProperties>& out_extensions, VkPhysicalDevice device, const char* layername);
 
 // TODO: Name
 struct lay_ext_set
@@ -42,7 +42,6 @@ struct lay_ext_array
 [[nodiscard]] lay_ext_set get_available_device_lay_ext(VkPhysicalDevice physical);
 
 [[nodiscard]] lay_ext_array get_used_instance_lay_ext(lay_ext_set const& available, backend_config const& config);
-[[nodiscard]] lay_ext_array get_used_device_lay_ext(lay_ext_set const& available, backend_config const& config, bool &has_raytracing);
+[[nodiscard]] lay_ext_array get_used_device_lay_ext(lay_ext_set const& available, backend_config const& config, bool& has_raytracing);
 
 }
-
