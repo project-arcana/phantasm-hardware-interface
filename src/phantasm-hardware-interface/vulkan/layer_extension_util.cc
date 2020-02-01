@@ -176,17 +176,17 @@ phi::vk::lay_ext_array phi::vk::get_used_instance_lay_ext(const phi::vk::lay_ext
     {
         if (!add_layer("VK_LAYER_KHRONOS_validation"))
         {
-            log::err() << "[phi][vk] Validation enabled, but no layers available on Vulkan instance";
-            log::err() << "[phi][vk] Download the LunarG SDK for your operating system,";
-            log::err() << "[phi][vk] then set these environment variables: (all paths absolute)";
-            log::err() << "[phi][vk] VK_LAYER_PATH - <sdk>/x86_64/etc/vulkan/explicit_layer.d/";
-            log::err() << "[phi][vk] VULKAN_SDK - <sdk>/x86_64/bin";
-            log::err() << "[phi][vk] LD_LIBRARY_PATH - <VALUE>:<sdk>/x86_64/lib (append)";
+            log::err() << "Validation enabled, but no layers available on Vulkan instance";
+            log::err() << "Download the LunarG SDK for your operating system,";
+            log::err() << "then set these environment variables: (all paths absolute)";
+            log::err() << "VK_LAYER_PATH - <sdk>/x86_64/etc/vulkan/explicit_layer.d/";
+            log::err() << "VULKAN_SDK - <sdk>/x86_64/bin";
+            log::err() << "LD_LIBRARY_PATH - <VALUE>:<sdk>/x86_64/lib (append)";
         }
 
         if (!add_ext(VK_EXT_DEBUG_UTILS_EXTENSION_NAME))
         {
-            log::err() << "[phi][vk] Missing debug utils extension";
+            log::err() << "Missing debug utils extension";
         }
     }
 
@@ -194,7 +194,7 @@ phi::vk::lay_ext_array phi::vk::get_used_instance_lay_ext(const phi::vk::lay_ext
     {
         if (!add_ext("VK_EXT_validation_features"))
         {
-            log::err() << "[phi][vk] Missing GPU-assisted validation extension";
+            log::err() << "Missing GPU-assisted validation extension";
         }
     }
 
@@ -202,7 +202,7 @@ phi::vk::lay_ext_array phi::vk::get_used_instance_lay_ext(const phi::vk::lay_ext
     {
         if (!add_layer("VK_LAYER_LUNARG_api_dump"))
         {
-            log::err() << "[phi][vk] Missing API dump layer";
+            log::err() << "Missing API dump layer";
         }
     }
 
@@ -210,7 +210,7 @@ phi::vk::lay_ext_array phi::vk::get_used_instance_lay_ext(const phi::vk::lay_ext
     for (char const* const required_device_ext : get_platform_instance_extensions())
     {
         if (!add_ext(required_device_ext))
-            log::err() << "[phi][vk] Missing required extension" << required_device_ext;
+            log::err() << "Missing required extension" << required_device_ext;
     }
 
 
@@ -241,7 +241,7 @@ phi::vk::lay_ext_array phi::vk::get_used_device_lay_ext(const phi::vk::lay_ext_s
 
     if (!add_ext(VK_KHR_SWAPCHAIN_EXTENSION_NAME))
     {
-        log::err() << "[phi][vk] Missing swapchain extension";
+        log::err() << "Missing swapchain extension";
     }
 
     has_raytracing = false;
