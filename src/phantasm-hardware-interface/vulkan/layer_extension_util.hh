@@ -1,9 +1,7 @@
 #pragma once
 
-#include <string>
-#include <vector>
-
 #include <clean-core/span.hh>
+#include <clean-core/vector.hh>
 
 #include <phantasm-hardware-interface/fwd.hh>
 
@@ -36,8 +34,8 @@ struct lay_ext_array
 {
     // These are char const* intentionally for Vulkan interop
     // Only add literals!
-    std::vector<char const*> layers;
-    std::vector<char const*> extensions;
+    cc::vector<char const*> layers;
+    cc::vector<char const*> extensions;
 };
 
 [[nodiscard]] lay_ext_set get_available_instance_lay_ext();
