@@ -2,10 +2,8 @@
 
 #include <string>
 #include <unordered_set>
-#include <vector>
 
 #include <clean-core/span.hh>
-#include <clean-core/vector.hh>
 
 #include <phantasm-hardware-interface/vulkan/loader/volk.hh>
 
@@ -38,7 +36,6 @@ public:
     }
 
     [[nodiscard]] bool contains(std::string const& name) const { return _names.find(name) != _names.end(); }
-    [[nodiscard]] std::vector<std::string> to_vector() const { return std::vector<std::string>(_names.begin(), _names.end()); }
 
 private:
     // TODO: Implement this with a future cc hashmap and vector / iteration helper
