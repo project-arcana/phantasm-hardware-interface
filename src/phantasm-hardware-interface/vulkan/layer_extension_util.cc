@@ -3,6 +3,7 @@
 #include <phantasm-hardware-interface/config.hh>
 
 #include <clean-core/utility.hh>
+#include <clean-core/vector.hh>
 
 #include "common/log.hh"
 #include "common/unique_name_set.hh"
@@ -71,7 +72,7 @@ phi::vk::lay_ext_set phi::vk::get_available_instance_lay_ext()
     // Enumerate instance layers
     {
         VkResult res;
-        std::vector<VkLayerProperties> global_layer_properties;
+        cc::vector<VkLayerProperties> global_layer_properties;
 
         do
         {
@@ -107,7 +108,7 @@ phi::vk::lay_ext_set phi::vk::get_available_device_lay_ext(VkPhysicalDevice phys
 {
     lay_ext_set available_res;
 
-    std::vector<layer_extension_bundle> layer_extensions;
+    cc::vector<layer_extension_bundle> layer_extensions;
 
     // Add global device layer
     layer_extensions.emplace_back();
@@ -118,7 +119,7 @@ phi::vk::lay_ext_set phi::vk::get_available_device_lay_ext(VkPhysicalDevice phys
 
         PHI_VK_VERIFY_SUCCESS(vkEnumerateDeviceLayerProperties(physical, &count, nullptr));
 
-        std::vector<VkLayerProperties> layer_properties;
+        cc::vector<VkLayerProperties> layer_properties;
         layer_properties.resize(count);
 
         PHI_VK_VERIFY_SUCCESS(vkEnumerateDeviceLayerProperties(physical, &count, layer_properties.data()));
