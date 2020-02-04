@@ -4,14 +4,14 @@
 
 #include <phantasm-hardware-interface/d3d12/common/d3dx12.hh>
 #include <phantasm-hardware-interface/d3d12/common/dxgi_format.hh>
+#include <phantasm-hardware-interface/d3d12/common/log.hh>
 #include <phantasm-hardware-interface/d3d12/common/native_enum.hh>
 #include <phantasm-hardware-interface/d3d12/common/util.hh>
-#include <phantasm-hardware-interface/d3d12/common/log.hh>
 #include <phantasm-hardware-interface/d3d12/memory/D3D12MA.hh>
 
 namespace
 {
-constexpr char const* get_tex_dim_literal(phi::texture_dimension tdim)
+constexpr char const* d3d12_get_tex_dim_literal(phi::texture_dimension tdim)
 {
     using td = phi::texture_dimension;
     switch (tdim)
@@ -63,8 +63,7 @@ phi::handle::resource phi::d3d12::ResourcePool::injectBackbufferResource(ID3D12R
     return mInjectedBackbufferResource;
 }
 
-phi::handle::resource phi::d3d12::ResourcePool::createTexture(
-    format format, unsigned w, unsigned h, unsigned mips, texture_dimension dim, unsigned depth_or_array_size, bool allow_uav)
+phi::handle::resource phi::d3d12::ResourcePool::createTexture(format format, unsigned w, unsigned h, unsigned mips, texture_dimension dim, unsigned depth_or_array_size, bool allow_uav)
 {
     constexpr auto initial_state = resource_state::copy_dest;
 
@@ -86,7 +85,7 @@ phi::handle::resource phi::d3d12::ResourcePool::createTexture(
 
     auto* const alloc = mAllocator.allocate(desc, util::to_native(initial_state));
     auto const real_mip_levels = alloc->GetResource()->GetDesc().MipLevels;
-    util::set_object_name(alloc->GetResource(), "respool texture%s[%u] m%u", get_tex_dim_literal(dim), depth_or_array_size, real_mip_levels);
+    util::set_object_name(alloc->GetResource(), "respool texture%s[%u] m%u", d3d12_get_tex_dim_literal(dim), depth_or_array_size, real_mip_levels);
 
     return acquireImage(alloc, format, initial_state, real_mip_levels, desc.DepthOrArraySize);
 }

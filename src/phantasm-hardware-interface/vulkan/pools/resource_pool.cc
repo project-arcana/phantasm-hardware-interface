@@ -15,12 +15,12 @@
 
 namespace
 {
-unsigned calculate_num_mip_levels(unsigned width, unsigned height)
+unsigned vk_calculate_num_mip_levels(unsigned width, unsigned height)
 {
     return static_cast<unsigned>(tg::floor(tg::log2(static_cast<float>(cc::max(width, height))))) + 1u;
 }
 
-constexpr char const* get_tex_dim_literal(phi::texture_dimension tdim)
+constexpr char const* vk_get_tex_dim_literal(phi::texture_dimension tdim)
 {
     using td = phi::texture_dimension;
     switch (tdim)
@@ -48,7 +48,7 @@ phi::handle::resource phi::vk::ResourcePool::createTexture(format format, unsign
     image_info.extent.width = w;
     image_info.extent.height = h;
     image_info.extent.depth = dim == texture_dimension::t3d ? depth_or_array_size : 1;
-    image_info.mipLevels = mips < 1 ? calculate_num_mip_levels(w, h) : mips;
+    image_info.mipLevels = mips < 1 ? vk_calculate_num_mip_levels(w, h) : mips;
     image_info.arrayLayers = dim == texture_dimension::t3d ? 1 : depth_or_array_size;
 
     image_info.samples = VK_SAMPLE_COUNT_1_BIT;
@@ -78,7 +78,7 @@ phi::handle::resource phi::vk::ResourcePool::createTexture(format format, unsign
     VmaAllocation res_alloc;
     VkImage res_image;
     PHI_VK_VERIFY_SUCCESS(vmaCreateImage(mAllocator, &image_info, &alloc_info, &res_image, &res_alloc, nullptr));
-    util::set_object_name(mDevice, res_image, "respool texture%s[%u] m%u", get_tex_dim_literal(dim), depth_or_array_size, image_info.mipLevels);
+    util::set_object_name(mDevice, res_image, "respool texture%s[%u] m%u", vk_get_tex_dim_literal(dim), depth_or_array_size, image_info.mipLevels);
     return acquireImage(res_alloc, res_image, format, image_info.mipLevels, image_info.arrayLayers);
 }
 

@@ -49,7 +49,7 @@ public:
         auto index = hash % _hashes.size();
         for (auto _ = 0u; _ < _hashes.size(); ++_)
         {
-            index = cc::wrapped_increment(index, _hashes.size());
+            index = cc::wrapped_increment<HashT>(index, _hashes.size());
 
             if (_hashes[index] == tombstone_hash)
             {
@@ -86,7 +86,7 @@ private:
         auto index = hash % _hashes.size();
         for (auto _ = 0u; _ < _hashes.size(); ++_)
         {
-            index = cc::wrapped_increment(index, _hashes.size());
+            index = cc::wrapped_increment<HashT>(index, _hashes.size());
 
             if (_hashes[index] == hash)
             {
