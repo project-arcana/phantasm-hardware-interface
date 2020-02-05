@@ -54,7 +54,7 @@ private:
 
 struct root_signature
 {
-    ID3D12RootSignature* raw_root_sig;
+    ID3D12RootSignature* raw_root_sig = nullptr;
     cc::capped_vector<shader_argument_map, limits::max_shader_arguments> argument_maps;
 };
 
