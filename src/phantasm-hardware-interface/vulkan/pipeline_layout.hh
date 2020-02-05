@@ -67,7 +67,7 @@ struct pipeline_layout
     cc::capped_vector<VkPipelineStageFlags, limits::max_shader_arguments * 2> descriptor_set_visibilities;
 
     /// The pipeline layout itself
-    VkPipelineLayout raw_layout;
+    VkPipelineLayout raw_layout = nullptr;
     VkPipelineStageFlags push_constant_stages;
 
     void initialize(VkDevice device, cc::span<util::spirv_desc_info const> range_infos, bool add_push_constants);

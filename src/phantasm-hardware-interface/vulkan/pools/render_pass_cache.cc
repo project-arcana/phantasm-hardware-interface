@@ -3,30 +3,32 @@
 #include <phantasm-hardware-interface/detail/hash.hh>
 #include <phantasm-hardware-interface/vulkan/render_pass_pipeline.hh>
 
-void phi::vk::RenderPassCache::initialize(unsigned max_elements) { mCache.initialize(max_elements); }
+void phi::vk::RenderPassCache::initialize(unsigned max_elements)
+{
+    mCache.initialize(max_elements);
+    mCache.memset_values_zero(); // we're dealing with plain pointers, memset to nullptr
+}
 
 void phi::vk::RenderPassCache::destroy(VkDevice device) { reset(device); }
 
 VkRenderPass phi::vk::RenderPassCache::getOrCreate(VkDevice device, cmd::begin_render_pass const& brp, unsigned num_samples, cc::span<const format> override_rt_formats)
 {
-    // render passes, and the hash, only depend on RT formats, clear ops, and the amount of samples
-    auto const hash = hashKey(brp, num_samples, override_rt_formats);
+    auto const readonly_key = render_pass_key_readonly{brp, num_samples, override_rt_formats};
 
-    auto* const lookup = mCache.look_up(hash);
-    if (lookup != nullptr)
-        return *lookup;
-    else
+    VkRenderPass& val = mCache[readonly_key];
+    if (val == nullptr)
     {
-        auto const new_rp = create_render_pass(device, brp, num_samples, override_rt_formats);
-        auto* const insertion = mCache.insert(hash, new_rp);
-        return *insertion;
+        val = create_render_pass(device, brp, num_samples, override_rt_formats);
     }
+
+    return val;
 }
 
 void phi::vk::RenderPassCache::reset(VkDevice device)
 {
     mCache.iterate_elements([&](VkRenderPass elem) { vkDestroyRenderPass(device, elem, nullptr); });
-    mCache.clear();
+    mCache.reset();
+    mCache.memset_values_zero();
 }
 
 cc::hash_t phi::vk::RenderPassCache::hashKey(cmd::begin_render_pass const& brp, unsigned num_samples, cc::span<const format> override_rt_formats)
@@ -43,4 +45,39 @@ cc::hash_t phi::vk::RenderPassCache::hashKey(cmd::begin_render_pass const& brp, 
     }
 
     return cc::hash_combine(res, cc::make_hash(num_samples));
+}
+
+bool phi::vk::RenderPassCache::render_pass_key::operator==(const phi::vk::RenderPassCache::render_pass_key_readonly& rhs) const noexcept
+{
+    // comparison includes only the relevant parts of cmd::begin_render_pass
+
+    if (num_samples == rhs.num_samples && override_formats == rhs.override_formats)
+    {
+        if (brp.render_targets.size() != rhs.brp.render_targets.size())
+            return false;
+
+        for (uint8_t i = 0u; i < brp.render_targets.size(); ++i)
+        {
+            if (brp.render_targets[i].clear_type != rhs.brp.render_targets[i].clear_type)
+                return false;
+        }
+
+        if (brp.depth_target.rv.resource.is_valid())
+        {
+            if (!rhs.brp.depth_target.rv.resource.is_valid())
+                return false;
+
+            auto const& lhs_dt = brp.depth_target;
+            auto const& rhs_dt = rhs.brp.depth_target;
+
+            if (lhs_dt.rv.pixel_format != rhs_dt.rv.pixel_format || lhs_dt.clear_type != rhs_dt.clear_type)
+                return false;
+        }
+
+        return true;
+    }
+    else
+    {
+        return true;
+    }
 }

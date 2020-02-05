@@ -67,8 +67,6 @@ void dynamic_dispatch(detail::cmd_base const& base, F& callback)
 #undef PHI_X
     return res;
 }
-
-inline constexpr size_t max_command_size = compute_max_command_size();
 }
 
 namespace phi

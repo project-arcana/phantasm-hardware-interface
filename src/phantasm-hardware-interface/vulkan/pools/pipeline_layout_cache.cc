@@ -8,23 +8,21 @@ void phi::vk::PipelineLayoutCache::destroy(VkDevice device) { reset(device); }
 
 phi::vk::pipeline_layout* phi::vk::PipelineLayoutCache::getOrCreate(VkDevice device, cc::span<const util::spirv_desc_info> reflected_ranges, bool has_push_constants)
 {
-    auto const hash = hashKey(reflected_ranges, has_push_constants);
+    auto const readonly_key = pipeline_layout_key_readonly{reflected_ranges, has_push_constants};
 
-    auto* const lookup = mCache.look_up(hash);
-    if (lookup != nullptr)
-        return lookup;
-    else
+    pipeline_layout& val = mCache[readonly_key];
+    if (val.raw_layout == nullptr)
     {
-        auto* const insertion = mCache.insert(hash, pipeline_layout{});
-        insertion->initialize(device, reflected_ranges, has_push_constants);
-        return insertion;
+        val.initialize(device, reflected_ranges, has_push_constants);
     }
+
+    return &val;
 }
 
 void phi::vk::PipelineLayoutCache::reset(VkDevice device)
 {
     mCache.iterate_elements([&](pipeline_layout& elem) { elem.free(device); });
-    mCache.clear();
+    mCache.reset();
 }
 
 size_t phi::vk::PipelineLayoutCache::hashKey(cc::span<const phi::vk::util::spirv_desc_info> reflected_ranges, bool has_push_constants)
