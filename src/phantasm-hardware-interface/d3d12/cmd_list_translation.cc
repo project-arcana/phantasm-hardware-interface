@@ -1,6 +1,7 @@
 #include "cmd_list_translation.hh"
 
 #include <phantasm-hardware-interface/detail/byte_util.hh>
+#include <phantasm-hardware-interface/detail/command_reading.hh>
 #include <phantasm-hardware-interface/detail/format_size.hh>
 #include <phantasm-hardware-interface/detail/incomplete_state_cache.hh>
 
@@ -17,20 +18,17 @@
 #include "pools/shader_view_pool.hh"
 
 void phi::d3d12::command_list_translator::initialize(ID3D12Device* device,
-                                                             phi::d3d12::ShaderViewPool* sv_pool,
-                                                             phi::d3d12::ResourcePool* resource_pool,
-                                                             phi::d3d12::PipelineStateObjectPool* pso_pool,
-                                                             AccelStructPool* as_pool)
+                                                     phi::d3d12::ShaderViewPool* sv_pool,
+                                                     phi::d3d12::ResourcePool* resource_pool,
+                                                     phi::d3d12::PipelineStateObjectPool* pso_pool,
+                                                     AccelStructPool* as_pool)
 {
     _globals.initialize(device, sv_pool, resource_pool, pso_pool, as_pool);
     _thread_local.initialize(*_globals.device);
 }
 
-void phi::d3d12::command_list_translator::translateCommandList(ID3D12GraphicsCommandList* list,
-                                                                       ID3D12GraphicsCommandList5* list5,
-                                                                       phi::detail::incomplete_state_cache* state_cache,
-                                                                       std::byte* buffer,
-                                                                       size_t buffer_size)
+void phi::d3d12::command_list_translator::translateCommandList(
+    ID3D12GraphicsCommandList* list, ID3D12GraphicsCommandList5* list5, phi::detail::incomplete_state_cache* state_cache, std::byte* buffer, size_t buffer_size)
 {
     _cmd_list = list;
     _cmd_list_5 = list5;
@@ -387,10 +385,7 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::resolve_textur
     _cmd_list->ResolveSubresource(dest_raw, dest_subres_index, src_raw, src_subres_index, util::to_dxgi_format(dest_info.pixel_format));
 }
 
-void phi::d3d12::command_list_translator::execute(const phi::cmd::debug_marker& marker)
-{
-    util::set_pix_marker(_cmd_list, 0, marker.string_literal);
-}
+void phi::d3d12::command_list_translator::execute(const phi::cmd::debug_marker& marker) { util::set_pix_marker(_cmd_list, 0, marker.string_literal); }
 
 void phi::d3d12::command_list_translator::execute(const phi::cmd::update_bottom_level& blas_update)
 {
