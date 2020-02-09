@@ -190,6 +190,8 @@ public:
 
     bool isRaytracingEnabled() const override;
 
+    backend_type getBackendType() const override { return backend_type::d3d12; }
+
 public:
     // backend-internal
 

@@ -179,6 +179,8 @@ public:
 
     bool isRaytracingEnabled() const override { return mDevice.hasRaytracing(); }
 
+    backend_type getBackendType() const override { return backend_type::vulkan; }
+
 public:
     // backend-internal
 
