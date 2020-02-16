@@ -57,7 +57,7 @@ if (NOT PHI_BACKEND_VULKAN)
     endforeach()
 endif()
 
-source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src" FILES ${SOURCES} ${HEADERS})
+source_group("${CMAKE_CURRENT_SOURCE_DIR}/src" FILES ${SOURCES} ${HEADERS})
 
 if (PHI_ENABLE_UNITY_BUILD)
     enable_unity_build(phantasm-hardware-interface SOURCES 100 cc)
