@@ -58,8 +58,7 @@ if (NOT PHI_BACKEND_VULKAN)
     endforeach()
 endif()
 
-arcana_source_group(SOURCES)
-arcana_source_group(HEADERS)
+arcana_source_group(SOURCES HEADERS)
 
 if (PHI_ENABLE_UNITY_BUILD)
     arcana_enable_unity_build(phantasm-hardware-interface SOURCES 100 cc)
