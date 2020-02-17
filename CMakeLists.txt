@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.8)
 project(PhantasmHardwareInterface)
 
 include(cmake/UnityBuild.cmake)
+include(cmake/SourceGroup.cmake)
 
 # =========================================
 # global options
@@ -57,10 +58,11 @@ if (NOT PHI_BACKEND_VULKAN)
     endforeach()
 endif()
 
-source_group("${CMAKE_CURRENT_SOURCE_DIR}/src" FILES ${SOURCES} ${HEADERS})
+arcana_source_group(SOURCES)
+arcana_source_group(HEADERS)
 
 if (PHI_ENABLE_UNITY_BUILD)
-    enable_unity_build(phantasm-hardware-interface SOURCES 100 cc)
+    arcana_enable_unity_build(phantasm-hardware-interface SOURCES 100 cc)
 endif()
 
 add_library(phantasm-hardware-interface STATIC ${SOURCES} ${HEADERS})

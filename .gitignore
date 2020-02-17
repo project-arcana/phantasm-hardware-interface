@@ -30,3 +30,19 @@
 *.exe
 *.out
 *.app
+
+# qtcreator
+CMakeLists.txt.user
+
+# binary dir
+bin/
+build/
+
+# VS Code
+.vscode
+build_vs/
+.vs/
+*.code-workspace
+
+# misc workdir spam
+imgui.ini
