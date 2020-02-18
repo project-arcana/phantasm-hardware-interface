@@ -7,6 +7,12 @@
 
 namespace phi
 {
+enum class backend_type
+{
+    d3d12,
+    vulkan
+};
+
 class Backend
 {
     // reference type
@@ -206,6 +212,8 @@ public:
     //
 
     virtual bool isRaytracingEnabled() const = 0;
+
+    virtual backend_type getBackendType() const = 0;
 
     //
     // Non-virtual utility

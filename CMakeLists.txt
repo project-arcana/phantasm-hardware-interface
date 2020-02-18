@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.8)
 project(PhantasmHardwareInterface)
 
 include(cmake/UnityBuild.cmake)
+include(cmake/SourceGroup.cmake)
 
 # =========================================
 # global options
@@ -57,10 +58,10 @@ if (NOT PHI_BACKEND_VULKAN)
     endforeach()
 endif()
 
-source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src" FILES ${SOURCES} ${HEADERS})
+arcana_source_group(SOURCES HEADERS)
 
 if (PHI_ENABLE_UNITY_BUILD)
-    enable_unity_build(phantasm-hardware-interface SOURCES 100 cc)
+    arcana_enable_unity_build(phantasm-hardware-interface SOURCES 100 cc)
 endif()
 
 add_library(phantasm-hardware-interface STATIC ${SOURCES} ${HEADERS})
@@ -123,9 +124,19 @@ if (PHI_BACKEND_D3D12)
 
     # PIX Runtime
     if (PHI_ENABLE_D3D12_PIX)
+        # link against pix runtime .lib, add pix include path, set up defines
         target_link_libraries(phantasm-hardware-interface PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/extern/win32_pix_runtime/bin/WinPixEventRuntime.lib")
         target_include_directories(phantasm-hardware-interface PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/extern/win32_pix_runtime/include/")
         target_compile_definitions(phantasm-hardware-interface PUBLIC PHI_HAS_PIX USE_PIX)
+
+        # copy the dll to the runtime output folder post-build
+        set(PHI_D3D12_PIX_DLL_PATH "${CMAKE_CURRENT_SOURCE_DIR}/extern/win32_pix_runtime/bin/WinPixEventRuntime.dll")
+        add_custom_command(
+            TARGET phantasm-hardware-interface POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${PHI_D3D12_PIX_DLL_PATH}"
+            "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}"
+        )
     endif()
 
 else()
