@@ -25,6 +25,10 @@ struct framebuffer_config
         new_rt.format = fmt;
         render_targets.push_back(new_rt);
     }
+
+    void add_depth_target(format fmt) { depth_target.push_back(fmt); }
+
+    void remove_depth_target() { depth_target.clear(); }
 };
 
 struct vertex_format
