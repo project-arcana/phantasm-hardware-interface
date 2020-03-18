@@ -19,7 +19,7 @@ inline constexpr unsigned max_shader_arguments = 4u;
 /// configurable
 inline constexpr unsigned max_shader_samplers = 16u;
 
-/// the maximum size for compute root constants
+/// the maximum size for root constants
 /// configurable in increments of sizeof(DWORD32)
 inline constexpr unsigned max_root_constant_bytes = 8u;
 
