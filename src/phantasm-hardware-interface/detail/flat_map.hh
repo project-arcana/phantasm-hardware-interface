@@ -7,10 +7,10 @@ namespace phi::detail
 {
 /// very simple, purpose built, flat associative container
 template <class KeyT, class ValT>
-struct flat_map
+struct flat_linear_map
 {
 public:
-    flat_map(size_t reserve_size) { _nodes.reserve(reserve_size); }
+    flat_linear_map(size_t reserve_size) { _nodes.reserve(reserve_size); }
 
     [[nodiscard]] ValT& get_value(KeyT const& key, ValT const& default_val = ValT{})
     {

@@ -17,7 +17,7 @@ option(PHI_ENABLE_DEBUG_MARKERS "enable API debug markers" ON)
 # requires WinPixEventRuntime.dll to be available to the executable (in the same folder)
 # this dll is included in extern/win32_pix_runtime/bin/
 option(PHI_ENABLE_D3D12_PIX "enable DirectX 12 PIX integration" OFF)
-option(PHI_ENABLE_SDL2 "Search for and enable SDL2 integration" ON)
+option(PHI_ENABLE_SDL2 "enable SDL2 integration" ON)
 
 option(PHI_ENABLE_UNITY_BUILD "If enabled, compiles this library as a single compilation unit" ON)
 
@@ -147,13 +147,11 @@ endif()
 # optional dependencies
 
 if (PHI_ENABLE_SDL2)
-    find_package(SDL2)
-    if (SDL2_LIBRARIES)
-        message(STATUS "[phantasm hardware interface] SDL2 support enabled")
-        target_include_directories(phantasm-hardware-interface PUBLIC ${SDL2_INCLUDE_DIRS})
-        target_link_libraries(phantasm-hardware-interface PUBLIC ${SDL2_LIBRARIES})
-        target_compile_definitions(phantasm-hardware-interface PUBLIC PHI_HAS_SDL2)
-    else()
-        message(STATUS "[phantasm hardware interface] SDL2 not found")
+    if (NOT TARGET sdl2)
+        message(FATAL_ERROR "[phantasm hardware interface] no target sdl2 found (wrong add_subdirectory order?)")
     endif()
+
+    message(STATUS "[phantasm hardware interface] SDL2 support enabled")
+    target_link_libraries(phantasm-hardware-interface PUBLIC sdl2)
+    target_compile_definitions(phantasm-hardware-interface PUBLIC PHI_HAS_SDL2)
 endif()
