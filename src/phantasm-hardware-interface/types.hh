@@ -398,20 +398,6 @@ struct sampler_config
     sampler_config() = default;
 };
 
-inline constexpr bool operator==(sampler_config const& lhs, sampler_config const& rhs) noexcept
-{
-    return lhs.filter == rhs.filter &&                 //
-           lhs.address_u == rhs.address_u &&           //
-           lhs.address_v == rhs.address_v &&           //
-           lhs.address_w == rhs.address_w &&           //
-           lhs.min_lod == rhs.min_lod &&               //
-           lhs.max_lod == rhs.max_lod &&               //
-           lhs.lod_bias == rhs.lod_bias &&             //
-           lhs.max_anisotropy == rhs.max_anisotropy && //
-           lhs.compare_func == rhs.compare_func &&     //
-           lhs.border_color == rhs.border_color;       //
-}
-
 enum class primitive_topology : uint8_t
 {
     triangles,
