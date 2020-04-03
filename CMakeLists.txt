@@ -147,6 +147,10 @@ endif()
 # optional dependencies
 
 if (PHI_ENABLE_SDL2)
+    if (NOT TARGET sdl2)
+        message(FATAL_ERROR "[phantasm hardware interface] no target sdl2 found (wrong add_subdirectory order?)")
+    endif()
+
     message(STATUS "[phantasm hardware interface] SDL2 support enabled")
     target_link_libraries(phantasm-hardware-interface PUBLIC sdl2)
     target_compile_definitions(phantasm-hardware-interface PUBLIC PHI_HAS_SDL2)
