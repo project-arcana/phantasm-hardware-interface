@@ -97,7 +97,7 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg, const 
     {
         auto const vk_gpu_infos = get_all_vulkan_gpu_infos(mInstance, mSurface);
         auto const gpu_infos = get_available_gpus(vk_gpu_infos);
-        auto const chosen_index = get_preferred_gpu(gpu_infos, config.adapter_preference);
+        auto const chosen_index = get_preferred_gpu(gpu_infos, config.adapter);
         CC_RUNTIME_ASSERT(chosen_index != gpu_infos.size());
 
         auto const& chosen_gpu = gpu_infos[chosen_index];
@@ -108,7 +108,7 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg, const 
         // Load device-based Vulkan entrypoints
         volkLoadDevice(mDevice.getDevice());
 
-        mSwapchain.initialize(mDevice, mSurface, config.num_backbuffers, 250, 250, config.present_mode);
+        mSwapchain.initialize(mDevice, mSurface, config.num_backbuffers, 250, 250, config.present);
     }
 
     // Pool init

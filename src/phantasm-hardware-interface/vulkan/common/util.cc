@@ -13,7 +13,7 @@ cc::capped_vector<VkVertexInputAttributeDescription, 16> phi::vk::util::get_nati
         VkVertexInputAttributeDescription& elem = res.emplace_back();
         elem.binding = 0;
         elem.location = uint32_t(res.size() - 1);
-        elem.format = util::to_vk_format(ai.format);
+        elem.format = util::to_vk_format(ai.fmt);
         elem.offset = ai.offset;
     }
 

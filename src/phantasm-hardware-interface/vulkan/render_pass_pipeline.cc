@@ -26,7 +26,7 @@ VkRenderPass phi::vk::create_render_pass(VkDevice device, arg::framebuffer_confi
         {
             auto& desc = attachments.emplace_back();
             desc = {};
-            desc.format = util::to_vk_format(rt.format);
+            desc.format = util::to_vk_format(rt.fmt);
             desc.samples = sample_bits;
             desc.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
             desc.storeOp = VK_ATTACHMENT_STORE_OP_STORE;

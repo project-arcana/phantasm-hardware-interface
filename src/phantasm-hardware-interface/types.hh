@@ -179,7 +179,7 @@ struct vertex_attribute_info
 {
     char const* semantic_name;
     unsigned offset;
-    format format;
+    format fmt;
 };
 
 enum class texture_dimension : uint8_t
@@ -487,7 +487,7 @@ enum class blend_factor : uint8_t
 
 struct render_target_config
 {
-    format format = format::rgba8un;
+    format fmt = format::rgba8un;
     bool blend_enable = false;
     blend_factor blend_color_src = blend_factor::one;
     blend_factor blend_color_dest = blend_factor::zero;

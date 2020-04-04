@@ -24,7 +24,7 @@ struct framebuffer_config
     void add_render_target(format fmt)
     {
         render_target_config new_rt;
-        new_rt.format = fmt;
+        new_rt.fmt = fmt;
         render_targets.push_back(new_rt);
     }
 

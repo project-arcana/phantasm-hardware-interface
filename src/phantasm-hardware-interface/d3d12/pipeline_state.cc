@@ -61,7 +61,7 @@ ID3D12PipelineState* phi::d3d12::create_pipeline_state(ID3D12Device& device,
     for (auto i = 0u; i < framebuffer_format.render_targets.size(); ++i)
     {
         auto const& rt = framebuffer_format.render_targets[i];
-        pso_desc.RTVFormats[i] = util::to_dxgi_format(rt.format);
+        pso_desc.RTVFormats[i] = util::to_dxgi_format(rt.fmt);
         pso_desc.BlendState.IndependentBlendEnable = pso_desc.BlendState.IndependentBlendEnable || rt.blend_enable;
 
         if (rt.blend_enable)
