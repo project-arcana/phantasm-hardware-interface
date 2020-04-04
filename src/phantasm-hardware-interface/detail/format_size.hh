@@ -6,7 +6,7 @@
 
 namespace phi::detail
 {
-[[nodiscard]] inline constexpr unsigned pr_format_size_bytes(format fmt)
+[[nodiscard]] inline unsigned pr_format_size_bytes(format fmt)
 {
     switch (fmt)
     {
@@ -68,11 +68,11 @@ namespace phi::detail
     case format::depth24un_stencil8u:
         return 4;
     }
-    CC_ASSERT(false && "unknown format");
+    CC_UNREACHABLE("unknown format");
     return 0;
 }
 
-[[nodiscard]] inline constexpr unsigned pr_format_num_components(format fmt)
+[[nodiscard]] inline unsigned pr_format_num_components(format fmt)
 {
     switch (fmt)
     {
@@ -119,7 +119,7 @@ namespace phi::detail
     case format::r8un:
         return 1;
     }
-    CC_ASSERT(false && "unknown format");
+    CC_UNREACHABLE("unknown format");
     return 0;
 }
 

@@ -3,6 +3,8 @@
 #include <clean-core/capped_vector.hh>
 #include <clean-core/span.hh>
 
+#include <phantasm-hardware-interface/detail/trivial_capped_vector.hh>
+
 #include "limits.hh"
 #include "types.hh"
 
@@ -11,18 +13,18 @@ namespace phi::arg
 struct framebuffer_config
 {
     /// configs of the render targets, [0, n]
-    cc::capped_vector<render_target_config, limits::max_render_targets> render_targets;
+    detail::trivial_capped_vector<render_target_config, limits::max_render_targets> render_targets;
 
     bool logic_op_enable = false;
     blend_logic_op logic_op = blend_logic_op::no_op;
 
     /// format of the depth stencil target, [0, 1]
-    cc::capped_vector<format, 1> depth_target;
+    detail::trivial_capped_vector<format, 1> depth_target;
 
     void add_render_target(format fmt)
     {
         render_target_config new_rt;
-        new_rt.format = fmt;
+        new_rt.fmt = fmt;
         render_targets.push_back(new_rt);
     }
 

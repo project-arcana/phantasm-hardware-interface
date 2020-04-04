@@ -17,7 +17,7 @@ cc::capped_vector<D3D12_INPUT_ELEMENT_DESC, 16> phi::d3d12::util::get_native_ver
         D3D12_INPUT_ELEMENT_DESC& elem = res.emplace_back();
         elem.SemanticName = ai.semantic_name;
         elem.AlignedByteOffset = ai.offset;
-        elem.Format = util::to_dxgi_format(ai.format);
+        elem.Format = util::to_dxgi_format(ai.fmt);
         elem.SemanticIndex = 0;
         elem.InputSlot = 0;
         elem.InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;

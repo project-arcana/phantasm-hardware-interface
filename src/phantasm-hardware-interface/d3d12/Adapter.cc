@@ -54,9 +54,9 @@ void phi::d3d12::Adapter::initialize(const backend_config& config)
     {
         // choose the adapter
         auto const candidates = get_adapter_candidates();
-        auto const chosen_adapter_index = config.adapter_preference == adapter_preference::explicit_index
+        auto const chosen_adapter_index = config.adapter == adapter_preference::explicit_index
                                               ? config.explicit_adapter_index
-                                              : candidates[get_preferred_gpu(candidates, config.adapter_preference)].index;
+                                              : candidates[get_preferred_gpu(candidates, config.adapter)].index;
 
         CC_RUNTIME_ASSERT(chosen_adapter_index != uint32_t(-1));
 

@@ -144,9 +144,11 @@ while (window_open)
 
 ### Shader Compilation
 
-Shaders passed to PHI must be in binary format: DXIL for D3D12, SPIR-V for Vulkan. Shaders should compiled from HLSL, using [DirectXShaderCompiler](https://github.com/microsoft/DirectXShaderCompiler/releases) (find Linux binaries [here](https://github.com/project-arcana/arcana-samples/tree/develop/res/pr/liveness_sample/shader/dxc_bin/linux) or use [docker](https://hub.docker.com/r/gwihlidal/dxc/)).
+Shaders passed to PHI must be in binary format: DXIL for D3D12, SPIR-V for Vulkan. Shaders should compiled from HLSL, using [DirectXShaderCompiler](https://github.com/microsoft/DirectXShaderCompiler/releases).
 
 When compiling HLSL to SPIR-V for Vulkan, use these flags: `-spirv -fspv-target-env=vulkan1.1 -fvk-b-shift 0 all -fvk-t-shift 1000 all -fvk-u-shift 2000 all -fvk-s-shift 3000 all`. If it is a vertex, geometry or domain shader, the `-fvk-invert-y` must also be added<sup>[2](#footnote2)</sup>.
+
+See [dxc-wrapper](https://github.com/project-arcana/dxc-wrapper) for an all-in-one wrapper (Linux and Windows), which automatically performs these adjustments and can be used programmatically or as a standalone executable.
 
 ### D3D12 MIP alignment
 

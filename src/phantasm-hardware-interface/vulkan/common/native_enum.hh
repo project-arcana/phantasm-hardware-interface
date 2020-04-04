@@ -57,7 +57,8 @@ namespace phi::vk::util
         CC_ASSERT(false && "unknown state access masks queried");
         return {};
     }
-    CC_ASSERT(false && "to_native uncaught argument");
+
+    CC_UNREACHABLE("to_native uncaught argument");
     return {};
 }
 
@@ -104,7 +105,8 @@ namespace phi::vk::util
         CC_ASSERT(false && "invalid image layout queried");
         return VK_IMAGE_LAYOUT_UNDEFINED;
     }
-    CC_ASSERT(false && "to_native uncaught argument");
+
+    CC_UNREACHABLE("to_native uncaught argument");
     return {};
 }
 
@@ -133,7 +135,8 @@ namespace phi::vk::util
     case phi::shader_stage::ray_any_hit:
         return VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV;
     }
-    CC_ASSERT(false && "to_native uncaught argument");
+
+    CC_UNREACHABLE("to_native uncaught argument");
     return {};
 }
 
@@ -212,7 +215,8 @@ namespace phi::vk::util
         CC_ASSERT(false && "unknown state queried");
         return VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
     }
-    CC_ASSERT(false && "to_native uncaught argument");
+
+    CC_UNREACHABLE("to_native uncaught argument");
     return {};
 }
 
@@ -234,7 +238,8 @@ namespace phi::vk::util
     case phi::primitive_topology::patches:
         return VK_PRIMITIVE_TOPOLOGY_PATCH_LIST;
     }
-    CC_ASSERT(false && "to_native uncaught argument");
+
+    CC_UNREACHABLE("to_native uncaught argument");
     return {};
 }
 
@@ -261,7 +266,8 @@ namespace phi::vk::util
     case phi::depth_function::never:
         return VK_COMPARE_OP_NEVER;
     }
-    CC_ASSERT(false && "to_native uncaught argument");
+
+    CC_UNREACHABLE("to_native uncaught argument");
     return {};
 }
 
@@ -276,7 +282,8 @@ namespace phi::vk::util
     case phi::cull_mode::front:
         return VK_CULL_MODE_FRONT_BIT;
     }
-    CC_ASSERT(false && "to_native uncaught argument");
+
+    CC_UNREACHABLE("to_native uncaught argument");
     return {};
 }
 
@@ -310,7 +317,8 @@ namespace phi::vk::util
     case phi::shader_stage::ray_any_hit:
         return VK_SHADER_STAGE_ANY_HIT_BIT_NV;
     }
-    CC_ASSERT(false && "to_native uncaught argument");
+
+    CC_UNREACHABLE("to_native uncaught argument");
     return {};
 }
 
@@ -334,7 +342,8 @@ namespace phi::vk::util
     case phi::resource_view_dimension::texturecube_array:
         return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
     }
-    CC_ASSERT(false && "to_native uncaught argument");
+
+    CC_UNREACHABLE("to_native uncaught argument");
     return {};
 }
 [[nodiscard]] inline constexpr VkDescriptorType to_native_uav_desc_type(resource_view_dimension sv_dim)
@@ -357,7 +366,8 @@ namespace phi::vk::util
     case phi::resource_view_dimension::raytracing_accel_struct:
         return VK_DESCRIPTOR_TYPE_MAX_ENUM;
     }
-    CC_ASSERT(false && "to_native uncaught argument");
+
+    CC_UNREACHABLE("to_native uncaught argument");
     return {};
 }
 
@@ -392,7 +402,8 @@ namespace phi::vk::util
         CC_ASSERT(false && "requested image view for buffer or raytracing structure");
         return VK_IMAGE_VIEW_TYPE_MAX_ENUM;
     }
-    CC_ASSERT(false && "to_native uncaught argument");
+
+    CC_UNREACHABLE("to_native uncaught argument");
     return {};
 }
 
@@ -429,7 +440,8 @@ namespace phi::vk::util
     case sampler_filter::anisotropic:
         return VK_FILTER_LINEAR;
     }
-    CC_ASSERT(false && "to_native uncaught argument");
+
+    CC_UNREACHABLE("to_native uncaught argument");
     return {};
 }
 
@@ -449,7 +461,8 @@ namespace phi::vk::util
     case sampler_filter::anisotropic:
         return VK_FILTER_LINEAR;
     }
-    CC_ASSERT(false && "to_native uncaught argument");
+
+    CC_UNREACHABLE("to_native uncaught argument");
     return {};
 }
 
@@ -469,7 +482,8 @@ namespace phi::vk::util
     case sampler_filter::anisotropic:
         return VK_SAMPLER_MIPMAP_MODE_LINEAR;
     }
-    CC_ASSERT(false && "to_native uncaught argument");
+
+    CC_UNREACHABLE("to_native uncaught argument");
     return {};
 }
 
@@ -486,7 +500,8 @@ namespace phi::vk::util
     case sampler_address_mode::mirror:
         return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
     }
-    CC_ASSERT(false && "to_native uncaught argument");
+
+    CC_UNREACHABLE("to_native uncaught argument");
     return {};
 }
 
@@ -512,7 +527,8 @@ namespace phi::vk::util
     case sampler_compare_func::always:
         return VK_COMPARE_OP_ALWAYS;
     }
-    CC_ASSERT(false && "to_native uncaught argument");
+
+    CC_UNREACHABLE("to_native uncaught argument");
     return {};
 }
 
@@ -533,7 +549,8 @@ namespace phi::vk::util
     case sampler_border_color::white_int:
         return VK_BORDER_COLOR_INT_OPAQUE_WHITE;
     }
-    CC_ASSERT(false && "to_native uncaught argument");
+
+    CC_UNREACHABLE("to_native uncaught argument");
     return {};
 }
 
@@ -558,7 +575,8 @@ namespace phi::vk::util
     default:
         return VK_SAMPLE_COUNT_1_BIT;
     }
-    CC_ASSERT(false && "to_native uncaught argument");
+
+    CC_UNREACHABLE("to_native uncaught argument");
     return {};
 }
 
@@ -573,7 +591,8 @@ namespace phi::vk::util
     case rt_clear_type::dont_care:
         return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     }
-    CC_ASSERT(false && "to_native uncaught argument");
+
+    CC_UNREACHABLE("to_native uncaught argument");
     return {};
 }
 
@@ -588,7 +607,8 @@ namespace phi::vk::util
     case texture_dimension::t3d:
         return VK_IMAGE_TYPE_3D;
     }
-    CC_ASSERT(false && "to_native uncaught argument");
+
+    CC_UNREACHABLE("to_native uncaught argument");
     return {};
 }
 
@@ -629,7 +649,8 @@ namespace phi::vk::util
     case blend_logic_op::op_equiv:
         return VK_LOGIC_OP_EQUIVALENT;
     }
-    CC_ASSERT(false && "to_native uncaught argument");
+
+    CC_UNREACHABLE("to_native uncaught argument");
     return {};
 }
 
@@ -648,7 +669,8 @@ namespace phi::vk::util
     case blend_op::op_max:
         return VK_BLEND_OP_MAX;
     }
-    CC_ASSERT(false && "to_native uncaught argument");
+
+    CC_UNREACHABLE("to_native uncaught argument");
     return {};
 }
 
@@ -678,7 +700,8 @@ namespace phi::vk::util
         return VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA;
     }
 
-    CC_ASSERT(false && "to_native uncaught argument");
+
+    CC_UNREACHABLE("to_native uncaught argument");
     return {};
 }
 

@@ -52,10 +52,10 @@ struct backend_config
 
     /// the swapchain presentation mode (note: synced does not mean refreshrate-limited)
     /// Also note: under some circumstances, synced might force a refreshrate limit (Nvidia optimus + windowed on d3d12, etc.)
-    present_mode present_mode = present_mode::synced;
+    present_mode present = present_mode::synced;
 
     /// the strategy for choosing a physical GPU
-    adapter_preference adapter_preference = adapter_preference::highest_vram;
+    adapter_preference adapter = adapter_preference::highest_vram;
     unsigned explicit_adapter_index = unsigned(-1);
 
     enum native_feature_flags : uint8_t

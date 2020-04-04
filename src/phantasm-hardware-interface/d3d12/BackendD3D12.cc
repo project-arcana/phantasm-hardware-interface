@@ -57,7 +57,7 @@ void phi::d3d12::BackendD3D12::initialize(const phi::backend_config& config, con
         }
 
         mSwapchain.initialize(mAdapter.getFactory(), mDevice.getDeviceShared(), mGraphicsQueue.getQueueShared(), native_hwnd, config.num_backbuffers,
-                              config.present_mode);
+                              config.present);
     }
 
     auto& device = mDevice.getDevice();

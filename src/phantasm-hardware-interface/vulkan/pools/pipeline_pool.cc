@@ -58,7 +58,7 @@ phi::handle::pipeline_state phi::vk::PipelinePool::createPipelineState(phi::arg:
     {
         new_node.rt_formats.clear();
         for (auto const& rt : framebuffer_config.render_targets)
-            new_node.rt_formats.push_back(rt.format);
+            new_node.rt_formats.push_back(rt.fmt);
 
         CC_ASSERT(primitive_config.samples > 0 && "invalid amount of MSAA samples");
         new_node.num_msaa_samples = static_cast<unsigned>(primitive_config.samples);

@@ -179,7 +179,7 @@ struct vertex_attribute_info
 {
     char const* semantic_name;
     unsigned offset;
-    format format;
+    format fmt;
 };
 
 enum class texture_dimension : uint8_t
@@ -398,20 +398,6 @@ struct sampler_config
     sampler_config() = default;
 };
 
-inline constexpr bool operator==(sampler_config const& lhs, sampler_config const& rhs) noexcept
-{
-    return lhs.filter == rhs.filter &&                 //
-           lhs.address_u == rhs.address_u &&           //
-           lhs.address_v == rhs.address_v &&           //
-           lhs.address_w == rhs.address_w &&           //
-           lhs.min_lod == rhs.min_lod &&               //
-           lhs.max_lod == rhs.max_lod &&               //
-           lhs.lod_bias == rhs.lod_bias &&             //
-           lhs.max_anisotropy == rhs.max_anisotropy && //
-           lhs.compare_func == rhs.compare_func &&     //
-           lhs.border_color == rhs.border_color;       //
-}
-
 enum class primitive_topology : uint8_t
 {
     triangles,
@@ -501,7 +487,7 @@ enum class blend_factor : uint8_t
 
 struct render_target_config
 {
-    format format = format::rgba8un;
+    format fmt = format::rgba8un;
     bool blend_enable = false;
     blend_factor blend_color_src = blend_factor::one;
     blend_factor blend_color_dest = blend_factor::zero;
