@@ -56,7 +56,8 @@ namespace phi::d3d12::util
         return D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE;
     }
 
-    CC_ASSERT(false && "to_native uncaught argument");
+
+    CC_UNREACHABLE("to_native uncaught argument");
     return D3D12_RESOURCE_STATE_COMMON;
 }
 
@@ -73,7 +74,8 @@ namespace phi::d3d12::util
     case phi::primitive_topology::patches:
         return D3D12_PRIMITIVE_TOPOLOGY_TYPE_PATCH;
     }
-    CC_ASSERT(false && "to_native uncaught argument");
+
+    CC_UNREACHABLE("to_native uncaught argument");
     return D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 }
 
@@ -90,7 +92,8 @@ namespace phi::d3d12::util
     case phi::primitive_topology::patches:
         return D3D_PRIMITIVE_TOPOLOGY_1_CONTROL_POINT_PATCHLIST; // TODO
     }
-    CC_ASSERT(false && "to_native uncaught argument");
+
+    CC_UNREACHABLE("to_native uncaught argument");
     return D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 }
 
@@ -117,7 +120,8 @@ namespace phi::d3d12::util
     case phi::depth_function::never:
         return D3D12_COMPARISON_FUNC_NEVER;
     }
-    CC_ASSERT(false && "to_native uncaught argument");
+
+    CC_UNREACHABLE("to_native uncaught argument");
     return D3D12_COMPARISON_FUNC_LESS;
 }
 
@@ -132,7 +136,8 @@ namespace phi::d3d12::util
     case phi::cull_mode::front:
         return D3D12_CULL_MODE_FRONT;
     }
-    CC_ASSERT(false && "to_native uncaught argument");
+
+    CC_UNREACHABLE("to_native uncaught argument");
     return D3D12_CULL_MODE_NONE;
 }
 
@@ -147,7 +152,8 @@ namespace phi::d3d12::util
     case queue_type::compute:
         return D3D12_COMMAND_LIST_TYPE_COMPUTE;
     }
-    CC_ASSERT(false && "to_native uncaught argument");
+
+    CC_UNREACHABLE("to_native uncaught argument");
     return D3D12_COMMAND_LIST_TYPE_DIRECT;
 }
 
@@ -179,7 +185,8 @@ namespace phi::d3d12::util
         return D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
     }
 
-    CC_ASSERT(false && "to_native uncaught argument");
+
+    CC_UNREACHABLE("to_native uncaught argument");
     return D3D12_SRV_DIMENSION_BUFFER;
 }
 
@@ -237,7 +244,8 @@ namespace phi::d3d12::util
     case resource_view_dimension::texture3d:
         return D3D12_RTV_DIMENSION_TEXTURE3D;
     default:
-        CC_ASSERT(false && "to_native uncaught argument");
+
+    CC_UNREACHABLE("to_native uncaught argument");
         return D3D12_RTV_DIMENSION_UNKNOWN;
     }
 }
@@ -264,7 +272,8 @@ namespace phi::d3d12::util
     case resource_view_dimension::texture2d_ms_array:
         return D3D12_DSV_DIMENSION_TEXTURE2DMSARRAY;
     default:
-        CC_ASSERT(false && "to_native uncaught argument");
+
+    CC_UNREACHABLE("to_native uncaught argument");
         return D3D12_DSV_DIMENSION_UNKNOWN;
     }
 }
@@ -319,7 +328,8 @@ namespace phi::d3d12::util
             return D3D12_FILTER_ANISOTROPIC;
         }
     }
-    CC_ASSERT(false && "to_native uncaught argument");
+
+    CC_UNREACHABLE("to_native uncaught argument");
     return D3D12_FILTER_MIN_MAG_MIP_POINT;
 }
 
@@ -336,7 +346,8 @@ namespace phi::d3d12::util
     case sampler_address_mode::mirror:
         return D3D12_TEXTURE_ADDRESS_MODE_MIRROR;
     }
-    CC_ASSERT(false && "to_native uncaught argument");
+
+    CC_UNREACHABLE("to_native uncaught argument");
     return D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 }
 
@@ -362,7 +373,8 @@ namespace phi::d3d12::util
     case sampler_compare_func::always:
         return D3D12_COMPARISON_FUNC_ALWAYS;
     }
-    CC_ASSERT(false && "to_native uncaught argument");
+
+    CC_UNREACHABLE("to_native uncaught argument");
     return D3D12_COMPARISON_FUNC_NEVER;
 }
 
@@ -380,7 +392,8 @@ namespace phi::d3d12::util
     case sampler_border_color::white_int:
         return D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE;
     }
-    CC_ASSERT(false && "to_native uncaught argument");
+
+    CC_UNREACHABLE("to_native uncaught argument");
     return D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
 }
 
@@ -398,7 +411,8 @@ namespace phi::d3d12::util
     case sampler_border_color::white_int:
         return 1.f;
     }
-    CC_ASSERT(false && "to_native uncaught argument");
+
+    CC_UNREACHABLE("to_native uncaught argument");
     return 1.f;
 }
 
@@ -415,7 +429,8 @@ namespace phi::d3d12::util
     case sampler_border_color::white_int:
         return 1.f;
     }
-    CC_ASSERT(false && "to_native uncaught argument");
+
+    CC_UNREACHABLE("to_native uncaught argument");
     return 1.f;
 }
 
@@ -430,7 +445,8 @@ namespace phi::d3d12::util
     case texture_dimension::t3d:
         return D3D12_RESOURCE_DIMENSION_TEXTURE3D;
     }
-    CC_ASSERT(false && "to_native uncaught argument");
+
+    CC_UNREACHABLE("to_native uncaught argument");
     return D3D12_RESOURCE_DIMENSION_TEXTURE1D;
 }
 
@@ -471,7 +487,8 @@ namespace phi::d3d12::util
     case blend_logic_op::op_equiv:
         return D3D12_LOGIC_OP_EQUIV;
     }
-    CC_ASSERT(false && "to_native uncaught argument");
+
+    CC_UNREACHABLE("to_native uncaught argument");
     return D3D12_LOGIC_OP_NOOP;
 }
 
@@ -490,7 +507,8 @@ namespace phi::d3d12::util
     case blend_op::op_max:
         return D3D12_BLEND_OP_MAX;
     }
-    CC_ASSERT(false && "to_native uncaught argument");
+
+    CC_UNREACHABLE("to_native uncaught argument");
     return D3D12_BLEND_OP_ADD;
 }
 
@@ -520,7 +538,8 @@ namespace phi::d3d12::util
         return D3D12_BLEND_INV_DEST_ALPHA;
     }
 
-    CC_ASSERT(false && "to_native uncaught argument");
+
+    CC_UNREACHABLE("to_native uncaught argument");
     return D3D12_BLEND_ZERO;
 }
 
