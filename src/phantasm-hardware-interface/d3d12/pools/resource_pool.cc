@@ -164,7 +164,7 @@ phi::handle::resource phi::d3d12::ResourcePool::createMappedBuffer(uint64_t size
     void* data_start_void;
     alloc->GetResource()->Map(0, &read_range, &data_start_void);
     util::set_object_name(alloc->GetResource(), "respool mapped buffer");
-    return acquireBuffer(alloc, resource_state::unknown, size_bytes, stride_bytes, cc::bit_cast<std::byte*>(data_start_void));
+    return acquireBuffer(alloc, resource_state::copy_src, size_bytes, stride_bytes, cc::bit_cast<std::byte*>(data_start_void));
 }
 
 void phi::d3d12::ResourcePool::free(phi::handle::resource res)
