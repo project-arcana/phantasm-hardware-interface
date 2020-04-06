@@ -40,9 +40,9 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg, const 
 
     VkApplicationInfo app_info = {};
     app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    app_info.pApplicationName = "phantasm-renderer application";
+    app_info.pApplicationName = "phantasm-hardware-interface application";
     app_info.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-    app_info.pEngineName = "phantasm-renderer";
+    app_info.pEngineName = "phantasm-hardware-interface";
     app_info.engineVersion = VK_MAKE_VERSION(1, 0, 0);
     app_info.apiVersion = VK_API_VERSION_1_1;
 
