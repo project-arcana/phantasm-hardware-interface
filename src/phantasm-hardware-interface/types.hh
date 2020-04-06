@@ -429,9 +429,9 @@ enum class cull_mode : uint8_t
 struct pipeline_config
 {
     primitive_topology topology = primitive_topology::triangles;
-    depth_function depth = depth_function::less;
+    depth_function depth = depth_function::none;
     bool depth_readonly = false;
-    cull_mode cull = cull_mode::back;
+    cull_mode cull = cull_mode::none;
     int samples = 1;
 };
 

@@ -7,7 +7,7 @@
 
 namespace phi
 {
-enum class backend_type
+enum class backend_type : uint8_t
 {
     d3d12,
     vulkan
