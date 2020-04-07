@@ -6,7 +6,7 @@
 
 namespace phi::detail
 {
-[[nodiscard]] inline unsigned pr_format_size_bytes(format fmt)
+[[nodiscard]] inline unsigned format_size_bytes(format fmt)
 {
     switch (fmt)
     {
@@ -72,7 +72,7 @@ namespace phi::detail
     return 0;
 }
 
-[[nodiscard]] inline unsigned pr_format_num_components(format fmt)
+[[nodiscard]] inline unsigned format_num_components(format fmt)
 {
     switch (fmt)
     {

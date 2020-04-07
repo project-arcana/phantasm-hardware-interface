@@ -32,7 +32,6 @@ void phi::d3d12::BackendD3D12::initialize(const phi::backend_config& config, con
         mAdapter.initialize(config);
         mDevice.initialize(mAdapter.getAdapter(), config);
         mGraphicsQueue.initialize(mDevice.getDevice(), queue_type::graphics);
-
         ::HWND native_hwnd = nullptr;
         {
             if (window_handle.type == window_handle::wh_win32_hwnd)
