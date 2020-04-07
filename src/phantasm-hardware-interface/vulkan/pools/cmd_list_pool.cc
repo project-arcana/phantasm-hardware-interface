@@ -1,5 +1,7 @@
 #include "cmd_list_pool.hh"
 
+#include <clean-core/utility.hh>
+
 #include <phantasm-hardware-interface/detail/flat_map.hh>
 #include <phantasm-hardware-interface/vulkan/BackendVulkan.hh>
 #include <phantasm-hardware-interface/vulkan/common/log.hh>
@@ -200,10 +202,7 @@ unsigned phi::vk::FenceRingbuffer::acquireFence(VkDevice device, VkFence& out_fe
     for (auto i = 0u; i < mFences.size(); ++i)
     {
         auto const fence_i = mNextFence;
-
-        ++mNextFence;
-        if (mNextFence >= mFences.size())
-            mNextFence -= static_cast<unsigned>(mFences.size());
+        mNextFence = cc::wrapped_increment(mNextFence, unsigned(mFences.size()));
 
         auto& node = mFences[fence_i];
 
@@ -264,10 +263,7 @@ void phi::vk::CommandAllocatorBundle::updateActiveIndex(VkDevice device)
             return;
         else
         {
-            ++mActiveAllocator;
-            // fast %
-            if (mActiveAllocator >= mAllocators.size())
-                mActiveAllocator -= mAllocators.size();
+            mActiveAllocator = cc::wrapped_increment(mActiveAllocator, mAllocators.size());
         }
     }
 
@@ -279,10 +275,7 @@ void phi::vk::CommandAllocatorBundle::updateActiveIndex(VkDevice device)
             return;
         else
         {
-            ++mActiveAllocator;
-            // fast %
-            if (mActiveAllocator >= mAllocators.size())
-                mActiveAllocator -= mAllocators.size();
+            mActiveAllocator = cc::wrapped_increment(mActiveAllocator, mAllocators.size());
         }
     }
 
