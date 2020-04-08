@@ -72,7 +72,7 @@ phi::handle::resource phi::debug::BackendLog::createTexture(phi::format format, 
     return {mDummyGuids.resource_guid.fetch_add(1)};
 }
 
-phi::handle::resource phi::debug::BackendLog::createRenderTarget(phi::format format, tg::isize2 size, unsigned samples)
+phi::handle::resource phi::debug::BackendLog::createRenderTarget(phi::format format, tg::isize2 size, unsigned samples, const rt_clear_value* opt_clear)
 {
     PHI_PRINT_DEBUG_FUNC();
     //

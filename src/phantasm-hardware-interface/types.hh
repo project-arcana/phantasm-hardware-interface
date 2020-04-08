@@ -44,6 +44,7 @@ PHI_DEFINE_HANDLE(accel_struct);
 #undef PHI_DEFINE_HANDLE
 }
 
+/// resources bound to a shader, up to 4 per draw or dispatch command
 struct shader_argument
 {
     handle::resource constant_buffer;
@@ -87,9 +88,8 @@ enum class queue_type : uint8_t
     compute
 };
 
-// Maps to
-// D3D12: resource states
-// Vulkan: access masks, image layouts and pipeline stage dependencies
+/// state of a handle::resource, determining legal operations
+/// (D3D12: resource states, Vulkan: access masks, image layouts and pipeline stage dependencies)
 enum class resource_state : uint8_t
 {
     // unknown to pr
@@ -121,8 +121,8 @@ enum class resource_state : uint8_t
     raytrace_accel_struct,
 };
 
-// Maps to DXGI_FORMAT and VkFormat
-// [f]loat, [i]nt, [u]int, [un]orm
+/// pixel format of a texture, or texture view (DXGI_FORMAT / VkFormat)
+/// [f]loat, [i]nt, [u]int, [un]orm
 enum class format : uint8_t
 {
     rgba32f,
@@ -189,6 +189,7 @@ enum class texture_dimension : uint8_t
     t3d
 };
 
+/// the type of a resource_view
 enum class resource_view_dimension : uint8_t
 {
     buffer,
@@ -204,6 +205,7 @@ enum class resource_view_dimension : uint8_t
     raytracing_accel_struct
 };
 
+/// describes an element (either SRV or UAV) of a handle::shader_view
 struct resource_view
 {
     handle::resource resource;
@@ -322,6 +324,7 @@ public:
     }
 };
 
+/// the texture filtering mode of a sampler
 enum class sampler_filter : uint8_t
 {
     min_mag_mip_point,
@@ -335,6 +338,7 @@ enum class sampler_filter : uint8_t
     anisotropic
 };
 
+/// the texture addressing mode (U/V/W) of a sampler
 enum class sampler_address_mode : uint8_t
 {
     wrap,
@@ -343,6 +347,7 @@ enum class sampler_address_mode : uint8_t
     mirror
 };
 
+/// the comparison function of a sampler
 enum class sampler_compare_func : uint8_t
 {
     never,
@@ -357,6 +362,7 @@ enum class sampler_compare_func : uint8_t
     disabled
 };
 
+/// the border color of a sampler (with address mode clamp_border)
 enum class sampler_border_color : uint8_t
 {
     black_transparent_float,
@@ -367,6 +373,7 @@ enum class sampler_border_color : uint8_t
     white_int
 };
 
+/// configuration from which a sampler is created, as part of a handle::shader_view
 struct sampler_config
 {
     sampler_filter filter;
@@ -398,6 +405,7 @@ struct sampler_config
     sampler_config() = default;
 };
 
+/// the structure of vertices a handle::pipeline_state takes in
 enum class primitive_topology : uint8_t
 {
     triangles,
@@ -406,6 +414,7 @@ enum class primitive_topology : uint8_t
     patches
 };
 
+/// the depth function a handle::pipeline_state is using
 enum class depth_function : uint8_t
 {
     none,
@@ -419,6 +428,7 @@ enum class depth_function : uint8_t
     never
 };
 
+/// the face culling mode a handle::pipeline_state is using
 enum class cull_mode : uint8_t
 {
     none,
@@ -426,6 +436,7 @@ enum class cull_mode : uint8_t
     front
 };
 
+/// configuration for creation of a (graphics) handle::pipeline_state
 struct pipeline_config
 {
     primitive_topology topology = primitive_topology::triangles;
@@ -435,6 +446,7 @@ struct pipeline_config
     int samples = 1;
 };
 
+/// operation to perform on render targets upon render pass begin
 enum class rt_clear_type : uint8_t
 {
     clear,
@@ -442,6 +454,17 @@ enum class rt_clear_type : uint8_t
     load
 };
 
+/// value to clear a render target with
+union rt_clear_value {
+    float color[4];
+    struct
+    {
+        float depth;
+        uint8_t stencil;
+    } depth_stencil;
+};
+
+/// blending logic operation a (graphics) handle::pipeline_state performs on its render targets
 enum class blend_logic_op : uint8_t
 {
     no_op,
@@ -462,6 +485,7 @@ enum class blend_logic_op : uint8_t
     op_equiv
 };
 
+/// blending operation a (graphics) handle::pipeline_state performs on a specific render target slot
 enum class blend_op : uint8_t
 {
     op_add,
@@ -471,6 +495,7 @@ enum class blend_op : uint8_t
     op_max
 };
 
+/// the source or destination blend factor of a blending operation on a specific render target slot
 enum class blend_factor : uint8_t
 {
     zero,
@@ -485,6 +510,7 @@ enum class blend_factor : uint8_t
     inv_dest_alpha
 };
 
+/// the blending configuration for a specific render target slot of a (graphics) handle::pipeline_state
 struct render_target_config
 {
     format fmt = format::rgba8un;
@@ -497,6 +523,7 @@ struct render_target_config
     blend_op blend_op_alpha = blend_op::op_add;
 };
 
+/// flags to configure the building process of a raytracing acceleration structure
 enum class accel_struct_build_flags : uint8_t
 {
     allow_update,
@@ -542,7 +569,7 @@ enum accel_struct_instance_flags_e : accel_struct_instance_flags_t
 };
 }
 
-/// the size and element-strides of a shader table
+/// the size and element-strides of a raytracing shader table
 struct shader_table_sizes
 {
     uint32_t ray_gen_stride_bytes = 0;
