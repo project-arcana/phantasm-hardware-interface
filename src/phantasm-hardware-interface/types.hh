@@ -122,9 +122,10 @@ enum class resource_state : uint8_t
 };
 
 /// pixel format of a texture, or texture view (DXGI_FORMAT / VkFormat)
-/// [f]loat, [i]nt, [u]int, [un]orm
+/// [f]loat, [i]nt, [u]int, [un]orm, [uf]loat
 enum class format : uint8_t
 {
+    // regular formats
     rgba32f,
     rgb32f,
     rg32f,
@@ -156,8 +157,13 @@ enum class format : uint8_t
     rg8un,
     r8un,
 
-    // backbuffer formats
+    // swizzled and irregular formats
     bgra8un,
+    b10g11r11uf,
+
+    // compressed formats
+    bc6h_16f,
+    bc6h_16uf,
 
     // depth formats
     depth32f,
