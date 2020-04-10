@@ -70,6 +70,9 @@ struct backend_config
     /// whether to enable DXR / VK raytracing features if available
     bool enable_raytracing = true;
 
+    /// whether to print basic information on init
+    bool print_startup_message = true;
+
     /// amount of backbuffers to create
     unsigned num_backbuffers = 3;
 

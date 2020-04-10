@@ -56,7 +56,8 @@ void phi::debug::BackendLog::present()
 {
     PHI_PRINT_DEBUG_FUNC();
     //
-    std::this_thread::sleep_for(std::chrono_literals::operator""ms(500ull));
+    using namespace std::chrono_literals;
+    std::this_thread::sleep_for(500ms);
 }
 
 void phi::debug::BackendLog::onResize(tg::isize2 size)
