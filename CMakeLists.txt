@@ -1,8 +1,9 @@
 cmake_minimum_required(VERSION 3.8)
 project(PhantasmHardwareInterface)
 
-include(cmake/UnityBuild.cmake)
-include(cmake/SourceGroup.cmake)
+if (NOT TARGET clean-core)
+    message(FATAL_ERROR "[phantasm hardware interface] clean-core must be available")
+endif()
 
 # =========================================
 # global options
@@ -18,8 +19,6 @@ option(PHI_ENABLE_DEBUG_MARKERS "enable API debug markers" ON)
 # this dll is included in extern/win32_pix_runtime/bin/
 option(PHI_ENABLE_D3D12_PIX "enable DirectX 12 PIX integration" OFF)
 option(PHI_ENABLE_SDL2 "enable SDL2 integration" ON)
-
-option(PHI_ENABLE_UNITY_BUILD "If enabled, compiles this library as a single compilation unit" ON)
 
 # =========================================
 # post-process options
@@ -58,13 +57,7 @@ if (NOT PHI_BACKEND_VULKAN)
     endforeach()
 endif()
 
-arcana_source_group(SOURCES HEADERS)
-
-if (PHI_ENABLE_UNITY_BUILD)
-    arcana_enable_unity_build(phantasm-hardware-interface SOURCES 100 cc)
-endif()
-
-add_library(phantasm-hardware-interface STATIC ${SOURCES} ${HEADERS})
+arcana_add_library(PHI phantasm-hardware-interface SOURCES HEADERS)
 
 target_include_directories(phantasm-hardware-interface
     PUBLIC
@@ -87,15 +80,12 @@ endif()
 # =========================================
 # set up compile flags
 
-if (MSVC)
-    target_compile_options(phantasm-hardware-interface PUBLIC /MP)
-else()
+if (NOT MSVC)
     # Pthread
     set(THREADS_PREFER_PTHREAD_FLAG ON)
     find_package(Threads REQUIRED)
 
-    target_compile_options(phantasm-hardware-interface PRIVATE -Wall -fPIC)
-    target_link_libraries(phantasm-hardware-interface PUBLIC -fuse-ld=gold -lX11 PRIVATE Threads::Threads)
+    target_link_libraries(phantasm-hardware-interface PRIVATE -lX11 Threads::Threads)
 endif()
 
 # =========================================
