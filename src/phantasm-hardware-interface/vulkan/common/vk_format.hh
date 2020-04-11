@@ -84,6 +84,13 @@ namespace phi::vk::util
 
     case bf::bgra8un:
         return VK_FORMAT_B8G8R8A8_UNORM;
+    case bf::b10g11r11uf:
+        return VK_FORMAT_B10G11R11_UFLOAT_PACK32;
+
+    case bf::bc6h_16f:
+        return VK_FORMAT_BC6H_SFLOAT_BLOCK;
+    case bf::bc6h_16uf:
+        return VK_FORMAT_BC6H_UFLOAT_BLOCK;
 
     case bf::depth32f:
         return VK_FORMAT_D32_SFLOAT;

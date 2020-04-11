@@ -74,6 +74,8 @@ void phi::d3d12::Adapter::initialize(const backend_config& config)
         shared_com_ptr<IDXGIAdapter> temp_adapter;
         mFactory->EnumAdapters(chosen_adapter_index, temp_adapter.override());
         PHI_D3D12_VERIFY(temp_adapter.get_interface(mAdapter));
+
+        print_startup_message(candidates, chosen_adapter_index, config, true, true);
     }
 
     // Debug layer init

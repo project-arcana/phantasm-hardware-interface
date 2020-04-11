@@ -23,6 +23,8 @@ void phi::d3d12::Swapchain::initialize(
     mParentDirectQueue = cc::move(queue);
     mPresentMode = present_mode;
 
+    mBackbufferSize = {250, 250}; // this is arbitrary, but starting at size 0 causes all sorts of issues
+
     // Create fences
     {
         for (auto i = 0u; i < mBackbuffers.size(); ++i)
@@ -37,8 +39,8 @@ void phi::d3d12::Swapchain::initialize(
         // Swapchains are always using FLIP_DISCARD and allow tearing depending on the settings
         DXGI_SWAP_CHAIN_DESC1 swapchain_desc = {};
         swapchain_desc.BufferCount = num_backbuffers;
-        swapchain_desc.Width = 0;
-        swapchain_desc.Height = 0;
+        swapchain_desc.Width = UINT(mBackbufferSize.width);
+        swapchain_desc.Height = UINT(mBackbufferSize.height);
         swapchain_desc.Format = gc_backbuffer_format;
         swapchain_desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
         swapchain_desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
@@ -75,7 +77,7 @@ void phi::d3d12::Swapchain::onResize(tg::isize2 size)
     mBackbufferSize = size;
     releaseBackbuffers();
     PHI_D3D12_VERIFY(mSwapchain->ResizeBuffers(unsigned(mBackbuffers.size()), UINT(mBackbufferSize.width), UINT(mBackbufferSize.height),
-                                              gc_backbuffer_format, get_swapchain_flags(mPresentMode)));
+                                               gc_backbuffer_format, get_swapchain_flags(mPresentMode)));
     updateBackbuffers();
 }
 

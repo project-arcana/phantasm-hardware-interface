@@ -90,7 +90,7 @@ phi::handle::resource phi::d3d12::ResourcePool::createTexture(format format, uns
     return acquireImage(alloc, format, initial_state, real_mip_levels, desc.DepthOrArraySize);
 }
 
-phi::handle::resource phi::d3d12::ResourcePool::createRenderTarget(phi::format format, unsigned w, unsigned h, unsigned samples)
+phi::handle::resource phi::d3d12::ResourcePool::createRenderTarget(phi::format format, unsigned w, unsigned h, unsigned samples, rt_clear_value const* optimized_clear_val)
 {
     auto const format_dxgi = util::to_dxgi_format(format);
     if (is_depth_format(format))
@@ -100,8 +100,16 @@ phi::handle::resource phi::d3d12::ResourcePool::createRenderTarget(phi::format f
 
         D3D12_CLEAR_VALUE clear_value;
         clear_value.Format = format_dxgi;
-        clear_value.DepthStencil.Depth = 1;
-        clear_value.DepthStencil.Stencil = 0;
+        if (optimized_clear_val)
+        {
+            clear_value.DepthStencil.Depth = optimized_clear_val->depth_stencil.depth;
+            clear_value.DepthStencil.Stencil = optimized_clear_val->depth_stencil.stencil;
+        }
+        else
+        {
+            clear_value.DepthStencil.Depth = 1;
+            clear_value.DepthStencil.Stencil = 0;
+        }
 
         auto const desc = CD3DX12_RESOURCE_DESC::Tex2D(format_dxgi, w, h, 1, 1, samples, samples != 1 ? DXGI_STANDARD_MULTISAMPLE_QUALITY_PATTERN : 0,
                                                        D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
@@ -117,10 +125,17 @@ phi::handle::resource phi::d3d12::ResourcePool::createRenderTarget(phi::format f
 
         D3D12_CLEAR_VALUE clear_value;
         clear_value.Format = format_dxgi;
-        clear_value.Color[0] = 0.0f;
-        clear_value.Color[1] = 0.0f;
-        clear_value.Color[2] = 0.0f;
-        clear_value.Color[3] = 1.0f;
+        if (optimized_clear_val)
+        {
+            std::memcpy(clear_value.Color, optimized_clear_val->color, sizeof(clear_value.Color));
+        }
+        else
+        {
+            clear_value.Color[0] = 0.0f;
+            clear_value.Color[1] = 0.0f;
+            clear_value.Color[2] = 0.0f;
+            clear_value.Color[3] = 1.0f;
+        }
 
         auto const desc = CD3DX12_RESOURCE_DESC::Tex2D(format_dxgi, UINT(w), UINT(h), 1, 1, UINT(samples),
                                                        samples != 1 ? DXGI_STANDARD_MULTISAMPLE_QUALITY_PATTERN : 0, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
@@ -164,7 +179,7 @@ phi::handle::resource phi::d3d12::ResourcePool::createMappedBuffer(uint64_t size
     void* data_start_void;
     alloc->GetResource()->Map(0, &read_range, &data_start_void);
     util::set_object_name(alloc->GetResource(), "respool mapped buffer");
-    return acquireBuffer(alloc, resource_state::unknown, size_bytes, stride_bytes, cc::bit_cast<std::byte*>(data_start_void));
+    return acquireBuffer(alloc, resource_state::copy_src, size_bytes, stride_bytes, cc::bit_cast<std::byte*>(data_start_void));
 }
 
 void phi::d3d12::ResourcePool::free(phi::handle::resource res)

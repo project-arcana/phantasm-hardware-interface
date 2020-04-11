@@ -1,6 +1,8 @@
 #include "gpu_info.hh"
 
-#include <iostream>
+#include <cstdio>
+
+#include <clean-core/assert.hh>
 
 namespace
 {
@@ -19,6 +21,37 @@ constexpr char const* get_preference_literal(phi::adapter_preference pref)
     case phi::adapter_preference::highest_feature_level:
         return "highest feature level";
     }
+    CC_UNREACHABLE("invalid adapter_preference enum");
+    return "";
+}
+
+constexpr char const* get_validation_literal(phi::validation_level level)
+{
+    switch (level)
+    {
+    case phi::validation_level::off:
+        return "off";
+    case phi::validation_level::on:
+        return "on";
+    case phi::validation_level::on_extended:
+        return "on_extended";
+    case phi::validation_level::on_extended_dred:
+        return "on_extended_dred";
+    }
+    CC_UNREACHABLE("invalid validation_level enum");
+    return "";
+}
+
+constexpr char const* get_present_mode_literal(phi::present_mode mode)
+{
+    switch (mode)
+    {
+    case phi::present_mode::allow_tearing:
+        return "allow_tearing";
+    case phi::present_mode::synced:
+        return "synced";
+    }
+    CC_UNREACHABLE("invalid present_mode enum");
     return "";
 }
 
@@ -87,25 +120,7 @@ size_t phi::get_preferred_gpu(cc::span<const phi::gpu_info> candidates, phi::ada
         return get_first_capable();
     };
 
-    auto const choice = make_choice();
-
-    if (verbose)
-    {
-        std::cout << "[phi] ";
-        if (choice < candidates.size())
-        {
-            auto const& chosen = candidates[choice];
-            std::cout << "chose gpu #" << chosen.index << " (" << chosen.description.c_str() << ")";
-        }
-        else
-        {
-            std::cout << "failed to choose gpu";
-        }
-        std::cout << " from " << candidates.size() << " candidate" << (candidates.size() == 1 ? "" : "s")
-                  << ", preference: " << get_preference_literal(preference) << std::endl;
-    }
-
-    return choice;
+    return make_choice();
 }
 
 phi::gpu_vendor phi::get_gpu_vendor_from_id(unsigned vendor_id)
@@ -127,4 +142,31 @@ phi::gpu_vendor phi::get_gpu_vendor_from_id(unsigned vendor_id)
     default:
         return gpu_vendor::unknown;
     }
+}
+
+void phi::print_startup_message(cc::span<const phi::gpu_info> gpu_candidates, size_t chosen_index, const phi::backend_config& config, bool is_d3d12, bool verbose)
+{
+    if (!config.print_startup_message)
+        return;
+
+    std::printf("[phi] %s backend initialized, validation: %s, present mode: %s\n", //
+                is_d3d12 ? "d3d12" : "vulkan", get_validation_literal(config.validation), get_present_mode_literal(config.present));
+
+    if (verbose)
+        std::printf("[phi]   %u backbuffers, %u threads, max %u resources, max %u PSOs\n", //
+                    config.num_backbuffers, config.num_threads, config.max_num_resources, config.max_num_pipeline_states);
+
+    if (chosen_index < gpu_candidates.size())
+    {
+        std::printf("[phi]   chose gpu #%zu (%s) from %zu candidate%s, preference: %s\n", //
+                    chosen_index, gpu_candidates[chosen_index].description.c_str(), gpu_candidates.size(), (gpu_candidates.size() == 1 ? "" : "s"),
+                    get_preference_literal(config.adapter));
+    }
+    else
+    {
+        std::printf("[phi]   failed to choose gpu from %zu candidate%s, preference: %s\n", //
+                    gpu_candidates.size(), (gpu_candidates.size() == 1 ? "" : "s"), get_preference_literal(config.adapter));
+    }
+
+    std::fflush(stdout);
 }

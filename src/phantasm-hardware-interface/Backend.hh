@@ -7,7 +7,7 @@
 
 namespace phi
 {
-enum class backend_type
+enum class backend_type : uint8_t
 {
     d3d12,
     vulkan
@@ -80,7 +80,8 @@ public:
         = 0;
 
     /// create a [multisampled] 2D render- or depth-stencil target
-    [[nodiscard]] virtual handle::resource createRenderTarget(phi::format format, tg::isize2 size, unsigned samples = 1) = 0;
+    [[nodiscard]] virtual handle::resource createRenderTarget(phi::format format, tg::isize2 size, unsigned samples = 1, rt_clear_value const* optimized_clear_val = nullptr)
+        = 0;
 
     /// create a buffer, with an element stride if its an index or vertex buffer
     [[nodiscard]] virtual handle::resource createBuffer(unsigned size_bytes, unsigned stride_bytes = 0, bool allow_uav = false) = 0;
