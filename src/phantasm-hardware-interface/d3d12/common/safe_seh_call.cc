@@ -19,4 +19,3 @@ bool phi::d3d12::detail::is_delay_load_exception(PEXCEPTION_POINTERS e)
     return EXCEPTION_EXECUTE_HANDLER;
 #endif
 }
-

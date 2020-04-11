@@ -6,11 +6,11 @@
 #include <phantasm-hardware-interface/d3d12/common/verify.hh>
 
 ID3D12PipelineState* phi::d3d12::create_pipeline_state(ID3D12Device& device,
-                                                               ID3D12RootSignature* root_sig,
-                                                               cc::span<const D3D12_INPUT_ELEMENT_DESC> vertex_input_layout,
-                                                               phi::arg::framebuffer_config const& framebuffer_format,
-                                                               phi::arg::graphics_shaders shader_stages,
-                                                               const phi::pipeline_config& config)
+                                                       ID3D12RootSignature* root_sig,
+                                                       cc::span<const D3D12_INPUT_ELEMENT_DESC> vertex_input_layout,
+                                                       phi::arg::framebuffer_config const& framebuffer_format,
+                                                       phi::arg::graphics_shaders shader_stages,
+                                                       const phi::pipeline_config& config)
 {
     D3D12_GRAPHICS_PIPELINE_STATE_DESC pso_desc = {};
     pso_desc.InputLayout = {!vertex_input_layout.empty() ? vertex_input_layout.data() : nullptr, UINT(vertex_input_layout.size())};

@@ -7,7 +7,6 @@
 
 namespace phi::d3d12
 {
-
 class Queue
 {
     // reference type

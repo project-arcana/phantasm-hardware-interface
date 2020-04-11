@@ -245,7 +245,7 @@ namespace phi::d3d12::util
         return D3D12_RTV_DIMENSION_TEXTURE3D;
     default:
 
-    CC_UNREACHABLE("to_native uncaught argument");
+        CC_UNREACHABLE("to_native uncaught argument");
         return D3D12_RTV_DIMENSION_UNKNOWN;
     }
 }
@@ -273,7 +273,7 @@ namespace phi::d3d12::util
         return D3D12_DSV_DIMENSION_TEXTURE2DMSARRAY;
     default:
 
-    CC_UNREACHABLE("to_native uncaught argument");
+        CC_UNREACHABLE("to_native uncaught argument");
         return D3D12_DSV_DIMENSION_UNKNOWN;
     }
 }

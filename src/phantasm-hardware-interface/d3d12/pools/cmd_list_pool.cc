@@ -116,9 +116,9 @@ bool phi::d3d12::cmd_allocator_node::is_submit_counter_up_to_date() const
 }
 
 phi::handle::command_list phi::d3d12::CommandListPool::create(ID3D12GraphicsCommandList*& out_cmdlist,
-                                                                              ID3D12GraphicsCommandList5** out_cmdlist5,
-                                                                              CommandAllocatorBundle& thread_allocator,
-                                                                              ID3D12Fence* fence_to_set)
+                                                              ID3D12GraphicsCommandList5** out_cmdlist5,
+                                                              CommandAllocatorBundle& thread_allocator,
+                                                              ID3D12Fence* fence_to_set)
 {
     unsigned res_handle;
     {
@@ -141,9 +141,9 @@ phi::handle::command_list phi::d3d12::CommandListPool::create(ID3D12GraphicsComm
 }
 
 void phi::d3d12::CommandListPool::initialize(phi::d3d12::BackendD3D12& backend,
-                                                     int num_allocators_per_thread,
-                                                     int num_cmdlists_per_allocator,
-                                                     cc::span<CommandAllocatorBundle*> thread_allocators)
+                                             int num_allocators_per_thread,
+                                             int num_cmdlists_per_allocator,
+                                             cc::span<CommandAllocatorBundle*> thread_allocators)
 {
     auto const num_cmdlists_per_thread = static_cast<size_t>(num_allocators_per_thread * num_cmdlists_per_allocator);
     auto const num_cmdlists_total = num_cmdlists_per_thread * thread_allocators.size();
