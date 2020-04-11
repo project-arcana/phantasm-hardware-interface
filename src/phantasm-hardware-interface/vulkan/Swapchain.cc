@@ -17,7 +17,7 @@ void phi::vk::Swapchain::initialize(const phi::vk::Device& device, VkSurfaceKHR 
 
     CC_RUNTIME_ASSERT(num_backbuffers >= surface_capabilities.minImageCount && "Not enough backbuffers specified");
     CC_RUNTIME_ASSERT(num_backbuffers < max_num_backbuffers && "Too many backbuffers specified");
-    CC_RUNTIME_ASSERT(surface_capabilities.maxImageCount == 0 || num_backbuffers <= surface_capabilities.maxImageCount && "Too many backbuffers specified");
+    CC_RUNTIME_ASSERT((surface_capabilities.maxImageCount == 0 || num_backbuffers <= surface_capabilities.maxImageCount) && "Too many backbuffers specified");
 
     auto const backbuffer_format_info = get_backbuffer_information(mPhysicalDevice, mSurface);
     mBackbufferFormat = choose_backbuffer_format(backbuffer_format_info.backbuffer_formats);

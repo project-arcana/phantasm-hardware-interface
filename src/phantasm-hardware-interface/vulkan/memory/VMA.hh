@@ -6546,7 +6546,11 @@ public:
 private:
     const VmaAllocator m_hAllocator;
     const uint32_t m_CurrFrameIndex;
+#ifdef __clang__
     [[maybe_unused]] const uint32_t m_Flags;
+#else
+    const uint32_t m_Flags;
+#endif
     VmaDefragmentationStats* const m_pStats;
     // Owner of these objects.
     VmaBlockVectorDefragmentationContext* m_DefaultPoolContexts[VK_MAX_MEMORY_TYPES];
