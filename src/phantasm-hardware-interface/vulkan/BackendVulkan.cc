@@ -40,9 +40,9 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg, const 
 
     VkApplicationInfo app_info = {};
     app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    app_info.pApplicationName = "phantasm-renderer application";
+    app_info.pApplicationName = "phantasm-hardware-interface application";
     app_info.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-    app_info.pEngineName = "phantasm-renderer";
+    app_info.pEngineName = "phantasm-hardware-interface";
     app_info.engineVersion = VK_MAKE_VERSION(1, 0, 0);
     app_info.apiVersion = VK_API_VERSION_1_1;
 
@@ -98,7 +98,7 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg, const 
         auto const vk_gpu_infos = get_all_vulkan_gpu_infos(mInstance, mSurface);
         auto const gpu_infos = get_available_gpus(vk_gpu_infos);
         auto const chosen_index = get_preferred_gpu(gpu_infos, config.adapter);
-        CC_RUNTIME_ASSERT(chosen_index != gpu_infos.size());
+        CC_RUNTIME_ASSERT(chosen_index < gpu_infos.size());
 
         auto const& chosen_gpu = gpu_infos[chosen_index];
         auto const& chosen_vk_gpu = vk_gpu_infos[chosen_gpu.index];
@@ -109,6 +109,8 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg, const 
         volkLoadDevice(mDevice.getDevice());
 
         mSwapchain.initialize(mDevice, mSurface, config.num_backbuffers, 250, 250, config.present);
+
+        print_startup_message(gpu_infos, chosen_index, config, false, true);
     }
 
     // Pool init

@@ -351,7 +351,7 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::copy_texture& 
 void phi::d3d12::command_list_translator::execute(const phi::cmd::copy_buffer_to_texture& copy_text)
 {
     auto const& dest_info = _globals.pool_resources->getImageInfo(copy_text.destination);
-    auto const pixel_bytes = phi::detail::pr_format_size_bytes(dest_info.pixel_format);
+    auto const pixel_bytes = phi::detail::format_size_bytes(dest_info.pixel_format);
     auto const format_dxgi = util::to_dxgi_format(dest_info.pixel_format);
 
     D3D12_SUBRESOURCE_FOOTPRINT footprint;

@@ -60,4 +60,6 @@ struct gpu_info
 [[nodiscard]] gpu_vendor get_gpu_vendor_from_id(unsigned vendor_id);
 
 [[nodiscard]] size_t get_preferred_gpu(cc::span<gpu_info const> candidates, adapter_preference preference, bool verbose = true);
+
+void print_startup_message(cc::span<gpu_info const> gpu_candidates, size_t chosen_index, backend_config const& config, bool is_d3d12, bool verbose);
 }

@@ -84,6 +84,13 @@ namespace phi::d3d12::util
 
     case af::bgra8un:
         return DXGI_FORMAT_B8G8R8A8_UNORM;
+    case af::b10g11r11uf:
+        return DXGI_FORMAT_R11G11B10_FLOAT; // this is incorrectly named, order is as in our enum
+
+    case af::bc6h_16f:
+        return DXGI_FORMAT_BC6H_SF16;
+    case af::bc6h_16uf:
+        return DXGI_FORMAT_BC6H_UF16;
 
     case af::depth32f:
         return DXGI_FORMAT_D32_FLOAT;

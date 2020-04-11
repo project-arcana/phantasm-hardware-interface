@@ -1,5 +1,9 @@
 #include "cmd_list_pool.hh"
 
+#include <cstdio>
+
+#include <clean-core/utility.hh>
+
 #include <phantasm-hardware-interface/detail/flat_map.hh>
 #include <phantasm-hardware-interface/vulkan/BackendVulkan.hh>
 #include <phantasm-hardware-interface/vulkan/common/log.hh>
@@ -197,13 +201,37 @@ void phi::vk::FenceRingbuffer::destroy(VkDevice device)
 
 unsigned phi::vk::FenceRingbuffer::acquireFence(VkDevice device, VkFence& out_fence)
 {
+    // look for a fence that is CPU-unreferenced and resettable
+
     for (auto i = 0u; i < mFences.size(); ++i)
     {
         auto const fence_i = mNextFence;
+        mNextFence = cc::wrapped_increment(mNextFence, unsigned(mFences.size()));
 
-        ++mNextFence;
-        if (mNextFence >= mFences.size())
-            mNextFence -= static_cast<unsigned>(mFences.size());
+        auto& node = mFences[fence_i];
+
+        if (node.ref_count.load() == 0 && vkGetFenceStatus(device, node.raw_fence) == VK_SUCCESS)
+        {
+            vkResetFences(device, 1, &node.raw_fence);
+            node.ref_count.store(1); // set the refcount to one
+            out_fence = node.raw_fence;
+            return fence_i;
+        }
+    }
+
+    // no fence was resettable, reset the first CPU-unreferenced one anyway
+
+    //
+    // NOTE: intuitively we should wait on it since resetting non-ready fences
+    // is not allowed, but this solves the issue, while waiting stalls forever.
+    // this branch only occurs during long stalls like loadtimes, and causes no warnings
+    // something might be wrong with acquire/release cycles of fences, revisit if it comes up again.
+    //
+
+    for (auto i = 0u; i < mFences.size(); ++i)
+    {
+        auto const fence_i = mNextFence;
+        mNextFence = cc::wrapped_increment(mNextFence, unsigned(mFences.size()));
 
         auto& node = mFences[fence_i];
 
@@ -216,7 +244,7 @@ unsigned phi::vk::FenceRingbuffer::acquireFence(VkDevice device, VkFence& out_fe
         }
     }
 
-    // none of the fences are resettable
+    // none of the fences are CPU-unreferenced
     CC_RUNTIME_ASSERT(false && "Fence ringbuffer is full");
     return 0;
 }
@@ -264,10 +292,7 @@ void phi::vk::CommandAllocatorBundle::updateActiveIndex(VkDevice device)
             return;
         else
         {
-            ++mActiveAllocator;
-            // fast %
-            if (mActiveAllocator >= mAllocators.size())
-                mActiveAllocator -= mAllocators.size();
+            mActiveAllocator = cc::wrapped_increment(mActiveAllocator, mAllocators.size());
         }
     }
 
@@ -279,10 +304,7 @@ void phi::vk::CommandAllocatorBundle::updateActiveIndex(VkDevice device)
             return;
         else
         {
-            ++mActiveAllocator;
-            // fast %
-            if (mActiveAllocator >= mAllocators.size())
-                mActiveAllocator -= mAllocators.size();
+            mActiveAllocator = cc::wrapped_increment(mActiveAllocator, mAllocators.size());
         }
     }
 

@@ -58,12 +58,12 @@ public:
 
     [[nodiscard]] handle::resource createTexture(phi::format format, tg::isize2 size, unsigned mips, texture_dimension dim, unsigned depth_or_array_size, bool allow_uav) override
     {
-        return mPoolResources.createTexture(format, static_cast<unsigned>(size.width), static_cast<unsigned>(size.height), mips, dim, depth_or_array_size, allow_uav);
+        return mPoolResources.createTexture(format, unsigned(size.width), unsigned(size.height), mips, dim, depth_or_array_size, allow_uav);
     }
 
-    [[nodiscard]] handle::resource createRenderTarget(phi::format format, tg::isize2 size, unsigned samples) override
+    [[nodiscard]] handle::resource createRenderTarget(phi::format format, tg::isize2 size, unsigned samples, rt_clear_value const* optimized_clear_val) override
     {
-        return mPoolResources.createRenderTarget(format, static_cast<unsigned>(size.width), static_cast<unsigned>(size.height), samples);
+        return mPoolResources.createRenderTarget(format, unsigned(size.width), unsigned(size.height), samples, optimized_clear_val);
     }
 
     [[nodiscard]] handle::resource createBuffer(unsigned size_bytes, unsigned stride_bytes, bool allow_uav) override

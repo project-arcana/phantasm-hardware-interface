@@ -91,6 +91,7 @@ VkRenderPass phi::vk::create_render_pass(VkDevice device, arg::framebuffer_confi
 
 VkRenderPass phi::vk::create_render_pass(VkDevice device, const phi::cmd::begin_render_pass& begin_rp, unsigned num_samples, cc::span<const format> override_rt_formats)
 {
+    CC_ASSERT(begin_rp.render_targets.size() == override_rt_formats.size() && "PSO used with wrong amount of render targets");
     auto const sample_bits = util::to_native_sample_flags(num_samples);
 
     cc::capped_vector<VkAttachmentDescription, limits::max_render_targets + 1> attachments;
