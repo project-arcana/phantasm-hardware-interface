@@ -44,8 +44,7 @@ namespace
     case SPV_REFLECT_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
         return VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
     }
-    CC_UNREACHABLE("uncaught to_native argument");
-    return VK_DESCRIPTOR_TYPE_SAMPLER;
+    CC_UNREACHABLE_SWITCH_WORKAROUND(type);
 }
 
 [[nodiscard]] constexpr phi::shader_stage reflect_to_pr(SpvReflectShaderStageFlagBits shader_stage_flags)
@@ -66,8 +65,7 @@ namespace
     case SPV_REFLECT_SHADER_STAGE_COMPUTE_BIT:
         return sd::compute;
     }
-    CC_UNREACHABLE("uncaught to_native argument");
-    return sd::vertex;
+    CC_UNREACHABLE_SWITCH_WORKAROUND(shader_stage_flags);
 }
 
 void patchSpvReflectShader(SpvReflectShaderModule& module, phi::shader_stage current_stage, cc::vector<phi::vk::util::spirv_desc_info>& out_desc_infos)

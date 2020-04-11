@@ -101,8 +101,7 @@ namespace phi::vk::util
     case bf::depth24un_stencil8u:
         return VK_FORMAT_D24_UNORM_S8_UINT;
     }
-    CC_ASSERT(false && "unknown format");
-    return VK_FORMAT_UNDEFINED;
+    CC_UNREACHABLE_SWITCH_WORKAROUND(format);
 }
 
 [[nodiscard]] inline constexpr phi::format to_pr_format(VkFormat format)
