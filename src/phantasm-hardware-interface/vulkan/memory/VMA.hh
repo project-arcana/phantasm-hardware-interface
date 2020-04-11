@@ -6546,7 +6546,7 @@ public:
 private:
     const VmaAllocator m_hAllocator;
     const uint32_t m_CurrFrameIndex;
-    const uint32_t m_Flags;
+    [[maybe_unused]] const uint32_t m_Flags;
     VmaDefragmentationStats* const m_pStats;
     // Owner of these objects.
     VmaBlockVectorDefragmentationContext* m_DefaultPoolContexts[VK_MAX_MEMORY_TYPES];
@@ -10088,7 +10088,7 @@ void VmaBlockMetadata_Linear::Alloc(const VmaAllocationRequest& request, VmaSuba
     break;
     case VmaAllocationRequestType::EndOf2nd:
     {
-        SuballocationVectorType& suballocations1st = AccessSuballocations1st();
+        [[maybe_unused]] SuballocationVectorType& suballocations1st = AccessSuballocations1st();
         // New allocation at the end of 2-part ring buffer, so before first allocation from 1st vector.
         VMA_ASSERT(!suballocations1st.empty() && request.offset + allocSize <= suballocations1st[m_1stNullItemsBeginCount].offset);
         SuballocationVectorType& suballocations2nd = AccessSuballocations2nd();
@@ -11261,7 +11261,7 @@ VkResult VmaBlockVector::AllocatePage(uint32_t currentFrameIndex,
     const bool mapped = (createInfo.flags & VMA_ALLOCATION_CREATE_MAPPED_BIT) != 0;
     const bool isUserDataString = (createInfo.flags & VMA_ALLOCATION_CREATE_USER_DATA_COPY_STRING_BIT) != 0;
 
-    const bool withinBudget = (createInfo.flags & VMA_ALLOCATION_CREATE_WITHIN_BUDGET_BIT) != 0;
+    [[maybe_unused]] const bool withinBudget = (createInfo.flags & VMA_ALLOCATION_CREATE_WITHIN_BUDGET_BIT) != 0;
     VkDeviceSize freeMemory;
     {
         const uint32_t heapIndex = m_hAllocator->MemoryTypeIndexToHeapIndex(m_MemoryTypeIndex);
@@ -11536,7 +11536,7 @@ VkResult VmaBlockVector::AllocatePage(uint32_t currentFrameIndex,
                     }
                     if (IsCorruptionDetectionEnabled())
                     {
-                        VkResult res = pBestRequestBlock->WriteMagicValueAroundAllocation(m_hAllocator, bestRequest.offset, size);
+                        [[maybe_unused]] VkResult res = pBestRequestBlock->WriteMagicValueAroundAllocation(m_hAllocator, bestRequest.offset, size);
                         VMA_ASSERT(res == VK_SUCCESS && "Couldn't map block memory to write magic value.");
                     }
                     return VK_SUCCESS;
@@ -11581,7 +11581,7 @@ void VmaBlockVector::Free(const VmaAllocation hAllocation)
 
         if (IsCorruptionDetectionEnabled())
         {
-            VkResult res = pBlock->ValidateMagicValueAroundAllocation(m_hAllocator, hAllocation->GetOffset(), hAllocation->GetSize());
+            [[maybe_unused]] VkResult res = pBlock->ValidateMagicValueAroundAllocation(m_hAllocator, hAllocation->GetOffset(), hAllocation->GetSize());
             VMA_ASSERT(res == VK_SUCCESS && "Couldn't map block memory to validate magic value.");
         }
 
@@ -11722,7 +11722,7 @@ VkResult VmaBlockVector::AllocateFromBlock(VmaDeviceMemoryBlock* pBlock,
         }
         if (IsCorruptionDetectionEnabled())
         {
-            VkResult res = pBlock->WriteMagicValueAroundAllocation(m_hAllocator, currRequest.offset, size);
+            [[maybe_unused]] VkResult res = pBlock->WriteMagicValueAroundAllocation(m_hAllocator, currRequest.offset, size);
             VMA_ASSERT(res == VK_SUCCESS && "Couldn't map block memory to write magic value.");
         }
         return VK_SUCCESS;
@@ -14664,7 +14664,7 @@ void VmaAllocator_T::DestroyPool(VmaPool pool)
     // Remove from m_Pools.
     {
         VmaMutexLockWrite lock(m_PoolsMutex, m_UseMutex);
-        bool success = VmaVectorRemoveSorted<VmaPointerLess>(m_Pools, pool);
+        [[maybe_unused]] bool success = VmaVectorRemoveSorted<VmaPointerLess>(m_Pools, pool);
         VMA_ASSERT(success && "Pool not found in Allocator.");
     }
 
@@ -15035,7 +15035,7 @@ void VmaAllocator_T::FreeDedicatedMemory(const VmaAllocation allocation)
         VmaMutexLockWrite lock(m_DedicatedAllocationsMutex[memTypeIndex], m_UseMutex);
         AllocationVectorType* const pDedicatedAllocations = m_pDedicatedAllocations[memTypeIndex];
         VMA_ASSERT(pDedicatedAllocations);
-        bool success = VmaVectorRemoveSorted<VmaPointerLess>(*pDedicatedAllocations, allocation);
+        [[maybe_unused]] bool success = VmaVectorRemoveSorted<VmaPointerLess>(*pDedicatedAllocations, allocation);
         VMA_ASSERT(success);
     }
 
