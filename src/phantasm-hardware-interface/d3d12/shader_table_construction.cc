@@ -17,8 +17,8 @@
 #include "pools/shader_view_pool.hh"
 
 phi::shader_table_sizes phi::d3d12::ShaderTableConstructor::calculateShaderTableSizes(phi::arg::shader_table_records ray_gen_records,
-                                                                                                      phi::arg::shader_table_records miss_records,
-                                                                                                      phi::arg::shader_table_records hit_group_records)
+                                                                                      phi::arg::shader_table_records miss_records,
+                                                                                      phi::arg::shader_table_records hit_group_records)
 {
     shader_table_sizes res = {};
     res.ray_gen_stride_bytes = getShaderRecordSize(ray_gen_records);
@@ -27,10 +27,7 @@ phi::shader_table_sizes phi::d3d12::ShaderTableConstructor::calculateShaderTable
     return res;
 }
 
-void phi::d3d12::ShaderTableConstructor::writeShaderTable(std::byte* dest,
-                                                                  phi::handle::pipeline_state pso,
-                                                                  unsigned stride_bytes,
-                                                                  phi::arg::shader_table_records records)
+void phi::d3d12::ShaderTableConstructor::writeShaderTable(std::byte* dest, phi::handle::pipeline_state pso, unsigned stride_bytes, phi::arg::shader_table_records records)
 {
     CC_ASSERT(pool_pipeline_states->isRaytracingPipeline(pso) && "invalid or non-raytracing PSO given");
     auto const pso_state_props = pool_pipeline_states->getRaytrace(pso).raw_state_object_props;
@@ -87,10 +84,10 @@ void phi::d3d12::ShaderTableConstructor::writeShaderTable(std::byte* dest,
 }
 
 void phi::d3d12::ShaderTableConstructor::initialize(ID3D12Device5* device,
-                                                            phi::d3d12::ShaderViewPool* sv_pool,
-                                                            phi::d3d12::ResourcePool* resource_pool,
-                                                            phi::d3d12::PipelineStateObjectPool* pso_pool,
-                                                            phi::d3d12::AccelStructPool* as_pool)
+                                                    phi::d3d12::ShaderViewPool* sv_pool,
+                                                    phi::d3d12::ResourcePool* resource_pool,
+                                                    phi::d3d12::PipelineStateObjectPool* pso_pool,
+                                                    phi::d3d12::AccelStructPool* as_pool)
 {
     this->device = device;
     this->pool_shader_views = sv_pool;

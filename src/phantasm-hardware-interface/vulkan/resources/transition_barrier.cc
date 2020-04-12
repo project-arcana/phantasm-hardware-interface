@@ -1,6 +1,7 @@
 #include "transition_barrier.hh"
 
-VkImageMemoryBarrier phi::vk::get_image_memory_barrier(VkImage image, const state_change& state_change, VkImageAspectFlags aspect, unsigned mip_start, unsigned num_mips, unsigned array_start, unsigned num_layers)
+VkImageMemoryBarrier phi::vk::get_image_memory_barrier(
+    VkImage image, const state_change& state_change, VkImageAspectFlags aspect, unsigned mip_start, unsigned num_mips, unsigned array_start, unsigned num_layers)
 {
     VkImageMemoryBarrier barrier = {};
     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -34,10 +35,10 @@ VkBufferMemoryBarrier phi::vk::get_buffer_memory_barrier(VkBuffer buffer, const 
 }
 
 void phi::vk::submit_barriers(VkCommandBuffer cmd_buf,
-                                      const stage_dependencies& stage_deps,
-                                      cc::span<VkImageMemoryBarrier const> image_barriers,
-                                      cc::span<VkBufferMemoryBarrier const> buffer_barriers,
-                                      cc::span<VkMemoryBarrier const> barriers)
+                              const stage_dependencies& stage_deps,
+                              cc::span<VkImageMemoryBarrier const> image_barriers,
+                              cc::span<VkBufferMemoryBarrier const> buffer_barriers,
+                              cc::span<VkMemoryBarrier const> barriers)
 {
     vkCmdPipelineBarrier(cmd_buf,                                                  //
                          stage_deps.stages_before,                                 //

@@ -10,8 +10,7 @@
 
 #include "resource_pool.hh"
 
-phi::handle::accel_struct phi::d3d12::AccelStructPool::createBottomLevelAS(cc::span<const phi::arg::blas_element> elements,
-                                                                                           accel_struct_build_flags_t flags)
+phi::handle::accel_struct phi::d3d12::AccelStructPool::createBottomLevelAS(cc::span<const phi::arg::blas_element> elements, accel_struct_build_flags_t flags)
 {
     handle::accel_struct res_handle;
     accel_struct_node& new_node = acquireAccelStruct(res_handle);

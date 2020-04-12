@@ -16,8 +16,8 @@ class ShaderTableConstructor
 {
 public:
     [[nodiscard]] phi::shader_table_sizes calculateShaderTableSizes(arg::shader_table_records ray_gen_records,
-                                                                            arg::shader_table_records miss_records,
-                                                                            arg::shader_table_records hit_group_records);
+                                                                    arg::shader_table_records miss_records,
+                                                                    arg::shader_table_records hit_group_records);
 
     void writeShaderTable(std::byte* dest, handle::pipeline_state pso, unsigned stride_bytes, arg::shader_table_records records);
 

@@ -11,7 +11,7 @@
 #endif
 #define PHI_SANITIZED_D3D12_H
 
- // clang-format off
+// clang-format off
 #include <clean-core/native/detail/win32_sanitize_before.inl>
 
 #include <Windows.h>

@@ -41,8 +41,7 @@ void query_accel_struct_buffer_sizes(VkDevice device, VkAccelerationStructureNV 
 
 }
 
-phi::handle::accel_struct phi::vk::AccelStructPool::createBottomLevelAS(cc::span<const phi::arg::blas_element> elements,
-                                                                                        accel_struct_build_flags_t flags)
+phi::handle::accel_struct phi::vk::AccelStructPool::createBottomLevelAS(cc::span<const phi::arg::blas_element> elements, accel_struct_build_flags_t flags)
 {
     cc::vector<VkGeometryNV> element_geometries;
     element_geometries.reserve(elements.size());
@@ -231,10 +230,10 @@ phi::vk::AccelStructPool::accel_struct_node& phi::vk::AccelStructPool::getNode(p
 }
 
 phi::handle::accel_struct phi::vk::AccelStructPool::acquireAccelStruct(VkAccelerationStructureNV raw_as,
-                                                                                       accel_struct_build_flags_t flags,
-                                                                                       handle::resource buffer_as,
-                                                                                       handle::resource buffer_scratch,
-                                                                                       handle::resource buffer_instances)
+                                                                       accel_struct_build_flags_t flags,
+                                                                       handle::resource buffer_as,
+                                                                       handle::resource buffer_scratch,
+                                                                       handle::resource buffer_instances)
 {
     unsigned res;
     {

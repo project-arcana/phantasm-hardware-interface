@@ -67,6 +67,13 @@ namespace phi::detail
         return 8;
     case format::depth24un_stencil8u:
         return 4;
+
+    case format::b10g11r11uf:
+        return 4;
+    case format::bc6h_16f:
+    case format::bc6h_16uf:
+        CC_UNREACHABLE("compressed block format has no per-pixel byte size");
+        return 0;
     }
     CC_UNREACHABLE("unknown format");
     return 0;
@@ -91,6 +98,9 @@ namespace phi::detail
     case format::rgb32f:
     case format::rgb32i:
     case format::rgb32u:
+    case format::b10g11r11uf:
+    case format::bc6h_16f:
+    case format::bc6h_16uf:
         return 3;
 
     case format::rg32f:

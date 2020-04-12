@@ -11,9 +11,9 @@
 #include "resource_pool.hh"
 
 phi::handle::shader_view phi::vk::ShaderViewPool::create(cc::span<resource_view const> srvs,
-                                                                         cc::span<resource_view const> uavs,
-                                                                         cc::span<const sampler_config> sampler_configs,
-                                                                         bool usage_compute)
+                                                         cc::span<resource_view const> uavs,
+                                                         cc::span<const sampler_config> sampler_configs,
+                                                         bool usage_compute)
 {
     // Create the layout, maps as follows:
     // SRV:

@@ -58,8 +58,7 @@ namespace phi::vk::util
         return {};
     }
 
-    CC_UNREACHABLE("to_native uncaught argument");
-    return {};
+    CC_UNREACHABLE_SWITCH_WORKAROUND(state);
 }
 
 [[nodiscard]] inline constexpr VkImageLayout to_image_layout(resource_state state)
@@ -106,8 +105,7 @@ namespace phi::vk::util
         return VK_IMAGE_LAYOUT_UNDEFINED;
     }
 
-    CC_UNREACHABLE("to_native uncaught argument");
-    return {};
+    CC_UNREACHABLE_SWITCH_WORKAROUND(state);
 }
 
 [[nodiscard]] inline constexpr VkPipelineStageFlags to_pipeline_stage_flags(phi::shader_stage stage)
@@ -136,8 +134,7 @@ namespace phi::vk::util
         return VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV;
     }
 
-    CC_UNREACHABLE("to_native uncaught argument");
-    return {};
+    CC_UNREACHABLE_SWITCH_WORKAROUND(stage);
 }
 
 [[nodiscard]] inline constexpr VkPipelineStageFlags to_pipeline_stage_flags_bitwise(phi::shader_stage_flags_t stage_flags)
@@ -216,8 +213,7 @@ namespace phi::vk::util
         return VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
     }
 
-    CC_UNREACHABLE("to_native uncaught argument");
-    return {};
+    CC_UNREACHABLE_SWITCH_WORKAROUND(state);
 }
 
 [[nodiscard]] inline constexpr VkPipelineStageFlags to_pipeline_stage_dependency(resource_state state, shader_stage stage = shader_stage::pixel)
@@ -239,8 +235,7 @@ namespace phi::vk::util
         return VK_PRIMITIVE_TOPOLOGY_PATCH_LIST;
     }
 
-    CC_UNREACHABLE("to_native uncaught argument");
-    return {};
+    CC_UNREACHABLE_SWITCH_WORKAROUND(topology);
 }
 
 [[nodiscard]] inline constexpr VkCompareOp to_native(phi::depth_function depth_func)
@@ -267,8 +262,7 @@ namespace phi::vk::util
         return VK_COMPARE_OP_NEVER;
     }
 
-    CC_UNREACHABLE("to_native uncaught argument");
-    return {};
+    CC_UNREACHABLE_SWITCH_WORKAROUND(depth_func);
 }
 
 [[nodiscard]] inline constexpr VkCullModeFlags to_native(phi::cull_mode cull_mode)
@@ -283,8 +277,7 @@ namespace phi::vk::util
         return VK_CULL_MODE_FRONT_BIT;
     }
 
-    CC_UNREACHABLE("to_native uncaught argument");
-    return {};
+    CC_UNREACHABLE_SWITCH_WORKAROUND(cull_mode);
 }
 
 
@@ -318,8 +311,7 @@ namespace phi::vk::util
         return VK_SHADER_STAGE_ANY_HIT_BIT_NV;
     }
 
-    CC_UNREACHABLE("to_native uncaught argument");
-    return {};
+    CC_UNREACHABLE_SWITCH_WORKAROUND(stage);
 }
 
 
@@ -343,8 +335,7 @@ namespace phi::vk::util
         return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
     }
 
-    CC_UNREACHABLE("to_native uncaught argument");
-    return {};
+    CC_UNREACHABLE_SWITCH_WORKAROUND(sv_dim);
 }
 [[nodiscard]] inline constexpr VkDescriptorType to_native_uav_desc_type(resource_view_dimension sv_dim)
 {
@@ -367,8 +358,7 @@ namespace phi::vk::util
         return VK_DESCRIPTOR_TYPE_MAX_ENUM;
     }
 
-    CC_UNREACHABLE("to_native uncaught argument");
-    return {};
+    CC_UNREACHABLE_SWITCH_WORKAROUND(sv_dim);
 }
 
 [[nodiscard]] inline constexpr bool is_valid_as_uav_desc_type(resource_view_dimension sv_dim)
@@ -403,8 +393,7 @@ namespace phi::vk::util
         return VK_IMAGE_VIEW_TYPE_MAX_ENUM;
     }
 
-    CC_UNREACHABLE("to_native uncaught argument");
-    return {};
+    CC_UNREACHABLE_SWITCH_WORKAROUND(sv_dim);
 }
 
 [[nodiscard]] inline constexpr VkImageAspectFlags to_native_image_aspect(format format)
@@ -441,8 +430,7 @@ namespace phi::vk::util
         return VK_FILTER_LINEAR;
     }
 
-    CC_UNREACHABLE("to_native uncaught argument");
-    return {};
+    CC_UNREACHABLE_SWITCH_WORKAROUND(filter);
 }
 
 [[nodiscard]] inline constexpr VkFilter to_mag_filter(sampler_filter filter)
@@ -462,8 +450,7 @@ namespace phi::vk::util
         return VK_FILTER_LINEAR;
     }
 
-    CC_UNREACHABLE("to_native uncaught argument");
-    return {};
+    CC_UNREACHABLE_SWITCH_WORKAROUND(filter);
 }
 
 [[nodiscard]] inline constexpr VkSamplerMipmapMode to_mipmap_filter(sampler_filter filter)
@@ -483,8 +470,7 @@ namespace phi::vk::util
         return VK_SAMPLER_MIPMAP_MODE_LINEAR;
     }
 
-    CC_UNREACHABLE("to_native uncaught argument");
-    return {};
+    CC_UNREACHABLE_SWITCH_WORKAROUND(filter);
 }
 
 [[nodiscard]] inline constexpr VkSamplerAddressMode to_native(sampler_address_mode mode)
@@ -501,8 +487,7 @@ namespace phi::vk::util
         return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
     }
 
-    CC_UNREACHABLE("to_native uncaught argument");
-    return {};
+    CC_UNREACHABLE_SWITCH_WORKAROUND(mode);
 }
 
 [[nodiscard]] inline constexpr VkCompareOp to_native(sampler_compare_func mode)
@@ -528,8 +513,7 @@ namespace phi::vk::util
         return VK_COMPARE_OP_ALWAYS;
     }
 
-    CC_UNREACHABLE("to_native uncaught argument");
-    return {};
+    CC_UNREACHABLE_SWITCH_WORKAROUND(mode);
 }
 
 [[nodiscard]] inline constexpr VkBorderColor to_native(sampler_border_color color)
@@ -550,8 +534,7 @@ namespace phi::vk::util
         return VK_BORDER_COLOR_INT_OPAQUE_WHITE;
     }
 
-    CC_UNREACHABLE("to_native uncaught argument");
-    return {};
+    CC_UNREACHABLE_SWITCH_WORKAROUND(color);
 }
 
 [[nodiscard]] inline constexpr VkSampleCountFlagBits to_native_sample_flags(unsigned num_samples)
@@ -572,12 +555,9 @@ namespace phi::vk::util
         return VK_SAMPLE_COUNT_32_BIT;
     case 64:
         return VK_SAMPLE_COUNT_64_BIT;
-    default:
-        return VK_SAMPLE_COUNT_1_BIT;
     }
 
-    CC_UNREACHABLE("to_native uncaught argument");
-    return {};
+    CC_UNREACHABLE_SWITCH_WORKAROUND(num_samples);
 }
 
 [[nodiscard]] inline constexpr VkAttachmentLoadOp to_native(rt_clear_type clear_type)
@@ -592,8 +572,7 @@ namespace phi::vk::util
         return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     }
 
-    CC_UNREACHABLE("to_native uncaught argument");
-    return {};
+    CC_UNREACHABLE_SWITCH_WORKAROUND(clear_type);
 }
 
 [[nodiscard]] inline constexpr VkImageType to_native(texture_dimension dim)
@@ -608,8 +587,7 @@ namespace phi::vk::util
         return VK_IMAGE_TYPE_3D;
     }
 
-    CC_UNREACHABLE("to_native uncaught argument");
-    return {};
+    CC_UNREACHABLE_SWITCH_WORKAROUND(dim);
 }
 
 [[nodiscard]] inline constexpr VkLogicOp to_native(blend_logic_op op)
@@ -650,8 +628,7 @@ namespace phi::vk::util
         return VK_LOGIC_OP_EQUIVALENT;
     }
 
-    CC_UNREACHABLE("to_native uncaught argument");
-    return {};
+    CC_UNREACHABLE_SWITCH_WORKAROUND(op);
 }
 
 [[nodiscard]] inline constexpr VkBlendOp to_native(blend_op op)
@@ -670,8 +647,7 @@ namespace phi::vk::util
         return VK_BLEND_OP_MAX;
     }
 
-    CC_UNREACHABLE("to_native uncaught argument");
-    return {};
+    CC_UNREACHABLE_SWITCH_WORKAROUND(op);
 }
 
 [[nodiscard]] inline constexpr VkBlendFactor to_native(blend_factor bf)
@@ -700,9 +676,7 @@ namespace phi::vk::util
         return VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA;
     }
 
-
-    CC_UNREACHABLE("to_native uncaught argument");
-    return {};
+    CC_UNREACHABLE_SWITCH_WORKAROUND(bf);
 }
 
 [[nodiscard]] inline constexpr VkBuildAccelerationStructureFlagsNV to_native_flags(accel_struct_build_flags_t flags)

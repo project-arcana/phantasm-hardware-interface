@@ -15,7 +15,7 @@ namespace phi::detail
 ///     4. creates barriers for all cache entries, transitioning from (known) <before> to cache_entry::required_initial
 ///     5. executes small "barrier" command list, then executes the proper command list, now with all states correctly in place
 ///     6. updates master cache with all the cache_entry::current states
-template<class StateT>
+template <class StateT>
 struct generic_incomplete_state_cache
 {
 public:

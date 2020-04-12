@@ -173,10 +173,7 @@ public:
     ID3D12GraphicsCommandList* getRawList(handle::command_list cl) const { return mRawLists[static_cast<unsigned>(cl.index)]; }
     ID3D12GraphicsCommandList5* getRawList5(handle::command_list cl) const { return mRawLists5[static_cast<unsigned>(cl.index)]; }
 
-    phi::detail::incomplete_state_cache* getStateCache(handle::command_list cl)
-    {
-        return &mPool.get(static_cast<unsigned>(cl.index)).state_cache;
-    }
+    phi::detail::incomplete_state_cache* getStateCache(handle::command_list cl) { return &mPool.get(static_cast<unsigned>(cl.index)).state_cache; }
 
 public:
     void initialize(BackendD3D12& backend, int num_allocators_per_thread, int num_cmdlists_per_allocator, cc::span<CommandAllocatorBundle*> thread_allocators);

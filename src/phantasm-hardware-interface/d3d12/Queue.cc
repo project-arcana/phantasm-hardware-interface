@@ -2,8 +2,8 @@
 
 #include "common/d3d12_sanitized.hh"
 #include "common/native_enum.hh"
-#include "common/verify.hh"
 #include "common/util.hh"
+#include "common/verify.hh"
 
 void phi::d3d12::Queue::initialize(ID3D12Device& device, queue_type type)
 {

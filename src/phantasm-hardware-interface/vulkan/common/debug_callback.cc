@@ -37,9 +37,9 @@ constexpr char const* to_literal(VkDebugUtilsMessageTypeFlagsEXT type)
 }
 
 VkBool32 phi::vk::detail::debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT severity,
-                                                 VkDebugUtilsMessageTypeFlagsEXT type,
-                                                 const VkDebugUtilsMessengerCallbackDataEXT* callback_data,
-                                                 void* /*user_data*/)
+                                         VkDebugUtilsMessageTypeFlagsEXT type,
+                                         const VkDebugUtilsMessengerCallbackDataEXT* callback_data,
+                                         void* /*user_data*/)
 {
     // if (severity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
     {

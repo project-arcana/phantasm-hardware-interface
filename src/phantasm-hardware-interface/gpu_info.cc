@@ -21,8 +21,7 @@ constexpr char const* get_preference_literal(phi::adapter_preference pref)
     case phi::adapter_preference::highest_feature_level:
         return "highest feature level";
     }
-    CC_UNREACHABLE("invalid adapter_preference enum");
-    return "";
+    CC_UNREACHABLE_SWITCH_WORKAROUND(pref);
 }
 
 constexpr char const* get_validation_literal(phi::validation_level level)
@@ -38,8 +37,7 @@ constexpr char const* get_validation_literal(phi::validation_level level)
     case phi::validation_level::on_extended_dred:
         return "on_extended_dred";
     }
-    CC_UNREACHABLE("invalid validation_level enum");
-    return "";
+    CC_UNREACHABLE_SWITCH_WORKAROUND(level);
 }
 
 constexpr char const* get_present_mode_literal(phi::present_mode mode)
@@ -51,8 +49,7 @@ constexpr char const* get_present_mode_literal(phi::present_mode mode)
     case phi::present_mode::synced:
         return "synced";
     }
-    CC_UNREACHABLE("invalid present_mode enum");
-    return "";
+    CC_UNREACHABLE_SWITCH_WORKAROUND(mode);
 }
 
 }

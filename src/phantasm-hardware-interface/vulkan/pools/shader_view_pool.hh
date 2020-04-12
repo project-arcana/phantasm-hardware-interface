@@ -24,10 +24,7 @@ class ShaderViewPool
 public:
     // frontend-facing API
 
-    [[nodiscard]] handle::shader_view create(cc::span<resource_view const> srvs,
-                                             cc::span<resource_view const> uavs,
-                                             cc::span<sampler_config const> samplers,
-                                             bool usage_compute);
+    [[nodiscard]] handle::shader_view create(cc::span<resource_view const> srvs, cc::span<resource_view const> uavs, cc::span<sampler_config const> samplers, bool usage_compute);
 
     void free(handle::shader_view sv);
     void free(cc::span<handle::shader_view const> svs);

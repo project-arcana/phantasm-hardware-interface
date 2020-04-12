@@ -222,7 +222,7 @@ phi::vk::lay_ext_array phi::vk::get_used_device_lay_ext(const phi::vk::lay_ext_s
 {
     lay_ext_array used_res;
 
-    auto const add_layer = [&](char const* layer_name) {
+    [[maybe_unused]] auto const add_layer = [&](char const* layer_name) {
         if (available.layers.contains(layer_name))
         {
             used_res.layers.push_back(layer_name);
