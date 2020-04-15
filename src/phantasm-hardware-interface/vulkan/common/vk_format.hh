@@ -92,6 +92,11 @@ namespace phi::vk::util
     case bf::bc6h_16uf:
         return VK_FORMAT_BC6H_UFLOAT_BLOCK;
 
+    case bf::r24un_g8t:
+        return VK_FORMAT_X8_D24_UNORM_PACK32;
+    case bf::r24t_g8u:
+        return VK_FORMAT_R8_UINT; // this is almost certainly wrong
+
     case bf::depth32f:
         return VK_FORMAT_D32_SFLOAT;
     case bf::depth16un:

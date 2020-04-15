@@ -92,6 +92,11 @@ namespace phi::d3d12::util
     case af::bc6h_16uf:
         return DXGI_FORMAT_BC6H_UF16;
 
+    case af::r24un_g8t:
+        return DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+    case af::r24t_g8u:
+        return DXGI_FORMAT_X24_TYPELESS_G8_UINT;
+
     case af::depth32f:
         return DXGI_FORMAT_D32_FLOAT;
     case af::depth16un:

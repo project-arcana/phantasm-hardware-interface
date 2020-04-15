@@ -122,7 +122,7 @@ enum class resource_state : uint8_t
 };
 
 /// pixel format of a texture, or texture view (DXGI_FORMAT / VkFormat)
-/// [f]loat, [i]nt, [u]int, [un]orm, [uf]loat
+/// [f]loat, [i]nt, [u]int, [un]orm, [uf]loat, [t]ypeless
 enum class format : uint8_t
 {
     // regular formats
@@ -164,6 +164,10 @@ enum class format : uint8_t
     // compressed formats
     bc6h_16f,
     bc6h_16uf,
+
+    // view-only formats
+    r24un_g8t, // view the depth part of depth24un_stencil8u
+    r24t_g8u,  // view the stencil part of depth24un_stencil8u
 
     // depth formats
     depth32f,
