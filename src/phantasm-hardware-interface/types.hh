@@ -165,7 +165,7 @@ enum class format : uint8_t
     bc6h_16f,
     bc6h_16uf,
 
-    // view-only formats
+    // view-only formats - depth
     r24un_g8t, // view the depth part of depth24un_stencil8u
     r24t_g8u,  // view the stencil part of depth24un_stencil8u
 
@@ -178,11 +178,14 @@ enum class format : uint8_t
     depth24un_stencil8u,
 };
 
+/// returns true if the format is a view-only format
+[[nodiscard]] constexpr bool is_view_format(format fmt) { return fmt >= format::r24un_g8t && fmt < format::depth32f; }
+
 /// returns true if the format is a depth OR depth stencil format
-[[nodiscard]] inline constexpr bool is_depth_format(format fmt) { return fmt >= format::depth32f; }
+[[nodiscard]] constexpr bool is_depth_format(format fmt) { return fmt >= format::depth32f; }
 
 /// returns true if the format is a depth stencil format
-[[nodiscard]] inline constexpr bool is_depth_stencil_format(format fmt) { return fmt >= format::depth32f_stencil8u; }
+[[nodiscard]] constexpr bool is_depth_stencil_format(format fmt) { return fmt >= format::depth32f_stencil8u; }
 
 /// information about a single vertex attribute
 struct vertex_attribute_info
@@ -395,14 +398,14 @@ struct sampler_config
     float lod_bias;          ///< offset from the calculated MIP level (sampled = calculated + lod_bias)
     unsigned max_anisotropy; ///< maximum amount of anisotropy in [1, 16], req. sampler_filter::anisotropic
     sampler_compare_func compare_func;
-    sampler_border_color border_color; ///< the border color to use, req. sampler_filter::clamp_border
+    sampler_border_color border_color; ///< the border color to use, req. sampler_address_mode::clamp_border
 
-    void init_default(sampler_filter filter, unsigned anisotropy = 16u)
+    void init_default(sampler_filter filter, unsigned anisotropy = 16u, sampler_address_mode address_mode = sampler_address_mode::wrap)
     {
         this->filter = filter;
-        address_u = sampler_address_mode::wrap;
-        address_v = sampler_address_mode::wrap;
-        address_w = sampler_address_mode::wrap;
+        address_u = address_mode;
+        address_v = address_mode;
+        address_w = address_mode;
         min_lod = 0.f;
         max_lod = 100000.f;
         lod_bias = 0.f;
