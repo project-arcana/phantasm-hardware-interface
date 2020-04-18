@@ -236,6 +236,8 @@ void phi::vk::command_list_translator::execute(const phi::cmd::end_render_pass&)
         vkCmdEndRenderPass(_cmd_list);
         _bound.raw_render_pass = nullptr;
     }
+
+    _bound.reset();
 }
 
 void phi::vk::command_list_translator::execute(const phi::cmd::transition_resources& transition_res)
@@ -472,13 +474,13 @@ void phi::vk::command_list_translator::execute(const phi::cmd::clear_textures& c
             VkClearDepthStencilValue clearval = {};
             clearval.depth = op.value.depth_stencil.depth;
             clearval.stencil = op.value.depth_stencil.stencil;
-            vkCmdClearDepthStencilImage(_cmd_list, resource, VK_IMAGE_LAYOUT_GENERAL, &clearval, 1, &range);
+            vkCmdClearDepthStencilImage(_cmd_list, resource, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearval, 1, &range);
         }
         else
         {
             VkClearColorValue clearval = {};
             std::memcpy(clearval.float32, op.value.color, sizeof(float[4]));
-            vkCmdClearColorImage(_cmd_list, resource, VK_IMAGE_LAYOUT_GENERAL, &clearval, 1, &range);
+            vkCmdClearColorImage(_cmd_list, resource, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearval, 1, &range);
         }
     }
 }

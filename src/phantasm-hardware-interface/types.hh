@@ -457,6 +457,7 @@ struct pipeline_config
     bool depth_readonly = false;
     cull_mode cull = cull_mode::none;
     int samples = 1;
+    bool conservative_raster = false;
 };
 
 /// operation to perform on render targets upon render pass begin

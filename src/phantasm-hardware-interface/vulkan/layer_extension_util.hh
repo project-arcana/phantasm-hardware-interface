@@ -42,6 +42,6 @@ struct lay_ext_array
 [[nodiscard]] lay_ext_set get_available_device_lay_ext(VkPhysicalDevice physical);
 
 [[nodiscard]] lay_ext_array get_used_instance_lay_ext(lay_ext_set const& available, backend_config const& config);
-[[nodiscard]] lay_ext_array get_used_device_lay_ext(lay_ext_set const& available, backend_config const& config, bool& has_raytracing);
+[[nodiscard]] lay_ext_array get_used_device_lay_ext(lay_ext_set const& available, backend_config const& config, bool& has_raytracing, bool& has_conservative_raster);
 
 }
