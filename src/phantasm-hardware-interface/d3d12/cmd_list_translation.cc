@@ -477,8 +477,54 @@ void phi::d3d12::command_list_translator::execute(const cmd::dispatch_rays& disp
     _cmd_list_5->DispatchRays(&desc);
 }
 
+void phi::d3d12::command_list_translator::execute(const phi::cmd::clear_textures& clear_tex)
+{
+    resource_view_cpu_only const dynamic_rtvs = _thread_local.lin_alloc_rtvs.allocate(clear_tex.clear_ops.size());
+    resource_view_cpu_only const dynamic_dsvs = _thread_local.lin_alloc_dsvs.allocate(clear_tex.clear_ops.size());
+
+    for (uint8_t i = 0u; i < clear_tex.clear_ops.size(); ++i)
+    {
+        auto const& op = clear_tex.clear_ops[i];
+        auto* const resource = _globals.pool_resources->getRawResource(op.rv.resource);
+
+        if (is_depth_format(op.rv.pixel_format))
+        {
+            auto const dsv = dynamic_dsvs.get_index(i);
+
+            // create the DSV on the fly
+            auto const dsv_desc = util::create_dsv_desc(op.rv);
+            _globals.device->CreateDepthStencilView(resource, &dsv_desc, dsv);
+
+            _cmd_list->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, op.value.depth_stencil.depth,
+                                             op.value.depth_stencil.stencil, 0, nullptr);
+        }
+        else
+        {
+            auto const rtv = dynamic_rtvs.get_index(i);
+
+            // create the RTV on the fly
+            if (_globals.pool_resources->isBackbuffer(op.rv.resource))
+            {
+                // Create a default RTV for the backbuffer
+                _globals.device->CreateRenderTargetView(resource, nullptr, rtv);
+            }
+            else
+            {
+                // Create an RTV based on the supplied info
+                auto const rtv_desc = util::create_rtv_desc(op.rv);
+                _globals.device->CreateRenderTargetView(resource, &rtv_desc, rtv);
+            }
+
+            _cmd_list->ClearRenderTargetView(rtv, op.value.color, 0, nullptr);
+        }
+    }
+
+    _thread_local.lin_alloc_rtvs.reset();
+    _thread_local.lin_alloc_dsvs.reset();
+}
+
 void phi::d3d12::translator_thread_local_memory::initialize(ID3D12Device& device)
 {
     lin_alloc_rtvs.initialize(device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, limits::max_render_targets);
-    lin_alloc_dsvs.initialize(device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1);
+    lin_alloc_dsvs.initialize(device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, limits::max_render_targets);
 }

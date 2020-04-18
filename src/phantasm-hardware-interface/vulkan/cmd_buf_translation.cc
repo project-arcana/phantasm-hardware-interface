@@ -452,6 +452,37 @@ void phi::vk::command_list_translator::execute(const phi::cmd::update_top_level&
 
 void phi::vk::command_list_translator::execute(const cmd::dispatch_rays& dispatch_rays) {}
 
+void phi::vk::command_list_translator::execute(const phi::cmd::clear_textures& clear_tex)
+{
+    for (uint8_t i = 0u; i < clear_tex.clear_ops.size(); ++i)
+    {
+        auto const& op = clear_tex.clear_ops[i];
+        auto* const resource = _globals.pool_resources->getRawImage(op.rv.resource);
+
+        VkImageSubresourceRange range = {};
+        range.aspectMask = util::to_native_image_aspect(op.rv.pixel_format);
+        range.baseMipLevel = op.rv.texture_info.mip_start;
+        range.levelCount = op.rv.texture_info.mip_size;
+        range.baseArrayLayer = op.rv.texture_info.array_start;
+        range.layerCount = op.rv.texture_info.array_size;
+
+
+        if (is_depth_format(op.rv.pixel_format))
+        {
+            VkClearDepthStencilValue clearval = {};
+            clearval.depth = op.value.depth_stencil.depth;
+            clearval.stencil = op.value.depth_stencil.stencil;
+            vkCmdClearDepthStencilImage(_cmd_list, resource, VK_IMAGE_LAYOUT_GENERAL, &clearval, 1, &range);
+        }
+        else
+        {
+            VkClearColorValue clearval = {};
+            std::memcpy(clearval.float32, op.value.color, sizeof(float[4]));
+            vkCmdClearColorImage(_cmd_list, resource, VK_IMAGE_LAYOUT_GENERAL, &clearval, 1, &range);
+        }
+    }
+}
+
 void phi::vk::command_list_translator::bind_shader_arguments(phi::handle::pipeline_state pso,
                                                              const std::byte* root_consts,
                                                              cc::span<const phi::shader_argument> shader_args,

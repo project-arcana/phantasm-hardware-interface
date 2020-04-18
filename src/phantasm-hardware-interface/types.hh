@@ -475,6 +475,22 @@ union rt_clear_value {
         float depth;
         uint8_t stencil;
     } depth_stencil;
+
+    rt_clear_value() = default;
+
+    rt_clear_value(float r, float g, float b, float a)
+    {
+        color[0] = r;
+        color[1] = g;
+        color[2] = b;
+        color[3] = a;
+    }
+
+    rt_clear_value(float depth, uint8_t stencil)
+    {
+        depth_stencil.depth = depth;
+        depth_stencil.stencil = stencil;
+    }
 };
 
 /// blending logic operation a (graphics) handle::pipeline_state performs on its render targets
