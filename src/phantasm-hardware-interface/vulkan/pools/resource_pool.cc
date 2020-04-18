@@ -82,7 +82,7 @@ phi::handle::resource phi::vk::ResourcePool::createTexture(format format, unsign
     return acquireImage(res_alloc, res_image, format, image_info.mipLevels, image_info.arrayLayers);
 }
 
-phi::handle::resource phi::vk::ResourcePool::createRenderTarget(phi::format format, unsigned w, unsigned h, unsigned samples)
+phi::handle::resource phi::vk::ResourcePool::createRenderTarget(phi::format format, unsigned w, unsigned h, unsigned samples, unsigned array_size)
 {
     VkImageCreateInfo image_info = {};
     image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -93,7 +93,7 @@ phi::handle::resource phi::vk::ResourcePool::createRenderTarget(phi::format form
     image_info.extent.height = static_cast<uint32_t>(h);
     image_info.extent.depth = 1;
     image_info.mipLevels = 1;
-    image_info.arrayLayers = 1;
+    image_info.arrayLayers = array_size;
 
     image_info.samples = util::to_native_sample_flags(samples);
     image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
