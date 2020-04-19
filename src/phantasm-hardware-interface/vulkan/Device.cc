@@ -90,8 +90,9 @@ void phi::vk::Device::initialize(vulkan_gpu_info const& device, backend_config c
     if (hasRaytracing())
         initializeRaytracing();
 
-    if (hasConservativeRaster())
-        initializeConservativeRaster();
+    // TODO: these properties are unused (never read) right now, and this call crashes on non-charging optimus laptops
+    // if (hasConservativeRaster())
+    //  initializeConservativeRaster();
 }
 
 void phi::vk::Device::destroy()
