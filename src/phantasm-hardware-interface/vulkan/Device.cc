@@ -90,9 +90,8 @@ void phi::vk::Device::initialize(vulkan_gpu_info const& device, backend_config c
     if (hasRaytracing())
         initializeRaytracing();
 
-    // TODO: these properties are unused (never read) right now, and this call crashes on non-charging optimus laptops
-    // if (hasConservativeRaster())
-    //  initializeConservativeRaster();
+    if (hasConservativeRaster())
+        initializeConservativeRaster();
 }
 
 void phi::vk::Device::destroy()
@@ -119,7 +118,7 @@ void phi::vk::Device::queryDeviceProps2(void* property_obj)
 {
     VkPhysicalDeviceProperties2 props = {};
     props.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
-    props.pNext = &property_obj;
+    props.pNext = property_obj;
     props.properties = {};
 
     vkGetPhysicalDeviceProperties2(mPhysicalDevice, &props);
