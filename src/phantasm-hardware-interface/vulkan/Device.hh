@@ -34,6 +34,7 @@ public:
     VkPhysicalDeviceMemoryProperties const& getMemoryProperties() const { return mInformation.memory_properties; }
     VkPhysicalDeviceProperties const& getDeviceProperties() const { return mInformation.device_properties; }
     bool hasRaytracing() const { return mHasRaytracing; }
+    bool hasConservativeRaster() const { return mHasConservativeRaster; }
 
 public:
     VkPhysicalDevice getPhysicalDevice() const { return mPhysicalDevice; }
@@ -41,6 +42,9 @@ public:
 
 private:
     void initializeRaytracing();
+    void initializeConservativeRaster();
+
+    void queryDeviceProps2(void* property_obj);
 
 private:
     VkPhysicalDevice mPhysicalDevice;
@@ -63,8 +67,11 @@ private:
         VkPhysicalDeviceMemoryProperties memory_properties;
         VkPhysicalDeviceProperties device_properties;
         VkPhysicalDeviceRayTracingPropertiesNV raytrace_properties;
+        VkPhysicalDeviceConservativeRasterizationPropertiesEXT conservative_raster_properties;
     } mInformation;
 
     bool mHasRaytracing = false;
+    bool mHasConservativeRaster = false;
+    void queryDeviceProps2();
 };
 }

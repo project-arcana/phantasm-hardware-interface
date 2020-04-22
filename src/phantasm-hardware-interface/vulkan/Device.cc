@@ -14,7 +14,8 @@ void phi::vk::Device::initialize(vulkan_gpu_info const& device, backend_config c
     CC_ASSERT(mDevice == nullptr && "vk::Device initialized twice");
 
     mHasRaytracing = false;
-    auto const active_lay_ext = get_used_device_lay_ext(device.available_layers_extensions, config, mHasRaytracing);
+    mHasConservativeRaster = false;
+    auto const active_lay_ext = get_used_device_lay_ext(device.available_layers_extensions, config, mHasRaytracing, mHasConservativeRaster);
 
     // chose family queue indices
     {
@@ -87,9 +88,10 @@ void phi::vk::Device::initialize(vulkan_gpu_info const& device, backend_config c
     }
 
     if (hasRaytracing())
-    {
         initializeRaytracing();
-    }
+
+    if (hasConservativeRaster())
+        initializeConservativeRaster();
 }
 
 void phi::vk::Device::destroy()
@@ -102,10 +104,21 @@ void phi::vk::Device::initializeRaytracing()
 {
     mInformation.raytrace_properties = {};
     mInformation.raytrace_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PROPERTIES_NV;
+    queryDeviceProps2(&mInformation.raytrace_properties);
+}
 
+void phi::vk::Device::initializeConservativeRaster()
+{
+    mInformation.conservative_raster_properties = {};
+    mInformation.conservative_raster_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_CONSERVATIVE_RASTERIZATION_PROPERTIES_EXT;
+    queryDeviceProps2(&mInformation.conservative_raster_properties);
+}
+
+void phi::vk::Device::queryDeviceProps2(void* property_obj)
+{
     VkPhysicalDeviceProperties2 props = {};
     props.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
-    props.pNext = &mInformation.raytrace_properties;
+    props.pNext = property_obj;
     props.properties = {};
 
     vkGetPhysicalDeviceProperties2(mPhysicalDevice, &props);

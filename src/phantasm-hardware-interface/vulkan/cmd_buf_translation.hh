@@ -75,6 +75,8 @@ struct command_list_translator
 
     void execute(cmd::dispatch_rays const& dispatch_rays);
 
+    void execute(cmd::clear_textures const& clear_tex);
+
 private:
     void bind_shader_arguments(handle::pipeline_state pso, std::byte const* root_consts, cc::span<shader_argument const> shader_args, VkPipelineBindPoint bind_point);
 

@@ -90,7 +90,7 @@ phi::handle::resource phi::d3d12::ResourcePool::createTexture(format format, uns
     return acquireImage(alloc, format, initial_state, real_mip_levels, desc.DepthOrArraySize);
 }
 
-phi::handle::resource phi::d3d12::ResourcePool::createRenderTarget(phi::format format, unsigned w, unsigned h, unsigned samples, rt_clear_value const* optimized_clear_val)
+phi::handle::resource phi::d3d12::ResourcePool::createRenderTarget(phi::format format, unsigned w, unsigned h, unsigned samples, unsigned array_size, rt_clear_value const* optimized_clear_val)
 {
     auto const format_dxgi = util::to_dxgi_format(format);
     if (is_depth_format(format))
@@ -111,8 +111,8 @@ phi::handle::resource phi::d3d12::ResourcePool::createRenderTarget(phi::format f
             clear_value.DepthStencil.Stencil = 0;
         }
 
-        auto const desc = CD3DX12_RESOURCE_DESC::Tex2D(format_dxgi, w, h, 1, 1, samples, samples != 1 ? DXGI_STANDARD_MULTISAMPLE_QUALITY_PATTERN : 0,
-                                                       D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
+        auto const desc = CD3DX12_RESOURCE_DESC::Tex2D(format_dxgi, w, h, UINT16(array_size), 1, samples,
+                                                       samples != 1 ? DXGI_STANDARD_MULTISAMPLE_QUALITY_PATTERN : 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
 
         auto* const alloc = mAllocator.allocate(desc, util::to_native(initial_state), &clear_value);
         util::set_object_name(alloc->GetResource(), "respool depth stencil target");
@@ -137,7 +137,7 @@ phi::handle::resource phi::d3d12::ResourcePool::createRenderTarget(phi::format f
             clear_value.Color[3] = 1.0f;
         }
 
-        auto const desc = CD3DX12_RESOURCE_DESC::Tex2D(format_dxgi, UINT(w), UINT(h), 1, 1, UINT(samples),
+        auto const desc = CD3DX12_RESOURCE_DESC::Tex2D(format_dxgi, w, h, UINT16(array_size), 1, samples,
                                                        samples != 1 ? DXGI_STANDARD_MULTISAMPLE_QUALITY_PATTERN : 0, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
 
         auto* const alloc = mAllocator.allocate(desc, util::to_native(initial_state), &clear_value);

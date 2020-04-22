@@ -11,6 +11,7 @@ namespace phi::d3d12::util
 {
 inline void set_viewport(ID3D12GraphicsCommandList* command_list, tg::isize2 size)
 {
+    // depthrange is hardcoded to [0, 1]
     auto const viewport = D3D12_VIEWPORT{0.f, 0.f, float(size.width), float(size.height), 0.f, 1.f};
     auto const scissor_rect = D3D12_RECT{0, 0, LONG(size.width), LONG(size.height)};
 

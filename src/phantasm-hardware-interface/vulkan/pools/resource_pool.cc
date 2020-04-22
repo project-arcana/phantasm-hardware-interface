@@ -82,7 +82,7 @@ phi::handle::resource phi::vk::ResourcePool::createTexture(format format, unsign
     return acquireImage(res_alloc, res_image, format, image_info.mipLevels, image_info.arrayLayers);
 }
 
-phi::handle::resource phi::vk::ResourcePool::createRenderTarget(phi::format format, unsigned w, unsigned h, unsigned samples)
+phi::handle::resource phi::vk::ResourcePool::createRenderTarget(phi::format format, unsigned w, unsigned h, unsigned samples, unsigned array_size)
 {
     VkImageCreateInfo image_info = {};
     image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -93,13 +93,16 @@ phi::handle::resource phi::vk::ResourcePool::createRenderTarget(phi::format form
     image_info.extent.height = static_cast<uint32_t>(h);
     image_info.extent.depth = 1;
     image_info.mipLevels = 1;
-    image_info.arrayLayers = 1;
+    image_info.arrayLayers = array_size;
 
     image_info.samples = util::to_native_sample_flags(samples);
     image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     image_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-    image_info.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+    // sampled bit for SRVs, transfer src for copy from, transfer dst for explicit clear (cmd::clear_textures)
+    image_info.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+
+    // Attachment bits so we can render to it
     if (phi::is_depth_format(format))
         image_info.usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
     else
@@ -354,7 +357,9 @@ phi::handle::resource phi::vk::ResourcePool::acquireBuffer(
         VkDescriptorBufferInfo cbv_info = {};
         cbv_info.buffer = buffer;
         cbv_info.offset = 0;
-        cbv_info.range = cc::min<uint64_t>(256, buffer_width);
+        cbv_info.range = buffer_width;
+        // NOTE: no idea what the line below tried to accomplish
+        //cc::min<uint64_t>(256, buffer_width);
 
         cc::capped_vector<VkWriteDescriptorSet, 2> writes;
         {

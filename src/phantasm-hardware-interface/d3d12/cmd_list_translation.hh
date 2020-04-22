@@ -87,6 +87,8 @@ struct command_list_translator
 
     void execute(cmd::dispatch_rays const& dispatch_rays);
 
+    void execute(cmd::clear_textures const& clear_tex);
+
 private:
     // non-owning constant (global)
     translator_global_memory _globals;

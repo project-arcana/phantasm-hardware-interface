@@ -29,7 +29,8 @@ namespace detail
     PHI_X(debug_marker)            \
     PHI_X(update_bottom_level)     \
     PHI_X(update_top_level)        \
-    PHI_X(dispatch_rays)
+    PHI_X(dispatch_rays)           \
+    PHI_X(clear_textures)
 
 enum class cmd_type : uint8_t
 {
@@ -404,6 +405,18 @@ PHI_DEFINE_CMD(dispatch_rays)
     unsigned depth = 0;
 };
 
+/// clear up to 4 textures to specified values - standalone (outside of begin/end_render_pass)
+PHI_DEFINE_CMD(clear_textures)
+{
+    struct clear_info
+    {
+        resource_view rv;
+        rt_clear_value value;
+    };
+
+    cmd_vector<clear_info, 4> clear_ops;
+};
+
 #undef PHI_DEFINE_CMD
 }
 
@@ -439,6 +452,8 @@ public:
         _cursor += sizeof(CMDT);
     }
 
+    void advance_cursor(size_t amount) { _cursor += amount; }
+
 #ifndef PHI_ENABLE_DEBUG_MARKERS
     void add_command(cmd::debug_marker const&)
     {
@@ -447,9 +462,13 @@ public:
 #endif
 
 public:
+    /// returns the size of the written section in bytes
     size_t size() const { return _cursor; }
+    /// returns the start of the buffer
     std::byte* buffer() const { return _out_buffer; }
-
+    /// returns the current head of the buffer
+    std::byte* buffer_head() const { return _out_buffer + _cursor; }
+    /// returns the maximum size of the buffer
     size_t max_size() const { return _max_size; }
 
     bool empty() const { return _cursor == 0; }

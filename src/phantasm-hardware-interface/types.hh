@@ -122,7 +122,7 @@ enum class resource_state : uint8_t
 };
 
 /// pixel format of a texture, or texture view (DXGI_FORMAT / VkFormat)
-/// [f]loat, [i]nt, [u]int, [un]orm, [uf]loat
+/// [f]loat, [i]nt, [u]int, [un]orm, [uf]loat, [t]ypeless
 enum class format : uint8_t
 {
     // regular formats
@@ -165,6 +165,10 @@ enum class format : uint8_t
     bc6h_16f,
     bc6h_16uf,
 
+    // view-only formats - depth
+    r24un_g8t, // view the depth part of depth24un_stencil8u
+    r24t_g8u,  // view the stencil part of depth24un_stencil8u
+
     // depth formats
     depth32f,
     depth16un,
@@ -174,11 +178,14 @@ enum class format : uint8_t
     depth24un_stencil8u,
 };
 
+/// returns true if the format is a view-only format
+[[nodiscard]] constexpr bool is_view_format(format fmt) { return fmt >= format::r24un_g8t && fmt < format::depth32f; }
+
 /// returns true if the format is a depth OR depth stencil format
-[[nodiscard]] inline constexpr bool is_depth_format(format fmt) { return fmt >= format::depth32f; }
+[[nodiscard]] constexpr bool is_depth_format(format fmt) { return fmt >= format::depth32f; }
 
 /// returns true if the format is a depth stencil format
-[[nodiscard]] inline constexpr bool is_depth_stencil_format(format fmt) { return fmt >= format::depth32f_stencil8u; }
+[[nodiscard]] constexpr bool is_depth_stencil_format(format fmt) { return fmt >= format::depth32f_stencil8u; }
 
 /// information about a single vertex attribute
 struct vertex_attribute_info
@@ -391,14 +398,14 @@ struct sampler_config
     float lod_bias;          ///< offset from the calculated MIP level (sampled = calculated + lod_bias)
     unsigned max_anisotropy; ///< maximum amount of anisotropy in [1, 16], req. sampler_filter::anisotropic
     sampler_compare_func compare_func;
-    sampler_border_color border_color; ///< the border color to use, req. sampler_filter::clamp_border
+    sampler_border_color border_color; ///< the border color to use, req. sampler_address_mode::clamp_border
 
-    void init_default(sampler_filter filter, unsigned anisotropy = 16u)
+    void init_default(sampler_filter filter, unsigned anisotropy = 16u, sampler_address_mode address_mode = sampler_address_mode::wrap)
     {
         this->filter = filter;
-        address_u = sampler_address_mode::wrap;
-        address_v = sampler_address_mode::wrap;
-        address_w = sampler_address_mode::wrap;
+        address_u = address_mode;
+        address_v = address_mode;
+        address_w = address_mode;
         min_lod = 0.f;
         max_lod = 100000.f;
         lod_bias = 0.f;
@@ -450,6 +457,7 @@ struct pipeline_config
     bool depth_readonly = false;
     cull_mode cull = cull_mode::none;
     int samples = 1;
+    bool conservative_raster = false;
 };
 
 /// operation to perform on render targets upon render pass begin
@@ -468,6 +476,22 @@ union rt_clear_value {
         float depth;
         uint8_t stencil;
     } depth_stencil;
+
+    rt_clear_value() = default;
+
+    rt_clear_value(float r, float g, float b, float a)
+    {
+        color[0] = r;
+        color[1] = g;
+        color[2] = b;
+        color[3] = a;
+    }
+
+    rt_clear_value(float depth, uint8_t stencil)
+    {
+        depth_stencil.depth = depth;
+        depth_stencil.stencil = stencil;
+    }
 };
 
 /// blending logic operation a (graphics) handle::pipeline_state performs on its render targets

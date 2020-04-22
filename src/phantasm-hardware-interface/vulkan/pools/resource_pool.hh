@@ -24,7 +24,7 @@ public:
     [[nodiscard]] handle::resource createTexture(format format, unsigned w, unsigned h, unsigned mips, texture_dimension dim, unsigned depth_or_array_size, bool allow_uav);
 
     /// create a render- or depth-stencil target
-    [[nodiscard]] handle::resource createRenderTarget(format format, unsigned w, unsigned h, unsigned samples);
+    [[nodiscard]] handle::resource createRenderTarget(format format, unsigned w, unsigned h, unsigned samples, unsigned array_size);
 
     /// create a buffer, with an element stride if its an index or vertex buffer
     [[nodiscard]] handle::resource createBuffer(uint64_t size_bytes, unsigned stride_bytes, bool allow_uav);
