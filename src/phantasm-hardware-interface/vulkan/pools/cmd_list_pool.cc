@@ -183,6 +183,7 @@ void phi::vk::FenceRingbuffer::initialize(VkDevice device, unsigned num_fences)
 
     VkFenceCreateInfo fence_info = {};
     fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT; // create all fences in VK_SUCCESS state so acquireFence has no special casing
 
     for (auto i = 0u; i < mFences.size(); ++i)
     {
@@ -202,7 +203,7 @@ void phi::vk::FenceRingbuffer::destroy(VkDevice device)
 unsigned phi::vk::FenceRingbuffer::acquireFence(VkDevice device, VkFence& out_fence)
 {
     // look for a fence that is CPU-unreferenced and resettable
-
+    // resettable: has ran on GPU (is VK_SUCCESS) OR was newly created (is VK_SUCCESS because of VK_FENCE_CREATE_SIGNALED_BIT)
     for (auto i = 0u; i < mFences.size(); ++i)
     {
         auto const fence_i = mNextFence;
@@ -220,7 +221,6 @@ unsigned phi::vk::FenceRingbuffer::acquireFence(VkDevice device, VkFence& out_fe
     }
 
     // no fence was resettable, reset the first CPU-unreferenced one anyway
-
     //
     // NOTE: intuitively we should wait on it since resetting non-ready fences
     // is not allowed, but this solves the issue, while waiting stalls forever.
@@ -285,26 +285,28 @@ phi::vk::cmd_allocator_node* phi::vk::CommandAllocatorBundle::acquireMemory(VkDe
 
 void phi::vk::CommandAllocatorBundle::updateActiveIndex(VkDevice device)
 {
-    for (auto it = 0u; it < mAllocators.size(); ++it)
+    auto const num_allocators = mAllocators.size();
+
+    for (auto it = 0u; it < num_allocators; ++it)
     {
         if (!mAllocators[mActiveAllocator].is_full() || mAllocators[mActiveAllocator].try_reset(device))
             // not full, or nonblocking reset successful
             return;
         else
         {
-            mActiveAllocator = cc::wrapped_increment(mActiveAllocator, mAllocators.size());
+            mActiveAllocator = cc::wrapped_increment(mActiveAllocator, num_allocators);
         }
     }
 
     // all non-blocking resets failed, try blocking now
-    for (auto it = 0u; it < mAllocators.size(); ++it)
+    for (auto it = 0u; it < num_allocators; ++it)
     {
         if (mAllocators[mActiveAllocator].try_reset_blocking(device))
             // blocking reset successful
             return;
         else
         {
-            mActiveAllocator = cc::wrapped_increment(mActiveAllocator, mAllocators.size());
+            mActiveAllocator = cc::wrapped_increment(mActiveAllocator, num_allocators);
         }
     }
 
