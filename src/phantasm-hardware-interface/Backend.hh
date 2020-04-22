@@ -80,7 +80,8 @@ public:
         = 0;
 
     /// create a [multisampled] 2D render- or depth-stencil target
-    [[nodiscard]] virtual handle::resource createRenderTarget(phi::format format, tg::isize2 size, unsigned samples = 1, unsigned array_size = 1, rt_clear_value const* optimized_clear_val = nullptr)
+    [[nodiscard]] virtual handle::resource createRenderTarget(
+        phi::format format, tg::isize2 size, unsigned samples = 1, unsigned array_size = 1, rt_clear_value const* optimized_clear_val = nullptr)
         = 0;
 
     /// create a buffer, with an element stride if its an index or vertex buffer
