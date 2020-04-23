@@ -393,7 +393,7 @@ void phi::vk::command_list_translator::execute(const phi::cmd::debug_marker& mar
 {
     VkDebugUtilsLabelEXT label = {};
     label.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
-    label.pLabelName = marker.string_literal;
+    label.pLabelName = marker.string;
 
     // this function pointer is not available in all configurations
     if (vkCmdInsertDebugUtilsLabelEXT)
