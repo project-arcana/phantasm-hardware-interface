@@ -177,12 +177,12 @@ phi::vk::lay_ext_array phi::vk::get_used_instance_lay_ext(const phi::vk::lay_ext
     {
         if (!add_layer("VK_LAYER_KHRONOS_validation"))
         {
-            log::err() << "validation enabled, but no layers available on Vulkan instance";
-            log::err() << "download the LunarG SDK for your operating system,";
-            log::err() << "then set these environment variables: (all paths absolute)";
-            log::err() << "VK_LAYER_PATH - <sdk>/x86_64/etc/vulkan/explicit_layer.d/";
-            log::err() << "VULKAN_SDK - <sdk>/x86_64/bin";
-            log::err() << "LD_LIBRARY_PATH - <VALUE>:<sdk>/x86_64/lib (append)";
+            log::err() << "validation enabled, but no layers available on Vulkan instance\n"
+                          "  download the latest LunarG SDK for your operating system,\n"
+                          "  then set these environment variables: (all paths absolute)\n"
+                          "  VK_LAYER_PATH - <sdk>/x86_64/etc/vulkan/explicit_layer.d/\n"
+                          "  VULKAN_SDK - <sdk>/x86_64/bin\n"
+                          "  LD_LIBRARY_PATH - <VALUE>:<sdk>/x86_64/lib (append)";
         }
 
         if (!add_ext(VK_EXT_DEBUG_UTILS_EXTENSION_NAME))
