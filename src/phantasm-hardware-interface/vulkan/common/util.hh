@@ -9,6 +9,8 @@
 #include <clean-core/capped_vector.hh>
 #include <clean-core/span.hh>
 
+#include <phantasm-hardware-interface/vulkan/loader/vulkan_fwd.hh>
+
 #include <phantasm-hardware-interface/types.hh>
 #include <phantasm-hardware-interface/vulkan/loader/volk.hh>
 
@@ -59,7 +61,7 @@ inline constexpr VkObjectType get_object_type()
         return VK_OBJECT_TYPE_SHADER_MODULE;
     else if constexpr (std::is_same_v<VkT, VkFence_T>)
         return VK_OBJECT_TYPE_FENCE;
-    else if constexpr (std::is_same_v<VkT, VkAccelerationStructureNV_T>)
+    else if constexpr (std::is_same_v<VkT, VkAccelerationStructureNV_T> || std::is_same_v<VkT, VkAccelerationStructureKHR_T>)
         return VK_OBJECT_TYPE_ACCELERATION_STRUCTURE_NV;
     else
     {

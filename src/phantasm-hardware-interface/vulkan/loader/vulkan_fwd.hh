@@ -23,12 +23,14 @@ extern "C"
     PHI_VK_DEFINE_HANDLE(VkFence);
     PHI_VK_DEFINE_HANDLE(VkEvent);
     PHI_VK_DEFINE_HANDLE(VkSemaphore);
-    PHI_VK_DEFINE_HANDLE(VkAccelerationStructureNV);
 
 #undef PHI_VK_DEFINE_HANDLE
 
     struct VkAccelerationStructureCreateInfoNV;
     struct VkGeometryNV;
+
+    struct VkAccelerationStructureNV_T;
+    struct VkAccelerationStructureKHR_T;
 }
 
 #if defined(__LP64__) || defined(_WIN64) || (defined(__x86_64__) && !defined(__ILP32__)) || defined(_M_X64) || defined(__ia64) || defined(_M_IA64) \
