@@ -8,7 +8,7 @@
 
 namespace phi::d3d12::util
 {
-[[nodiscard]] inline constexpr DXGI_FORMAT to_dxgi_format(phi::format format)
+[[nodiscard]] constexpr DXGI_FORMAT to_dxgi_format(phi::format format)
 {
     using af = phi::format;
     switch (format)
@@ -110,7 +110,27 @@ namespace phi::d3d12::util
     return DXGI_FORMAT_UNKNOWN;
 }
 
-[[nodiscard]] inline constexpr phi::format to_pr_format(DXGI_FORMAT format)
+/// Viewing some formats requires special DXGI_FORMATs
+[[nodiscard]] constexpr DXGI_FORMAT to_view_dxgi_format(phi::format format)
+{
+    using af = phi::format;
+    switch (format)
+    {
+    case af::depth32f:
+        return DXGI_FORMAT_R32_FLOAT;
+    case af::depth16un:
+        return DXGI_FORMAT_R16_UNORM;
+    case af::depth32f_stencil8u:
+        return DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS;
+    case af::depth24un_stencil8u:
+        return DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+
+    default:
+        return to_dxgi_format(format);
+    }
+}
+
+[[nodiscard]] constexpr phi::format to_pr_format(DXGI_FORMAT format)
 {
     using af = phi::format;
     switch (format)

@@ -349,14 +349,14 @@ public:
 
 PHI_DEFINE_CMD(resolve_texture)
 {
-    handle::resource source;
-    handle::resource destination;
-    unsigned src_mip_index;    ///< index of the MIP level to read from (usually: 0)
-    unsigned src_array_index;  ///< index of the array element to read from (usually: 0)
-    unsigned dest_mip_index;   ///< index of the MIP level to write to (usually: 0)
-    unsigned dest_array_index; ///< index of the array element to write to (usually: 0)
-    unsigned width;            ///< width of the destination texture (in the specified MIP map and array element) (ignored on d3d12)
-    unsigned height;           ///< height of the destination texture (in the specified MIP map and array element) (ignored on d3d12)
+    handle::resource source;      ///< the multisampled source texture
+    handle::resource destination; ///< the non-multisampled destination texture
+    unsigned src_mip_index;       ///< index of the MIP level to read from (usually: 0)
+    unsigned src_array_index;     ///< index of the array element to read from (usually: 0)
+    unsigned dest_mip_index;      ///< index of the MIP level to write to (usually: 0)
+    unsigned dest_array_index;    ///< index of the array element to write to (usually: 0)
+    unsigned width;               ///< width of the destination texture (in the specified MIP map and array element) (ignored on d3d12)
+    unsigned height;              ///< height of the destination texture (in the specified MIP map and array element) (ignored on d3d12)
 
 public:
     // convenience
@@ -374,26 +374,30 @@ public:
     }
 };
 
+/// set a debug marker for diagnostic tools like renderdoc, nsight, or pix
 PHI_DEFINE_CMD(debug_marker)
 {
-    char const* string_literal;
+    char const* string = "UNLABELED_DEBUG_MARKER";
 
     debug_marker() = default;
-    debug_marker(char const* s) : string_literal(s) {}
+    debug_marker(char const* s) : string(s) {}
 };
 
+/// update a bottom level raytracing acceleration structure (BLAS)
 PHI_DEFINE_CMD(update_bottom_level)
 {
     handle::accel_struct dest = handle::null_accel_struct;
     handle::accel_struct source = handle::null_accel_struct;
 };
 
+/// update a top level raytracing acceleration structure (TLAS)
 PHI_DEFINE_CMD(update_top_level)
 {
     handle::accel_struct dest = handle::null_accel_struct;
     unsigned num_instances = 0;
 };
 
+/// dispatch rays given a raytracing pipeline state and shader tables for ray generation, ray miss and the involved hitgroups
 PHI_DEFINE_CMD(dispatch_rays)
 {
     handle::pipeline_state pso = handle::null_pipeline_state;

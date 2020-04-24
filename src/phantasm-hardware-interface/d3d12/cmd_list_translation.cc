@@ -385,7 +385,7 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::resolve_textur
     _cmd_list->ResolveSubresource(dest_raw, dest_subres_index, src_raw, src_subres_index, util::to_dxgi_format(dest_info.pixel_format));
 }
 
-void phi::d3d12::command_list_translator::execute(const phi::cmd::debug_marker& marker) { util::set_pix_marker(_cmd_list, 0, marker.string_literal); }
+void phi::d3d12::command_list_translator::execute(const phi::cmd::debug_marker& marker) { util::set_pix_marker(_cmd_list, 0, marker.string); }
 
 void phi::d3d12::command_list_translator::execute(const phi::cmd::update_bottom_level& blas_update)
 {

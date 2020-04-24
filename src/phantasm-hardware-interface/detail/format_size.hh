@@ -66,6 +66,8 @@ namespace phi::detail
     case format::depth32f_stencil8u:
         return 8;
     case format::depth24un_stencil8u:
+    case format::r24t_g8u:
+    case format::r24un_g8t:
         return 4;
 
     case format::b10g11r11uf:
@@ -127,6 +129,8 @@ namespace phi::detail
     case format::r8i:
     case format::r8u:
     case format::r8un:
+    case format::r24t_g8u:
+    case format::r24un_g8t:
         return 1;
     }
     CC_UNREACHABLE("unknown format");

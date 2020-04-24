@@ -59,7 +59,7 @@ D3D12_SHADER_RESOURCE_VIEW_DESC phi::d3d12::util::create_srv_desc(const phi::res
         srv_desc.Format = DXGI_FORMAT_UNKNOWN;
         break;
     default:
-        srv_desc.Format = util::to_dxgi_format(sve.pixel_format);
+        srv_desc.Format = util::to_view_dxgi_format(sve.pixel_format);
         break;
     }
 
@@ -151,7 +151,7 @@ D3D12_UNORDERED_ACCESS_VIEW_DESC phi::d3d12::util::create_uav_desc(const phi::re
         uav_desc.Format = DXGI_FORMAT_UNKNOWN;
         break;
     default:
-        uav_desc.Format = util::to_dxgi_format(sve.pixel_format);
+        uav_desc.Format = util::to_view_dxgi_format(sve.pixel_format);
         break;
     }
 
