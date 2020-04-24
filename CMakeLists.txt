@@ -1,5 +1,8 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
 project(PhantasmHardwareInterface)
+
+# use provided .cmake modules in ./cmake/ (includes the latest FindVulkan.cmake which is broken out of the box on older CMake versions
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 if (NOT TARGET clean-core)
     message(FATAL_ERROR "[phantasm hardware interface] clean-core must be available")
