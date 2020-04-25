@@ -151,8 +151,8 @@ void phi::vk::FencePool::signalWaitGPU(cc::span<const phi::handle::fence> signal
 
 uint64_t phi::vk::FencePool::getValue(phi::handle::fence fence) const
 {
-    VkSemaphore const sem = get(fence);
     uint64_t res;
-    PHI_VK_VERIFY_SUCCESS(vkGetSemaphoreCounterValue(mDevice, sem, &res));
+    // NOTE: KHR! We're not on Vulkan 1.2, these are the extension timeline semaphores and not the 1.2 core ones
+    PHI_VK_VERIFY_SUCCESS(vkGetSemaphoreCounterValueKHR(mDevice, get(fence), &res));
     return res;
 }
