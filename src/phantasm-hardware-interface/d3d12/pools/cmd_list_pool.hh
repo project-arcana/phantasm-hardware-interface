@@ -117,8 +117,7 @@ public:
 
     [[nodiscard]] handle::command_list create(ID3D12GraphicsCommandList*& out_cmdlist,
                                               ID3D12GraphicsCommandList5** out_cmdlist5,
-                                              CommandAllocatorBundle& thread_allocator,
-                                              ID3D12Fence* fence_to_set = nullptr);
+                                              CommandAllocatorBundle& thread_allocator);
 
     void freeOnSubmit(handle::command_list cl, ID3D12CommandQueue& queue)
     {
@@ -126,12 +125,6 @@ public:
         {
             auto lg = std::lock_guard(mMutex);
             freed_node.responsible_allocator->on_submit(queue);
-
-            if (freed_node.fence_to_set != nullptr)
-            {
-                queue.Signal(freed_node.fence_to_set, 1);
-            }
-
             mPool.release(static_cast<unsigned>(cl.index));
         }
     }
@@ -146,12 +139,6 @@ public:
 
             cmd_list_node& freed_node = mPool.get(static_cast<unsigned>(cl.index));
             freed_node.responsible_allocator->on_submit(queue);
-
-            if (freed_node.fence_to_set != nullptr)
-            {
-                queue.Signal(freed_node.fence_to_set, 1);
-            }
-
             mPool.release(static_cast<unsigned>(cl.index));
         }
     }
@@ -189,7 +176,6 @@ private:
         // - the command list is freshly reset using an appropriate allocator
         // - the responsible_allocator must be informed on submit or discard
         cmd_allocator_node* responsible_allocator;
-        ID3D12Fence* fence_to_set; ///< the fence to signal to 1 directly after submission, can be nullptr (not related to internal sync, for handle::event API)
         phi::detail::incomplete_state_cache state_cache;
     };
 

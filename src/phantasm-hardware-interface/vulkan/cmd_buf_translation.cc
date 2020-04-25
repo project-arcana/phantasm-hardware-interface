@@ -18,7 +18,7 @@
 #include "resources/transition_barrier.hh"
 
 void phi::vk::command_list_translator::translateCommandList(
-    VkCommandBuffer list, handle::command_list list_handle, vk_incomplete_state_cache* state_cache, std::byte* buffer, size_t buffer_size, VkEvent event_to_set)
+    VkCommandBuffer list, handle::command_list list_handle, vk_incomplete_state_cache* state_cache, std::byte* buffer, size_t buffer_size)
 {
     _cmd_list = list;
     _cmd_list_handle = list_handle;
@@ -36,11 +36,6 @@ void phi::vk::command_list_translator::translateCommandList(
     {
         // end the last render pass
         vkCmdEndRenderPass(_cmd_list);
-    }
-
-    if (event_to_set != nullptr)
-    {
-        vkCmdSetEvent(_cmd_list, event_to_set, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
     }
 
     // close the list
@@ -335,7 +330,7 @@ void phi::vk::command_list_translator::execute(const phi::cmd::copy_texture& cop
     copy.dstSubresource.mipLevel = copy_text.dest_mip_index;
     copy.extent.width = copy_text.width;
     copy.extent.height = copy_text.height;
-    copy.extent.depth = copy_text.num_array_slices;
+    copy.extent.depth = 1;
 
     vkCmdCopyImage(_cmd_list, src_image_info.raw_image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dest_image_info.raw_image,
                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);

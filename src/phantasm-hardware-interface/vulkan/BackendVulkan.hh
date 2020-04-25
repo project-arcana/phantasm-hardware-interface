@@ -118,7 +118,7 @@ public:
     // Command list interface
     //
 
-    [[nodiscard]] handle::command_list recordCommandList(std::byte* buffer, size_t size, handle::event event_to_set = handle::null_event) override;
+    [[nodiscard]] handle::command_list recordCommandList(std::byte* buffer, size_t size) override;
     void discard(cc::span<handle::command_list const> cls) override { mPoolCmdLists.freeAndDiscard(cls); }
     void submit(cc::span<handle::command_list const> cls) override;
 
@@ -127,12 +127,27 @@ public:
     //
 
     /// create an event, starts out unset
-    [[nodiscard]] handle::event createEvent() override { return mPoolEvents.createEvent(); }
+    [[nodiscard]] handle::fence createFence() override { return mPoolEvents.createEvent(); }
 
-    /// if the event is set, unsets it and returns true, otherwise returns false
-    bool clearEvent(handle::event event) override;
+    [[nodiscard]] uint64_t getFenceValue(handle::fence fence) override { return mPoolEvents.getValue(fence); }
 
-    void free(cc::span<handle::event const> events) override { mPoolEvents.free(events); }
+    void signalFenceCPU(handle::fence fence, uint64_t new_value) override { mPoolEvents.signalCPU(fence, new_value); }
+
+    void waitFenceCPU(handle::fence fence, uint64_t wait_value) override { mPoolEvents.waitCPU(fence, wait_value); }
+
+    void signalFenceGPU(handle::fence fence, uint64_t new_value, queue_type queue) override
+    {
+        CC_ASSERT(queue == queue_type::direct && "unimplemented queue");
+        mPoolEvents.signalGPU(fence, new_value, mDevice.getQueueDirect());
+    }
+
+    void waitFenceGPU(handle::fence fence, uint64_t wait_value, queue_type queue) override
+    {
+        CC_ASSERT(queue == queue_type::direct && "unimplemented queue");
+        mPoolEvents.waitGPU(fence, wait_value, mDevice.getQueueDirect());
+    }
+
+    void free(cc::span<handle::fence const> fences) override { mPoolEvents.free(fences); }
 
     //
     // Raytracing interface
@@ -203,7 +218,7 @@ public:
     CommandListPool mPoolCmdLists;
     PipelinePool mPoolPipelines;
     ShaderViewPool mPoolShaderViews;
-    EventPool mPoolEvents;
+    FencePool mPoolEvents;
     AccelStructPool mPoolAccelStructs;
 
     // Logic

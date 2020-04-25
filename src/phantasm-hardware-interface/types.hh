@@ -36,7 +36,7 @@ PHI_DEFINE_HANDLE(shader_view);
 PHI_DEFINE_HANDLE(command_list);
 
 /// synchronization primitive. can be "set" by a command_list after it completed executing
-PHI_DEFINE_HANDLE(event);
+PHI_DEFINE_HANDLE(fence);
 
 /// raytracing acceleration structure handle
 PHI_DEFINE_HANDLE(accel_struct);
@@ -83,7 +83,7 @@ inline constexpr shader_stage_flags_t shader_stage_mask_all_ray
 
 enum class queue_type : uint8_t
 {
-    graphics,
+    direct, // graphics + copy + compute + present
     copy,
     compute
 };

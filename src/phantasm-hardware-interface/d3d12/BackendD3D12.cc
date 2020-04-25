@@ -31,7 +31,7 @@ void phi::d3d12::BackendD3D12::initialize(const phi::backend_config& config, con
     {
         mAdapter.initialize(config);
         mDevice.initialize(mAdapter.getAdapter(), config);
-        mGraphicsQueue.initialize(mDevice.getDevice(), queue_type::graphics);
+        mGraphicsQueue.initialize(mDevice.getDevice(), queue_type::direct);
         ::HWND native_hwnd = nullptr;
         {
             if (window_handle.type == window_handle::wh_win32_hwnd)
@@ -66,7 +66,7 @@ void phi::d3d12::BackendD3D12::initialize(const phi::backend_config& config, con
         mPoolResources.initialize(device, config.max_num_resources);
         mPoolShaderViews.initialize(&device, &mPoolResources, config.max_num_cbvs, config.max_num_srvs + config.max_num_uavs, config.max_num_samplers);
         mPoolPSOs.initialize(&device, mDevice.getDevice5(), config.max_num_pipeline_states, config.max_num_raytrace_pipeline_states);
-        mPoolEvents.initialize(&device, config.max_num_events);
+        mPoolFences.initialize(&device, config.max_num_events);
 
         if (isRaytracingEnabled())
         {
@@ -108,7 +108,7 @@ void phi::d3d12::BackendD3D12::destroy()
         mPoolCmdLists.destroy();
         mPoolAccelStructs.destroy();
 
-        mPoolEvents.destroy();
+        mPoolFences.destroy();
         mPoolPSOs.destroy();
         mPoolShaderViews.destroy();
         mPoolResources.destroy();
@@ -153,15 +153,12 @@ void phi::d3d12::BackendD3D12::onResize(tg::isize2 size)
 
 phi::format phi::d3d12::BackendD3D12::getBackbufferFormat() const { return util::to_pr_format(mSwapchain.getBackbufferFormat()); }
 
-phi::handle::command_list phi::d3d12::BackendD3D12::recordCommandList(std::byte* buffer, size_t size, handle::event event_to_set)
+phi::handle::command_list phi::d3d12::BackendD3D12::recordCommandList(std::byte* buffer, size_t size)
 {
     auto& thread_comp = mThreadComponents[mThreadAssociation.get_current_index()];
-
-    ID3D12Fence* const raw_fence_to_set = event_to_set.is_valid() ? mPoolEvents.get(event_to_set) : nullptr;
-
     ID3D12GraphicsCommandList* raw_list;
     ID3D12GraphicsCommandList5* raw_list5;
-    auto const res = mPoolCmdLists.create(raw_list, &raw_list5, thread_comp.cmd_list_allocator, raw_fence_to_set);
+    auto const res = mPoolCmdLists.create(raw_list, &raw_list5, thread_comp.cmd_list_allocator);
     thread_comp.translator.translateCommandList(raw_list, raw_list5, mPoolCmdLists.getStateCache(res), buffer, size);
     return res;
 }
@@ -229,25 +226,6 @@ void phi::d3d12::BackendD3D12::submit(cc::span<const phi::handle::command_list> 
 
     if (num_cls_in_batch > 0)
         submit_flush();
-}
-
-bool phi::d3d12::BackendD3D12::clearEvent(phi::handle::event event)
-{
-    auto* const raw_fence = mPoolEvents.get(event);
-
-    auto const completed_val = raw_fence->GetCompletedValue();
-    if (completed_val == 1)
-    {
-        // "signalled", reset to 0
-        raw_fence->Signal(0);
-        return true;
-    }
-    else
-    {
-        // these fences should only ever be 0 or 1
-        CC_ASSERT(completed_val == 0 && "unexpected fence value in handle::event check");
-        return false;
-    }
 }
 
 phi::handle::pipeline_state phi::d3d12::BackendD3D12::createRaytracingPipelineState(arg::raytracing_shader_libraries libraries,
