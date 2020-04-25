@@ -66,7 +66,7 @@ void phi::d3d12::BackendD3D12::initialize(const phi::backend_config& config, con
         mPoolResources.initialize(device, config.max_num_resources);
         mPoolShaderViews.initialize(&device, &mPoolResources, config.max_num_cbvs, config.max_num_srvs + config.max_num_uavs, config.max_num_samplers);
         mPoolPSOs.initialize(&device, mDevice.getDevice5(), config.max_num_pipeline_states, config.max_num_raytrace_pipeline_states);
-        mPoolFences.initialize(&device, config.max_num_events);
+        mPoolFences.initialize(&device, config.max_num_fences);
 
         if (isRaytracingEnabled())
         {

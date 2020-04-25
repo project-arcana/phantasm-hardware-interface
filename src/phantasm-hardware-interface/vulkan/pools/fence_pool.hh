@@ -12,19 +12,19 @@ namespace phi::vk
 class FencePool
 {
 public:
-    [[nodiscard]] handle::fence createEvent();
+    [[nodiscard]] handle::fence createFence();
 
-    void free(handle::fence event);
-    void free(cc::span<handle::fence const> event_span);
+    void free(handle::fence fence);
+    void free(cc::span<handle::fence const> fence_span);
 
 public:
-    void initialize(VkDevice device, unsigned max_num_events);
+    void initialize(VkDevice device, unsigned max_num_fences);
     void destroy();
 
-    VkSemaphore get(handle::fence event) const
+    VkSemaphore get(handle::fence fence) const
     {
-        CC_ASSERT(event.is_valid() && "invalid handle::event");
-        return mPool.get(static_cast<unsigned>(event.index));
+        CC_ASSERT(fence.is_valid() && "invalid handle::fence");
+        return mPool.get(static_cast<unsigned>(fence.index));
     }
 
     void signalCPU(handle::fence fence, uint64_t val) const;

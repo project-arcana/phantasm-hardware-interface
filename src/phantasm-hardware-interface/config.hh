@@ -87,7 +87,7 @@ struct backend_config
     unsigned max_num_srvs = 2048;
     unsigned max_num_uavs = 2048;
     unsigned max_num_samplers = 1024;
-    unsigned max_num_events = 4096;
+    unsigned max_num_fences = 4096;
     unsigned max_num_accel_structs = 2048;
     unsigned max_num_raytrace_pipeline_states = 256;
 

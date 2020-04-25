@@ -169,7 +169,7 @@ public:
     /// block on a specified GPU queue until a fence reaches a given value
     virtual void waitFenceGPU(handle::fence fence, uint64_t wait_value, queue_type queue) = 0;
 
-    virtual void free(cc::span<handle::fence const> events) = 0;
+    virtual void free(cc::span<handle::fence const> fences) = 0;
 
     //
     // Raytracing interface

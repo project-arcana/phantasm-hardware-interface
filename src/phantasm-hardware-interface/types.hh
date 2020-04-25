@@ -35,7 +35,7 @@ PHI_DEFINE_HANDLE(shader_view);
 /// recorded command list, ready to submit or discard
 PHI_DEFINE_HANDLE(command_list);
 
-/// synchronization primitive. can be "set" by a command_list after it completed executing
+/// synchronization primitive storing a uint64, can be signalled and waited on from both CPU and GPU
 PHI_DEFINE_HANDLE(fence);
 
 /// raytracing acceleration structure handle

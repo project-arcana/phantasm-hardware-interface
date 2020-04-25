@@ -1,4 +1,4 @@
-#include "event_pool.hh"
+#include "fence_pool.hh"
 
 #include <clean-core/capped_array.hh>
 
@@ -6,7 +6,7 @@
 #include <phantasm-hardware-interface/vulkan/common/verify.hh>
 #include <phantasm-hardware-interface/vulkan/loader/volk.hh>
 
-phi::handle::fence phi::vk::FencePool::createEvent()
+phi::handle::fence phi::vk::FencePool::createFence()
 {
     unsigned pool_index;
     {
@@ -29,40 +29,40 @@ phi::handle::fence phi::vk::FencePool::createEvent()
     return {static_cast<handle::index_t>(pool_index)};
 }
 
-void phi::vk::FencePool::free(phi::handle::fence event)
+void phi::vk::FencePool::free(phi::handle::fence fence)
 {
-    if (!event.is_valid())
+    if (!fence.is_valid())
         return;
 
-    VkSemaphore freed_event = mPool.get(static_cast<unsigned>(event.index));
-    vkDestroySemaphore(mDevice, freed_event, nullptr);
+    VkSemaphore freed_fence = mPool.get(static_cast<unsigned>(fence.index));
+    vkDestroySemaphore(mDevice, freed_fence, nullptr);
 
     {
         auto lg = std::lock_guard(mMutex);
-        mPool.release(static_cast<unsigned>(event.index));
+        mPool.release(static_cast<unsigned>(fence.index));
     }
 }
 
-void phi::vk::FencePool::free(cc::span<const phi::handle::fence> event_span)
+void phi::vk::FencePool::free(cc::span<const phi::handle::fence> fence_span)
 {
     auto lg = std::lock_guard(mMutex);
 
-    for (auto as : event_span)
+    for (auto as : fence_span)
     {
         if (as.is_valid())
         {
-            VkSemaphore freed_event = mPool.get(static_cast<unsigned>(as.index));
-            vkDestroySemaphore(mDevice, freed_event, nullptr);
+            VkSemaphore freed_fence = mPool.get(static_cast<unsigned>(as.index));
+            vkDestroySemaphore(mDevice, freed_fence, nullptr);
             mPool.release(static_cast<unsigned>(as.index));
         }
     }
 }
 
-void phi::vk::FencePool::initialize(VkDevice device, unsigned max_num_events)
+void phi::vk::FencePool::initialize(VkDevice device, unsigned max_num_fences)
 {
     CC_ASSERT(mDevice == nullptr && "double init");
     mDevice = device;
-    mPool.initialize(max_num_events);
+    mPool.initialize(max_num_fences);
 }
 
 void phi::vk::FencePool::destroy()
@@ -70,14 +70,14 @@ void phi::vk::FencePool::destroy()
     if (mDevice != nullptr)
     {
         auto num_leaks = 0;
-        mPool.iterate_allocated_nodes([&](VkSemaphore leaked_event, unsigned) {
+        mPool.iterate_allocated_nodes([&](VkSemaphore leaked_fence, unsigned) {
             ++num_leaks;
-            vkDestroySemaphore(mDevice, leaked_event, nullptr);
+            vkDestroySemaphore(mDevice, leaked_fence, nullptr);
         });
 
         if (num_leaks > 0)
         {
-            log::info()("warning: leaked {} handle::event object{}", num_leaks, num_leaks == 1 ? "" : "s");
+            log::info()("warning: leaked {} handle::fence object{}", num_leaks, num_leaks == 1 ? "" : "s");
         }
     }
 }

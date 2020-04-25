@@ -18,7 +18,7 @@ public:
     void free(cc::span<handle::fence const> fence_span);
 
 public:
-    void initialize(ID3D12Device* device, unsigned max_num_events);
+    void initialize(ID3D12Device* device, unsigned max_num_fences);
     void destroy();
 
     ID3D12Fence* get(handle::fence fence) const { return internalGet(fence).fence; }

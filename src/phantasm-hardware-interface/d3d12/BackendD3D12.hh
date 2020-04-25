@@ -134,10 +134,10 @@ public:
     void submit(cc::span<handle::command_list const> cls) override;
 
     //
-    // Event interface
+    // Fence interface
     //
 
-    /// create an event, starts out unset
+    /// create a fence, starts out with value 0
     [[nodiscard]] handle::fence createFence() override { return mPoolFences.createFence(); }
 
     [[nodiscard]] uint64_t getFenceValue(handle::fence fence) override { return mPoolFences.getValue(fence); }

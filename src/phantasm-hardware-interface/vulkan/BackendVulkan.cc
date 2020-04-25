@@ -116,7 +116,7 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg, const 
     mPoolPipelines.initialize(mDevice.getDevice(), config.max_num_pipeline_states);
     mPoolResources.initialize(mDevice.getPhysicalDevice(), mDevice.getDevice(), config.max_num_resources);
     mPoolShaderViews.initialize(mDevice.getDevice(), &mPoolResources, config.max_num_cbvs, config.max_num_srvs, config.max_num_uavs, config.max_num_samplers);
-    mPoolEvents.initialize(mDevice.getDevice(), config.max_num_events);
+    mPoolFences.initialize(mDevice.getDevice(), config.max_num_fences);
 
     if (isRaytracingEnabled())
     {
@@ -152,7 +152,7 @@ void phi::vk::BackendVulkan::destroy()
         mSwapchain.destroy();
 
         mPoolAccelStructs.destroy();
-        mPoolEvents.destroy();
+        mPoolFences.destroy();
         mPoolShaderViews.destroy();
         mPoolCmdLists.destroy();
         mPoolPipelines.destroy();

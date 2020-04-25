@@ -12,7 +12,7 @@
 #include "common/diagnostic_util.hh"
 #include "pools/accel_struct_pool.hh"
 #include "pools/cmd_list_pool.hh"
-#include "pools/event_pool.hh"
+#include "pools/fence_pool.hh"
 #include "pools/pipeline_pool.hh"
 #include "pools/resource_pool.hh"
 #include "pools/shader_view_pool.hh"
@@ -123,31 +123,31 @@ public:
     void submit(cc::span<handle::command_list const> cls) override;
 
     //
-    // Event interface
+    // Fence interface
     //
 
-    /// create an event, starts out unset
-    [[nodiscard]] handle::fence createFence() override { return mPoolEvents.createEvent(); }
+    /// create a fence, starts out with value 0
+    [[nodiscard]] handle::fence createFence() override { return mPoolFences.createFence(); }
 
-    [[nodiscard]] uint64_t getFenceValue(handle::fence fence) override { return mPoolEvents.getValue(fence); }
+    [[nodiscard]] uint64_t getFenceValue(handle::fence fence) override { return mPoolFences.getValue(fence); }
 
-    void signalFenceCPU(handle::fence fence, uint64_t new_value) override { mPoolEvents.signalCPU(fence, new_value); }
+    void signalFenceCPU(handle::fence fence, uint64_t new_value) override { mPoolFences.signalCPU(fence, new_value); }
 
-    void waitFenceCPU(handle::fence fence, uint64_t wait_value) override { mPoolEvents.waitCPU(fence, wait_value); }
+    void waitFenceCPU(handle::fence fence, uint64_t wait_value) override { mPoolFences.waitCPU(fence, wait_value); }
 
     void signalFenceGPU(handle::fence fence, uint64_t new_value, queue_type queue) override
     {
         CC_ASSERT(queue == queue_type::direct && "unimplemented queue");
-        mPoolEvents.signalGPU(fence, new_value, mDevice.getQueueDirect());
+        mPoolFences.signalGPU(fence, new_value, mDevice.getQueueDirect());
     }
 
     void waitFenceGPU(handle::fence fence, uint64_t wait_value, queue_type queue) override
     {
         CC_ASSERT(queue == queue_type::direct && "unimplemented queue");
-        mPoolEvents.waitGPU(fence, wait_value, mDevice.getQueueDirect());
+        mPoolFences.waitGPU(fence, wait_value, mDevice.getQueueDirect());
     }
 
-    void free(cc::span<handle::fence const> fences) override { mPoolEvents.free(fences); }
+    void free(cc::span<handle::fence const> fences) override { mPoolFences.free(fences); }
 
     //
     // Raytracing interface
@@ -218,7 +218,7 @@ public:
     CommandListPool mPoolCmdLists;
     PipelinePool mPoolPipelines;
     ShaderViewPool mPoolShaderViews;
-    FencePool mPoolEvents;
+    FencePool mPoolFences;
     AccelStructPool mPoolAccelStructs;
 
     // Logic

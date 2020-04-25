@@ -45,11 +45,11 @@ void phi::d3d12::FencePool::free(cc::span<const phi::handle::fence> fence_span)
     }
 }
 
-void phi::d3d12::FencePool::initialize(ID3D12Device* device, unsigned max_num_events)
+void phi::d3d12::FencePool::initialize(ID3D12Device* device, unsigned max_num_fences)
 {
     CC_ASSERT(mDevice == nullptr && "double init");
     mDevice = device;
-    mPool.initialize(max_num_events);
+    mPool.initialize(max_num_fences);
 }
 
 void phi::d3d12::FencePool::destroy()
@@ -57,9 +57,9 @@ void phi::d3d12::FencePool::destroy()
     if (mDevice != nullptr)
     {
         auto num_leaks = 0;
-        mPool.iterate_allocated_nodes([&](node& leaked_event, unsigned) {
+        mPool.iterate_allocated_nodes([&](node& leaked_fence, unsigned) {
             ++num_leaks;
-            leaked_event.free();
+            leaked_fence.free();
         });
 
         if (num_leaks > 0)
