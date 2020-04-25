@@ -239,7 +239,7 @@ VkPipeline phi::vk::create_pipeline(VkDevice device,
     rasterizer.rasterizerDiscardEnable = VK_FALSE;
     rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
     rasterizer.lineWidth = 1.0f;
-    rasterizer.cullMode = no_vertices ? VK_CULL_MODE_FRONT_BIT : util::to_native(config.cull);
+    rasterizer.cullMode = util::to_native(config.cull);
     rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     rasterizer.depthBiasEnable = VK_FALSE;
     rasterizer.depthBiasConstantFactor = 0.0f; // Optional
