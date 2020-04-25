@@ -63,16 +63,11 @@ phi::vk::vulkan_gpu_info phi::vk::get_vulkan_gpu_info(VkPhysicalDevice device, V
 
     // required features
     {
-        VkPhysicalDeviceTimelineSemaphoreFeatures phys_features_tsem = {};
-        phys_features_tsem.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TIMELINE_SEMAPHORE_FEATURES;
-        VkPhysicalDeviceFeatures2 phys_features = {};
-        phys_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-        phys_features.pNext = &phys_features_tsem;
-
-        vkGetPhysicalDeviceFeatures2(device, &phys_features);
+        physical_device_feature_bundle feat_bundle;
+        vkGetPhysicalDeviceFeatures2(device, feat_bundle.get());
 
         // always require GBV features right now (second arg)
-        auto const has_required_features = set_or_test_device_features(phys_features, true, true);
+        auto const has_required_features = set_or_test_device_features(feat_bundle.get(), true, true);
         if (!has_required_features)
             res.is_suitable = false;
     }
@@ -222,15 +217,16 @@ cc::vector<phi::gpu_info> phi::vk::get_available_gpus(cc::span<const vulkan_gpu_
     return res;
 }
 
-bool phi::vk::set_or_test_device_features(VkPhysicalDeviceFeatures2& arg, bool enable_gbv, bool test_mode)
+bool phi::vk::set_or_test_device_features(VkPhysicalDeviceFeatures2* arg, bool enable_gbv, bool test_mode)
 {
     // a single place to both test for existing features and set the features required
 
 
     // verify and unfold pNext chain
-    CC_ASSERT(arg.sType == VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 && "sType for main argument wrong");
-    CC_ASSERT(arg.pNext != nullptr && "pNext chain not long enough");
-    VkPhysicalDeviceTimelineSemaphoreFeatures& p_next_chain_1 = *static_cast<VkPhysicalDeviceTimelineSemaphoreFeatures*>(arg.pNext);
+    CC_ASSERT(arg->sType == VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 && "sType for main argument wrong");
+    CC_ASSERT(arg->pNext != nullptr && "pNext chain not long enough");
+
+    VkPhysicalDeviceTimelineSemaphoreFeatures& p_next_chain_1 = *static_cast<VkPhysicalDeviceTimelineSemaphoreFeatures*>(arg->pNext);
     CC_ASSERT(p_next_chain_1.sType == VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TIMELINE_SEMAPHORE_FEATURES && "pNext chain ordered unexpectedly");
 
     // clang-format off
@@ -239,7 +235,7 @@ bool phi::vk::set_or_test_device_features(VkPhysicalDeviceFeatures2& arg, bool e
     else { _prop_ = VK_TRUE; } (void)0
     // clang-format on
 
-#define PHI_LOC_ST_MAIN(_feat_) PHI_LOC_ST(arg.features._feat_)
+#define PHI_LOC_ST_MAIN(_feat_) PHI_LOC_ST(arg->features._feat_)
 
 
     // == set and test features ==

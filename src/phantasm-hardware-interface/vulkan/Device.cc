@@ -28,16 +28,12 @@ void phi::vk::Device::initialize(vulkan_gpu_info const& device, backend_config c
     }
 
     // setup feature struct chain and fill it
-    VkPhysicalDeviceTimelineSemaphoreFeatures phys_features_sem = {};
-    phys_features_sem.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TIMELINE_SEMAPHORE_FEATURES;
-    VkPhysicalDeviceFeatures2 phys_features = {};
-    phys_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-    phys_features.pNext = &phys_features_sem;
-    set_or_test_device_features(phys_features, config.validation >= validation_level::on_extended, false);
+    physical_device_feature_bundle feat_bundle;
+    set_or_test_device_features(feat_bundle.get(), config.validation >= validation_level::on_extended, false);
 
     VkDeviceCreateInfo device_info = {};
     device_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-    device_info.pNext = &phys_features;
+    device_info.pNext = feat_bundle.get();
     device_info.enabledExtensionCount = uint32_t(active_lay_ext.extensions.size());
     device_info.ppEnabledExtensionNames = active_lay_ext.extensions.empty() ? nullptr : active_lay_ext.extensions.data();
     device_info.enabledLayerCount = uint32_t(active_lay_ext.layers.size());

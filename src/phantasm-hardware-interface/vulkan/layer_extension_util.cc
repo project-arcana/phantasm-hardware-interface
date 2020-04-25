@@ -245,6 +245,11 @@ phi::vk::lay_ext_array phi::vk::get_used_device_lay_ext(const phi::vk::lay_ext_s
         log::err() << "missing swapchain extension";
     }
 
+    if (!add_ext(VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME))
+    {
+        log::err() << "missing timeline semaphore extension, try updating GPU drivers";
+    }
+
     // additional extensions
     has_conservative_raster = false;
     if (add_ext(VK_EXT_CONSERVATIVE_RASTERIZATION_EXTENSION_NAME))
@@ -263,7 +268,7 @@ phi::vk::lay_ext_array phi::vk::get_used_device_lay_ext(const phi::vk::lay_ext_s
             }
             else
             {
-                log::err()("missing raytracing extension dependency {}", VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME);
+                log::err()("missing raytracing extension dependency {}, try updating GPU drivers", VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME);
             }
         }
     }

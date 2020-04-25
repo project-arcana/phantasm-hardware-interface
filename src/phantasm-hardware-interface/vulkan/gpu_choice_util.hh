@@ -32,9 +32,22 @@ struct backbuffer_information
     cc::array<VkPresentModeKHR> present_modes;
 };
 
+/// correctly initialized bundle of VkPhysicalDeviceXX structs for usage during feature tests and
+struct physical_device_feature_bundle
+{
+    VkPhysicalDeviceFeatures2 features = {};
+    VkPhysicalDeviceTimelineSemaphoreFeatures features_time_sem = {};
 
+    physical_device_feature_bundle()
+    {
+        features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+        features.pNext = &features_time_sem;
+        features_time_sem.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TIMELINE_SEMAPHORE_FEATURES;
+    }
+    VkPhysicalDeviceFeatures2* get() { return &features; }
+};
 
-bool set_or_test_device_features(VkPhysicalDeviceFeatures2& arg, bool enable_gbv, bool test_mode);
+bool set_or_test_device_features(VkPhysicalDeviceFeatures2* arg, bool enable_gbv, bool test_mode);
 
 /// receive all physical devices visible to the instance
 [[nodiscard]] cc::array<VkPhysicalDevice> get_physical_devices(VkInstance instance);
