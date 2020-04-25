@@ -115,9 +115,7 @@ class CommandListPool
 public:
     // frontend-facing API (not quite, command_list can only be compiled immediately)
 
-    [[nodiscard]] handle::command_list create(ID3D12GraphicsCommandList*& out_cmdlist,
-                                              ID3D12GraphicsCommandList5** out_cmdlist5,
-                                              CommandAllocatorBundle& thread_allocator);
+    [[nodiscard]] handle::command_list create(ID3D12GraphicsCommandList*& out_cmdlist, ID3D12GraphicsCommandList5** out_cmdlist5, CommandAllocatorBundle& thread_allocator);
 
     void freeOnSubmit(handle::command_list cl, ID3D12CommandQueue& queue)
     {
