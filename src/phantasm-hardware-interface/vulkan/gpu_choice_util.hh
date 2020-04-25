@@ -32,6 +32,10 @@ struct backbuffer_information
     cc::array<VkPresentModeKHR> present_modes;
 };
 
+
+
+bool set_or_test_device_features(VkPhysicalDeviceFeatures2& arg, bool enable_gbv, bool test_mode);
+
 /// receive all physical devices visible to the instance
 [[nodiscard]] cc::array<VkPhysicalDevice> get_physical_devices(VkInstance instance);
 
