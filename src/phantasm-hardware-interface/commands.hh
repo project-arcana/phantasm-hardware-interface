@@ -39,25 +39,15 @@ enum class cmd_type : uint8_t
 #undef PHI_X
 };
 
-enum class cmd_queue_type : uint8_t
-{
-    none = 0x00,
-    copy = 0x01,
-    compute = 0x02,
-    graphics = 0x04,
-    all = copy | compute | graphics
-};
-
 struct cmd_base
 {
     cmd_type s_internal_type;
     cmd_base(cmd_type t) : s_internal_type(t) {}
 };
 
-template <cmd_type TYPE, cmd_queue_type QUEUE = cmd_queue_type::graphics>
+template <cmd_type TYPE>
 struct typed_cmd : cmd_base
 {
-    static constexpr cmd_queue_type s_queue_type = QUEUE;
     typed_cmd() : cmd_base(TYPE) {}
 };
 

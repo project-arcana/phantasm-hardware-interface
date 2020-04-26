@@ -17,7 +17,7 @@ public:
     Queue& operator=(Queue const&) = delete;
     Queue& operator=(Queue&&) noexcept = delete;
 
-    void initialize(ID3D12Device& device, queue_type type = queue_type::graphics);
+    void initialize(ID3D12Device& device, queue_type type = queue_type::direct);
 
     [[nodiscard]] ID3D12CommandQueue& getQueue() const { return *mQueue.get(); }
     [[nodiscard]] shared_com_ptr<ID3D12CommandQueue> const& getQueueShared() const { return mQueue; }

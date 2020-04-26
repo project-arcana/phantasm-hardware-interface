@@ -117,8 +117,7 @@ bool phi::d3d12::cmd_allocator_node::is_submit_counter_up_to_date() const
 
 phi::handle::command_list phi::d3d12::CommandListPool::create(ID3D12GraphicsCommandList*& out_cmdlist,
                                                               ID3D12GraphicsCommandList5** out_cmdlist5,
-                                                              CommandAllocatorBundle& thread_allocator,
-                                                              ID3D12Fence* fence_to_set)
+                                                              CommandAllocatorBundle& thread_allocator)
 {
     unsigned res_handle;
     {
@@ -135,7 +134,6 @@ phi::handle::command_list phi::d3d12::CommandListPool::create(ID3D12GraphicsComm
 
     cmd_list_node& new_node = mPool.get(res_handle);
     new_node.responsible_allocator = thread_allocator.acquireMemory(out_cmdlist);
-    new_node.fence_to_set = fence_to_set;
 
     return {static_cast<handle::index_t>(res_handle)};
 }

@@ -46,7 +46,6 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg, const 
     app_info.engineVersion = VK_MAKE_VERSION(1, 0, 0);
     app_info.apiVersion = VK_API_VERSION_1_1;
 
-
     VkInstanceCreateInfo instance_info = {};
     instance_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     instance_info.pApplicationInfo = &app_info;
@@ -117,7 +116,7 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg, const 
     mPoolPipelines.initialize(mDevice.getDevice(), config.max_num_pipeline_states);
     mPoolResources.initialize(mDevice.getPhysicalDevice(), mDevice.getDevice(), config.max_num_resources);
     mPoolShaderViews.initialize(mDevice.getDevice(), &mPoolResources, config.max_num_cbvs, config.max_num_srvs, config.max_num_uavs, config.max_num_samplers);
-    mPoolEvents.initialize(mDevice.getDevice(), config.max_num_events);
+    mPoolFences.initialize(mDevice.getDevice(), config.max_num_fences);
 
     if (isRaytracingEnabled())
     {
@@ -153,7 +152,7 @@ void phi::vk::BackendVulkan::destroy()
         mSwapchain.destroy();
 
         mPoolAccelStructs.destroy();
-        mPoolEvents.destroy();
+        mPoolFences.destroy();
         mPoolShaderViews.destroy();
         mPoolCmdLists.destroy();
         mPoolPipelines.destroy();
@@ -216,15 +215,13 @@ void phi::vk::BackendVulkan::onResize(tg::isize2 size)
 
 phi::format phi::vk::BackendVulkan::getBackbufferFormat() const { return util::to_pr_format(mSwapchain.getBackbufferFormat()); }
 
-phi::handle::command_list phi::vk::BackendVulkan::recordCommandList(std::byte* buffer, size_t size, handle::event event_to_set)
+phi::handle::command_list phi::vk::BackendVulkan::recordCommandList(std::byte* buffer, size_t size)
 {
     auto& thread_comp = mThreadComponents[mThreadAssociation.get_current_index()];
 
-    VkEvent const raw_event_to_set = event_to_set.is_valid() ? mPoolEvents.get(event_to_set) : nullptr;
-
     VkCommandBuffer raw_list;
     auto const res = mPoolCmdLists.create(raw_list, thread_comp.cmd_list_allocator);
-    thread_comp.translator.translateCommandList(raw_list, res, mPoolCmdLists.getStateCache(res), buffer, size, raw_event_to_set);
+    thread_comp.translator.translateCommandList(raw_list, res, mPoolCmdLists.getStateCache(res), buffer, size);
     return res;
 }
 
@@ -312,23 +309,6 @@ void phi::vk::BackendVulkan::submit(cc::span<const phi::handle::command_list> cl
 
     if (num_cls_in_batch > 0)
         submit_flush();
-}
-
-bool phi::vk::BackendVulkan::clearEvent(phi::handle::event event)
-{
-    auto const raw_event = mPoolEvents.get(event);
-    auto const status = vkGetEventStatus(mDevice.getDevice(), raw_event);
-
-    if (status == VK_EVENT_SET)
-    {
-        vkResetEvent(mDevice.getDevice(), raw_event);
-        return true;
-    }
-    else
-    {
-        PHI_VK_ASSERT_NONERROR(status);
-        return false;
-    }
 }
 
 phi::handle::pipeline_state phi::vk::BackendVulkan::createRaytracingPipelineState(phi::arg::raytracing_shader_libraries libraries,
