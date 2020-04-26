@@ -93,10 +93,13 @@ void phi::d3d12::BackendD3D12::initialize(const phi::backend_config& config, con
             thread_allocator_ptrs.push_back(&thread_comp.cmd_list_allocator);
         }
 
-        mPoolCmdLists.initialize(*this, config.num_cmdlist_allocators_per_thread, config.num_cmdlists_per_allocator, thread_allocator_ptrs);
+        mPoolCmdLists.initialize(*this, int(config.num_cmdlist_allocators_per_thread), int(config.num_cmdlists_per_allocator), thread_allocator_ptrs);
     }
 
     mDiagnostics.init();
+
+    mFlushEvent = CreateEventEx(nullptr, FALSE, FALSE, EVENT_ALL_ACCESS);
+    CC_ASSERT(mFlushEvent != INVALID_HANDLE_VALUE && "failed to create win32 event");
 }
 
 void phi::d3d12::BackendD3D12::destroy()
@@ -123,6 +126,8 @@ void phi::d3d12::BackendD3D12::destroy()
         }
 
         mAdapter.invalidate();
+
+        ::CloseHandle(mFlushEvent);
     }
 }
 
@@ -130,14 +135,23 @@ phi::d3d12::BackendD3D12::~BackendD3D12() { destroy(); }
 
 void phi::d3d12::BackendD3D12::flushGPU()
 {
-    shared_com_ptr<ID3D12Fence> fence;
-    PHI_D3D12_VERIFY(mDevice.getDevice().CreateFence(0, D3D12_FENCE_FLAG_NONE, PHI_COM_WRITE(fence)));
-    PHI_D3D12_VERIFY(mDirectQueue.getQueue().Signal(fence, 1));
+    auto lg = std::lock_guard(mFlushMutex);
 
-    auto const handle = CreateEvent(nullptr, FALSE, FALSE, nullptr);
-    fence->SetEventOnCompletion(1, handle);
-    ::WaitForSingleObject(handle, INFINITE);
-    ::CloseHandle(handle);
+    ++mFlushSignalVal;
+
+    PHI_D3D12_VERIFY(mDirectQueue.getQueue().Signal(&mDirectQueue.getFence(), mFlushSignalVal));
+    PHI_D3D12_VERIFY(mComputeQueue.getQueue().Signal(&mComputeQueue.getFence(), mFlushSignalVal));
+    PHI_D3D12_VERIFY(mCopyQueue.getQueue().Signal(&mCopyQueue.getFence(), mFlushSignalVal));
+
+    cc::array<ID3D12Fence*, 3> fences;
+    fences[0] = &mDirectQueue.getFence();
+    fences[1] = &mComputeQueue.getFence();
+    fences[2] = &mCopyQueue.getFence();
+
+    cc::array<uint64_t, 3> fence_vals = {mFlushSignalVal, mFlushSignalVal, mFlushSignalVal};
+
+    PHI_D3D12_VERIFY(mDevice.getDevice1().SetEventOnMultipleFenceCompletion(fences.data(), fence_vals.data(), 3, D3D12_MULTIPLE_FENCE_WAIT_FLAG_ALL, mFlushEvent));
+    ::WaitForSingleObject(mFlushEvent, INFINITE);
 }
 
 phi::handle::resource phi::d3d12::BackendD3D12::acquireBackbuffer()

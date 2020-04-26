@@ -22,8 +22,11 @@ public:
     [[nodiscard]] ID3D12CommandQueue& getQueue() const { return *mQueue.get(); }
     [[nodiscard]] shared_com_ptr<ID3D12CommandQueue> const& getQueueShared() const { return mQueue; }
 
+    ID3D12Fence& getFence() const { return *mInternalFence.get(); }
+
 private:
     shared_com_ptr<ID3D12CommandQueue> mQueue;
+    shared_com_ptr<ID3D12Fence> mInternalFence;
 };
 
 }

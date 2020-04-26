@@ -1,5 +1,7 @@
 #pragma once
 
+#include <mutex>
+
 #include <clean-core/fwd_array.hh>
 
 #include <phantasm-hardware-interface/Backend.hh>
@@ -148,14 +150,16 @@ public:
 
     void signalFenceGPU(handle::fence fence, uint64_t new_value, queue_type queue) override
     {
-        CC_ASSERT(queue == queue_type::direct && "unimplemented queue");
-        mPoolFences.signalGPU(fence, new_value, mDirectQueue.getQueue());
+        ID3D12CommandQueue& target
+            = (queue == queue_type::direct ? mDirectQueue.getQueue() : (queue == queue_type::compute ? mComputeQueue.getQueue() : mCopyQueue.getQueue()));
+        mPoolFences.signalGPU(fence, new_value, target);
     }
 
     void waitFenceGPU(handle::fence fence, uint64_t wait_value, queue_type queue) override
     {
-        CC_ASSERT(queue == queue_type::direct && "unimplemented queue");
-        mPoolFences.waitGPU(fence, wait_value, mDirectQueue.getQueue());
+        ID3D12CommandQueue& target
+            = (queue == queue_type::direct ? mDirectQueue.getQueue() : (queue == queue_type::compute ? mComputeQueue.getQueue() : mCopyQueue.getQueue()));
+        mPoolFences.waitGPU(fence, wait_value, target);
     }
 
     void free(cc::span<handle::fence const> fences) override { mPoolFences.free(fences); }
@@ -218,9 +222,15 @@ private:
     // Core components
     Adapter mAdapter;
     Device mDevice;
+
     Queue mDirectQueue;
     Queue mCopyQueue;
     Queue mComputeQueue;
+
+    ::HANDLE mFlushEvent;
+    UINT64 mFlushSignalVal = 0;
+    std::mutex mFlushMutex;
+
     Swapchain mSwapchain;
 
     // Pools

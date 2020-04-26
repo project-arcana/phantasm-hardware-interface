@@ -137,14 +137,16 @@ public:
 
     void signalFenceGPU(handle::fence fence, uint64_t new_value, queue_type queue) override
     {
-        CC_ASSERT(queue == queue_type::direct && "unimplemented queue");
-        mPoolFences.signalGPU(fence, new_value, mDevice.getQueueDirect());
+        VkQueue target = (queue == queue_type::direct ? mDevice.getQueueDirect()
+                                                      : (queue == queue_type::compute ? mDevice.getQueueCompute() : mDevice.getQueueCopy()));
+        mPoolFences.signalGPU(fence, new_value, target);
     }
 
     void waitFenceGPU(handle::fence fence, uint64_t wait_value, queue_type queue) override
     {
-        CC_ASSERT(queue == queue_type::direct && "unimplemented queue");
-        mPoolFences.waitGPU(fence, wait_value, mDevice.getQueueDirect());
+        VkQueue target = (queue == queue_type::direct ? mDevice.getQueueDirect()
+                                                      : (queue == queue_type::compute ? mDevice.getQueueCompute() : mDevice.getQueueCopy()));
+        mPoolFences.waitGPU(fence, wait_value, target);
     }
 
     void free(cc::span<handle::fence const> fences) override { mPoolFences.free(fences); }
