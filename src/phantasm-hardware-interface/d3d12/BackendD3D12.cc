@@ -31,7 +31,11 @@ void phi::d3d12::BackendD3D12::initialize(const phi::backend_config& config, con
     {
         mAdapter.initialize(config);
         mDevice.initialize(mAdapter.getAdapter(), config);
-        mGraphicsQueue.initialize(mDevice.getDevice(), queue_type::direct);
+
+        mDirectQueue.initialize(mDevice.getDevice(), queue_type::direct);
+        mComputeQueue.initialize(mDevice.getDevice(), queue_type::compute);
+        mCopyQueue.initialize(mDevice.getDevice(), queue_type::copy);
+
         ::HWND native_hwnd = nullptr;
         {
             if (window_handle.type == window_handle::wh_win32_hwnd)
@@ -55,7 +59,7 @@ void phi::d3d12::BackendD3D12::initialize(const phi::backend_config& config, con
             }
         }
 
-        mSwapchain.initialize(mAdapter.getFactory(), mDevice.getDeviceShared(), mGraphicsQueue.getQueueShared(), native_hwnd, config.num_backbuffers,
+        mSwapchain.initialize(mAdapter.getFactory(), mDevice.getDeviceShared(), mDirectQueue.getQueueShared(), native_hwnd, config.num_backbuffers,
                               config.present);
     }
 
@@ -128,7 +132,7 @@ void phi::d3d12::BackendD3D12::flushGPU()
 {
     shared_com_ptr<ID3D12Fence> fence;
     PHI_D3D12_VERIFY(mDevice.getDevice().CreateFence(0, D3D12_FENCE_FLAG_NONE, PHI_COM_WRITE(fence)));
-    PHI_D3D12_VERIFY(mGraphicsQueue.getQueue().Signal(fence, 1));
+    PHI_D3D12_VERIFY(mDirectQueue.getQueue().Signal(fence, 1));
 
     auto const handle = CreateEvent(nullptr, FALSE, FALSE, nullptr);
     fence->SetEventOnCompletion(1, handle);
@@ -175,7 +179,7 @@ void phi::d3d12::BackendD3D12::submit(cc::span<const phi::handle::command_list> 
     auto& thread_comp = mThreadComponents[mThreadAssociation.get_current_index()];
 
     auto const submit_flush = [&]() {
-        auto& queue = mGraphicsQueue.getQueue();
+        auto& queue = mDirectQueue.getQueue();
         queue.ExecuteCommandLists(UINT(submit_batch.size()), submit_batch.data());
         mPoolCmdLists.freeOnSubmit(barrier_lists, queue);
         mPoolCmdLists.freeOnSubmit(cls.subspan(last_cl_index, num_cls_in_batch), queue);
