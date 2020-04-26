@@ -44,7 +44,7 @@ phi::vk::vulkan_gpu_info phi::vk::get_vulkan_gpu_info(VkPhysicalDevice device, V
 
     // queue capability
     res.queues = get_suitable_queues(device, surface);
-    if (res.queues.indices_graphics.empty())
+    if (!res.queues.has_direct_queue)
         res.is_suitable = false;
 
     res.available_layers_extensions = get_available_device_lay_ext(device);

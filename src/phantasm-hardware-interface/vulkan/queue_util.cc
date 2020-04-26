@@ -1,5 +1,7 @@
 #include "queue_util.hh"
 
+#include <clean-core/capped_array.hh>
+
 #include "common/verify.hh"
 
 phi::vk::suitable_queues phi::vk::get_suitable_queues(VkPhysicalDevice physical, VkSurfaceKHR surface)
@@ -10,36 +12,35 @@ phi::vk::suitable_queues phi::vk::get_suitable_queues(VkPhysicalDevice physical,
     vkGetPhysicalDeviceQueueFamilyProperties(physical, &num_families, queue_families.data());
 
     suitable_queues res;
+    res.families.resize(num_families);
+
     for (auto i = 0u; i < num_families; ++i)
     {
-        auto const& family = queue_families[i];
+        auto const& vk_family = queue_families[i];
+        auto& family = res.families[i];
 
-        bool is_graphics_capable = (family.queueFlags & VK_QUEUE_GRAPHICS_BIT);
-        bool is_compute_capable = (family.queueFlags & VK_QUEUE_COMPUTE_BIT);
-        bool is_copy_capable = (family.queueFlags & VK_QUEUE_TRANSFER_BIT);
-        bool can_present = false;
+        family.num_queues = vk_family.queueCount;
 
-        if (is_graphics_capable)
-        {
-            // graphics candidate, query present support
-            VkBool32 present_support = false;
-            PHI_VK_VERIFY_SUCCESS(vkGetPhysicalDeviceSurfaceSupportKHR(physical, i, surface, &present_support));
+        using capbit = suitable_queues::queue_capability;
 
-            if (present_support)
-                can_present = true;
-        }
+        if (vk_family.queueFlags & VK_QUEUE_GRAPHICS_BIT)
+            family.capabilities |= capbit::vk_graphics;
 
-        if (is_graphics_capable && can_present)
-            res.indices_graphics.push_back(int(i));
+        if (vk_family.queueFlags & VK_QUEUE_COMPUTE_BIT)
+            family.capabilities |= capbit::vk_compute;
 
-        if (is_compute_capable)
-            res.indices_compute.push_back(int(i));
+        if (vk_family.queueFlags & VK_QUEUE_TRANSFER_BIT)
+            family.capabilities |= capbit::vk_transfer;
 
-        if (is_copy_capable)
-            res.indices_copy.push_back(int(i));
+        // query present support
+        VkBool32 present_support = false;
+        PHI_VK_VERIFY_SUCCESS(vkGetPhysicalDeviceSurfaceSupportKHR(physical, i, surface, &present_support));
 
-        if (is_graphics_capable && is_compute_capable && is_copy_capable && can_present)
-            res.indices_direct.push_back(int(i));
+        if (present_support)
+            family.capabilities |= capbit::present;
+
+        if (family.capabilities & capbit::phi_direct)
+            res.has_direct_queue = true;
     }
 
     return res;
@@ -47,45 +48,80 @@ phi::vk::suitable_queues phi::vk::get_suitable_queues(VkPhysicalDevice physical,
 
 phi::vk::chosen_queues phi::vk::get_chosen_queues(const phi::vk::suitable_queues& suitable)
 {
+    cc::capped_array<int, 16> queue_occupancy;
+    queue_occupancy.emplace(suitable.families.size(), 0);
+
+    auto const f_acquire_queue_index = [&](unsigned family_index) -> int {
+        auto const& fam = suitable.families[family_index];
+        int& occupancy = queue_occupancy[family_index];
+        CC_ASSERT(occupancy < int(fam.num_queues) && "queue family overcommitted");
+        return occupancy++;
+    };
+
+    auto const f_check_family = [&](unsigned family_index, uint32_t caps, uint32_t restriction) -> bool {
+        auto const& fam = suitable.families[family_index];
+        return fam.supports_exclusive(caps, restriction) && queue_occupancy[family_index] < int(fam.num_queues);
+    };
+
+    auto const f_check_direct_family = [&](unsigned family_index) -> bool {
+        auto const& fam = suitable.families[family_index];
+        return fam.supports(suitable_queues::phi_direct) && queue_occupancy[family_index] < int(fam.num_queues);
+    };
+
     chosen_queues res;
+    // three loops
 
-    if (!suitable.indices_direct.empty())
-        res.direct = suitable.indices_direct.front();
-
-    // NOTE: technically all of the || == -1 checks are redundant here
-
-    // search a graphics queue thats different from the direct one
-    for (auto const gq : suitable.indices_graphics)
+    // search for a copy-only queue
+    for (auto i = 0u; i < suitable.families.size(); ++i)
     {
-        if (res.direct == -1 || gq != res.direct)
+        if (f_check_family(i, suitable_queues::phi_copy, suitable_queues::phi_compute))
         {
-            res.separate_graphics = gq;
+            res.copy.family_index = int(i);
+            res.copy.queue_index = f_acquire_queue_index(i);
             break;
         }
     }
 
-    // search a compute queue thats different from direct and graphics
-    for (auto const cq : suitable.indices_compute)
+    // at this point, ONLY exclusive-copy queues are acquired,
+    // acquires in the next loop do not have to check yet
+
+    // search for a compute-only or compute-and-copy queue
+    for (auto i = 0u; i < suitable.families.size(); ++i)
     {
-        if ((res.direct == -1 || cq != res.direct) &&                    //
-            (res.separate_graphics == -1 || cq != res.separate_graphics) //
-        )
+        if (!res.compute.valid() && f_check_family(i, suitable_queues::phi_compute, suitable_queues::phi_direct))
         {
-            res.separate_compute = cq;
-            break;
+            res.compute.family_index = int(i);
+            res.compute.queue_index = f_acquire_queue_index(i);
+        }
+
+        if (!res.copy.valid() && f_check_family(i, suitable_queues::phi_copy, suitable_queues::phi_direct))
+        {
+            res.copy.family_index = int(i);
+            res.copy.queue_index = f_acquire_queue_index(i);
         }
     }
 
-    // search a copy queue thats different from the three previous ones
-    for (auto const cq : suitable.indices_copy)
+    // at this point, no direct queues are acquired and thus don't have to check
+
+    // search for a direct queue, and fill in remaining queues
+    for (auto i = 0u; i < suitable.families.size(); ++i)
     {
-        if ((res.direct == -1 || cq != res.direct) &&                       //
-            (res.separate_graphics == -1 || cq != res.separate_graphics) && //
-            (res.separate_compute == -1 || cq != res.separate_compute)      //
-        )
+        if (!res.direct.valid() && f_check_direct_family(i))
         {
-            res.separate_copy = cq;
-            break;
+            res.direct.family_index = int(i);
+            res.direct.queue_index = f_acquire_queue_index(i);
+        }
+
+        if (!res.compute.valid() && f_check_direct_family(i))
+        {
+            res.compute.family_index = int(i);
+            res.compute.queue_index = f_acquire_queue_index(i);
+        }
+
+        if (!res.copy.valid() && f_check_direct_family(i))
+        {
+            res.copy.family_index = int(i);
+            res.copy.queue_index = f_acquire_queue_index(i);
         }
     }
 
