@@ -272,12 +272,12 @@ VkPipeline phi::vk::create_pipeline(VkDevice device,
         rt_attachment = {};
         rt_attachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
         rt_attachment.blendEnable = rt.blend_enable ? VK_TRUE : VK_FALSE;
-        rt_attachment.srcColorBlendFactor = util::to_native(rt.blend_color_src);
-        rt_attachment.dstColorBlendFactor = util::to_native(rt.blend_color_dest);
-        rt_attachment.colorBlendOp = util::to_native(rt.blend_op_color);
-        rt_attachment.srcAlphaBlendFactor = util::to_native(rt.blend_alpha_src);
-        rt_attachment.dstAlphaBlendFactor = util::to_native(rt.blend_alpha_dest);
-        rt_attachment.alphaBlendOp = util::to_native(rt.blend_op_alpha);
+        rt_attachment.srcColorBlendFactor = util::to_native(rt.state.blend_color_src);
+        rt_attachment.dstColorBlendFactor = util::to_native(rt.state.blend_color_dest);
+        rt_attachment.colorBlendOp = util::to_native(rt.state.blend_op_color);
+        rt_attachment.srcAlphaBlendFactor = util::to_native(rt.state.blend_alpha_src);
+        rt_attachment.dstAlphaBlendFactor = util::to_native(rt.state.blend_alpha_dest);
+        rt_attachment.alphaBlendOp = util::to_native(rt.state.blend_op_alpha);
     }
 
     VkPipelineColorBlendStateCreateInfo colorBlending = {};
