@@ -145,7 +145,7 @@ namespace phi::d3d12::util
 {
     switch (type)
     {
-    case queue_type::graphics:
+    case queue_type::direct:
         return D3D12_COMMAND_LIST_TYPE_DIRECT;
     case queue_type::copy:
         return D3D12_COMMAND_LIST_TYPE_COPY;

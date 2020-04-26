@@ -139,8 +139,7 @@ public:
     //
 
     /// create a command list handle from a software command buffer
-    /// event_to_set: optional, will be set once the command list has finished executing (on the GPU, after submission)
-    [[nodiscard]] virtual handle::command_list recordCommandList(std::byte* buffer, size_t size, handle::event event_to_set = handle::null_event) = 0;
+    [[nodiscard]] virtual handle::command_list recordCommandList(std::byte* buffer, size_t size) = 0;
 
     /// destroy the given command list handles
     virtual void discard(cc::span<handle::command_list const> cls) = 0;
@@ -149,16 +148,28 @@ public:
     virtual void submit(cc::span<handle::command_list const> cls) = 0;
 
     //
-    // Event interface
+    // Fence interface
     //
 
-    /// create an event, starts out unset
-    [[nodiscard]] virtual handle::event createEvent() = 0;
+    /// create a fence, starts out with value 0
+    [[nodiscard]] virtual handle::fence createFence() = 0;
 
-    /// unsets the event, returns true if it was previously set, false otherwise
-    virtual bool clearEvent(handle::event event) = 0;
+    /// read the value of a fence
+    [[nodiscard]] virtual uint64_t getFenceValue(handle::fence fence) = 0;
 
-    virtual void free(cc::span<handle::event const> events) = 0;
+    /// signal a fence to a given value from CPU
+    virtual void signalFenceCPU(handle::fence fence, uint64_t new_value) = 0;
+
+    /// block on CPU until a fence reaches a given value
+    virtual void waitFenceCPU(handle::fence fence, uint64_t wait_value) = 0;
+
+    /// signal a fence to a given value from a specified GPU queue
+    virtual void signalFenceGPU(handle::fence fence, uint64_t new_value, queue_type queue) = 0;
+
+    /// block on a specified GPU queue until a fence reaches a given value
+    virtual void waitFenceGPU(handle::fence fence, uint64_t wait_value, queue_type queue) = 0;
+
+    virtual void free(cc::span<handle::fence const> fences) = 0;
 
     //
     // Raytracing interface

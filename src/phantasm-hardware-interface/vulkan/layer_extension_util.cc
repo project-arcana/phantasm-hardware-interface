@@ -177,12 +177,12 @@ phi::vk::lay_ext_array phi::vk::get_used_instance_lay_ext(const phi::vk::lay_ext
     {
         if (!add_layer("VK_LAYER_KHRONOS_validation"))
         {
-            log::err() << "validation enabled, but no layers available on Vulkan instance";
-            log::err() << "download the LunarG SDK for your operating system,";
-            log::err() << "then set these environment variables: (all paths absolute)";
-            log::err() << "VK_LAYER_PATH - <sdk>/x86_64/etc/vulkan/explicit_layer.d/";
-            log::err() << "VULKAN_SDK - <sdk>/x86_64/bin";
-            log::err() << "LD_LIBRARY_PATH - <VALUE>:<sdk>/x86_64/lib (append)";
+            log::err() << "validation enabled, but no layers available on Vulkan instance\n"
+                          "  download the latest LunarG SDK for your operating system,\n"
+                          "  then set these environment variables: (all paths absolute)\n"
+                          "  VK_LAYER_PATH - <sdk>/x86_64/etc/vulkan/explicit_layer.d/\n"
+                          "  VULKAN_SDK - <sdk>/x86_64/bin\n"
+                          "  LD_LIBRARY_PATH - <VALUE>:<sdk>/x86_64/lib (append)";
         }
 
         if (!add_ext(VK_EXT_DEBUG_UTILS_EXTENSION_NAME))
@@ -245,6 +245,11 @@ phi::vk::lay_ext_array phi::vk::get_used_device_lay_ext(const phi::vk::lay_ext_s
         log::err() << "missing swapchain extension";
     }
 
+    if (!add_ext(VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME))
+    {
+        log::err() << "missing timeline semaphore extension, try updating GPU drivers";
+    }
+
     // additional extensions
     has_conservative_raster = false;
     if (add_ext(VK_EXT_CONSERVATIVE_RASTERIZATION_EXTENSION_NAME))
@@ -263,7 +268,7 @@ phi::vk::lay_ext_array phi::vk::get_used_device_lay_ext(const phi::vk::lay_ext_s
             }
             else
             {
-                log::err()("missing raytracing extension dependency {}", VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME);
+                log::err()("missing raytracing extension dependency {}, try updating GPU drivers", VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME);
             }
         }
     }

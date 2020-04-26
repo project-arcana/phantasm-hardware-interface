@@ -27,8 +27,13 @@ void phi::vk::Device::initialize(vulkan_gpu_info const& device, backend_config c
         CC_RUNTIME_ASSERT(mQueueFamilies.direct != -1 && "vk::Device failed to find direct queue");
     }
 
+    // setup feature struct chain and fill it
+    physical_device_feature_bundle feat_bundle;
+    set_or_test_device_features(feat_bundle.get(), config.validation >= validation_level::on_extended, false);
+
     VkDeviceCreateInfo device_info = {};
     device_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    device_info.pNext = feat_bundle.get();
     device_info.enabledExtensionCount = uint32_t(active_lay_ext.extensions.size());
     device_info.ppEnabledExtensionNames = active_lay_ext.extensions.empty() ? nullptr : active_lay_ext.extensions.data();
     device_info.enabledLayerCount = uint32_t(active_lay_ext.layers.size());
@@ -51,21 +56,6 @@ void phi::vk::Device::initialize(vulkan_gpu_info const& device, backend_config c
 
     device_info.pQueueCreateInfos = queue_create_infos.data();
     device_info.queueCreateInfoCount = uint32_t(queue_create_infos.size());
-
-    // TODO
-    // NOTE: Also update suitability requirements in gpu_choice_util.cc
-    VkPhysicalDeviceFeatures features = {};
-    features.samplerAnisotropy = VK_TRUE;
-    features.geometryShader = VK_TRUE;
-
-    if (config.validation >= validation_level::on_extended)
-    {
-        // GPU-based validation requires additional features
-        features.fragmentStoresAndAtomics = VK_TRUE;
-        features.vertexPipelineStoresAndAtomics = VK_TRUE;
-    }
-
-    device_info.pEnabledFeatures = &features;
 
     PHI_VK_VERIFY_SUCCESS(vkCreateDevice(mPhysicalDevice, &device_info, nullptr, &mDevice));
 

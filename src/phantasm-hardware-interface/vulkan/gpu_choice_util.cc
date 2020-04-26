@@ -12,12 +12,15 @@
 
 namespace
 {
-[[nodiscard]] bool are_device_properties_sufficient(VkPhysicalDeviceProperties const& props)
+[[nodiscard]] bool test_device_properties(VkPhysicalDeviceProperties const& props)
 {
     if (props.limits.maxBoundDescriptorSets < phi::limits::max_shader_arguments * 2)
         return false;
 
     if (props.limits.maxColorAttachments < phi::limits::max_render_targets)
+        return false;
+
+    if (props.apiVersion < VK_VERSION_1_1)
         return false;
 
     return true;
@@ -54,29 +57,19 @@ phi::vk::vulkan_gpu_info phi::vk::get_vulkan_gpu_info(VkPhysicalDevice device, V
     // device properties
     {
         vkGetPhysicalDeviceProperties(device, &res.physical_device_props);
-        if (!are_device_properties_sufficient(res.physical_device_props))
+        if (!test_device_properties(res.physical_device_props))
             res.is_suitable = false;
     }
 
     // required features
-    bool supports_gpu_based_validation = true;
     {
-        VkPhysicalDeviceFeatures supported_features;
-        vkGetPhysicalDeviceFeatures(device, &supported_features);
+        physical_device_feature_bundle feat_bundle;
+        vkGetPhysicalDeviceFeatures2(device, feat_bundle.get());
 
-        if (!supported_features.samplerAnisotropy || //
-            !supported_features.geometryShader       //
-        )
-        {
-            // generally unsuitable
+        // always require GBV features right now (second arg)
+        auto const has_required_features = set_or_test_device_features(feat_bundle.get(), true, true);
+        if (!has_required_features)
             res.is_suitable = false;
-        }
-
-        if (!supported_features.fragmentStoresAndAtomics || !supported_features.vertexPipelineStoresAndAtomics)
-        {
-            // no support for GPU based validation
-            supports_gpu_based_validation = false;
-        }
     }
 
     // present modes and swapchain formats
@@ -102,13 +95,6 @@ phi::vk::vulkan_gpu_info phi::vk::get_vulkan_gpu_info(VkPhysicalDevice device, V
     {
         vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &res.surface_capabilities);
         vkGetPhysicalDeviceMemoryProperties(device, &res.mem_props);
-    }
-
-    if (res.is_suitable && !supports_gpu_based_validation)
-    {
-        log::info()("GPU {} does not support GPU based validation but is suitable otherwise", device);
-        // NOTE: if this comes up, consider disabling GBV instead of throwing out the candidate
-        res.is_suitable = false;
     }
 
     return res;
@@ -229,4 +215,45 @@ cc::vector<phi::gpu_info> phi::vk::get_available_gpus(cc::span<const vulkan_gpu_
     }
 
     return res;
+}
+
+bool phi::vk::set_or_test_device_features(VkPhysicalDeviceFeatures2* arg, bool enable_gbv, bool test_mode)
+{
+    // a single place to both test for existing features and set the features required
+
+
+    // verify and unfold pNext chain
+    CC_ASSERT(arg->sType == VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 && "sType for main argument wrong");
+    CC_ASSERT(arg->pNext != nullptr && "pNext chain not long enough");
+
+    VkPhysicalDeviceTimelineSemaphoreFeatures& p_next_chain_1 = *static_cast<VkPhysicalDeviceTimelineSemaphoreFeatures*>(arg->pNext);
+    CC_ASSERT(p_next_chain_1.sType == VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TIMELINE_SEMAPHORE_FEATURES && "pNext chain ordered unexpectedly");
+
+    // clang-format off
+#define PHI_LOC_ST(_prop_) \
+    if (test_mode) { if (_prop_ != VK_TRUE) return false; } \
+    else { _prop_ = VK_TRUE; } (void)0
+    // clang-format on
+
+#define PHI_LOC_ST_MAIN(_feat_) PHI_LOC_ST(arg->features._feat_)
+
+
+    // == set and test features ==
+
+    PHI_LOC_ST_MAIN(samplerAnisotropy);
+    PHI_LOC_ST_MAIN(geometryShader);
+
+    if (enable_gbv)
+    {
+        // features required for GBV
+        PHI_LOC_ST_MAIN(fragmentStoresAndAtomics);
+        PHI_LOC_ST_MAIN(vertexPipelineStoresAndAtomics);
+    }
+
+    PHI_LOC_ST(p_next_chain_1.timelineSemaphore);
+
+    return true;
+
+#undef PHI_LOC_ST_MAIN
+#undef PHI_LOC_ST
 }
