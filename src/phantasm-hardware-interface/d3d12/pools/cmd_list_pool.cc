@@ -4,7 +4,7 @@
 #include <phantasm-hardware-interface/d3d12/common/util.hh>
 #include <phantasm-hardware-interface/d3d12/common/verify.hh>
 
-void phi::d3d12::cmd_allocator_node::initialize(ID3D12Device& device, D3D12_COMMAND_LIST_TYPE type, int max_num_cmdlists)
+void phi::d3d12::cmd_allocator_node::initialize(ID3D12Device5& device, D3D12_COMMAND_LIST_TYPE type, int max_num_cmdlists)
 {
     _max_num_in_flight = max_num_cmdlists;
     _submit_counter = 0;
@@ -21,7 +21,7 @@ void phi::d3d12::cmd_allocator_node::initialize(ID3D12Device& device, D3D12_COMM
 
 void phi::d3d12::cmd_allocator_node::destroy() { _allocator->Release(); }
 
-void phi::d3d12::cmd_allocator_node::acquire(ID3D12GraphicsCommandList* cmd_list)
+void phi::d3d12::cmd_allocator_node::acquire(ID3D12GraphicsCommandList5* cmd_list)
 {
     if (is_full())
     {
@@ -115,9 +115,7 @@ bool phi::d3d12::cmd_allocator_node::is_submit_counter_up_to_date() const
     return (submits_since_reset == possible_submits_remaining);
 }
 
-phi::handle::command_list phi::d3d12::CommandListPool::create(ID3D12GraphicsCommandList*& out_cmdlist,
-                                                              ID3D12GraphicsCommandList5** out_cmdlist5,
-                                                              CommandAllocatorBundle& thread_allocator)
+phi::handle::command_list phi::d3d12::CommandListPool::create(ID3D12GraphicsCommandList5*& out_cmdlist, CommandAllocatorBundle& thread_allocator)
 {
     unsigned res_handle;
     {
@@ -126,11 +124,6 @@ phi::handle::command_list phi::d3d12::CommandListPool::create(ID3D12GraphicsComm
     }
 
     out_cmdlist = mRawLists[res_handle];
-
-    if (out_cmdlist5)
-    {
-        *out_cmdlist5 = mRawLists5[res_handle];
-    }
 
     cmd_list_node& new_node = mPool.get(res_handle);
     new_node.responsible_allocator = thread_allocator.acquireMemory(out_cmdlist);
@@ -153,19 +146,17 @@ void phi::d3d12::CommandListPool::initialize(phi::d3d12::BackendD3D12& backend,
     // initialize the (currently single) allocator bundle and give it ALL raw lists
     for (auto i = 0u; i < thread_allocators.size(); ++i)
     {
-        thread_allocators[i]->initialize(backend.getDevice(), num_allocators_per_thread, num_cmdlists_per_allocator,
+        thread_allocators[i]->initialize(*backend.getDevice5(), num_allocators_per_thread, num_cmdlists_per_allocator,
                                          cc::span{mRawLists.data() + (num_cmdlists_per_thread * i), num_cmdlists_per_thread});
     }
 
     // Execute all (closed) lists once to suppress warnings
-    static_assert(std::is_same_v<decltype(mRawLists[0]), ID3D12GraphicsCommandList*&>, "Elements of mRawLists not valid for cast");
-    backend.getDirectQueue().ExecuteCommandLists(                     //
-        UINT(mRawLists.size()),                                       //
-        reinterpret_cast<ID3D12CommandList* const*>(mRawLists.data()) // This is hopefully always fine
-    );
-
-    // Query GraphicsCommandList5
-    queryList5();
+    // NOTE: Why? Does not cause warnings on tested hardware
+    static_assert(std::is_same_v<decltype(mRawLists[0]), ID3D12GraphicsCommandList5*&>, "Elements of mRawLists not valid for cast");
+    //        backend.getDirectQueue().ExecuteCommandLists(                     //
+    //            UINT(mRawLists.size()),                                       //
+    //            reinterpret_cast<ID3D12CommandList* const*>(mRawLists.data()) // This is hopefully always fine
+    //        );
 
     // Flush the backend
     backend.flushGPU();
@@ -173,42 +164,13 @@ void phi::d3d12::CommandListPool::initialize(phi::d3d12::BackendD3D12& backend,
 
 void phi::d3d12::CommandListPool::destroy()
 {
-    if (mHasLists5)
-    {
-        for (auto const list5 : mRawLists5)
-        {
-            list5->Release();
-        }
-    }
-
     for (auto const list : mRawLists)
     {
         list->Release();
     }
 }
 
-void phi::d3d12::CommandListPool::queryList5()
-{
-    mHasLists5 = true;
-    mRawLists5 = mRawLists5.uninitialized(mRawLists.size());
-    for (auto i = 0u; i < mRawLists.size(); ++i)
-    {
-        auto const success = SUCCEEDED(mRawLists[i]->QueryInterface(IID_PPV_ARGS(&mRawLists5[i])));
-
-        if (!success)
-        {
-            mHasLists5 = false;
-            break;
-        }
-    }
-
-    if (!mHasLists5)
-    {
-        cc::fill(mRawLists5, nullptr);
-    }
-}
-
-void phi::d3d12::CommandAllocatorBundle::initialize(ID3D12Device& device, int num_allocators, int num_cmdlists_per_allocator, cc::span<ID3D12GraphicsCommandList*> initial_lists)
+void phi::d3d12::CommandAllocatorBundle::initialize(ID3D12Device5& device, int num_allocators, int num_cmdlists_per_allocator, cc::span<ID3D12GraphicsCommandList5*> initial_lists)
 {
     // NOTE: Eventually, we'll need multiple
     constexpr auto list_type = D3D12_COMMAND_LIST_TYPE_DIRECT;
@@ -246,7 +208,7 @@ void phi::d3d12::CommandAllocatorBundle::destroy()
     }
 }
 
-phi::d3d12::cmd_allocator_node* phi::d3d12::CommandAllocatorBundle::acquireMemory(ID3D12GraphicsCommandList* list)
+phi::d3d12::cmd_allocator_node* phi::d3d12::CommandAllocatorBundle::acquireMemory(ID3D12GraphicsCommandList5* list)
 {
     updateActiveIndex();
     mAllocators[mActiveAllocator].acquire(list);

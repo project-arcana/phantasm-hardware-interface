@@ -65,10 +65,10 @@ private:
 private:
     static auto constexpr max_num_backbuffers = 6u;
 
-    shared_com_ptr<ID3D12Device> mParentDevice;            ///< The parent device
-    shared_com_ptr<ID3D12CommandQueue> mParentDirectQueue; ///< The parent device's main direct queue
-    shared_com_ptr<IDXGISwapChain3> mSwapchain;            ///< Swapchain COM ptr
-    shared_com_ptr<ID3D12DescriptorHeap> mRTVHeap;         ///< A descriptor heap exclusively for backbuffer RTVs
+    shared_com_ptr<ID3D12Device> mParentDevice;      ///< The parent device
+    shared_com_ptr<ID3D12CommandQueue> mParentQueue; ///< The parent device's queue being used to present
+    shared_com_ptr<IDXGISwapChain3> mSwapchain;      ///< Swapchain COM ptr
+    shared_com_ptr<ID3D12DescriptorHeap> mRTVHeap;   ///< A descriptor heap exclusively for backbuffer RTVs
 
 
     cc::capped_array<backbuffer, max_num_backbuffers> mBackbuffers; ///< All backbuffers

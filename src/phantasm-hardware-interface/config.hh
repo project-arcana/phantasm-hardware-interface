@@ -73,6 +73,9 @@ struct backend_config
     /// whether to print basic information on init
     bool print_startup_message = true;
 
+    /// whether to present from the discrete compute queue (instead of the default direct queue)
+    bool present_from_compute_queue = false;
+
     /// amount of backbuffers to create
     unsigned num_backbuffers = 3;
 

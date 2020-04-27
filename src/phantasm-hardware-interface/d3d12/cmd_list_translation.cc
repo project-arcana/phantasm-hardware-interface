@@ -27,11 +27,9 @@ void phi::d3d12::command_list_translator::initialize(ID3D12Device* device,
     _thread_local.initialize(*_globals.device);
 }
 
-void phi::d3d12::command_list_translator::translateCommandList(
-    ID3D12GraphicsCommandList* list, ID3D12GraphicsCommandList5* list5, phi::detail::incomplete_state_cache* state_cache, std::byte* buffer, size_t buffer_size)
+void phi::d3d12::command_list_translator::translateCommandList(ID3D12GraphicsCommandList5* list, phi::detail::incomplete_state_cache* state_cache, std::byte* buffer, size_t buffer_size)
 {
     _cmd_list = list;
-    _cmd_list_5 = list5;
     _state_cache = state_cache;
 
     _bound.reset();
@@ -389,8 +387,6 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::debug_marker& 
 
 void phi::d3d12::command_list_translator::execute(const phi::cmd::update_bottom_level& blas_update)
 {
-    CC_ASSERT(_cmd_list_5 != nullptr && "Used feature requires Windows 10 1903 or newer");
-
     auto& dest_node = _globals.pool_accel_structs->getNode(blas_update.dest);
     ID3D12Resource* const dest_as_buffer = _globals.pool_resources->getRawResource(dest_node.buffer_as);
 
@@ -403,16 +399,14 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::update_bottom_
     as_create_info.DestAccelerationStructureData = dest_as_buffer->GetGPUVirtualAddress();
     as_create_info.ScratchAccelerationStructureData = _globals.pool_resources->getRawResource(dest_node.buffer_scratch)->GetGPUVirtualAddress();
 
-    _cmd_list_5->BuildRaytracingAccelerationStructure(&as_create_info, 0, nullptr);
+    _cmd_list->BuildRaytracingAccelerationStructure(&as_create_info, 0, nullptr);
 
     auto const uav_barrier = CD3DX12_RESOURCE_BARRIER::UAV(dest_as_buffer);
-    _cmd_list_5->ResourceBarrier(1, &uav_barrier);
+    _cmd_list->ResourceBarrier(1, &uav_barrier);
 }
 
 void phi::d3d12::command_list_translator::execute(const phi::cmd::update_top_level& tlas_update)
 {
-    CC_ASSERT(_cmd_list_5 != nullptr && "Used feature requires Windows 10 1903 or newer");
-
     auto& dest_node = _globals.pool_accel_structs->getNode(tlas_update.dest);
     ID3D12Resource* const dest_as_buffer = _globals.pool_resources->getRawResource(dest_node.buffer_as);
 
@@ -426,19 +420,17 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::update_top_lev
     as_create_info.DestAccelerationStructureData = dest_node.raw_as_handle;
     as_create_info.ScratchAccelerationStructureData = _globals.pool_resources->getRawResource(dest_node.buffer_scratch)->GetGPUVirtualAddress();
 
-    _cmd_list_5->BuildRaytracingAccelerationStructure(&as_create_info, 0, nullptr);
+    _cmd_list->BuildRaytracingAccelerationStructure(&as_create_info, 0, nullptr);
 
     //    auto const uav_barrier = CD3DX12_RESOURCE_BARRIER::UAV(dest_as_buffer);
-    //    _cmd_list_rt->ResourceBarrier(1, &uav_barrier);
+    //    _cmd_list->ResourceBarrier(1, &uav_barrier);
 }
 
 void phi::d3d12::command_list_translator::execute(const cmd::dispatch_rays& dispatch_rays)
 {
-    CC_ASSERT(_cmd_list_5 != nullptr && "Used feature requires Windows 10 1903 or newer");
-
     if (_bound.update_pso(dispatch_rays.pso))
     {
-        _cmd_list_5->SetPipelineState1(_globals.pool_pipeline_states->getRaytrace(dispatch_rays.pso).raw_state_object);
+        _cmd_list->SetPipelineState1(_globals.pool_pipeline_states->getRaytrace(dispatch_rays.pso).raw_state_object);
     }
 
 
@@ -474,7 +466,7 @@ void phi::d3d12::command_list_translator::execute(const cmd::dispatch_rays& disp
     desc.Height = dispatch_rays.height;
     desc.Depth = dispatch_rays.depth;
 
-    _cmd_list_5->DispatchRays(&desc);
+    _cmd_list->DispatchRays(&desc);
 }
 
 void phi::d3d12::command_list_translator::execute(const phi::cmd::clear_textures& clear_tex)

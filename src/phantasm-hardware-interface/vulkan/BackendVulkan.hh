@@ -120,7 +120,7 @@ public:
 
     [[nodiscard]] handle::command_list recordCommandList(std::byte* buffer, size_t size) override;
     void discard(cc::span<handle::command_list const> cls) override { mPoolCmdLists.freeAndDiscard(cls); }
-    void submit(cc::span<handle::command_list const> cls) override;
+    void submit(cc::span<handle::command_list const> cls, queue_type queue = queue_type::direct) override;
 
     //
     // Fence interface
@@ -137,16 +137,12 @@ public:
 
     void signalFenceGPU(handle::fence fence, uint64_t new_value, queue_type queue) override
     {
-        VkQueue target = (queue == queue_type::direct ? mDevice.getQueueDirect()
-                                                      : (queue == queue_type::compute ? mDevice.getQueueCompute() : mDevice.getQueueCopy()));
-        mPoolFences.signalGPU(fence, new_value, target);
+        mPoolFences.signalGPU(fence, new_value, getQueueByType(queue));
     }
 
     void waitFenceGPU(handle::fence fence, uint64_t wait_value, queue_type queue) override
     {
-        VkQueue target = (queue == queue_type::direct ? mDevice.getQueueDirect()
-                                                      : (queue == queue_type::compute ? mDevice.getQueueCompute() : mDevice.getQueueCopy()));
-        mPoolFences.waitGPU(fence, wait_value, target);
+        mPoolFences.waitGPU(fence, wait_value, getQueueByType(queue));
     }
 
     void free(cc::span<handle::fence const> fences) override { mPoolFences.free(fences); }
@@ -206,6 +202,11 @@ public:
 
 private:
     void createDebugMessenger();
+
+    VkQueue getQueueByType(queue_type type) const
+    {
+        return (type == queue_type::direct ? mDevice.getQueueDirect() : (type == queue_type::compute ? mDevice.getQueueCompute() : mDevice.getQueueCopy()));
+    }
 
 public:
     VkInstance mInstance = nullptr;

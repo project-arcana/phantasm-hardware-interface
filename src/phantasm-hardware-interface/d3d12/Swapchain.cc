@@ -6,7 +6,7 @@
 namespace
 {
 // NOTE: The _SRGB variant crashes at factory.CreateSwapChainForHwnd
-constexpr auto gc_backbuffer_format = DXGI_FORMAT_R8G8B8A8_UNORM;
+constexpr auto gc_backbuffer_format = DXGI_FORMAT_B8G8R8A8_UNORM;
 
 DXGI_SWAP_CHAIN_FLAG get_swapchain_flags(phi::present_mode mode)
 {
@@ -20,7 +20,7 @@ void phi::d3d12::Swapchain::initialize(
     CC_RUNTIME_ASSERT(num_backbuffers <= max_num_backbuffers);
     mBackbuffers.emplace(num_backbuffers);
     mParentDevice = cc::move(device);
-    mParentDirectQueue = cc::move(queue);
+    mParentQueue = cc::move(queue);
     mPresentMode = present_mode;
 
     mBackbufferSize = {250, 250}; // this is arbitrary, but starting at size 0 causes all sorts of issues
@@ -48,7 +48,7 @@ void phi::d3d12::Swapchain::initialize(
         swapchain_desc.Flags = get_swapchain_flags(mPresentMode);
 
         shared_com_ptr<IDXGISwapChain1> temp_swapchain;
-        PHI_D3D12_VERIFY(factory.CreateSwapChainForHwnd(mParentDirectQueue, handle, &swapchain_desc, nullptr, nullptr, temp_swapchain.override()));
+        PHI_D3D12_VERIFY(factory.CreateSwapChainForHwnd(mParentQueue, handle, &swapchain_desc, nullptr, nullptr, temp_swapchain.override()));
         PHI_D3D12_VERIFY(temp_swapchain.get_interface(mSwapchain));
     }
 
@@ -88,7 +88,7 @@ void phi::d3d12::Swapchain::present()
     PHI_D3D12_VERIFY_FULL(mSwapchain->Present(0, mPresentMode == present_mode::allow_tearing ? DXGI_PRESENT_ALLOW_TEARING : 0), mParentDevice);
 
     auto const backbuffer_i = mSwapchain->GetCurrentBackBufferIndex();
-    mBackbuffers[backbuffer_i].fence.issueFence(*mParentDirectQueue);
+    mBackbuffers[backbuffer_i].fence.issueFence(*mParentQueue);
 }
 
 unsigned phi::d3d12::Swapchain::waitForBackbuffer()

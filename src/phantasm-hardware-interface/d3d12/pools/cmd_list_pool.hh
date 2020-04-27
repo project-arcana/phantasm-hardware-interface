@@ -20,7 +20,7 @@ namespace phi::d3d12
 struct cmd_allocator_node
 {
 public:
-    void initialize(ID3D12Device& device, D3D12_COMMAND_LIST_TYPE type, int max_num_cmdlists);
+    void initialize(ID3D12Device5& device, D3D12_COMMAND_LIST_TYPE type, int max_num_cmdlists);
     void destroy();
 
 public:
@@ -40,7 +40,7 @@ public:
 
     /// acquire memory from this allocator for the given commandlist
     /// do not call if full (best case: blocking, worst case: crash)
-    void acquire(ID3D12GraphicsCommandList* cmd_list);
+    void acquire(ID3D12GraphicsCommandList5* cmd_list);
 
     /// non-blocking reset attempt
     /// returns true if the allocator is usable afterwards
@@ -91,12 +91,12 @@ private:
 class CommandAllocatorBundle
 {
 public:
-    void initialize(ID3D12Device& device, int num_allocators, int num_cmdlists_per_allocator, cc::span<ID3D12GraphicsCommandList*> initial_lists);
+    void initialize(ID3D12Device5& device, int num_allocators, int num_cmdlists_per_allocator, cc::span<ID3D12GraphicsCommandList5*> initial_lists);
     void destroy();
 
     /// Resets the given command list to use memory by an appropriate allocator
     /// Returns a pointer to the backing allocator node
-    cmd_allocator_node* acquireMemory(ID3D12GraphicsCommandList* list);
+    cmd_allocator_node* acquireMemory(ID3D12GraphicsCommandList5* list);
 
 private:
     void updateActiveIndex();
@@ -115,7 +115,7 @@ class CommandListPool
 public:
     // frontend-facing API (not quite, command_list can only be compiled immediately)
 
-    [[nodiscard]] handle::command_list create(ID3D12GraphicsCommandList*& out_cmdlist, ID3D12GraphicsCommandList5** out_cmdlist5, CommandAllocatorBundle& thread_allocator);
+    [[nodiscard]] handle::command_list create(ID3D12GraphicsCommandList5*& out_cmdlist, CommandAllocatorBundle& thread_allocator);
 
     void freeOnSubmit(handle::command_list cl, ID3D12CommandQueue& queue)
     {
@@ -155,17 +155,13 @@ public:
     }
 
 public:
-    ID3D12GraphicsCommandList* getRawList(handle::command_list cl) const { return mRawLists[static_cast<unsigned>(cl.index)]; }
-    ID3D12GraphicsCommandList5* getRawList5(handle::command_list cl) const { return mRawLists5[static_cast<unsigned>(cl.index)]; }
+    ID3D12GraphicsCommandList5* getRawList(handle::command_list cl) const { return mRawLists[static_cast<unsigned>(cl.index)]; }
 
     phi::detail::incomplete_state_cache* getStateCache(handle::command_list cl) { return &mPool.get(static_cast<unsigned>(cl.index)).state_cache; }
 
 public:
     void initialize(BackendD3D12& backend, int num_allocators_per_thread, int num_cmdlists_per_allocator, cc::span<CommandAllocatorBundle*> thread_allocators);
     void destroy();
-
-private:
-    void queryList5();
 
 private:
     struct cmd_list_node
@@ -183,10 +179,8 @@ private:
 
     /// a parallel array to the pool, identically indexed
     /// the cmdlists must stay alive even while "unallocated"
-    cc::array<ID3D12GraphicsCommandList*> mRawLists;
-    cc::array<ID3D12GraphicsCommandList5*> mRawLists5;
+    cc::array<ID3D12GraphicsCommandList5*> mRawLists;
 
     std::mutex mMutex;
-    bool mHasLists5 = false;
 };
 }
