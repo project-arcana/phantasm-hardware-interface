@@ -10,6 +10,7 @@ typedef UINT64 D3D12_GPU_VIRTUAL_ADDRESS;
 typedef struct ID3D10Blob ID3DBlob;
 
 struct ID3D12Device;
+struct ID3D12Device1;
 struct ID3D12Device5;
 struct ID3D12Fence;
 struct ID3D12Resource;

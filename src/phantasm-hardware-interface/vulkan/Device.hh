@@ -3,6 +3,7 @@
 #include <clean-core/array.hh>
 
 #include <phantasm-hardware-interface/fwd.hh>
+#include <phantasm-hardware-interface/vulkan/queue_util.hh>
 
 #include "loader/volk.hh"
 
@@ -26,9 +27,9 @@ public:
     VkQueue getQueueCompute() const { return mQueueCompute; }
     VkQueue getQueueCopy() const { return mQueueCopy; }
 
-    int getQueueFamilyDirect() const { return mQueueFamilies.direct; }
-    int getQueueFamilyCompute() const { return mQueueFamilies.compute; }
-    int getQueueFamilyCopy() const { return mQueueFamilies.copy; }
+    int getQueueFamilyDirect() const { return mQueueIndices.direct.family_index; }
+    int getQueueFamilyCompute() const { return mQueueIndices.compute.family_index; }
+    int getQueueFamilyCopy() const { return mQueueIndices.copy.family_index; }
 
 public:
     VkPhysicalDeviceMemoryProperties const& getMemoryProperties() const { return mInformation.memory_properties; }
@@ -54,12 +55,7 @@ private:
     VkQueue mQueueCompute = nullptr;
     VkQueue mQueueCopy = nullptr;
 
-    struct
-    {
-        int direct = -1;
-        int compute = -1;
-        int copy = -1;
-    } mQueueFamilies;
+    chosen_queues mQueueIndices;
 
     // Miscellaneous info
     struct

@@ -540,17 +540,38 @@ enum class blend_factor : uint8_t
     inv_dest_alpha
 };
 
-/// the blending configuration for a specific render target slot of a (graphics) handle::pipeline_state
-struct render_target_config
+struct blend_state
 {
-    format fmt = format::rgba8un;
-    bool blend_enable = false;
     blend_factor blend_color_src = blend_factor::one;
     blend_factor blend_color_dest = blend_factor::zero;
     blend_op blend_op_color = blend_op::op_add;
     blend_factor blend_alpha_src = blend_factor::one;
     blend_factor blend_alpha_dest = blend_factor::zero;
     blend_op blend_op_alpha = blend_op::op_add;
+
+    blend_state() = default;
+    blend_state(blend_factor blend_color_src,
+                blend_factor blend_color_dest,
+                blend_op blend_op_color,
+                blend_factor blend_alpha_src = blend_factor::one,
+                blend_factor blend_alpha_dest = blend_factor::zero,
+                blend_op blend_op_alpha = blend_op::op_add)
+      : blend_color_src(blend_color_src),
+        blend_color_dest(blend_color_dest),
+        blend_op_color(blend_op_color),
+        blend_alpha_src(blend_alpha_src),
+        blend_alpha_dest(blend_alpha_dest),
+        blend_op_alpha(blend_op_alpha)
+    {
+    }
+};
+
+/// the blending configuration for a specific render target slot of a (graphics) handle::pipeline_state
+struct render_target_config
+{
+    format fmt = format::rgba8un;
+    bool blend_enable = false;
+    blend_state state;
 };
 
 /// flags to configure the building process of a raytracing acceleration structure

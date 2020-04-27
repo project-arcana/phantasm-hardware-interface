@@ -73,12 +73,12 @@ ID3D12PipelineState* phi::d3d12::create_pipeline_state(ID3D12Device& device,
             blend_state.LogicOp = util::to_native(framebuffer_format.logic_op);
 
             blend_state.BlendEnable = true;
-            blend_state.BlendOp = util::to_native(rt.blend_op_color);
-            blend_state.SrcBlend = util::to_native(rt.blend_color_src);
-            blend_state.DestBlend = util::to_native(rt.blend_color_dest);
-            blend_state.BlendOpAlpha = util::to_native(rt.blend_op_alpha);
-            blend_state.SrcBlendAlpha = util::to_native(rt.blend_alpha_src);
-            blend_state.DestBlendAlpha = util::to_native(rt.blend_alpha_dest);
+            blend_state.BlendOp = util::to_native(rt.state.blend_op_color);
+            blend_state.SrcBlend = util::to_native(rt.state.blend_color_src);
+            blend_state.DestBlend = util::to_native(rt.state.blend_color_dest);
+            blend_state.BlendOpAlpha = util::to_native(rt.state.blend_op_alpha);
+            blend_state.SrcBlendAlpha = util::to_native(rt.state.blend_alpha_src);
+            blend_state.DestBlendAlpha = util::to_native(rt.state.blend_alpha_dest);
         }
     }
 

@@ -27,11 +27,13 @@ public:
     ID3D12Device& getDevice() const { return *mDevice.get(); }
     shared_com_ptr<ID3D12Device> const& getDeviceShared() const { return mDevice; }
 
+    ID3D12Device1& getDevice1() const { return *mDevice1.get(); }
     ID3D12Device5* getDevice5() const { return mDevice5.get(); }
 
 private:
     shared_com_ptr<ID3D12DeviceRemovedExtendedDataSettings> mDREDSettings;
     shared_com_ptr<ID3D12Device> mDevice;
+    shared_com_ptr<ID3D12Device1> mDevice1;
     shared_com_ptr<ID3D12Device5> mDevice5;
     gpu_feature_flags mFeatures;
 };

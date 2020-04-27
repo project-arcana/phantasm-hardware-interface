@@ -40,7 +40,7 @@ public:
 
 private:
     shared_com_ptr<ID3D12Fence> mFence;
-    HANDLE mEvent;
+    ::HANDLE mEvent;
 };
 
 class Fence

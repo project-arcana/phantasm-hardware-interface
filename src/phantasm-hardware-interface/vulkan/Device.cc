@@ -17,15 +17,14 @@ void phi::vk::Device::initialize(vulkan_gpu_info const& device, backend_config c
     mHasConservativeRaster = false;
     auto const active_lay_ext = get_used_device_lay_ext(device.available_layers_extensions, config, mHasRaytracing, mHasConservativeRaster);
 
-    // chose family queue indices
-    {
-        auto const chosen_queues = get_chosen_queues(device.queues);
-        mQueueFamilies.direct = chosen_queues.direct;
-        mQueueFamilies.compute = chosen_queues.separate_compute;
-        mQueueFamilies.copy = chosen_queues.separate_copy;
+    // chose queues
+    mQueueIndices = get_chosen_queues(device.queues);
+    CC_RUNTIME_ASSERT(mQueueIndices.direct.valid() && "vk::Device failed to find direct queue");
 
-        CC_RUNTIME_ASSERT(mQueueFamilies.direct != -1 && "vk::Device failed to find direct queue");
-    }
+    // NOTE: These two are not necessarily hard requirements but we do not currently fall back gracefully
+    // remove these asserts and fallback in handle::fence and submit API if this comes up (everything else is already handled)
+    CC_RUNTIME_ASSERT(mQueueIndices.compute.valid() && "vk::Device failed to find discrete compute queue - please contact maintainers");
+    CC_RUNTIME_ASSERT(mQueueIndices.copy.valid() && "vk::Device failed to find discrete copy queue - please contact maintainers");
 
     // setup feature struct chain and fill it
     physical_device_feature_bundle feat_bundle;
@@ -39,20 +38,31 @@ void phi::vk::Device::initialize(vulkan_gpu_info const& device, backend_config c
     device_info.enabledLayerCount = uint32_t(active_lay_ext.layers.size());
     device_info.ppEnabledLayerNames = active_lay_ext.layers.empty() ? nullptr : active_lay_ext.layers.data();
 
+    // assemble queue creation struct
     auto const global_queue_priority = 1.f;
     cc::capped_vector<VkDeviceQueueCreateInfo, 3> queue_create_infos;
-    for (auto const q_i : {mQueueFamilies.direct, mQueueFamilies.copy, mQueueFamilies.compute})
-    {
-        if (q_i == -1)
-            continue;
+    auto const f_add_queue = [&](int family_index) -> void {
+        for (auto& info : queue_create_infos)
+        {
+            if (info.queueFamilyIndex == uint32_t(family_index))
+            {
+                ++info.queueCount;
+                return;
+            }
+        }
 
+        // add new create info
         auto& queue_info = queue_create_infos.emplace_back();
         queue_info = {};
         queue_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
         queue_info.queueCount = 1;
-        queue_info.queueFamilyIndex = static_cast<uint32_t>(q_i);
+        queue_info.queueFamilyIndex = uint32_t(family_index);
         queue_info.pQueuePriorities = &global_queue_priority;
-    }
+    };
+
+    for (auto const& q_i : {mQueueIndices.direct, mQueueIndices.copy, mQueueIndices.compute})
+        if (q_i.valid())
+            f_add_queue(q_i.family_index);
 
     device_info.pQueueCreateInfos = queue_create_infos.data();
     device_info.queueCreateInfoCount = uint32_t(queue_create_infos.size());
@@ -63,12 +73,15 @@ void phi::vk::Device::initialize(vulkan_gpu_info const& device, backend_config c
 
     // Query queues
     {
-        if (mQueueFamilies.direct != -1)
-            vkGetDeviceQueue(mDevice, uint32_t(mQueueFamilies.direct), 0, &mQueueDirect);
-        if (mQueueFamilies.compute != -1)
-            vkGetDeviceQueue(mDevice, uint32_t(mQueueFamilies.compute), 0, &mQueueCompute);
-        if (mQueueFamilies.copy != -1)
-            vkGetDeviceQueue(mDevice, uint32_t(mQueueFamilies.copy), 0, &mQueueCopy);
+        if (mQueueIndices.direct.valid())
+            vkGetDeviceQueue(mDevice, uint32_t(mQueueIndices.direct.family_index), uint32_t(mQueueIndices.direct.queue_index), &mQueueDirect);
+        if (mQueueIndices.compute.valid())
+            vkGetDeviceQueue(mDevice, uint32_t(mQueueIndices.compute.family_index), uint32_t(mQueueIndices.compute.queue_index), &mQueueCompute);
+        if (mQueueIndices.copy.valid())
+            vkGetDeviceQueue(mDevice, uint32_t(mQueueIndices.copy.family_index), uint32_t(mQueueIndices.copy.queue_index), &mQueueCopy);
+
+        //        log::info() << "queues: " << mQueueDirect << mQueueCompute << mQueueCopy;
+        //        log::info() << "fams: " << getQueueFamilyDirect() << ", " << getQueueFamilyCompute() << ", " << getQueueFamilyCopy();
     }
 
     // copy info

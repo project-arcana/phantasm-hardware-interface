@@ -39,6 +39,11 @@ void phi::d3d12::Device::initialize(IDXGIAdapter& adapter, const backend_config&
     mFeatures = check_capabilities(mDevice);
 
     // QIs
+
+    // always get ID3D12Device1
+    PHI_D3D12_VERIFY(mDevice->QueryInterface(PHI_COM_WRITE(mDevice1)));
+
+    // try to receive ID3D12Device5
     auto const got_device5 = SUCCEEDED(mDevice->QueryInterface(PHI_COM_WRITE(mDevice5)));
     if (!got_device5)
     {
