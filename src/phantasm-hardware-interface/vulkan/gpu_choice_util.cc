@@ -242,6 +242,7 @@ bool phi::vk::set_or_test_device_features(VkPhysicalDeviceFeatures2* arg, bool e
 
     PHI_LOC_ST_MAIN(samplerAnisotropy);
     PHI_LOC_ST_MAIN(geometryShader);
+    PHI_LOC_ST_MAIN(independentBlend);
 
     if (enable_gbv)
     {
