@@ -20,7 +20,7 @@ namespace phi::d3d12
 struct BackendD3D12::per_thread_component
 {
     command_list_translator translator;
-    CommandAllocatorBundle cmd_list_allocator;
+    CommandAllocatorsPerThread cmd_list_allocator;
 };
 
 }
@@ -88,7 +88,7 @@ void phi::d3d12::BackendD3D12::initialize(const phi::backend_config& config, con
         mThreadAssociation.initialize();
         mThreadComponents = mThreadComponents.defaulted(config.num_threads);
 
-        cc::vector<CommandAllocatorBundle*> thread_allocator_ptrs;
+        cc::vector<CommandAllocatorsPerThread*> thread_allocator_ptrs;
         thread_allocator_ptrs.reserve(config.num_threads);
 
         for (auto& thread_comp : mThreadComponents)
@@ -97,7 +97,11 @@ void phi::d3d12::BackendD3D12::initialize(const phi::backend_config& config, con
             thread_allocator_ptrs.push_back(&thread_comp.cmd_list_allocator);
         }
 
-        mPoolCmdLists.initialize(*this, int(config.num_cmdlist_allocators_per_thread), int(config.num_cmdlists_per_allocator), thread_allocator_ptrs);
+        mPoolCmdLists.initialize(*this,                                                                                                 //
+                                 int(config.num_direct_cmdlist_allocators_per_thread), int(config.num_direct_cmdlists_per_allocator),   //
+                                 int(config.num_compute_cmdlist_allocators_per_thread), int(config.num_compute_cmdlists_per_allocator), //
+                                 int(config.num_copy_cmdlist_allocators_per_thread), int(config.num_copy_cmdlists_per_allocator),       //
+                                 thread_allocator_ptrs);
     }
 
     mDiagnostics.init();
@@ -173,12 +177,12 @@ void phi::d3d12::BackendD3D12::onResize(tg::isize2 size)
 
 phi::format phi::d3d12::BackendD3D12::getBackbufferFormat() const { return util::to_pr_format(mSwapchain.getBackbufferFormat()); }
 
-phi::handle::command_list phi::d3d12::BackendD3D12::recordCommandList(std::byte* buffer, size_t size)
+phi::handle::command_list phi::d3d12::BackendD3D12::recordCommandList(std::byte* buffer, size_t size, queue_type queue)
 {
     auto& thread_comp = mThreadComponents[mThreadAssociation.get_current_index()];
     ID3D12GraphicsCommandList5* raw_list5;
-    auto const res = mPoolCmdLists.create(raw_list5, thread_comp.cmd_list_allocator);
-    thread_comp.translator.translateCommandList(raw_list5, mPoolCmdLists.getStateCache(res), buffer, size);
+    auto const res = mPoolCmdLists.create(raw_list5, thread_comp.cmd_list_allocator, queue);
+    thread_comp.translator.translateCommandList(raw_list5, queue, mPoolCmdLists.getStateCache(res), buffer, size);
     return res;
 }
 
@@ -230,7 +234,7 @@ void phi::d3d12::BackendD3D12::submit(cc::span<const phi::handle::command_list> 
         if (!barriers.empty())
         {
             ID3D12GraphicsCommandList5* t_cmd_list;
-            barrier_lists.push_back(mPoolCmdLists.create(t_cmd_list, thread_comp.cmd_list_allocator));
+            barrier_lists.push_back(mPoolCmdLists.create(t_cmd_list, thread_comp.cmd_list_allocator, queue));
             t_cmd_list->ResourceBarrier(UINT(barriers.size()), barriers.size() > 0 ? barriers.data() : nullptr);
             t_cmd_list->Close();
             submit_batch.push_back(t_cmd_list);

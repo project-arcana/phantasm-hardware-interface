@@ -27,9 +27,11 @@ void phi::d3d12::command_list_translator::initialize(ID3D12Device* device,
     _thread_local.initialize(*_globals.device);
 }
 
-void phi::d3d12::command_list_translator::translateCommandList(ID3D12GraphicsCommandList5* list, phi::detail::incomplete_state_cache* state_cache, std::byte* buffer, size_t buffer_size)
+void phi::d3d12::command_list_translator::translateCommandList(
+    ID3D12GraphicsCommandList5* list, queue_type type, phi::detail::incomplete_state_cache* state_cache, std::byte* buffer, size_t buffer_size)
 {
     _cmd_list = list;
+    _current_queue_type = type;
     _state_cache = state_cache;
 
     _bound.reset();
@@ -51,6 +53,7 @@ void phi::d3d12::command_list_translator::translateCommandList(ID3D12GraphicsCom
 
 void phi::d3d12::command_list_translator::execute(const phi::cmd::begin_render_pass& begin_rp)
 {
+    CC_ASSERT(_current_queue_type == queue_type::direct && "graphics commands are only valid on queue_type::direct");
     util::set_viewport(_cmd_list, begin_rp.viewport);
 
     resource_view_cpu_only const dynamic_rtvs = _thread_local.lin_alloc_rtvs.allocate(begin_rp.render_targets.size());
@@ -109,6 +112,7 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::begin_render_p
 
 void phi::d3d12::command_list_translator::execute(const phi::cmd::draw& draw)
 {
+    CC_ASSERT(_current_queue_type == queue_type::direct && "graphics commands are only valid on queue_type::direct");
     auto const& pso_node = _globals.pool_pipeline_states->get(draw.pipeline_state);
 
     // PSO
@@ -279,6 +283,7 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::dispatch& disp
 
 void phi::d3d12::command_list_translator::execute(const phi::cmd::end_render_pass&)
 {
+    CC_ASSERT(_current_queue_type == queue_type::direct && "graphics commands are only valid on queue_type::direct");
     // do nothing
 }
 

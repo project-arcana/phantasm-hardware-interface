@@ -45,4 +45,19 @@ void set_object_name(ID3D12Object* object, char const* name, ...);
 
 /// create a Sampler description based on a sampler config
 [[nodiscard]] D3D12_SAMPLER_DESC create_sampler_desc(sampler_config const& config);
+
+constexpr char const* to_queue_type_literal(D3D12_COMMAND_LIST_TYPE t)
+{
+    switch (t)
+    {
+    case D3D12_COMMAND_LIST_TYPE_DIRECT:
+        return "direct";
+    case D3D12_COMMAND_LIST_TYPE_COPY:
+        return "copy";
+    case D3D12_COMMAND_LIST_TYPE_COMPUTE:
+        return "compute";
+    default:
+        return "unknown_type";
+    }
+}
 }

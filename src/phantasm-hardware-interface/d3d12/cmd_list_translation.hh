@@ -53,7 +53,7 @@ struct command_list_translator
 {
     void initialize(ID3D12Device* device, ShaderViewPool* sv_pool, ResourcePool* resource_pool, PipelineStateObjectPool* pso_pool, AccelStructPool* as_pool);
 
-    void translateCommandList(ID3D12GraphicsCommandList5* list, phi::detail::incomplete_state_cache* state_cache, std::byte* buffer, size_t buffer_size);
+    void translateCommandList(ID3D12GraphicsCommandList5* list, queue_type type, phi::detail::incomplete_state_cache* state_cache, std::byte* buffer, size_t buffer_size);
 
     void execute(cmd::begin_render_pass const& begin_rp);
 
@@ -95,6 +95,7 @@ private:
     // non-owning dynamic
     phi::detail::incomplete_state_cache* _state_cache = nullptr;
     ID3D12GraphicsCommandList5* _cmd_list = nullptr;
+    queue_type _current_queue_type = queue_type::direct;
 
     // dynamic state
     struct
