@@ -137,7 +137,7 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg, const 
             thread_allocator_ptrs.push_back(&thread_comp.cmd_list_allocator);
         }
 
-        mPoolCmdLists.initialize(*this, config.num_cmdlist_allocators_per_thread, config.num_cmdlists_per_allocator, thread_allocator_ptrs);
+        mPoolCmdLists.initialize(*this, config.num_direct_cmdlist_allocators_per_thread, config.num_direct_cmdlists_per_allocator, thread_allocator_ptrs);
     }
 }
 
@@ -215,8 +215,9 @@ void phi::vk::BackendVulkan::onResize(tg::isize2 size)
 
 phi::format phi::vk::BackendVulkan::getBackbufferFormat() const { return util::to_pr_format(mSwapchain.getBackbufferFormat()); }
 
-phi::handle::command_list phi::vk::BackendVulkan::recordCommandList(std::byte* buffer, size_t size)
+phi::handle::command_list phi::vk::BackendVulkan::recordCommandList(std::byte* buffer, size_t size, queue_type queue)
 {
+    CC_RUNTIME_ASSERT(queue == queue_type::direct && "unimplemented!");
     auto& thread_comp = mThreadComponents[mThreadAssociation.get_current_index()];
 
     VkCommandBuffer raw_list;
