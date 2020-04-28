@@ -240,9 +240,47 @@ bool phi::vk::set_or_test_device_features(VkPhysicalDeviceFeatures2* arg, bool e
 
     // == set and test features ==
 
+    // added by discovered necessity
     PHI_LOC_ST_MAIN(samplerAnisotropy);
     PHI_LOC_ST_MAIN(geometryShader);
+
+    // 100% support
+    PHI_LOC_ST_MAIN(fillModeNonSolid);
+    PHI_LOC_ST_MAIN(fragmentStoresAndAtomics);
     PHI_LOC_ST_MAIN(independentBlend);
+    PHI_LOC_ST_MAIN(robustBufferAccess);
+
+    // > 98% support
+    PHI_LOC_ST_MAIN(drawIndirectFirstInstance);
+    PHI_LOC_ST_MAIN(fullDrawIndexUint32);
+    PHI_LOC_ST_MAIN(vertexPipelineStoresAndAtomics);
+    PHI_LOC_ST_MAIN(imageCubeArray);
+    PHI_LOC_ST_MAIN(multiDrawIndirect);
+    PHI_LOC_ST_MAIN(shaderClipDistance);
+    PHI_LOC_ST_MAIN(shaderCullDistance);
+    PHI_LOC_ST_MAIN(dualSrcBlend);
+    PHI_LOC_ST_MAIN(largePoints);
+    PHI_LOC_ST_MAIN(logicOp);
+    PHI_LOC_ST_MAIN(multiViewport);
+    PHI_LOC_ST_MAIN(occlusionQueryPrecise);
+    PHI_LOC_ST_MAIN(shaderSampledImageArrayDynamicIndexing);
+    PHI_LOC_ST_MAIN(shaderStorageBufferArrayDynamicIndexing);
+    PHI_LOC_ST_MAIN(shaderStorageImageArrayDynamicIndexing);
+    PHI_LOC_ST_MAIN(shaderStorageImageWriteWithoutFormat);
+    PHI_LOC_ST_MAIN(shaderTessellationAndGeometryPointSize);
+    PHI_LOC_ST_MAIN(shaderUniformBufferArrayDynamicIndexing);
+    PHI_LOC_ST_MAIN(textureCompressionBC);
+    PHI_LOC_ST_MAIN(wideLines);
+    PHI_LOC_ST_MAIN(depthBiasClamp);
+    PHI_LOC_ST_MAIN(depthClamp);
+    PHI_LOC_ST_MAIN(variableMultisampleRate);
+    PHI_LOC_ST_MAIN(inheritedQueries);
+    PHI_LOC_ST_MAIN(pipelineStatisticsQuery);
+    PHI_LOC_ST_MAIN(sampleRateShading);
+    PHI_LOC_ST_MAIN(shaderImageGatherExtended);
+    PHI_LOC_ST_MAIN(shaderStorageImageExtendedFormats);
+    PHI_LOC_ST_MAIN(tessellationShader);
+
 
     if (enable_gbv)
     {
