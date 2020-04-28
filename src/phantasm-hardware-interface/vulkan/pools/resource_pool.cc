@@ -357,9 +357,7 @@ phi::handle::resource phi::vk::ResourcePool::acquireBuffer(
         VkDescriptorBufferInfo cbv_info = {};
         cbv_info.buffer = buffer;
         cbv_info.offset = 0;
-        cbv_info.range = buffer_width;
-        // NOTE: no idea what the line below tried to accomplish
-        // cc::min<uint64_t>(256, buffer_width);
+        cbv_info.range = buffer_stride > 0 ? buffer_stride : buffer_width; // strided CBV if present (for dynamic offset steps)
 
         cc::capped_vector<VkWriteDescriptorSet, 2> writes;
         {
