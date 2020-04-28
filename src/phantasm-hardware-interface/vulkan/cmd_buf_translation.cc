@@ -107,10 +107,10 @@ void phi::vk::command_list_translator::execute(const phi::cmd::draw& draw)
                 fb_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
                 fb_info.pNext = nullptr;
                 fb_info.renderPass = render_pass;
-                fb_info.attachmentCount = static_cast<unsigned>(fb_image_views.size());
+                fb_info.attachmentCount = uint32_t(fb_image_views.size());
                 fb_info.pAttachments = fb_image_views.data();
-                fb_info.width = static_cast<unsigned>(_bound.current_render_pass.viewport.width);
-                fb_info.height = static_cast<unsigned>(_bound.current_render_pass.viewport.height);
+                fb_info.width = uint32_t(_bound.current_render_pass.viewport.width + _bound.current_render_pass.viewport_offset.x);
+                fb_info.height = uint32_t(_bound.current_render_pass.viewport.height + _bound.current_render_pass.viewport_offset.y);
                 fb_info.layers = 1;
 
                 // Create the framebuffer
@@ -126,9 +126,9 @@ void phi::vk::command_list_translator::execute(const phi::cmd::draw& draw)
                 rp_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
                 rp_begin_info.renderPass = render_pass;
                 rp_begin_info.framebuffer = _bound.raw_framebuffer;
-                rp_begin_info.renderArea.offset = {0, 0};
-                rp_begin_info.renderArea.extent.width = static_cast<uint32_t>(_bound.current_render_pass.viewport.width);
-                rp_begin_info.renderArea.extent.height = static_cast<uint32_t>(_bound.current_render_pass.viewport.height);
+                rp_begin_info.renderArea.offset = {_bound.current_render_pass.viewport_offset.x, _bound.current_render_pass.viewport_offset.y};
+                rp_begin_info.renderArea.extent.width = uint32_t(_bound.current_render_pass.viewport.width);
+                rp_begin_info.renderArea.extent.height = uint32_t(_bound.current_render_pass.viewport.height);
 
                 cc::capped_vector<VkClearValue, limits::max_render_targets + 1> clear_values;
 
@@ -142,13 +142,13 @@ void phi::vk::command_list_translator::execute(const phi::cmd::draw& draw)
                 {
                     auto& cv = clear_values.emplace_back();
                     cv.depthStencil = {_bound.current_render_pass.depth_target.clear_value_depth,
-                                       static_cast<uint32_t>(_bound.current_render_pass.depth_target.clear_value_stencil)};
+                                       uint32_t(_bound.current_render_pass.depth_target.clear_value_stencil)};
                 }
 
-                rp_begin_info.clearValueCount = static_cast<uint32_t>(clear_values.size());
+                rp_begin_info.clearValueCount = uint32_t(clear_values.size());
                 rp_begin_info.pClearValues = clear_values.data();
 
-                util::set_viewport(_cmd_list, _bound.current_render_pass.viewport);
+                util::set_viewport(_cmd_list, _bound.current_render_pass.viewport, _bound.current_render_pass.viewport_offset);
                 vkCmdBeginRenderPass(_cmd_list, &rp_begin_info, VK_SUBPASS_CONTENTS_INLINE);
             }
         }
@@ -187,8 +187,7 @@ void phi::vk::command_list_translator::execute(const phi::cmd::draw& draw)
     {
         VkRect2D scissor_rect;
         scissor_rect.offset = VkOffset2D{draw.scissor.min.x, draw.scissor.min.y};
-        scissor_rect.extent
-            = VkExtent2D{static_cast<uint32_t>(draw.scissor.max.x - draw.scissor.min.x), static_cast<uint32_t>(draw.scissor.max.y - draw.scissor.min.y)};
+        scissor_rect.extent = VkExtent2D{uint32_t(draw.scissor.max.x - draw.scissor.min.x), uint32_t(draw.scissor.max.y - draw.scissor.min.y)};
         vkCmdSetScissor(_cmd_list, 0, 1, &scissor_rect);
     }
 
@@ -295,8 +294,8 @@ void phi::vk::command_list_translator::execute(const phi::cmd::transition_image_
 
         CC_ASSERT(_globals.pool_resources->isImage(transition.resource));
         auto const& img_info = _globals.pool_resources->getImageInfo(transition.resource);
-        barriers.add_image_barrier(img_info.raw_image, change, util::to_native_image_aspect(img_info.pixel_format),
-                                   static_cast<unsigned>(transition.mip_level), static_cast<unsigned>(transition.array_slice));
+        barriers.add_image_barrier(img_info.raw_image, change, util::to_native_image_aspect(img_info.pixel_format), uint32_t(transition.mip_level),
+                                   uint32_t(transition.array_slice));
     }
 
     barriers.record(_cmd_list);
@@ -406,7 +405,7 @@ void phi::vk::command_list_translator::execute(const phi::cmd::update_bottom_lev
     build_info.pNext = nullptr;
     build_info.flags = util::to_native_flags(dest_node.flags);
     build_info.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_NV;
-    build_info.geometryCount = static_cast<uint32_t>(dest_node.geometries.size());
+    build_info.geometryCount = uint32_t(dest_node.geometries.size());
     build_info.pGeometries = dest_node.geometries.empty() ? nullptr : dest_node.geometries.data();
     build_info.instanceCount = 0;
 

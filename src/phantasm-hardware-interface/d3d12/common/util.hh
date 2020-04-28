@@ -9,16 +9,6 @@
 
 namespace phi::d3d12::util
 {
-inline void set_viewport(ID3D12GraphicsCommandList* command_list, tg::isize2 size)
-{
-    // depthrange is hardcoded to [0, 1]
-    auto const viewport = D3D12_VIEWPORT{0.f, 0.f, float(size.width), float(size.height), 0.f, 1.f};
-    auto const scissor_rect = D3D12_RECT{0, 0, LONG(size.width), LONG(size.height)};
-
-    command_list->RSSetViewports(1, &viewport);
-    command_list->RSSetScissorRects(1, &scissor_rect);
-}
-
 /// returns a resource barrier description
 /// with -1 in both mip_level and array_slice, all subresources are transitioned
 /// with both specified, only a specific mip level and array slice is transitioned
