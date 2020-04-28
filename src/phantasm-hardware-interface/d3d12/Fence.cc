@@ -9,7 +9,7 @@ void phi::d3d12::SimpleFence::initialize(ID3D12Device& device)
 {
     CC_ASSERT(!mFence.is_valid());
     mEvent = CreateEventEx(nullptr, FALSE, FALSE, EVENT_ALL_ACCESS);
-    CC_ASSERT(mEvent != INVALID_HANDLE_VALUE);
+    CC_ASSERT(mEvent != INVALID_HANDLE_VALUE && "failed to create win32 event");
     PHI_D3D12_VERIFY(device.CreateFence(0, D3D12_FENCE_FLAG_NONE, PHI_COM_WRITE(mFence)));
 }
 
