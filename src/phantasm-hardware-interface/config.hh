@@ -95,7 +95,11 @@ struct backend_config
     unsigned max_num_raytrace_pipeline_states = 256;
 
     /// command list allocator size (total = #threads * #allocs/thread * #lists/alloc)
-    unsigned num_cmdlist_allocators_per_thread = 5;
-    unsigned num_cmdlists_per_allocator = 5;
+    unsigned num_direct_cmdlist_allocators_per_thread = 5;
+    unsigned num_direct_cmdlists_per_allocator = 5;
+    unsigned num_compute_cmdlist_allocators_per_thread = 5;
+    unsigned num_compute_cmdlists_per_allocator = 5;
+    unsigned num_copy_cmdlist_allocators_per_thread = 3;
+    unsigned num_copy_cmdlists_per_allocator = 3;
 };
 }
