@@ -2,8 +2,8 @@
 
 #include <phantasm-hardware-interface/commands.hh>
 
-#include <phantasm-hardware-interface/d3d12/pools/linear_descriptor_allocator.hh>
 #include <phantasm-hardware-interface/d3d12/fwd.hh>
+#include <phantasm-hardware-interface/d3d12/pools/linear_descriptor_allocator.hh>
 
 namespace phi::d3d12
 {

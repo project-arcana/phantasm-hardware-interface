@@ -17,7 +17,7 @@ struct vulkan_gpu_info;
 class Swapchain
 {
 public:
-    void initialize(Device const& device, VkSurfaceKHR surface, unsigned num_backbuffers, int w, int h, const backend_config &config);
+    void initialize(Device const& device, VkSurfaceKHR surface, unsigned num_backbuffers, int w, int h, const backend_config& config);
 
     void destroy();
 
