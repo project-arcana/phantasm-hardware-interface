@@ -77,7 +77,8 @@ PHI_DEFINE_CMD(begin_render_pass)
 
     cmd_vector<render_target_info, limits::max_render_targets> render_targets;
     depth_stencil_info depth_target;
-    tg::isize2 viewport = tg::isize2(0, 0);
+    tg::isize2 viewport = {0, 0};       ///< viewport dimensions being rendered to, in pixels
+    tg::ivec2 viewport_offset = {0, 0}; ///< offset of the viewport, in pixels from the top left corner
 
 public:
     // convenience

@@ -131,9 +131,9 @@ public:
     // Command list interface
     //
 
-    [[nodiscard]] handle::command_list recordCommandList(std::byte* buffer, size_t size) override;
+    [[nodiscard]] handle::command_list recordCommandList(std::byte* buffer, size_t size, queue_type queue = queue_type::direct) override;
     void discard(cc::span<handle::command_list const> cls) override { mPoolCmdLists.freeOnDiscard(cls); }
-    void submit(cc::span<handle::command_list const> cls) override;
+    void submit(cc::span<handle::command_list const> cls, queue_type queue = queue_type::direct) override;
 
     //
     // Fence interface
@@ -150,16 +150,12 @@ public:
 
     void signalFenceGPU(handle::fence fence, uint64_t new_value, queue_type queue) override
     {
-        ID3D12CommandQueue& target
-            = (queue == queue_type::direct ? mDirectQueue.getQueue() : (queue == queue_type::compute ? mComputeQueue.getQueue() : mCopyQueue.getQueue()));
-        mPoolFences.signalGPU(fence, new_value, target);
+        mPoolFences.signalGPU(fence, new_value, getQueueByType(queue));
     }
 
     void waitFenceGPU(handle::fence fence, uint64_t wait_value, queue_type queue) override
     {
-        ID3D12CommandQueue& target
-            = (queue == queue_type::direct ? mDirectQueue.getQueue() : (queue == queue_type::compute ? mComputeQueue.getQueue() : mCopyQueue.getQueue()));
-        mPoolFences.waitGPU(fence, wait_value, target);
+        mPoolFences.waitGPU(fence, wait_value, getQueueByType(queue));
     }
 
     void free(cc::span<handle::fence const> fences) override { mPoolFences.free(fences); }
@@ -215,8 +211,15 @@ public:
     // backend-internal
 
     [[nodiscard]] ID3D12Device& getDevice() { return mDevice.getDevice(); }
+    [[nodiscard]] ID3D12Device5* getDevice5() { return mDevice.getDevice5(); }
     [[nodiscard]] ID3D12CommandQueue& getDirectQueue() { return mDirectQueue.getQueue(); }
 
+
+private:
+    ID3D12CommandQueue& getQueueByType(queue_type type) const
+    {
+        return (type == queue_type::direct ? mDirectQueue.getQueue() : (type == queue_type::compute ? mComputeQueue.getQueue() : mCopyQueue.getQueue()));
+    }
 
 private:
     // Core components

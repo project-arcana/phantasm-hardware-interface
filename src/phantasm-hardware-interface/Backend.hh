@@ -139,13 +139,13 @@ public:
     //
 
     /// create a command list handle from a software command buffer
-    [[nodiscard]] virtual handle::command_list recordCommandList(std::byte* buffer, size_t size) = 0;
+    [[nodiscard]] virtual handle::command_list recordCommandList(std::byte* buffer, size_t size, queue_type queue = queue_type::direct) = 0;
 
     /// destroy the given command list handles
     virtual void discard(cc::span<handle::command_list const> cls) = 0;
 
     /// submit and destroy the given command list handles
-    virtual void submit(cc::span<handle::command_list const> cls) = 0;
+    virtual void submit(cc::span<handle::command_list const> cls, queue_type queue = queue_type::direct) = 0;
 
     //
     // Fence interface

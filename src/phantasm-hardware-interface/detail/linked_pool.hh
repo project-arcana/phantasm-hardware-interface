@@ -75,12 +75,30 @@ struct linked_pool
         released_node->~T();
         // write the in-place next pointer of this node
         new (cc::placement_new, released_node) T*(_first_free_node);
-
         _first_free_node = released_node;
     }
 
-    [[nodiscard]] T& get(index_t index) { return _pool[static_cast<size_t>(index)]; }
-    [[nodiscard]] T const& get(index_t index) const { return _pool[static_cast<size_t>(index)]; }
+    void release_node(T* node)
+    {
+        CC_ASSERT(node >= &_pool[0] && node < &_pool[_pool_size] && "node outside of pool");
+        // call the destructor
+        node->~T();
+        // write the in-place next pointer of this node
+        new (cc::placement_new, node) T*(_first_free_node);
+
+        _first_free_node = node;
+    }
+
+    [[nodiscard]] T& get(index_t index)
+    {
+        CC_ASSERT(index < _pool_size);
+        return _pool[static_cast<size_t>(index)];
+    }
+    [[nodiscard]] T const& get(index_t index) const
+    {
+        CC_ASSERT(index < _pool_size);
+        return _pool[static_cast<size_t>(index)];
+    }
 
     [[nodiscard]] bool is_full() const { return _first_free_node == nullptr; }
 

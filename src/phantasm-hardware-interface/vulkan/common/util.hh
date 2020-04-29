@@ -16,7 +16,7 @@
 
 namespace phi::vk::util
 {
-inline void set_viewport(VkCommandBuffer command_buf, tg::isize2 size, int start_x = 0, int start_y = 0)
+inline void set_viewport(VkCommandBuffer command_buf, tg::isize2 size, tg::ivec2 offset = {0, 0})
 {
     // vulkans viewport has a flipped y axis
     // this can be remedied by setting a negative height, see
@@ -26,8 +26,8 @@ inline void set_viewport(VkCommandBuffer command_buf, tg::isize2 size, int start
     // we take care of flip via the -fvk-invert-y flag in dxc
 
     VkViewport viewport = {};
-    viewport.x = float(start_x);
-    viewport.y = float(start_y);
+    viewport.x = float(offset.x);
+    viewport.y = float(offset.y);
     viewport.width = float(size.width);
     viewport.height = float(size.height);
     viewport.minDepth = 0.0f;
@@ -35,8 +35,8 @@ inline void set_viewport(VkCommandBuffer command_buf, tg::isize2 size, int start
 
     VkRect2D scissor = {};
     scissor.offset = {0, 0};
-    scissor.extent.width = unsigned(size.width);
-    scissor.extent.height = unsigned(size.height);
+    scissor.extent.width = unsigned(size.width + offset.x);
+    scissor.extent.height = unsigned(size.height + offset.y);
 
     vkCmdSetViewport(command_buf, 0, 1, &viewport);
     vkCmdSetScissor(command_buf, 0, 1, &scissor);

@@ -72,7 +72,7 @@ public:
             image_info image;
         };
 
-        resource_state master_state = resource_state::unknown;
+        D3D12_RESOURCE_STATES master_state = D3D12_RESOURCE_STATE_COMMON;
         resource_type type;
     };
 
@@ -97,9 +97,9 @@ public:
     // Master state access
     //
 
-    [[nodiscard]] resource_state getResourceState(handle::resource res) const { return internalGet(res).master_state; }
+    [[nodiscard]] D3D12_RESOURCE_STATES getResourceState(handle::resource res) const { return internalGet(res).master_state; }
 
-    void setResourceState(handle::resource res, resource_state new_state)
+    void setResourceState(handle::resource res, D3D12_RESOURCE_STATES new_state)
     {
         // This is a write access to the pool, however we require
         // no sync since it would not interfere with unrelated allocs and frees
@@ -140,15 +140,18 @@ public:
     // the first of either phi::present or phi::resize
     //
 
-    [[nodiscard]] handle::resource injectBackbufferResource(ID3D12Resource* raw_resource, resource_state state);
+    [[nodiscard]] handle::resource injectBackbufferResource(ID3D12Resource* raw_resource, D3D12_RESOURCE_STATES state);
 
     [[nodiscard]] bool isBackbuffer(handle::resource res) const { return res == mInjectedBackbufferResource; }
 
 private:
-    [[nodiscard]] handle::resource acquireBuffer(
-        D3D12MA::Allocation* alloc, resource_state initial_state, uint64_t buffer_width = 0, unsigned buffer_stride = 0, std::byte* buffer_map = nullptr);
+    [[nodiscard]] handle::resource acquireBuffer(D3D12MA::Allocation* alloc,
+                                                 D3D12_RESOURCE_STATES initial_state,
+                                                 uint64_t buffer_width = 0,
+                                                 unsigned buffer_stride = 0,
+                                                 std::byte* buffer_map = nullptr);
 
-    [[nodiscard]] handle::resource acquireImage(D3D12MA::Allocation* alloc, format pixel_format, resource_state initial_state, unsigned num_mips, unsigned num_array_layers);
+    [[nodiscard]] handle::resource acquireImage(D3D12MA::Allocation* alloc, format pixel_format, D3D12_RESOURCE_STATES initial_state, unsigned num_mips, unsigned num_array_layers);
 
     [[nodiscard]] resource_node const& internalGet(handle::resource res) const
     {

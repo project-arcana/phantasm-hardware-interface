@@ -53,7 +53,7 @@ public:
 
     [[nodiscard]] pso_node const& get(handle::pipeline_state ps) const { return mPool.get(static_cast<unsigned>(ps.index)); }
 
-    [[nodiscard]] VkRenderPass getOrCreateRenderPass(pso_node const& node, cmd::begin_render_pass const& brp_cmd);
+    [[nodiscard]] VkRenderPass getOrCreateRenderPass(cmd::begin_render_pass const& brp_cmd, int num_samples, cc::span<format const> rt_formats);
 
 private:
     VkDevice mDevice;

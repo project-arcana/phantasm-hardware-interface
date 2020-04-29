@@ -254,8 +254,10 @@ public:
     void init_as_backbuffer(handle::resource res)
     {
         resource = res;
-        // cmdlist translation checks for this case and automatically chooses the right
-        // format, no need to specify anything else
+        pixel_format = format::bgra8un;
+        dimension = resource_view_dimension::texture2d;
+        // cmdlist translation checks for this case and automatically chooses the right texture_info contents,
+        // no need to specify
     }
 
     void init_as_tex2d(handle::resource res, format pf, bool multisampled = false, unsigned mip_start = 0, unsigned mip_size = unsigned(-1))

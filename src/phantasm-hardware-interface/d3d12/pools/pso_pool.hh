@@ -57,7 +57,7 @@ public:
 public:
     // internal API
 
-    void initialize(ID3D12Device* device, ID3D12Device5* device_rt, unsigned max_num_psos, unsigned max_num_psos_raytracing);
+    void initialize(ID3D12Device5* device_rt, unsigned max_num_psos, unsigned max_num_psos_raytracing);
     void destroy();
 
     [[nodiscard]] pso_node const& get(handle::pipeline_state ps) const { return mPool.get(static_cast<unsigned>(ps.index)); }
@@ -67,8 +67,7 @@ public:
     bool isRaytracingPipeline(handle::pipeline_state ps) const;
 
 private:
-    ID3D12Device* mDevice = nullptr;
-    ID3D12Device5* mDeviceRaytracing = nullptr;
+    ID3D12Device5* mDevice = nullptr;
 
     RootSignatureCache mRootSigCache;
     ID3D12RootSignature* mEmptyRaytraceRootSignature = nullptr;

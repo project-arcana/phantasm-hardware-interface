@@ -4,14 +4,14 @@
 #include "common/verify.hh"
 #include "gpu_choice_util.hh"
 
-void phi::vk::Swapchain::initialize(const phi::vk::Device& device, VkSurfaceKHR surface, unsigned num_backbuffers, int w, int h, present_mode sync)
+void phi::vk::Swapchain::initialize(const phi::vk::Device& device, VkSurfaceKHR surface, unsigned num_backbuffers, int w, int h, backend_config const& config)
 {
     mSurface = surface;
     mDevice = device.getDevice();
     mPhysicalDevice = device.getPhysicalDevice();
-    mPresentQueue = device.getQueueDirect();
+    mPresentQueue = config.present_from_compute_queue ? device.getQueueCompute() : device.getQueueDirect();
     mBackbufferSize = tg::isize2(-1, -1);
-    mSyncMode = sync;
+    mSyncMode = config.present;
 
     auto const surface_capabilities = get_surface_capabilities(mPhysicalDevice, mSurface);
 
