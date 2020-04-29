@@ -46,8 +46,104 @@ void phi::vk::command_list_translator::translateCommandList(
 
 void phi::vk::command_list_translator::execute(const phi::cmd::begin_render_pass& begin_rp)
 {
-    // We can't call vkCmdBeginRenderPass or anything yet
-    _bound.current_render_pass = begin_rp;
+    CC_ASSERT(_bound.raw_render_pass == nullptr && "double cmd::begin_render_pass - missing cmd::end_render_pass?");
+
+    int num_fb_samples = 1;
+    cc::capped_vector<format, limits::max_render_targets> formats_flat;
+    // extract the amount of samples and flat RT formats from the command
+    {
+        if (!begin_rp.render_targets.empty())
+            num_fb_samples = _globals.pool_resources->getNumImageSamples(begin_rp.render_targets[0].rv.resource);
+        else if (begin_rp.depth_target.rv.resource.is_valid())
+            num_fb_samples = _globals.pool_resources->getNumImageSamples(begin_rp.depth_target.rv.resource);
+
+        for (auto const& rt : begin_rp.render_targets)
+        {
+            formats_flat.push_back(rt.rv.pixel_format);
+        }
+    }
+
+    auto const render_pass = _globals.pool_pipeline_states->getOrCreateRenderPass(begin_rp, num_fb_samples, formats_flat);
+
+    // a render pass always changes
+    //      - The framebuffer
+    //      - The vkCmdBeginRenderPass/vkCmdEndRenderPass state
+    _bound.raw_render_pass = render_pass;
+
+    // create a new framebuffer
+    {
+        // the image views used in this framebuffer
+        cc::capped_vector<VkImageView, limits::max_render_targets + 1> fb_image_views;
+        // the image views used in this framebuffer, EXCLUDING possible backbuffer views
+        // these are the ones which will get deleted alongside this framebuffer
+        cc::capped_vector<VkImageView, limits::max_render_targets + 1> fb_image_views_to_clean_up;
+
+        for (auto const& rt : begin_rp.render_targets)
+        {
+            if (_globals.pool_resources->isBackbuffer(rt.rv.resource))
+            {
+                fb_image_views.push_back(_globals.pool_resources->getBackbufferView());
+            }
+            else
+            {
+                fb_image_views.push_back(_globals.pool_shader_views->makeImageView(rt.rv));
+                fb_image_views_to_clean_up.push_back(fb_image_views.back());
+            }
+        }
+
+        if (begin_rp.depth_target.rv.resource.is_valid())
+        {
+            fb_image_views.push_back(_globals.pool_shader_views->makeImageView(begin_rp.depth_target.rv));
+            fb_image_views_to_clean_up.push_back(fb_image_views.back());
+        }
+
+        VkFramebufferCreateInfo fb_info = {};
+        fb_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        fb_info.pNext = nullptr;
+        fb_info.renderPass = render_pass;
+        fb_info.attachmentCount = uint32_t(fb_image_views.size());
+        fb_info.pAttachments = fb_image_views.data();
+        fb_info.width = uint32_t(begin_rp.viewport.width + begin_rp.viewport_offset.x);
+        fb_info.height = uint32_t(begin_rp.viewport.height + begin_rp.viewport_offset.y);
+        fb_info.layers = 1;
+
+        // Create the framebuffer
+        PHI_VK_VERIFY_SUCCESS(vkCreateFramebuffer(_globals.device, &fb_info, nullptr, &_bound.raw_framebuffer));
+
+        // Associate the framebuffer and all created image views with the current command list so they will get cleaned up
+        _globals.pool_cmd_lists->addAssociatedFramebuffer(_cmd_list_handle, _bound.raw_framebuffer, fb_image_views_to_clean_up);
+    }
+
+    // begin a new render pass
+    {
+        VkRenderPassBeginInfo rp_begin_info = {};
+        rp_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+        rp_begin_info.renderPass = render_pass;
+        rp_begin_info.framebuffer = _bound.raw_framebuffer;
+        rp_begin_info.renderArea.offset = {begin_rp.viewport_offset.x, begin_rp.viewport_offset.y};
+        rp_begin_info.renderArea.extent.width = uint32_t(begin_rp.viewport.width);
+        rp_begin_info.renderArea.extent.height = uint32_t(begin_rp.viewport.height);
+
+        cc::capped_vector<VkClearValue, limits::max_render_targets + 1> clear_values;
+
+        for (auto const& rt : begin_rp.render_targets)
+        {
+            auto& cv = clear_values.emplace_back();
+            std::memcpy(&cv.color.float32, &rt.clear_value, sizeof(rt.clear_value));
+        }
+
+        if (begin_rp.depth_target.rv.resource.is_valid())
+        {
+            auto& cv = clear_values.emplace_back();
+            cv.depthStencil = {begin_rp.depth_target.clear_value_depth, uint32_t(begin_rp.depth_target.clear_value_stencil)};
+        }
+
+        rp_begin_info.clearValueCount = uint32_t(clear_values.size());
+        rp_begin_info.pClearValues = clear_values.data();
+
+        util::set_viewport(_cmd_list, begin_rp.viewport, begin_rp.viewport_offset);
+        vkCmdBeginRenderPass(_cmd_list, &rp_begin_info, VK_SUBPASS_CONTENTS_INLINE);
+    }
 }
 
 void phi::vk::command_list_translator::execute(const phi::cmd::draw& draw)
@@ -56,103 +152,9 @@ void phi::vk::command_list_translator::execute(const phi::cmd::draw& draw)
     {
         // a new handle::pipeline_state invalidates (!= always changes)
         //      - The bound pipeline layout
-        //      - The bound render pass
         //      - The bound pipeline
-
         auto const& pso_node = _globals.pool_pipeline_states->get(draw.pipeline_state);
-
         _bound.update_pipeline_layout(pso_node.associated_pipeline_layout->raw_layout);
-
-        auto const render_pass = _globals.pool_pipeline_states->getOrCreateRenderPass(pso_node, _bound.current_render_pass);
-        if (render_pass != _bound.raw_render_pass)
-        {
-            if (_bound.raw_render_pass != nullptr)
-            {
-                vkCmdEndRenderPass(_cmd_list);
-            }
-
-            // a render pass always changes
-            //      - The framebuffer
-            //      - The vkCmdBeginRenderPass/vkCmdEndRenderPass state
-            _bound.raw_render_pass = render_pass;
-
-            // create a new framebuffer
-            {
-                // the image views used in this framebuffer
-                cc::capped_vector<VkImageView, limits::max_render_targets + 1> fb_image_views;
-                // the image views used in this framebuffer, EXCLUDING possible backbuffer views
-                // these are the ones which will get deleted alongside this framebuffer
-                cc::capped_vector<VkImageView, limits::max_render_targets + 1> fb_image_views_to_clean_up;
-
-                for (auto const& rt : _bound.current_render_pass.render_targets)
-                {
-                    if (_globals.pool_resources->isBackbuffer(rt.rv.resource))
-                    {
-                        fb_image_views.push_back(_globals.pool_resources->getBackbufferView());
-                    }
-                    else
-                    {
-                        fb_image_views.push_back(_globals.pool_shader_views->makeImageView(rt.rv));
-                        fb_image_views_to_clean_up.push_back(fb_image_views.back());
-                    }
-                }
-
-                if (_bound.current_render_pass.depth_target.rv.resource.is_valid())
-                {
-                    fb_image_views.push_back(_globals.pool_shader_views->makeImageView(_bound.current_render_pass.depth_target.rv));
-                    fb_image_views_to_clean_up.push_back(fb_image_views.back());
-                }
-
-                VkFramebufferCreateInfo fb_info = {};
-                fb_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-                fb_info.pNext = nullptr;
-                fb_info.renderPass = render_pass;
-                fb_info.attachmentCount = uint32_t(fb_image_views.size());
-                fb_info.pAttachments = fb_image_views.data();
-                fb_info.width = uint32_t(_bound.current_render_pass.viewport.width + _bound.current_render_pass.viewport_offset.x);
-                fb_info.height = uint32_t(_bound.current_render_pass.viewport.height + _bound.current_render_pass.viewport_offset.y);
-                fb_info.layers = 1;
-
-                // Create the framebuffer
-                PHI_VK_VERIFY_SUCCESS(vkCreateFramebuffer(_globals.device, &fb_info, nullptr, &_bound.raw_framebuffer));
-
-                // Associate the framebuffer and all created image views with the current command list so they will get cleaned up
-                _globals.pool_cmd_lists->addAssociatedFramebuffer(_cmd_list_handle, _bound.raw_framebuffer, fb_image_views_to_clean_up);
-            }
-
-            // begin a new render pass
-            {
-                VkRenderPassBeginInfo rp_begin_info = {};
-                rp_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-                rp_begin_info.renderPass = render_pass;
-                rp_begin_info.framebuffer = _bound.raw_framebuffer;
-                rp_begin_info.renderArea.offset = {_bound.current_render_pass.viewport_offset.x, _bound.current_render_pass.viewport_offset.y};
-                rp_begin_info.renderArea.extent.width = uint32_t(_bound.current_render_pass.viewport.width);
-                rp_begin_info.renderArea.extent.height = uint32_t(_bound.current_render_pass.viewport.height);
-
-                cc::capped_vector<VkClearValue, limits::max_render_targets + 1> clear_values;
-
-                for (auto const& rt : _bound.current_render_pass.render_targets)
-                {
-                    auto& cv = clear_values.emplace_back();
-                    std::memcpy(&cv.color.float32, &rt.clear_value, sizeof(rt.clear_value));
-                }
-
-                if (_bound.current_render_pass.depth_target.rv.resource.is_valid())
-                {
-                    auto& cv = clear_values.emplace_back();
-                    cv.depthStencil = {_bound.current_render_pass.depth_target.clear_value_depth,
-                                       uint32_t(_bound.current_render_pass.depth_target.clear_value_stencil)};
-                }
-
-                rp_begin_info.clearValueCount = uint32_t(clear_values.size());
-                rp_begin_info.pClearValues = clear_values.data();
-
-                util::set_viewport(_cmd_list, _bound.current_render_pass.viewport, _bound.current_render_pass.viewport_offset);
-                vkCmdBeginRenderPass(_cmd_list, &rp_begin_info, VK_SUBPASS_CONTENTS_INLINE);
-            }
-        }
-
         vkCmdBindPipeline(_cmd_list, VK_PIPELINE_BIND_POINT_GRAPHICS, pso_node.raw_pipeline);
     }
 
@@ -225,11 +227,10 @@ void phi::vk::command_list_translator::execute(const phi::cmd::dispatch& dispatc
 
 void phi::vk::command_list_translator::execute(const phi::cmd::end_render_pass&)
 {
-    if (_bound.raw_render_pass != nullptr)
-    {
-        vkCmdEndRenderPass(_cmd_list);
-        _bound.raw_render_pass = nullptr;
-    }
+    CC_ASSERT(_bound.raw_render_pass != nullptr && "cmd::end_render_pass while no render pass is active");
+
+    vkCmdEndRenderPass(_cmd_list);
+    _bound.raw_render_pass = nullptr;
 
     _bound.reset();
 }

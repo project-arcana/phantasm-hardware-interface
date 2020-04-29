@@ -140,8 +140,6 @@ private:
         VkDescriptorSet raw_sampler_descriptor_set = nullptr;
         VkPipelineLayout raw_pipeline_layout = nullptr;
 
-        cmd::begin_render_pass current_render_pass;
-
         void reset()
         {
             pipeline_state = handle::null_pipeline_state;

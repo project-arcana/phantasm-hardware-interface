@@ -170,11 +170,11 @@ void phi::vk::PipelinePool::destroy()
     mDescriptorAllocator.destroy();
 }
 
-VkRenderPass phi::vk::PipelinePool::getOrCreateRenderPass(const pso_node& node, const phi::cmd::begin_render_pass& brp_cmd)
+VkRenderPass phi::vk::PipelinePool::getOrCreateRenderPass(const phi::cmd::begin_render_pass& brp_cmd, int num_samples, cc::span<const format> rt_formats)
 {
-    // NOTE: This is a mutex acquire on the hot path (in the DRAW CALL)
+    // NOTE: This is a mutex acquire on the hot path (in cmd::begin_render_pass)
     // Its not quite trivial to fix this, all solutions involve tradeoffs,
     // either restricting API free-threadedness, or making clear types part of the handle::pipeline_state
     auto lg = std::lock_guard(mMutex);
-    return mRenderPassCache.getOrCreate(mDevice, brp_cmd, node.num_msaa_samples, node.rt_formats);
+    return mRenderPassCache.getOrCreate(mDevice, brp_cmd, num_samples, rt_formats);
 }

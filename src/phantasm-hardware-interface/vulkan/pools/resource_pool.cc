@@ -79,7 +79,7 @@ phi::handle::resource phi::vk::ResourcePool::createTexture(format format, unsign
     VkImage res_image;
     PHI_VK_VERIFY_SUCCESS(vmaCreateImage(mAllocator, &image_info, &alloc_info, &res_image, &res_alloc, nullptr));
     util::set_object_name(mDevice, res_image, "respool texture%s[%u] m%u", vk_get_tex_dim_literal(dim), depth_or_array_size, image_info.mipLevels);
-    return acquireImage(res_alloc, res_image, format, image_info.mipLevels, image_info.arrayLayers);
+    return acquireImage(res_alloc, res_image, format, image_info.mipLevels, image_info.arrayLayers, 1);
 }
 
 phi::handle::resource phi::vk::ResourcePool::createRenderTarget(phi::format format, unsigned w, unsigned h, unsigned samples, unsigned array_size)
@@ -123,7 +123,7 @@ phi::handle::resource phi::vk::ResourcePool::createRenderTarget(phi::format form
     else
         util::set_object_name(mDevice, res_image, "respool render target");
 
-    return acquireImage(res_alloc, res_image, format, image_info.mipLevels, image_info.arrayLayers);
+    return acquireImage(res_alloc, res_image, format, image_info.mipLevels, image_info.arrayLayers, samples);
 }
 
 phi::handle::resource phi::vk::ResourcePool::createBuffer(uint64_t size_bytes, unsigned stride_bytes, bool allow_uav)
@@ -394,7 +394,7 @@ phi::handle::resource phi::vk::ResourcePool::acquireBuffer(
 
     return {static_cast<handle::index_t>(res)};
 }
-phi::handle::resource phi::vk::ResourcePool::acquireImage(VmaAllocation alloc, VkImage image, format pixel_format, unsigned num_mips, unsigned num_array_layers)
+phi::handle::resource phi::vk::ResourcePool::acquireImage(VmaAllocation alloc, VkImage image, format pixel_format, unsigned num_mips, unsigned num_array_layers, unsigned num_samples)
 {
     unsigned res;
     {
@@ -409,6 +409,7 @@ phi::handle::resource phi::vk::ResourcePool::acquireImage(VmaAllocation alloc, V
     new_node.image.pixel_format = pixel_format;
     new_node.image.num_mips = num_mips;
     new_node.image.num_array_layers = num_array_layers;
+    new_node.image.num_samples = num_samples;
 
     new_node.master_state = resource_state::undefined;
     new_node.master_state_dependency = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
