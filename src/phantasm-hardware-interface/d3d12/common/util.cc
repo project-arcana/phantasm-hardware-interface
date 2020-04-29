@@ -324,14 +324,14 @@ D3D12_SAMPLER_DESC phi::d3d12::util::create_sampler_desc(const phi::sampler_conf
     return sampler_desc;
 }
 
-D3D12_RESOURCE_BARRIER phi::d3d12::util::get_barrier_desc(ID3D12Resource* res, phi::resource_state before, phi::resource_state after, int mip_level, int array_slice, unsigned mip_size)
+D3D12_RESOURCE_BARRIER phi::d3d12::util::get_barrier_desc(ID3D12Resource* res, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after, int mip_level, int array_slice, unsigned mip_size)
 {
     D3D12_RESOURCE_BARRIER out_barrier;
     out_barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
     out_barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
     out_barrier.Transition.pResource = res;
-    out_barrier.Transition.StateBefore = util::to_native(before);
-    out_barrier.Transition.StateAfter = util::to_native(after);
+    out_barrier.Transition.StateBefore = before;
+    out_barrier.Transition.StateAfter = after;
 
     if (mip_level == -1)
     {

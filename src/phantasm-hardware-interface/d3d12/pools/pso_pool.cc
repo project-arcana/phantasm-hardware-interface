@@ -257,7 +257,7 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracin
     state_obj.pSubobjects = subobjects.data();
 
     // Create the state object
-    PHI_D3D12_VERIFY(mDeviceRaytracing->CreateStateObject(&state_obj, IID_PPV_ARGS(&new_node.raw_state_object)));
+    PHI_D3D12_VERIFY(mDevice->CreateStateObject(&state_obj, IID_PPV_ARGS(&new_node.raw_state_object)));
     // QI the properties for access to shader identifiers
     PHI_D3D12_VERIFY(new_node.raw_state_object->QueryInterface(IID_PPV_ARGS(&new_node.raw_state_object_props)));
 
@@ -297,21 +297,17 @@ void phi::d3d12::PipelineStateObjectPool::free(phi::handle::pipeline_state ps)
     }
 }
 
-void phi::d3d12::PipelineStateObjectPool::initialize(ID3D12Device* device, ID3D12Device5* device_rt, unsigned max_num_psos, unsigned max_num_psos_raytracing)
+void phi::d3d12::PipelineStateObjectPool::initialize(ID3D12Device5* device_rt, unsigned max_num_psos, unsigned max_num_psos_raytracing)
 {
     CC_ASSERT(max_num_psos < gc_raytracing_handle_offset && "unsupported amount of PSOs");
     CC_ASSERT(max_num_psos_raytracing < gc_raytracing_handle_offset && "unsupported amount of raytracing PSOs");
 
-    mDevice = device;
-    mDeviceRaytracing = device_rt;
+    mDevice = device_rt;
     mPool.initialize(max_num_psos);
     mPoolRaytracing.initialize(max_num_psos_raytracing);
     mRootSigCache.initialize((max_num_psos / 2) + max_num_psos_raytracing); // almost arbitrary, revisit if this blows up
 
-    if (mDeviceRaytracing != nullptr)
-    {
-        mEmptyRaytraceRootSignature = mRootSigCache.getOrCreate(*mDevice, {}, false, root_signature_type::raytrace_global)->raw_root_sig;
-    }
+    mEmptyRaytraceRootSignature = mRootSigCache.getOrCreate(*mDevice, {}, false, root_signature_type::raytrace_global)->raw_root_sig;
 }
 
 void phi::d3d12::PipelineStateObjectPool::destroy()

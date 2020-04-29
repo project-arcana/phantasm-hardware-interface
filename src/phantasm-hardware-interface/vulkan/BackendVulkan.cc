@@ -107,7 +107,7 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg, const 
         // Load device-based Vulkan entrypoints
         volkLoadDevice(mDevice.getDevice());
 
-        mSwapchain.initialize(mDevice, mSurface, config.num_backbuffers, 250, 250, config.present);
+        mSwapchain.initialize(mDevice, mSurface, config.num_backbuffers, 250, 250, config);
 
         print_startup_message(gpu_infos, chosen_index, config, false, true);
     }
@@ -137,7 +137,7 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg, const 
             thread_allocator_ptrs.push_back(&thread_comp.cmd_list_allocator);
         }
 
-        mPoolCmdLists.initialize(*this, config.num_cmdlist_allocators_per_thread, config.num_cmdlists_per_allocator, thread_allocator_ptrs);
+        mPoolCmdLists.initialize(*this, config.num_direct_cmdlist_allocators_per_thread, config.num_direct_cmdlists_per_allocator, thread_allocator_ptrs);
     }
 }
 
@@ -215,8 +215,9 @@ void phi::vk::BackendVulkan::onResize(tg::isize2 size)
 
 phi::format phi::vk::BackendVulkan::getBackbufferFormat() const { return util::to_pr_format(mSwapchain.getBackbufferFormat()); }
 
-phi::handle::command_list phi::vk::BackendVulkan::recordCommandList(std::byte* buffer, size_t size)
+phi::handle::command_list phi::vk::BackendVulkan::recordCommandList(std::byte* buffer, size_t size, queue_type queue)
 {
+    CC_RUNTIME_ASSERT(queue == queue_type::direct && "unimplemented!");
     auto& thread_comp = mThreadComponents[mThreadAssociation.get_current_index()];
 
     VkCommandBuffer raw_list;
@@ -225,9 +226,10 @@ phi::handle::command_list phi::vk::BackendVulkan::recordCommandList(std::byte* b
     return res;
 }
 
-void phi::vk::BackendVulkan::submit(cc::span<const phi::handle::command_list> cls)
+void phi::vk::BackendVulkan::submit(cc::span<const phi::handle::command_list> cls, queue_type queue)
 {
     constexpr auto c_batch_size = 16;
+    VkQueue const submit_queue = getQueueByType(queue);
 
     cc::capped_vector<VkCommandBuffer, c_batch_size * 2> submit_batch;
     cc::capped_vector<handle::command_list, c_batch_size> barrier_lists;
@@ -245,7 +247,7 @@ void phi::vk::BackendVulkan::submit(cc::span<const phi::handle::command_list> cl
         submit_info.commandBufferCount = unsigned(submit_batch.size());
         submit_info.pCommandBuffers = submit_batch.data();
 
-        PHI_VK_VERIFY_SUCCESS(vkQueueSubmit(mDevice.getQueueDirect(), 1, &submit_info, submit_fence));
+        PHI_VK_VERIFY_SUCCESS(vkQueueSubmit(submit_queue, 1, &submit_info, submit_fence));
 
         cc::array<cc::span<handle::command_list const>, 2> submit_spans = {barrier_lists, cls.subspan(last_cl_index, num_cls_in_batch)};
         mPoolCmdLists.freeOnSubmit(submit_spans, submit_fence_index);

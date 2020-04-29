@@ -12,6 +12,7 @@
 #include "common/native_enum.hh"
 #include "common/util.hh"
 #include "pools/accel_struct_pool.hh"
+#include "pools/cmd_list_pool.hh"
 #include "pools/pso_pool.hh"
 #include "pools/resource_pool.hh"
 #include "pools/root_sig_cache.hh"
@@ -28,10 +29,10 @@ void phi::d3d12::command_list_translator::initialize(ID3D12Device* device,
 }
 
 void phi::d3d12::command_list_translator::translateCommandList(
-    ID3D12GraphicsCommandList* list, ID3D12GraphicsCommandList5* list5, phi::detail::incomplete_state_cache* state_cache, std::byte* buffer, size_t buffer_size)
+    ID3D12GraphicsCommandList5* list, queue_type type, d3d12_incomplete_state_cache* state_cache, std::byte* buffer, size_t buffer_size)
 {
     _cmd_list = list;
-    _cmd_list_5 = list5;
+    _current_queue_type = type;
     _state_cache = state_cache;
 
     _bound.reset();
@@ -53,7 +54,22 @@ void phi::d3d12::command_list_translator::translateCommandList(
 
 void phi::d3d12::command_list_translator::execute(const phi::cmd::begin_render_pass& begin_rp)
 {
-    util::set_viewport(_cmd_list, begin_rp.viewport);
+    CC_ASSERT(_current_queue_type == queue_type::direct && "graphics commands are only valid on queue_type::direct");
+
+    // depthrange is hardcoded to [0, 1]
+    auto const viewport = D3D12_VIEWPORT{float(begin_rp.viewport_offset.x),
+                                         float(begin_rp.viewport_offset.y),
+                                         float(begin_rp.viewport.width),
+                                         float(begin_rp.viewport.height),
+                                         0.f,
+                                         1.f};
+
+    // by default, set scissor exactly to viewport
+    auto const scissor_rect
+        = D3D12_RECT{0, 0, LONG(begin_rp.viewport.width + begin_rp.viewport_offset.x), LONG(begin_rp.viewport.height + begin_rp.viewport_offset.y)};
+
+    _cmd_list->RSSetViewports(1, &viewport);
+    _cmd_list->RSSetScissorRects(1, &scissor_rect);
 
     resource_view_cpu_only const dynamic_rtvs = _thread_local.lin_alloc_rtvs.allocate(begin_rp.render_targets.size());
 
@@ -111,6 +127,7 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::begin_render_p
 
 void phi::d3d12::command_list_translator::execute(const phi::cmd::draw& draw)
 {
+    CC_ASSERT(_current_queue_type == queue_type::direct && "graphics commands are only valid on queue_type::direct");
     auto const& pso_node = _globals.pool_pipeline_states->get(draw.pipeline_state);
 
     // PSO
@@ -281,6 +298,7 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::dispatch& disp
 
 void phi::d3d12::command_list_translator::execute(const phi::cmd::end_render_pass&)
 {
+    CC_ASSERT(_current_queue_type == queue_type::direct && "graphics commands are only valid on queue_type::direct");
     // do nothing
 }
 
@@ -290,13 +308,15 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::transition_res
 
     for (auto const& transition : transition_res.transitions)
     {
-        resource_state before;
-        bool const before_known = _state_cache->transition_resource(transition.resource, transition.target_state, before);
+        D3D12_RESOURCE_STATES const after = util::to_native(transition.target_state, transition.dependant_shaders.has(shader_stage::pixel));
+        D3D12_RESOURCE_STATES before;
 
-        if (before_known && before != transition.target_state)
+        bool const before_known = _state_cache->transition_resource(transition.resource, after, before);
+
+        if (before_known && before != after)
         {
             // The transition is neither the implicit initial one, nor redundant
-            barriers.push_back(util::get_barrier_desc(_globals.pool_resources->getRawResource(transition.resource), before, transition.target_state));
+            barriers.push_back(util::get_barrier_desc(_globals.pool_resources->getRawResource(transition.resource), before, after));
         }
     }
 
@@ -316,8 +336,10 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::transition_ima
     {
         CC_ASSERT(_globals.pool_resources->isImage(transition.resource));
         auto const& img_info = _globals.pool_resources->getImageInfo(transition.resource);
-        barriers.push_back(util::get_barrier_desc(_globals.pool_resources->getRawResource(transition.resource), transition.source_state,
-                                                  transition.target_state, transition.mip_level, transition.array_slice, img_info.num_mips));
+        barriers.push_back(util::get_barrier_desc(_globals.pool_resources->getRawResource(transition.resource),
+                                                  util::to_native(transition.source_state, transition.source_dependencies.has(shader_stage::pixel)),
+                                                  util::to_native(transition.target_state, transition.target_dependencies.has(shader_stage::pixel)),
+                                                  transition.mip_level, transition.array_slice, img_info.num_mips));
     }
 
     if (!barriers.empty())
@@ -389,8 +411,6 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::debug_marker& 
 
 void phi::d3d12::command_list_translator::execute(const phi::cmd::update_bottom_level& blas_update)
 {
-    CC_ASSERT(_cmd_list_5 != nullptr && "Used feature requires Windows 10 1903 or newer");
-
     auto& dest_node = _globals.pool_accel_structs->getNode(blas_update.dest);
     ID3D12Resource* const dest_as_buffer = _globals.pool_resources->getRawResource(dest_node.buffer_as);
 
@@ -403,16 +423,14 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::update_bottom_
     as_create_info.DestAccelerationStructureData = dest_as_buffer->GetGPUVirtualAddress();
     as_create_info.ScratchAccelerationStructureData = _globals.pool_resources->getRawResource(dest_node.buffer_scratch)->GetGPUVirtualAddress();
 
-    _cmd_list_5->BuildRaytracingAccelerationStructure(&as_create_info, 0, nullptr);
+    _cmd_list->BuildRaytracingAccelerationStructure(&as_create_info, 0, nullptr);
 
     auto const uav_barrier = CD3DX12_RESOURCE_BARRIER::UAV(dest_as_buffer);
-    _cmd_list_5->ResourceBarrier(1, &uav_barrier);
+    _cmd_list->ResourceBarrier(1, &uav_barrier);
 }
 
 void phi::d3d12::command_list_translator::execute(const phi::cmd::update_top_level& tlas_update)
 {
-    CC_ASSERT(_cmd_list_5 != nullptr && "Used feature requires Windows 10 1903 or newer");
-
     auto& dest_node = _globals.pool_accel_structs->getNode(tlas_update.dest);
     ID3D12Resource* const dest_as_buffer = _globals.pool_resources->getRawResource(dest_node.buffer_as);
 
@@ -426,19 +444,17 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::update_top_lev
     as_create_info.DestAccelerationStructureData = dest_node.raw_as_handle;
     as_create_info.ScratchAccelerationStructureData = _globals.pool_resources->getRawResource(dest_node.buffer_scratch)->GetGPUVirtualAddress();
 
-    _cmd_list_5->BuildRaytracingAccelerationStructure(&as_create_info, 0, nullptr);
+    _cmd_list->BuildRaytracingAccelerationStructure(&as_create_info, 0, nullptr);
 
     //    auto const uav_barrier = CD3DX12_RESOURCE_BARRIER::UAV(dest_as_buffer);
-    //    _cmd_list_rt->ResourceBarrier(1, &uav_barrier);
+    //    _cmd_list->ResourceBarrier(1, &uav_barrier);
 }
 
 void phi::d3d12::command_list_translator::execute(const cmd::dispatch_rays& dispatch_rays)
 {
-    CC_ASSERT(_cmd_list_5 != nullptr && "Used feature requires Windows 10 1903 or newer");
-
     if (_bound.update_pso(dispatch_rays.pso))
     {
-        _cmd_list_5->SetPipelineState1(_globals.pool_pipeline_states->getRaytrace(dispatch_rays.pso).raw_state_object);
+        _cmd_list->SetPipelineState1(_globals.pool_pipeline_states->getRaytrace(dispatch_rays.pso).raw_state_object);
     }
 
 
@@ -474,7 +490,7 @@ void phi::d3d12::command_list_translator::execute(const cmd::dispatch_rays& disp
     desc.Height = dispatch_rays.height;
     desc.Depth = dispatch_rays.depth;
 
-    _cmd_list_5->DispatchRays(&desc);
+    _cmd_list->DispatchRays(&desc);
 }
 
 void phi::d3d12::command_list_translator::execute(const phi::cmd::clear_textures& clear_tex)

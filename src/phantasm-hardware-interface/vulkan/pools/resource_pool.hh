@@ -73,6 +73,7 @@ public:
             format pixel_format;
             unsigned num_mips;
             unsigned num_array_layers;
+            unsigned num_samples;
         };
 
     public:
@@ -112,6 +113,17 @@ public:
 
     // Additional information
     [[nodiscard]] bool isImage(handle::resource res) const { return internalGet(res).type == resource_node::resource_type::image; }
+
+    [[nodiscard]] int getNumImageSamples(handle::resource res) const
+    {
+        if (isBackbuffer(res))
+            return 1;
+
+        auto const& node = internalGet(res);
+        CC_ASSERT(node.type == resource_node::resource_type::image && "queried amount of image samples from non-image");
+        return node.image.num_samples;
+    }
+
     [[nodiscard]] resource_node::image_info const& getImageInfo(handle::resource res) const { return internalGet(res).image; }
     [[nodiscard]] resource_node::buffer_info const& getBufferInfo(handle::resource res) const { return internalGet(res).buffer; }
 
@@ -150,7 +162,7 @@ private:
     [[nodiscard]] handle::resource acquireBuffer(
         VmaAllocation alloc, VkBuffer buffer, VkBufferUsageFlags usage, uint64_t buffer_width = 0, unsigned buffer_stride = 0, std::byte* buffer_map = nullptr);
 
-    [[nodiscard]] handle::resource acquireImage(VmaAllocation alloc, VkImage buffer, format pixel_format, unsigned num_mips, unsigned num_array_layers);
+    [[nodiscard]] handle::resource acquireImage(VmaAllocation alloc, VkImage buffer, format pixel_format, unsigned num_mips, unsigned num_array_layers, unsigned num_samples);
 
     [[nodiscard]] resource_node const& internalGet(handle::resource res) const { return mPool.get(static_cast<unsigned>(res.index)); }
     [[nodiscard]] resource_node& internalGet(handle::resource res) { return mPool.get(static_cast<unsigned>(res.index)); }

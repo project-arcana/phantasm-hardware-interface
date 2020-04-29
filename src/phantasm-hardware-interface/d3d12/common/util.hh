@@ -9,22 +9,12 @@
 
 namespace phi::d3d12::util
 {
-inline void set_viewport(ID3D12GraphicsCommandList* command_list, tg::isize2 size)
-{
-    // depthrange is hardcoded to [0, 1]
-    auto const viewport = D3D12_VIEWPORT{0.f, 0.f, float(size.width), float(size.height), 0.f, 1.f};
-    auto const scissor_rect = D3D12_RECT{0, 0, LONG(size.width), LONG(size.height)};
-
-    command_list->RSSetViewports(1, &viewport);
-    command_list->RSSetScissorRects(1, &scissor_rect);
-}
-
 /// returns a resource barrier description
 /// with -1 in both mip_level and array_slice, all subresources are transitioned
 /// with both specified, only a specific mip level and array slice is transitioned
 /// (either both must be -1, or both must be specified. in the latter case, mip_size must be correct)
 [[nodiscard]] D3D12_RESOURCE_BARRIER get_barrier_desc(
-    ID3D12Resource* res, resource_state before, resource_state after, int mip_level = -1, int array_slice = -1, unsigned mip_size = 0);
+    ID3D12Resource* res, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after, int mip_level = -1, int array_slice = -1, unsigned mip_size = 0);
 
 [[nodiscard]] cc::capped_vector<D3D12_INPUT_ELEMENT_DESC, 16> get_native_vertex_format(cc::span<vertex_attribute_info const> attrib_info);
 
@@ -45,4 +35,19 @@ void set_object_name(ID3D12Object* object, char const* name, ...);
 
 /// create a Sampler description based on a sampler config
 [[nodiscard]] D3D12_SAMPLER_DESC create_sampler_desc(sampler_config const& config);
+
+constexpr char const* to_queue_type_literal(D3D12_COMMAND_LIST_TYPE t)
+{
+    switch (t)
+    {
+    case D3D12_COMMAND_LIST_TYPE_DIRECT:
+        return "direct";
+    case D3D12_COMMAND_LIST_TYPE_COPY:
+        return "copy";
+    case D3D12_COMMAND_LIST_TYPE_COMPUTE:
+        return "compute";
+    default:
+        return "unknown_type";
+    }
+}
 }

@@ -21,6 +21,7 @@ void phi::d3d12::DescriptorPageAllocator::initialize(ID3D12Device& device, D3D12
     util::set_object_name(mHeap, "desc page allocator, type %d, size %d", int(type), int(num_descriptors));
 
     mHeapStartCPU = mHeap->GetCPUDescriptorHandleForHeapStart();
+
     mHeapStartGPU = mHeap->GetGPUDescriptorHandleForHeapStart();
 }
 

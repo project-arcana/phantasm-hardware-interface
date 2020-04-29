@@ -39,7 +39,7 @@ void phi::vk::Device::initialize(vulkan_gpu_info const& device, backend_config c
     device_info.ppEnabledLayerNames = active_lay_ext.layers.empty() ? nullptr : active_lay_ext.layers.data();
 
     // assemble queue creation struct
-    auto const global_queue_priority = 1.f;
+    float const global_queue_priorities[3] = {1.f, 1.f, 1.f};
     cc::capped_vector<VkDeviceQueueCreateInfo, 3> queue_create_infos;
     auto const f_add_queue = [&](int family_index) -> void {
         for (auto& info : queue_create_infos)
@@ -57,7 +57,7 @@ void phi::vk::Device::initialize(vulkan_gpu_info const& device, backend_config c
         queue_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
         queue_info.queueCount = 1;
         queue_info.queueFamilyIndex = uint32_t(family_index);
-        queue_info.pQueuePriorities = &global_queue_priority;
+        queue_info.pQueuePriorities = global_queue_priorities;
     };
 
     for (auto const& q_i : {mQueueIndices.direct, mQueueIndices.copy, mQueueIndices.compute})

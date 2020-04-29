@@ -8,7 +8,7 @@
 
 namespace phi::d3d12::util
 {
-[[nodiscard]] inline constexpr D3D12_RESOURCE_STATES to_native(resource_state state)
+[[nodiscard]] inline constexpr D3D12_RESOURCE_STATES to_native(resource_state state, bool contains_pixel = false)
 {
     using rs = resource_state;
     switch (state)
@@ -25,7 +25,8 @@ namespace phi::d3d12::util
     case rs::constant_buffer:
         return D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
     case rs::shader_resource:
-        return D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+        return contains_pixel ? D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE
+                              : D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
     case rs::unordered_access:
         return D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
 
