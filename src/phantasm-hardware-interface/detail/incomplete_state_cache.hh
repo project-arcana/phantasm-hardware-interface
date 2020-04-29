@@ -54,7 +54,4 @@ public:
     // linear "map" for now, might want to benchmark this
     cc::capped_vector<cache_entry, 32> cache;
 };
-
-using incomplete_state_cache = generic_incomplete_state_cache<resource_state>;
-
 }
