@@ -1,27 +1,12 @@
 #pragma once
 
-#include <clean-core/array.hh>
-
 #include <phantasm-hardware-interface/commands.hh>
 
-#include <phantasm-hardware-interface/d3d12/common/d3d12_fwd.hh>
 #include <phantasm-hardware-interface/d3d12/pools/linear_descriptor_allocator.hh>
-
-namespace phi::detail
-{
-template <class StateT>
-struct generic_incomplete_state_cache;
-using incomplete_state_cache = generic_incomplete_state_cache<resource_state>;
-}
+#include <phantasm-hardware-interface/d3d12/fwd.hh>
 
 namespace phi::d3d12
 {
-class ShaderViewPool;
-class ResourcePool;
-class PipelineStateObjectPool;
-class CPUDescriptorLinearAllocator;
-class AccelStructPool;
-
 struct translator_thread_local_memory
 {
     void initialize(ID3D12Device& device);
@@ -53,7 +38,7 @@ struct command_list_translator
 {
     void initialize(ID3D12Device* device, ShaderViewPool* sv_pool, ResourcePool* resource_pool, PipelineStateObjectPool* pso_pool, AccelStructPool* as_pool);
 
-    void translateCommandList(ID3D12GraphicsCommandList5* list, queue_type type, phi::detail::incomplete_state_cache* state_cache, std::byte* buffer, size_t buffer_size);
+    void translateCommandList(ID3D12GraphicsCommandList5* list, queue_type type, d3d12_incomplete_state_cache* state_cache, std::byte* buffer, size_t buffer_size);
 
     void execute(cmd::begin_render_pass const& begin_rp);
 
@@ -93,7 +78,7 @@ private:
     translator_thread_local_memory _thread_local;
 
     // non-owning dynamic
-    phi::detail::incomplete_state_cache* _state_cache = nullptr;
+    d3d12_incomplete_state_cache* _state_cache = nullptr;
     ID3D12GraphicsCommandList5* _cmd_list = nullptr;
     queue_type _current_queue_type = queue_type::direct;
 

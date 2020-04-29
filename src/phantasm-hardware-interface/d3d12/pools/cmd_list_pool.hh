@@ -12,6 +12,7 @@
 
 #include <phantasm-hardware-interface/d3d12/Fence.hh>
 #include <phantasm-hardware-interface/d3d12/common/d3d12_sanitized.hh>
+#include <phantasm-hardware-interface/d3d12/fwd.hh>
 
 namespace phi::d3d12
 {
@@ -139,8 +140,6 @@ struct CommandAllocatorsPerThread
     }
 };
 
-class BackendD3D12;
-
 /// The high-level allocator for Command Lists
 /// Synchronized - 1 per application
 class CommandListPool
@@ -161,7 +160,7 @@ private:
         // - the command list is freshly reset using an appropriate allocator
         // - the responsible_allocator must be informed on submit or discard
         cmd_allocator_node* responsible_allocator;
-        phi::detail::incomplete_state_cache state_cache;
+        d3d12_incomplete_state_cache state_cache;
     };
 
     using cmdlist_linked_pool_t = phi::detail::linked_pool<cmd_list_node, uint16_t>;
@@ -219,7 +218,7 @@ public:
 
 public:
     ID3D12GraphicsCommandList5* getRawList(handle::command_list cl) { return getListInternal(cl); }
-    phi::detail::incomplete_state_cache* getStateCache(handle::command_list cl) { return &getNodeInternal(cl)->state_cache; }
+    d3d12_incomplete_state_cache* getStateCache(handle::command_list cl) { return &getNodeInternal(cl)->state_cache; }
 
 public:
     void initialize(BackendD3D12& backend,

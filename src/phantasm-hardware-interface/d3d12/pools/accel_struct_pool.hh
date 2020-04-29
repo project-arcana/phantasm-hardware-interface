@@ -9,12 +9,10 @@
 #include <phantasm-hardware-interface/detail/linked_pool.hh>
 #include <phantasm-hardware-interface/types.hh>
 
-#include <phantasm-hardware-interface/d3d12/common/d3d12_fwd.hh>
+#include <phantasm-hardware-interface/d3d12/fwd.hh>
 
 namespace phi::d3d12
 {
-class ResourcePool;
-
 class AccelStructPool
 {
 public:

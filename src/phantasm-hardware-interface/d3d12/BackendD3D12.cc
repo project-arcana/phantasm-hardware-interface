@@ -164,8 +164,7 @@ phi::handle::resource phi::d3d12::BackendD3D12::acquireBackbuffer()
 {
     auto const backbuffer_i = mSwapchain.waitForBackbuffer();
     auto const& backbuffer = mSwapchain.getBackbuffer(backbuffer_i);
-    return mPoolResources.injectBackbufferResource(
-        backbuffer.resource, backbuffer.state == D3D12_RESOURCE_STATE_RENDER_TARGET ? resource_state::render_target : resource_state::present);
+    return mPoolResources.injectBackbufferResource(backbuffer.resource, backbuffer.state);
 }
 
 void phi::d3d12::BackendD3D12::onResize(tg::isize2 size)
@@ -219,7 +218,7 @@ void phi::d3d12::BackendD3D12::submit(cc::span<const phi::handle::command_list> 
 
         for (auto const& entry : state_cache->cache)
         {
-            auto const master_before = mPoolResources.getResourceState(entry.ptr);
+            D3D12_RESOURCE_STATES const master_before = mPoolResources.getResourceState(entry.ptr);
 
             if (master_before != entry.required_initial)
             {

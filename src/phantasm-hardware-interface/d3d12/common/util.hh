@@ -13,8 +13,7 @@ namespace phi::d3d12::util
 /// with -1 in both mip_level and array_slice, all subresources are transitioned
 /// with both specified, only a specific mip level and array slice is transitioned
 /// (either both must be -1, or both must be specified. in the latter case, mip_size must be correct)
-[[nodiscard]] D3D12_RESOURCE_BARRIER get_barrier_desc(
-    ID3D12Resource* res, resource_state before, resource_state after, int mip_level = -1, int array_slice = -1, unsigned mip_size = 0);
+[[nodiscard]] D3D12_RESOURCE_BARRIER get_barrier_desc(ID3D12Resource* res, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after, int mip_level = -1, int array_slice = -1, unsigned mip_size = 0);
 
 [[nodiscard]] cc::capped_vector<D3D12_INPUT_ELEMENT_DESC, 16> get_native_vertex_format(cc::span<vertex_attribute_info const> attrib_info);
 

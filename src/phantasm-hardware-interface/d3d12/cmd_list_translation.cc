@@ -12,6 +12,7 @@
 #include "common/native_enum.hh"
 #include "common/util.hh"
 #include "pools/accel_struct_pool.hh"
+#include "pools/cmd_list_pool.hh"
 #include "pools/pso_pool.hh"
 #include "pools/resource_pool.hh"
 #include "pools/root_sig_cache.hh"
@@ -28,7 +29,7 @@ void phi::d3d12::command_list_translator::initialize(ID3D12Device* device,
 }
 
 void phi::d3d12::command_list_translator::translateCommandList(
-    ID3D12GraphicsCommandList5* list, queue_type type, phi::detail::incomplete_state_cache* state_cache, std::byte* buffer, size_t buffer_size)
+    ID3D12GraphicsCommandList5* list, queue_type type, d3d12_incomplete_state_cache* state_cache, std::byte* buffer, size_t buffer_size)
 {
     _cmd_list = list;
     _current_queue_type = type;
@@ -307,13 +308,15 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::transition_res
 
     for (auto const& transition : transition_res.transitions)
     {
-        resource_state before;
-        bool const before_known = _state_cache->transition_resource(transition.resource, transition.target_state, before);
+        D3D12_RESOURCE_STATES const after = util::to_native(transition.target_state, transition.dependant_shaders.has(shader_stage::pixel));
+        D3D12_RESOURCE_STATES before;
 
-        if (before_known && before != transition.target_state)
+        bool const before_known = _state_cache->transition_resource(transition.resource, after, before);
+
+        if (before_known && before != after)
         {
             // The transition is neither the implicit initial one, nor redundant
-            barriers.push_back(util::get_barrier_desc(_globals.pool_resources->getRawResource(transition.resource), before, transition.target_state));
+            barriers.push_back(util::get_barrier_desc(_globals.pool_resources->getRawResource(transition.resource), before, after));
         }
     }
 
@@ -333,8 +336,10 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::transition_ima
     {
         CC_ASSERT(_globals.pool_resources->isImage(transition.resource));
         auto const& img_info = _globals.pool_resources->getImageInfo(transition.resource);
-        barriers.push_back(util::get_barrier_desc(_globals.pool_resources->getRawResource(transition.resource), transition.source_state,
-                                                  transition.target_state, transition.mip_level, transition.array_slice, img_info.num_mips));
+        barriers.push_back(util::get_barrier_desc(_globals.pool_resources->getRawResource(transition.resource),
+                                                  util::to_native(transition.source_state, transition.source_dependencies.has(shader_stage::pixel)),
+                                                  util::to_native(transition.target_state, transition.target_dependencies.has(shader_stage::pixel)),
+                                                  transition.mip_level, transition.array_slice, img_info.num_mips));
     }
 
     if (!barriers.empty())
