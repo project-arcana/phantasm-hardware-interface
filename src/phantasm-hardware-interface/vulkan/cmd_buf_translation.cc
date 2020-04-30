@@ -49,32 +49,75 @@ void phi::vk::command_list_translator::execute(const phi::cmd::begin_render_pass
 {
     CC_ASSERT(_bound.raw_render_pass == nullptr && "double cmd::begin_render_pass - missing cmd::end_render_pass?");
 
-    int num_fb_samples = 1;
+    // the image views used in this framebuffer
+    cc::capped_vector<VkImageView, limits::max_render_targets + 1> fb_image_views;
+    // the image views used in this framebuffer, EXCLUDING possible backbuffer views
+    // these are the ones which will get deleted alongside this framebuffer
+    cc::capped_vector<VkImageView, limits::max_render_targets + 1> fb_image_views_to_clean_up;
+    // clear values for the render targets and depth target
+    cc::capped_vector<VkClearValue, limits::max_render_targets + 1> clear_values;
+    // formats of the render targets
     cc::capped_vector<format, limits::max_render_targets> formats_flat;
+
+    // inferred info
+    int num_fb_samples = 1;
     tg::isize2 fb_size = begin_rp.viewport;
-    // extract the amount of samples, flat RT formats, and effective render target sizes from the command
+
+    // extract all information that is required in flat arrays for Vk structs
+    for (auto const& rt : begin_rp.render_targets)
     {
+        // rt format
+        formats_flat.push_back(rt.rv.pixel_format);
+
+        // image view
+        if (_globals.pool_resources->isBackbuffer(rt.rv.resource))
+        {
+            fb_image_views.push_back(_globals.pool_resources->getBackbufferView());
+        }
+        else
+        {
+            fb_image_views.push_back(_globals.pool_shader_views->makeImageView(rt.rv));
+            fb_image_views_to_clean_up.push_back(fb_image_views.back());
+        }
+
+        // clear val
+        auto& cv = clear_values.emplace_back();
+        std::memcpy(&cv.color.float32, &rt.clear_value, sizeof(rt.clear_value));
+    }
+
+    if (begin_rp.depth_target.rv.resource.is_valid())
+    {
+        // image view
+        fb_image_views.push_back(_globals.pool_shader_views->makeImageView(begin_rp.depth_target.rv));
+        fb_image_views_to_clean_up.push_back(fb_image_views.back());
+
+        // clear val
+        auto& cv = clear_values.emplace_back();
+        cv.depthStencil = {begin_rp.depth_target.clear_value_depth, uint32_t(begin_rp.depth_target.clear_value_stencil)};
+    }
+
+    // infer amount of samples and effective render target sizes from the command
+    {
+        phi::resource_view const* rv = nullptr;
+
         if (!begin_rp.render_targets.empty())
         {
-            auto const& rv = begin_rp.render_targets[0].rv;
-            auto const& img_info = _globals.pool_resources->getImageInfo(rv.resource);
-            num_fb_samples = img_info.num_samples;
-            fb_size = phi::util::get_mip_size({img_info.width, img_info.height}, rv.texture_info.mip_start);
+            rv = &begin_rp.render_targets[0].rv;
         }
         else if (begin_rp.depth_target.rv.resource.is_valid())
         {
-            auto const& rv = begin_rp.depth_target.rv;
-            auto const& img_info = _globals.pool_resources->getImageInfo(rv.resource);
-            num_fb_samples = img_info.num_samples;
-            fb_size = phi::util::get_mip_size({img_info.width, img_info.height}, rv.texture_info.mip_start);
+            rv = &begin_rp.depth_target.rv;
         }
 
-        for (auto const& rt : begin_rp.render_targets)
+        if (rv != nullptr)
         {
-            formats_flat.push_back(rt.rv.pixel_format);
+            auto const& img_info = _globals.pool_resources->getImageInfo(rv->resource);
+            num_fb_samples = img_info.num_samples;
+            fb_size = phi::util::get_mip_size({img_info.width, img_info.height}, rv->texture_info.mip_start);
         }
     }
 
+    // create or retrieve a render pass from cache matching the configuration
     auto const render_pass = _globals.pool_pipeline_states->getOrCreateRenderPass(begin_rp, num_fb_samples, formats_flat);
 
     // a render pass always changes
@@ -82,36 +125,10 @@ void phi::vk::command_list_translator::execute(const phi::cmd::begin_render_pass
     //      - The vkCmdBeginRenderPass/vkCmdEndRenderPass state
     _bound.raw_render_pass = render_pass;
 
-    // create a new framebuffer
+    // create a new framebuffer on the fly
     {
-        // the image views used in this framebuffer
-        cc::capped_vector<VkImageView, limits::max_render_targets + 1> fb_image_views;
-        // the image views used in this framebuffer, EXCLUDING possible backbuffer views
-        // these are the ones which will get deleted alongside this framebuffer
-        cc::capped_vector<VkImageView, limits::max_render_targets + 1> fb_image_views_to_clean_up;
-
-        for (auto const& rt : begin_rp.render_targets)
-        {
-            if (_globals.pool_resources->isBackbuffer(rt.rv.resource))
-            {
-                fb_image_views.push_back(_globals.pool_resources->getBackbufferView());
-            }
-            else
-            {
-                fb_image_views.push_back(_globals.pool_shader_views->makeImageView(rt.rv));
-                fb_image_views_to_clean_up.push_back(fb_image_views.back());
-            }
-        }
-
-        if (begin_rp.depth_target.rv.resource.is_valid())
-        {
-            fb_image_views.push_back(_globals.pool_shader_views->makeImageView(begin_rp.depth_target.rv));
-            fb_image_views_to_clean_up.push_back(fb_image_views.back());
-        }
-
         VkFramebufferCreateInfo fb_info = {};
         fb_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-        fb_info.pNext = nullptr;
         fb_info.renderPass = render_pass;
         fb_info.attachmentCount = uint32_t(fb_image_views.size());
         fb_info.pAttachments = fb_image_views.data();
@@ -135,21 +152,6 @@ void phi::vk::command_list_translator::execute(const phi::cmd::begin_render_pass
         rp_begin_info.renderArea.offset = {0, 0};
         rp_begin_info.renderArea.extent.width = uint32_t(fb_size.width);
         rp_begin_info.renderArea.extent.height = uint32_t(fb_size.height);
-
-        cc::capped_vector<VkClearValue, limits::max_render_targets + 1> clear_values;
-
-        for (auto const& rt : begin_rp.render_targets)
-        {
-            auto& cv = clear_values.emplace_back();
-            std::memcpy(&cv.color.float32, &rt.clear_value, sizeof(rt.clear_value));
-        }
-
-        if (begin_rp.depth_target.rv.resource.is_valid())
-        {
-            auto& cv = clear_values.emplace_back();
-            cv.depthStencil = {begin_rp.depth_target.clear_value_depth, uint32_t(begin_rp.depth_target.clear_value_stencil)};
-        }
-
         rp_begin_info.clearValueCount = uint32_t(clear_values.size());
         rp_begin_info.pClearValues = clear_values.data();
 
