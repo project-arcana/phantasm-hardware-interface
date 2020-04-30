@@ -5,6 +5,7 @@
 
 #include <typed-geometry/tg.hh>
 
+#include <phantasm-hardware-interface/util.hh>
 #include <phantasm-hardware-interface/vulkan/common/log.hh>
 #include <phantasm-hardware-interface/vulkan/common/native_enum.hh>
 #include <phantasm-hardware-interface/vulkan/common/util.hh>
@@ -15,11 +16,6 @@
 
 namespace
 {
-unsigned vk_calculate_num_mip_levels(unsigned width, unsigned height)
-{
-    return static_cast<unsigned>(tg::floor(tg::log2(static_cast<float>(cc::max(width, height))))) + 1u;
-}
-
 constexpr char const* vk_get_tex_dim_literal(phi::texture_dimension tdim)
 {
     using td = phi::texture_dimension;
@@ -48,7 +44,7 @@ phi::handle::resource phi::vk::ResourcePool::createTexture(format format, unsign
     image_info.extent.width = w;
     image_info.extent.height = h;
     image_info.extent.depth = dim == texture_dimension::t3d ? depth_or_array_size : 1;
-    image_info.mipLevels = mips < 1 ? vk_calculate_num_mip_levels(w, h) : mips;
+    image_info.mipLevels = mips < 1 ? phi::util::get_num_mips(w, h) : mips;
     image_info.arrayLayers = dim == texture_dimension::t3d ? 1 : depth_or_array_size;
 
     image_info.samples = VK_SAMPLE_COUNT_1_BIT;
@@ -79,7 +75,7 @@ phi::handle::resource phi::vk::ResourcePool::createTexture(format format, unsign
     VkImage res_image;
     PHI_VK_VERIFY_SUCCESS(vmaCreateImage(mAllocator, &image_info, &alloc_info, &res_image, &res_alloc, nullptr));
     util::set_object_name(mDevice, res_image, "respool texture%s[%u] m%u", vk_get_tex_dim_literal(dim), depth_or_array_size, image_info.mipLevels);
-    return acquireImage(res_alloc, res_image, format, image_info.mipLevels, image_info.arrayLayers, 1);
+    return acquireImage(res_alloc, res_image, format, image_info.mipLevels, image_info.arrayLayers, 1, w, h);
 }
 
 phi::handle::resource phi::vk::ResourcePool::createRenderTarget(phi::format format, unsigned w, unsigned h, unsigned samples, unsigned array_size)
@@ -123,7 +119,7 @@ phi::handle::resource phi::vk::ResourcePool::createRenderTarget(phi::format form
     else
         util::set_object_name(mDevice, res_image, "respool render target");
 
-    return acquireImage(res_alloc, res_image, format, image_info.mipLevels, image_info.arrayLayers, samples);
+    return acquireImage(res_alloc, res_image, format, image_info.mipLevels, image_info.arrayLayers, samples, w, h);
 }
 
 phi::handle::resource phi::vk::ResourcePool::createBuffer(uint64_t size_bytes, unsigned stride_bytes, bool allow_uav)
@@ -270,6 +266,13 @@ void phi::vk::ResourcePool::initialize(VkPhysicalDevice physical, VkDevice devic
         resource_node& backbuffer_node = mPool.get(static_cast<unsigned>(mInjectedBackbufferResource.index));
         backbuffer_node.type = resource_node::resource_type::image;
         backbuffer_node.master_state = resource_state::undefined;
+        backbuffer_node.image.raw_image = nullptr;
+        backbuffer_node.image.pixel_format = format::bgra8un;
+        backbuffer_node.image.num_samples = 1;
+        backbuffer_node.image.num_mips = 1;
+        backbuffer_node.image.num_array_layers = 1;
+        backbuffer_node.image.width = 0;
+        backbuffer_node.image.height = 0;
     }
 
     mSingleCBVLayout = mAllocatorDescriptors.createSingleCBVLayout(false);
@@ -308,10 +311,13 @@ VkDeviceMemory phi::vk::ResourcePool::getRawDeviceMemory(phi::handle::resource r
     return alloc_info.deviceMemory;
 }
 
-phi::handle::resource phi::vk::ResourcePool::injectBackbufferResource(VkImage raw_image, phi::resource_state state, VkImageView backbuffer_view, phi::resource_state& out_prev_state)
+phi::handle::resource phi::vk::ResourcePool::injectBackbufferResource(
+    VkImage raw_image, phi::resource_state state, VkImageView backbuffer_view, unsigned width, unsigned height, phi::resource_state& out_prev_state)
 {
     resource_node& backbuffer_node = mPool.get(static_cast<unsigned>(mInjectedBackbufferResource.index));
     backbuffer_node.image.raw_image = raw_image;
+    backbuffer_node.image.width = width;
+    backbuffer_node.image.height = height;
     mInjectedBackbufferView = backbuffer_view;
 
     out_prev_state = backbuffer_node.master_state;
@@ -394,7 +400,8 @@ phi::handle::resource phi::vk::ResourcePool::acquireBuffer(
 
     return {static_cast<handle::index_t>(res)};
 }
-phi::handle::resource phi::vk::ResourcePool::acquireImage(VmaAllocation alloc, VkImage image, format pixel_format, unsigned num_mips, unsigned num_array_layers, unsigned num_samples)
+phi::handle::resource phi::vk::ResourcePool::acquireImage(
+    VmaAllocation alloc, VkImage image, format pixel_format, unsigned num_mips, unsigned num_array_layers, unsigned num_samples, unsigned width, unsigned height)
 {
     unsigned res;
     {
@@ -410,6 +417,8 @@ phi::handle::resource phi::vk::ResourcePool::acquireImage(VmaAllocation alloc, V
     new_node.image.num_mips = num_mips;
     new_node.image.num_array_layers = num_array_layers;
     new_node.image.num_samples = num_samples;
+    new_node.image.width = width;
+    new_node.image.height = height;
 
     new_node.master_state = resource_state::undefined;
     new_node.master_state_dependency = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;

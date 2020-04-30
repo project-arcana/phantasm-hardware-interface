@@ -193,8 +193,9 @@ phi::handle::resource phi::vk::BackendVulkan::acquireBackbuffer()
     else
     {
         resource_state prev_state;
+        auto const backbuf_size = mSwapchain.getBackbufferSize();
         auto const res = mPoolResources.injectBackbufferResource(mSwapchain.getCurrentBackbuffer(), mSwapchain.getCurrentBackbufferState(),
-                                                                 mSwapchain.getCurrentBackbufferView(), prev_state);
+                                                                 mSwapchain.getCurrentBackbufferView(), backbuf_size.width, backbuf_size.height, prev_state);
 
         mSwapchain.setBackbufferState(prev_backbuffer_index, prev_state);
         return res;
