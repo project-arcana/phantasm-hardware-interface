@@ -14,6 +14,8 @@
 
 namespace phi::vk
 {
+/// Ringbuffer for fences used for internal submit sync
+/// Unsynchronized - 1 per CommandListPool
 class FenceRingbuffer
 {
 public:
@@ -66,7 +68,8 @@ private:
     unsigned mNextFence = 0;
 };
 
-
+/// A single command allocator that keeps track of its lists
+/// Unsynchronized - N per CommandAllocatorBundle
 struct cmd_allocator_node
 {
 public:
@@ -152,7 +155,7 @@ private:
 
 /// A bundle of single command allocators which automatically
 /// circles through them and soft-resets when possible
-/// Unsynchronized
+/// Unsynchronized - 1 per thread, per queue type
 class CommandAllocatorBundle
 {
 public:
@@ -171,16 +174,46 @@ private:
     size_t mActiveAllocator = 0u;
 };
 
+struct CommandAllocatorsPerThread
+{
+    CommandAllocatorBundle bundle_direct;
+    CommandAllocatorBundle bundle_compute;
+    CommandAllocatorBundle bundle_copy;
+
+    void destroy(VkDevice device)
+    {
+        bundle_direct.destroy(device);
+        bundle_compute.destroy(device);
+        bundle_copy.destroy(device);
+    }
+
+    CommandAllocatorBundle& get(queue_type type)
+    {
+        switch (type)
+        {
+        case queue_type::direct:
+            return bundle_direct;
+        case queue_type::compute:
+            return bundle_compute;
+        case queue_type::copy:
+            return bundle_copy;
+        }
+
+        CC_UNREACHABLE("invalid queue type");
+        return bundle_direct;
+    }
+};
+
 class BackendVulkan;
 
 /// The high-level allocator for Command Lists
-/// Synchronized
+/// Synchronized - 1 per application
 class CommandListPool
 {
 public:
     // frontend-facing API (not quite, command_list can only be compiled immediately)
 
-    [[nodiscard]] handle::command_list create(VkCommandBuffer& out_cmdlist, CommandAllocatorBundle& thread_allocator);
+    [[nodiscard]] handle::command_list create(VkCommandBuffer& out_cmdlist, CommandAllocatorsPerThread& thread_allocator, queue_type type);
 
     /// acquire a fence to be used for command buffer submission, returns the index
     /// ONLY use the resulting index ONCE in either of the two freeOnSubmit overloads
@@ -201,6 +234,7 @@ public:
     /// returns the amount of cmdlists that were freed
     unsigned discardAndFreeAll();
 
+
 public:
     struct cmd_list_node
     {
@@ -212,17 +246,86 @@ public:
         VkCommandBuffer raw_buffer;
     };
 
+    using cmdlist_linked_pool_t = phi::detail::linked_pool<cmd_list_node, unsigned>;
+
+    static constexpr int mcIndexOffsetStep = 1'000'000;
+
+    static constexpr int mcIndexOffsetDirect = mcIndexOffsetStep * 0;
+    static constexpr int mcIndexOffsetCompute = mcIndexOffsetStep * 1;
+    static constexpr int mcIndexOffsetCopy = mcIndexOffsetStep * 2;
+
+    static constexpr queue_type HandleToQueueType(handle::command_list cl)
+    {
+        if (cl.index >= mcIndexOffsetCopy)
+            return queue_type::copy;
+        else if (cl.index >= mcIndexOffsetCompute)
+            return queue_type::compute;
+        else
+            return queue_type::direct;
+    }
+
+    static constexpr handle::command_list IndexToHandle(unsigned pool_index, queue_type type)
+    {
+        // we rely on underlying values here
+        static_assert(int(queue_type::direct) == 0, "unexpected enum ordering");
+        static_assert(int(queue_type::compute) == 1, "unexpected enum ordering");
+        static_assert(int(queue_type::copy) == 2, "unexpected enum ordering");
+        return {int(pool_index) + mcIndexOffsetStep * int(type)};
+    }
+
+    static constexpr unsigned HandleToIndex(handle::command_list cl, queue_type type)
+    {
+        //
+        return unsigned(cl.index - mcIndexOffsetStep * int(type));
+    }
+
+    cmdlist_linked_pool_t& getPool(queue_type type)
+    {
+        switch (type)
+        {
+        case queue_type::direct:
+            return mPoolDirect;
+        case queue_type::compute:
+            return mPoolCompute;
+        case queue_type::copy:
+            return mPoolCopy;
+        }
+
+        CC_UNREACHABLE("invalid queue_type");
+    }
+
+    cmdlist_linked_pool_t const& getPool(queue_type type) const
+    {
+        switch (type)
+        {
+        case queue_type::direct:
+            return mPoolDirect;
+        case queue_type::compute:
+            return mPoolCompute;
+        case queue_type::copy:
+            return mPoolCopy;
+        }
+
+        CC_UNREACHABLE("invalid queue_type");
+    }
+
 public:
     // internal API
 
-    [[nodiscard]] cmd_list_node const& getCommandListNode(handle::command_list cl) const { return mPool.get(static_cast<unsigned>(cl.index)); }
-
-    [[nodiscard]] VkCommandBuffer getRawBuffer(handle::command_list cl) const { return mPool.get(static_cast<unsigned>(cl.index)).raw_buffer; }
-
-    [[nodiscard]] vk_incomplete_state_cache* getStateCache(handle::command_list cl)
+    [[nodiscard]] cmd_list_node& getCommandListNode(handle::command_list cl)
     {
-        return &mPool.get(static_cast<unsigned>(cl.index)).state_cache;
+        queue_type const type = HandleToQueueType(cl);
+        return getPool(type).get(HandleToIndex(cl, type));
     }
+    [[nodiscard]] cmd_list_node const& getCommandListNode(handle::command_list cl) const
+    {
+        queue_type const type = HandleToQueueType(cl);
+        return getPool(type).get(HandleToIndex(cl, type));
+    }
+
+    [[nodiscard]] VkCommandBuffer getRawBuffer(handle::command_list cl) const { return getCommandListNode(cl).raw_buffer; }
+
+    [[nodiscard]] vk_incomplete_state_cache* getStateCache(handle::command_list cl) { return &getCommandListNode(cl).state_cache; }
 
     void addAssociatedFramebuffer(handle::command_list cl, VkFramebuffer fb, cc::span<VkImageView const> imgviews)
     {
@@ -230,7 +333,14 @@ public:
     }
 
 public:
-    void initialize(BackendVulkan& backend, unsigned num_allocators_per_thread, unsigned num_cmdlists_per_allocator, cc::span<CommandAllocatorBundle*> thread_allocators);
+    void initialize(BackendVulkan& backend,
+                    int num_direct_allocs,
+                    int num_direct_lists_per_alloc,
+                    int num_compute_allocs,
+                    int num_compute_lists_per_alloc,
+                    int num_copy_allocs,
+                    int num_copy_lists_per_alloc,
+                    cc::span<CommandAllocatorsPerThread*> thread_allocators);
     void destroy();
 
 private:
@@ -240,9 +350,11 @@ private:
     /// the fence ringbuffer
     FenceRingbuffer mFenceRing;
 
-    /// the pool itself, managing handle association as well as additional
+    /// the linked pools per cmdlist type, managing handle association as well as additional
     /// bookkeeping data structures
-    phi::detail::linked_pool<cmd_list_node, unsigned> mPool;
+    cmdlist_linked_pool_t mPoolDirect;
+    cmdlist_linked_pool_t mPoolCompute;
+    cmdlist_linked_pool_t mPoolCopy;
 
     std::mutex mMutex;
 };

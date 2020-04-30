@@ -3,6 +3,7 @@
 #include <phantasm-hardware-interface/detail/byte_util.hh>
 #include <phantasm-hardware-interface/detail/command_reading.hh>
 #include <phantasm-hardware-interface/detail/incomplete_state_cache.hh>
+#include <phantasm-hardware-interface/util.hh>
 
 #include "Swapchain.hh"
 #include "common/log.hh"
@@ -48,21 +49,75 @@ void phi::vk::command_list_translator::execute(const phi::cmd::begin_render_pass
 {
     CC_ASSERT(_bound.raw_render_pass == nullptr && "double cmd::begin_render_pass - missing cmd::end_render_pass?");
 
-    int num_fb_samples = 1;
+    // the image views used in this framebuffer
+    cc::capped_vector<VkImageView, limits::max_render_targets + 1> fb_image_views;
+    // the image views used in this framebuffer, EXCLUDING possible backbuffer views
+    // these are the ones which will get deleted alongside this framebuffer
+    cc::capped_vector<VkImageView, limits::max_render_targets + 1> fb_image_views_to_clean_up;
+    // clear values for the render targets and depth target
+    cc::capped_vector<VkClearValue, limits::max_render_targets + 1> clear_values;
+    // formats of the render targets
     cc::capped_vector<format, limits::max_render_targets> formats_flat;
-    // extract the amount of samples and flat RT formats from the command
-    {
-        if (!begin_rp.render_targets.empty())
-            num_fb_samples = _globals.pool_resources->getNumImageSamples(begin_rp.render_targets[0].rv.resource);
-        else if (begin_rp.depth_target.rv.resource.is_valid())
-            num_fb_samples = _globals.pool_resources->getNumImageSamples(begin_rp.depth_target.rv.resource);
 
-        for (auto const& rt : begin_rp.render_targets)
+    // inferred info
+    int num_fb_samples = 1;
+    tg::isize2 fb_size = begin_rp.viewport;
+
+    // extract all information that is required in flat arrays for Vk structs
+    for (auto const& rt : begin_rp.render_targets)
+    {
+        // rt format
+        formats_flat.push_back(rt.rv.pixel_format);
+
+        // image view
+        if (_globals.pool_resources->isBackbuffer(rt.rv.resource))
         {
-            formats_flat.push_back(rt.rv.pixel_format);
+            fb_image_views.push_back(_globals.pool_resources->getBackbufferView());
+        }
+        else
+        {
+            fb_image_views.push_back(_globals.pool_shader_views->makeImageView(rt.rv));
+            fb_image_views_to_clean_up.push_back(fb_image_views.back());
+        }
+
+        // clear val
+        auto& cv = clear_values.emplace_back();
+        std::memcpy(&cv.color.float32, &rt.clear_value, sizeof(rt.clear_value));
+    }
+
+    if (begin_rp.depth_target.rv.resource.is_valid())
+    {
+        // image view
+        fb_image_views.push_back(_globals.pool_shader_views->makeImageView(begin_rp.depth_target.rv));
+        fb_image_views_to_clean_up.push_back(fb_image_views.back());
+
+        // clear val
+        auto& cv = clear_values.emplace_back();
+        cv.depthStencil = {begin_rp.depth_target.clear_value_depth, uint32_t(begin_rp.depth_target.clear_value_stencil)};
+    }
+
+    // infer amount of samples and effective render target sizes from the command
+    {
+        phi::resource_view const* rv = nullptr;
+
+        if (!begin_rp.render_targets.empty())
+        {
+            rv = &begin_rp.render_targets[0].rv;
+        }
+        else if (begin_rp.depth_target.rv.resource.is_valid())
+        {
+            rv = &begin_rp.depth_target.rv;
+        }
+
+        if (rv != nullptr)
+        {
+            auto const& img_info = _globals.pool_resources->getImageInfo(rv->resource);
+            num_fb_samples = img_info.num_samples;
+            fb_size = phi::util::get_mip_size({img_info.width, img_info.height}, rv->texture_info.mip_start);
         }
     }
 
+    // create or retrieve a render pass from cache matching the configuration
     auto const render_pass = _globals.pool_pipeline_states->getOrCreateRenderPass(begin_rp, num_fb_samples, formats_flat);
 
     // a render pass always changes
@@ -70,41 +125,15 @@ void phi::vk::command_list_translator::execute(const phi::cmd::begin_render_pass
     //      - The vkCmdBeginRenderPass/vkCmdEndRenderPass state
     _bound.raw_render_pass = render_pass;
 
-    // create a new framebuffer
+    // create a new framebuffer on the fly
     {
-        // the image views used in this framebuffer
-        cc::capped_vector<VkImageView, limits::max_render_targets + 1> fb_image_views;
-        // the image views used in this framebuffer, EXCLUDING possible backbuffer views
-        // these are the ones which will get deleted alongside this framebuffer
-        cc::capped_vector<VkImageView, limits::max_render_targets + 1> fb_image_views_to_clean_up;
-
-        for (auto const& rt : begin_rp.render_targets)
-        {
-            if (_globals.pool_resources->isBackbuffer(rt.rv.resource))
-            {
-                fb_image_views.push_back(_globals.pool_resources->getBackbufferView());
-            }
-            else
-            {
-                fb_image_views.push_back(_globals.pool_shader_views->makeImageView(rt.rv));
-                fb_image_views_to_clean_up.push_back(fb_image_views.back());
-            }
-        }
-
-        if (begin_rp.depth_target.rv.resource.is_valid())
-        {
-            fb_image_views.push_back(_globals.pool_shader_views->makeImageView(begin_rp.depth_target.rv));
-            fb_image_views_to_clean_up.push_back(fb_image_views.back());
-        }
-
         VkFramebufferCreateInfo fb_info = {};
         fb_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-        fb_info.pNext = nullptr;
         fb_info.renderPass = render_pass;
         fb_info.attachmentCount = uint32_t(fb_image_views.size());
         fb_info.pAttachments = fb_image_views.data();
-        fb_info.width = uint32_t(begin_rp.viewport.width + begin_rp.viewport_offset.x);
-        fb_info.height = uint32_t(begin_rp.viewport.height + begin_rp.viewport_offset.y);
+        fb_info.width = uint32_t(fb_size.width);
+        fb_info.height = uint32_t(fb_size.height);
         fb_info.layers = 1;
 
         // Create the framebuffer
@@ -120,26 +149,23 @@ void phi::vk::command_list_translator::execute(const phi::cmd::begin_render_pass
         rp_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
         rp_begin_info.renderPass = render_pass;
         rp_begin_info.framebuffer = _bound.raw_framebuffer;
-        rp_begin_info.renderArea.offset = {begin_rp.viewport_offset.x, begin_rp.viewport_offset.y};
-        rp_begin_info.renderArea.extent.width = uint32_t(begin_rp.viewport.width);
-        rp_begin_info.renderArea.extent.height = uint32_t(begin_rp.viewport.height);
-
-        cc::capped_vector<VkClearValue, limits::max_render_targets + 1> clear_values;
-
-        for (auto const& rt : begin_rp.render_targets)
-        {
-            auto& cv = clear_values.emplace_back();
-            std::memcpy(&cv.color.float32, &rt.clear_value, sizeof(rt.clear_value));
-        }
-
-        if (begin_rp.depth_target.rv.resource.is_valid())
-        {
-            auto& cv = clear_values.emplace_back();
-            cv.depthStencil = {begin_rp.depth_target.clear_value_depth, uint32_t(begin_rp.depth_target.clear_value_stencil)};
-        }
-
+        rp_begin_info.renderArea.offset = {0, 0};
+        rp_begin_info.renderArea.extent.width = uint32_t(fb_size.width);
+        rp_begin_info.renderArea.extent.height = uint32_t(fb_size.height);
         rp_begin_info.clearValueCount = uint32_t(clear_values.size());
         rp_begin_info.pClearValues = clear_values.data();
+
+        // NOTE: the viewport situation is as follows on vulkan
+        // outermost: VkFramebuffer
+        //          size
+        // next: VkRenderPassBeginInfo::renderArea
+        //          size + offset from topleft, must be within or equal to VkFramebuffer size
+        // finally: vkCmdSetViewport and vkCmdSetScissor
+        //          size + offset           offset
+        //
+        // the cleared area depends upon VkRenderPassBeginInfo::renderArea, thus we set that and consequently the VkFramebuffer size
+        // to the size of the first render target instead of the specified viewport
+        // this behavior is consistent with d3d12
 
         util::set_viewport(_cmd_list, begin_rp.viewport, begin_rp.viewport_offset);
         vkCmdBeginRenderPass(_cmd_list, &rp_begin_info, VK_SUBPASS_CONTENTS_INLINE);
@@ -196,7 +222,7 @@ void phi::vk::command_list_translator::execute(const phi::cmd::draw& draw)
     // Draw command
     if (draw.index_buffer.is_valid())
     {
-        vkCmdDrawIndexed(_cmd_list, draw.num_indices, 1, draw.index_offset, static_cast<int32_t>(draw.vertex_offset), 0);
+        vkCmdDrawIndexed(_cmd_list, draw.num_indices, 1, draw.index_offset, int32_t(draw.vertex_offset), 0);
     }
     else
     {

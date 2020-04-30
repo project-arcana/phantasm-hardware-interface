@@ -84,8 +84,8 @@ inline constexpr shader_stage_flags_t shader_stage_mask_all_ray
 enum class queue_type : uint8_t
 {
     direct, // graphics + copy + compute + present
-    copy,
-    compute
+    compute,
+    copy
 };
 
 /// state of a handle::resource, determining legal operations
