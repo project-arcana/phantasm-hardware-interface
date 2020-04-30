@@ -552,13 +552,14 @@ struct blend_state
     blend_op blend_op_alpha = blend_op::op_add;
 
     blend_state() = default;
-    blend_state(blend_factor blend_color_src,
+
+    blend_state(blend_factor blend_color_src, //
                 blend_factor blend_color_dest,
                 blend_op blend_op_color,
-                blend_factor blend_alpha_src = blend_factor::one,
-                blend_factor blend_alpha_dest = blend_factor::zero,
-                blend_op blend_op_alpha = blend_op::op_add)
-      : blend_color_src(blend_color_src),
+                blend_factor blend_alpha_src,
+                blend_factor blend_alpha_dest,
+                blend_op blend_op_alpha)
+      : blend_color_src(blend_color_src), //
         blend_color_dest(blend_color_dest),
         blend_op_color(blend_op_color),
         blend_alpha_src(blend_alpha_src),
@@ -566,6 +567,46 @@ struct blend_state
         blend_op_alpha(blend_op_alpha)
     {
     }
+
+    blend_state(blend_factor blend_color_src, //
+                blend_factor blend_color_dest,
+                blend_factor blend_alpha_src,
+                blend_factor blend_alpha_dest)
+      : blend_color_src(blend_color_src), //
+        blend_color_dest(blend_color_dest),
+        blend_op_color(blend_op::op_add),
+        blend_alpha_src(blend_alpha_src),
+        blend_alpha_dest(blend_alpha_dest),
+        blend_op_alpha(blend_op::op_add)
+    {
+    }
+
+    blend_state(blend_factor blend_src, //
+                blend_factor blend_dest,
+                blend_op blend_op = blend_op::op_add)
+      : blend_color_src(blend_src), //
+        blend_color_dest(blend_dest),
+        blend_op_color(blend_op),
+        blend_alpha_src(blend_src),
+        blend_alpha_dest(blend_dest),
+        blend_op_alpha(blend_op)
+    {
+    }
+
+    /// blend state for additive blending "src + dest"
+    static blend_state additive() { return blend_state(blend_factor::one, blend_factor::one); }
+
+    /// blend state for multiplicative blending "src * dest"
+    static blend_state multiplicative()
+    {
+        return blend_state(blend_factor::dest_color, blend_factor::zero, blend_factor::dest_alpha, blend_factor::zero);
+    }
+
+    /// blend state for normal alpha blending "mix(dest, src, src.a)"
+    static blend_state alpha_blending() { return blend_state(blend_factor::src_alpha, blend_factor::inv_src_alpha); }
+
+    /// blend state for premultiplied alpha blending "dest * (1 - src.a) + src"
+    static blend_state alpha_blending_premultiplied() { return blend_state(blend_factor::one, blend_factor::inv_src_alpha); }
 };
 
 /// the blending configuration for a specific render target slot of a (graphics) handle::pipeline_state
