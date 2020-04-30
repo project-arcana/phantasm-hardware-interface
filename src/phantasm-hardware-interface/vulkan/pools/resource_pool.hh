@@ -74,8 +74,8 @@ public:
             unsigned num_mips;
             unsigned num_array_layers;
             unsigned num_samples;
-            unsigned width;
-            unsigned height;
+            int width;
+            int height;
         };
 
     public:
@@ -163,7 +163,7 @@ private:
         VmaAllocation alloc, VkBuffer buffer, VkBufferUsageFlags usage, uint64_t buffer_width = 0, unsigned buffer_stride = 0, std::byte* buffer_map = nullptr);
 
     [[nodiscard]] handle::resource acquireImage(
-        VmaAllocation alloc, VkImage buffer, format pixel_format, unsigned num_mips, unsigned num_array_layers, unsigned num_samples, unsigned width, unsigned height);
+        VmaAllocation alloc, VkImage buffer, format pixel_format, unsigned num_mips, unsigned num_array_layers, unsigned num_samples, int width, int height);
 
     [[nodiscard]] resource_node const& internalGet(handle::resource res) const { return mPool.get(static_cast<unsigned>(res.index)); }
     [[nodiscard]] resource_node& internalGet(handle::resource res) { return mPool.get(static_cast<unsigned>(res.index)); }

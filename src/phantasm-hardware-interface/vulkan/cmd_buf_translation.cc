@@ -3,6 +3,7 @@
 #include <phantasm-hardware-interface/detail/byte_util.hh>
 #include <phantasm-hardware-interface/detail/command_reading.hh>
 #include <phantasm-hardware-interface/detail/incomplete_state_cache.hh>
+#include <phantasm-hardware-interface/util.hh>
 
 #include "Swapchain.hh"
 #include "common/log.hh"
@@ -50,12 +51,23 @@ void phi::vk::command_list_translator::execute(const phi::cmd::begin_render_pass
 
     int num_fb_samples = 1;
     cc::capped_vector<format, limits::max_render_targets> formats_flat;
-    // extract the amount of samples and flat RT formats from the command
+    tg::isize2 fb_size = begin_rp.viewport;
+    // extract the amount of samples, flat RT formats, and effective render target sizes from the command
     {
         if (!begin_rp.render_targets.empty())
-            num_fb_samples = _globals.pool_resources->getNumImageSamples(begin_rp.render_targets[0].rv.resource);
+        {
+            auto const& rv = begin_rp.render_targets[0].rv;
+            auto const& img_info = _globals.pool_resources->getImageInfo(rv.resource);
+            num_fb_samples = img_info.num_samples;
+            fb_size = phi::util::get_mip_size({img_info.width, img_info.height}, rv.texture_info.mip_start);
+        }
         else if (begin_rp.depth_target.rv.resource.is_valid())
-            num_fb_samples = _globals.pool_resources->getNumImageSamples(begin_rp.depth_target.rv.resource);
+        {
+            auto const& rv = begin_rp.depth_target.rv;
+            auto const& img_info = _globals.pool_resources->getImageInfo(rv.resource);
+            num_fb_samples = img_info.num_samples;
+            fb_size = phi::util::get_mip_size({img_info.width, img_info.height}, rv.texture_info.mip_start);
+        }
 
         for (auto const& rt : begin_rp.render_targets)
         {
@@ -103,8 +115,8 @@ void phi::vk::command_list_translator::execute(const phi::cmd::begin_render_pass
         fb_info.renderPass = render_pass;
         fb_info.attachmentCount = uint32_t(fb_image_views.size());
         fb_info.pAttachments = fb_image_views.data();
-        fb_info.width = uint32_t(begin_rp.viewport.width + begin_rp.viewport_offset.x);
-        fb_info.height = uint32_t(begin_rp.viewport.height + begin_rp.viewport_offset.y);
+        fb_info.width = uint32_t(fb_size.width);
+        fb_info.height = uint32_t(fb_size.height);
         fb_info.layers = 1;
 
         // Create the framebuffer
@@ -120,9 +132,9 @@ void phi::vk::command_list_translator::execute(const phi::cmd::begin_render_pass
         rp_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
         rp_begin_info.renderPass = render_pass;
         rp_begin_info.framebuffer = _bound.raw_framebuffer;
-        rp_begin_info.renderArea.offset = {begin_rp.viewport_offset.x, begin_rp.viewport_offset.y};
-        rp_begin_info.renderArea.extent.width = uint32_t(begin_rp.viewport.width);
-        rp_begin_info.renderArea.extent.height = uint32_t(begin_rp.viewport.height);
+        rp_begin_info.renderArea.offset = {0, 0};
+        rp_begin_info.renderArea.extent.width = uint32_t(fb_size.width);
+        rp_begin_info.renderArea.extent.height = uint32_t(fb_size.height);
 
         cc::capped_vector<VkClearValue, limits::max_render_targets + 1> clear_values;
 
@@ -140,6 +152,18 @@ void phi::vk::command_list_translator::execute(const phi::cmd::begin_render_pass
 
         rp_begin_info.clearValueCount = uint32_t(clear_values.size());
         rp_begin_info.pClearValues = clear_values.data();
+
+        // NOTE: the viewport situation is as follows on vulkan
+        // outermost: VkFramebuffer
+        //          size
+        // next: VkRenderPassBeginInfo::renderArea
+        //          size + offset from topleft, must be within or equal to VkFramebuffer size
+        // finally: vkCmdSetViewport and vkCmdSetScissor
+        //          size + offset           offset
+        //
+        // the cleared area depends upon VkRenderPassBeginInfo::renderArea, thus we set that and consequently the VkFramebuffer size
+        // to the size of the first render target instead of the specified viewport
+        // this behavior is consistent with d3d12
 
         util::set_viewport(_cmd_list, begin_rp.viewport, begin_rp.viewport_offset);
         vkCmdBeginRenderPass(_cmd_list, &rp_begin_info, VK_SUBPASS_CONTENTS_INLINE);

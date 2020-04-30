@@ -401,7 +401,7 @@ phi::handle::resource phi::vk::ResourcePool::acquireBuffer(
     return {static_cast<handle::index_t>(res)};
 }
 phi::handle::resource phi::vk::ResourcePool::acquireImage(
-    VmaAllocation alloc, VkImage image, format pixel_format, unsigned num_mips, unsigned num_array_layers, unsigned num_samples, unsigned width, unsigned height)
+    VmaAllocation alloc, VkImage image, format pixel_format, unsigned num_mips, unsigned num_array_layers, unsigned num_samples, int width, int height)
 {
     unsigned res;
     {
