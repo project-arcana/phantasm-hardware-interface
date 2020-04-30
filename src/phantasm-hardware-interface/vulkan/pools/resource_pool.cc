@@ -163,7 +163,7 @@ phi::handle::resource phi::vk::ResourcePool::createBufferInternal(uint64_t size_
     return acquireBuffer(res_alloc, res_buffer, buffer_info.usage, size_bytes, stride_bytes);
 }
 
-phi::handle::resource phi::vk::ResourcePool::createMappedBuffer(unsigned size_bytes, unsigned stride_bytes)
+phi::handle::resource phi::vk::ResourcePool::createMappedUploadBuffer(unsigned size_bytes, unsigned stride_bytes)
 {
     VkBufferCreateInfo buffer_info = {};
     buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -182,7 +182,27 @@ phi::handle::resource phi::vk::ResourcePool::createMappedBuffer(unsigned size_by
     VkBuffer res_buffer;
     PHI_VK_VERIFY_SUCCESS(vmaCreateBuffer(mAllocator, &buffer_info, &alloc_info, &res_buffer, &res_alloc, &res_alloc_info));
     CC_ASSERT(res_alloc_info.pMappedData != nullptr);
-    util::set_object_name(mDevice, res_buffer, "respool mapped buffer");
+    util::set_object_name(mDevice, res_buffer, "respool mapped upload buffer");
+    return acquireBuffer(res_alloc, res_buffer, buffer_info.usage, size_bytes, stride_bytes, cc::bit_cast<std::byte*>(res_alloc_info.pMappedData));
+}
+
+phi::handle::resource phi::vk::ResourcePool::createMappedReadbackBuffer(unsigned size_bytes, unsigned stride_bytes)
+{
+    VkBufferCreateInfo buffer_info = {};
+    buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    buffer_info.size = size_bytes;
+    buffer_info.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+
+    VmaAllocationCreateInfo alloc_info = {};
+    alloc_info.usage = VMA_MEMORY_USAGE_GPU_TO_CPU;
+    alloc_info.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT;
+
+    VmaAllocation res_alloc;
+    VmaAllocationInfo res_alloc_info;
+    VkBuffer res_buffer;
+    PHI_VK_VERIFY_SUCCESS(vmaCreateBuffer(mAllocator, &buffer_info, &alloc_info, &res_buffer, &res_alloc, &res_alloc_info));
+    CC_ASSERT(res_alloc_info.pMappedData != nullptr);
+    util::set_object_name(mDevice, res_buffer, "respool mapped readback buffer");
     return acquireBuffer(res_alloc, res_buffer, buffer_info.usage, size_bytes, stride_bytes, cc::bit_cast<std::byte*>(res_alloc_info.pMappedData));
 }
 

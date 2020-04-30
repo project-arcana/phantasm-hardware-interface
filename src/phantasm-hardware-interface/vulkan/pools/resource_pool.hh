@@ -32,7 +32,9 @@ public:
     [[nodiscard]] handle::resource createBufferInternal(uint64_t size_bytes, unsigned stride_bytes, VkBufferUsageFlags usage);
 
     /// create a mapped, UPLOAD_HEAP buffer, with an element stride if its an index or vertex buffer
-    [[nodiscard]] handle::resource createMappedBuffer(unsigned size_bytes, unsigned stride_bytes = 0);
+    [[nodiscard]] handle::resource createMappedUploadBuffer(unsigned size_bytes, unsigned stride_bytes = 0);
+
+    [[nodiscard]] handle::resource createMappedReadbackBuffer(unsigned size_bytes, unsigned stride_bytes = 0);
 
     [[nodiscard]] handle::resource createMappedBufferInternal(uint64_t size_bytes, unsigned stride_bytes, VkBufferUsageFlags usage);
 
