@@ -253,13 +253,13 @@ private:
     }
 
 private:
-    /// the pool itself, managing handle association as well as additional
+    /// the linked pools per cmdlist type, managing handle association as well as additional
     /// bookkeeping data structures
     cmdlist_linked_pool_t mPoolDirect;
     cmdlist_linked_pool_t mPoolCompute;
     cmdlist_linked_pool_t mPoolCopy;
 
-    /// a parallel array to the pool, identically indexed
+    /// parallel arrays to the pools, identically indexed
     /// the cmdlists must stay alive even while "unallocated"
     cc::array<ID3D12GraphicsCommandList5*> mRawListsDirect;
     cc::array<ID3D12GraphicsCommandList5*> mRawListsCompute;

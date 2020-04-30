@@ -167,8 +167,6 @@ void phi::d3d12::CommandListPool::initialize(phi::d3d12::BackendD3D12& backend,
         thread_allocators[i]->bundle_copy.initialize(*backend.getDevice5(), D3D12_COMMAND_LIST_TYPE_COPY, num_copy_allocs, num_copy_lists_per_alloc,
                                                      cc::span{mRawListsCopy}.subspan(i * num_copy_lists_per_thread, num_copy_lists_per_thread));
     }
-
-    // backend.flushGPU(); // NOTE: Why?
 }
 
 void phi::d3d12::CommandListPool::destroy()

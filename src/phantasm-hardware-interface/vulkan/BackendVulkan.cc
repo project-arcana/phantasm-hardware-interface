@@ -18,7 +18,7 @@ namespace phi::vk
 struct BackendVulkan::per_thread_component
 {
     command_list_translator translator;
-    CommandAllocatorBundle cmd_list_allocator;
+    CommandAllocatorsPerThread cmd_list_allocator;
 };
 }
 
@@ -128,7 +128,7 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg, const 
         mThreadAssociation.initialize();
         mThreadComponents = mThreadComponents.defaulted(config.num_threads);
 
-        cc::vector<CommandAllocatorBundle*> thread_allocator_ptrs;
+        cc::vector<CommandAllocatorsPerThread*> thread_allocator_ptrs;
         thread_allocator_ptrs.reserve(config.num_threads);
 
         for (auto& thread_comp : mThreadComponents)
@@ -137,7 +137,11 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg, const 
             thread_allocator_ptrs.push_back(&thread_comp.cmd_list_allocator);
         }
 
-        mPoolCmdLists.initialize(*this, config.num_direct_cmdlist_allocators_per_thread, config.num_direct_cmdlists_per_allocator, thread_allocator_ptrs);
+        mPoolCmdLists.initialize(*this,                                                                                                 //
+                                 int(config.num_direct_cmdlist_allocators_per_thread), int(config.num_direct_cmdlists_per_allocator),   //
+                                 int(config.num_compute_cmdlist_allocators_per_thread), int(config.num_compute_cmdlists_per_allocator), //
+                                 int(config.num_copy_cmdlist_allocators_per_thread), int(config.num_copy_cmdlists_per_allocator),       //
+                                 thread_allocator_ptrs);
     }
 }
 
@@ -217,11 +221,10 @@ phi::format phi::vk::BackendVulkan::getBackbufferFormat() const { return util::t
 
 phi::handle::command_list phi::vk::BackendVulkan::recordCommandList(std::byte* buffer, size_t size, queue_type queue)
 {
-    CC_RUNTIME_ASSERT(queue == queue_type::direct && "unimplemented!");
     auto& thread_comp = mThreadComponents[mThreadAssociation.get_current_index()];
 
     VkCommandBuffer raw_list;
-    auto const res = mPoolCmdLists.create(raw_list, thread_comp.cmd_list_allocator);
+    auto const res = mPoolCmdLists.create(raw_list, thread_comp.cmd_list_allocator, queue);
     thread_comp.translator.translateCommandList(raw_list, res, mPoolCmdLists.getStateCache(res), buffer, size);
     return res;
 }
@@ -296,7 +299,7 @@ void phi::vk::BackendVulkan::submit(cc::span<const phi::handle::command_list> cl
         if (!barriers.empty())
         {
             VkCommandBuffer t_cmd_list;
-            barrier_lists.push_back(mPoolCmdLists.create(t_cmd_list, thread_comp.cmd_list_allocator));
+            barrier_lists.push_back(mPoolCmdLists.create(t_cmd_list, thread_comp.cmd_list_allocator, queue));
             barriers.record(t_cmd_list);
             vkEndCommandBuffer(t_cmd_list);
             submit_batch.push_back(t_cmd_list);

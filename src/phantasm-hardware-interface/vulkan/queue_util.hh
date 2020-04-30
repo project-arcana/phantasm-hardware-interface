@@ -29,8 +29,8 @@ struct suitable_queues
         uint32_t capabilities = queue_capability::none;
         uint32_t num_queues = 0;
 
-        bool supports(uint32_t caps) const { return capabilities & caps; }
-        bool supports_exclusive(uint32_t caps, uint32_t restriction) const { return (capabilities & caps) && !(capabilities & restriction); }
+        bool supports(uint32_t caps) const { return (capabilities & caps) == caps; }
+        bool supports_exclusive(uint32_t caps, uint32_t restriction) const { return supports(caps) && !supports(restriction); }
     };
 
     // indexed 1:1 as the queues queried from Vk

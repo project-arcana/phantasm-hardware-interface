@@ -314,28 +314,33 @@ void phi::vk::CommandAllocatorBundle::updateActiveIndex(VkDevice device)
     CC_RUNTIME_ASSERT(false && "all allocators overcommitted and unresettable");
 }
 
-phi::handle::command_list phi::vk::CommandListPool::create(VkCommandBuffer& out_cmdlist, phi::vk::CommandAllocatorBundle& thread_allocator)
+phi::handle::command_list phi::vk::CommandListPool::create(VkCommandBuffer& out_cmdlist, phi::vk::CommandAllocatorsPerThread& thread_allocator, queue_type type)
 {
-    unsigned res_handle;
+    unsigned res_index;
+    auto& pool = getPool(type);
     {
         auto lg = std::lock_guard(mMutex);
-        res_handle = mPool.acquire();
+        res_index = pool.acquire();
     }
 
-    cmd_list_node& new_node = mPool.get(res_handle);
-    new_node.responsible_allocator = thread_allocator.acquireMemory(mDevice, new_node.raw_buffer);
+    cmd_list_node& new_node = pool.get(res_index);
+    new_node.responsible_allocator = thread_allocator.get(type).acquireMemory(mDevice, new_node.raw_buffer);
 
     out_cmdlist = new_node.raw_buffer;
-    return {static_cast<handle::index_t>(res_handle)};
+    return IndexToHandle(res_index, type);
 }
 
 void phi::vk::CommandListPool::freeOnSubmit(phi::handle::command_list cl, unsigned fence_index)
 {
-    cmd_list_node& freed_node = mPool.get(static_cast<unsigned>(cl.index));
+    queue_type const type = HandleToQueueType(cl);
+    unsigned const index = HandleToIndex(cl, type);
+    auto& pool = getPool(type);
+
+    cmd_list_node& freed_node = pool.get(index);
     {
         auto lg = std::lock_guard(mMutex);
         freed_node.responsible_allocator->on_submit(1, fence_index);
-        mPool.release(static_cast<unsigned>(cl.index));
+        pool.release(index);
     }
 }
 
@@ -348,12 +353,16 @@ void phi::vk::CommandListPool::freeOnSubmit(cc::span<const phi::handle::command_
         auto lg = std::lock_guard(mMutex);
         for (auto const& cl : cls)
         {
-            if (cl == handle::null_command_list)
+            if (!cl.is_valid())
                 continue;
 
-            cmd_list_node& freed_node = mPool.get(static_cast<unsigned>(cl.index));
+            queue_type const type = HandleToQueueType(cl);
+            unsigned const index = HandleToIndex(cl, type);
+            auto& pool = getPool(type);
+
+            cmd_list_node& freed_node = pool.get(index);
             unique_allocators.get_value(freed_node.responsible_allocator, 0u) += 1;
-            mPool.release(static_cast<unsigned>(cl.index));
+            pool.release(index);
         }
     }
 
@@ -381,12 +390,16 @@ void phi::vk::CommandListPool::freeOnSubmit(cc::span<const cc::span<const phi::h
         for (auto const& cls : cls_nested)
             for (auto const& cl : cls)
             {
-                if (cl == handle::null_command_list)
+                if (!cl.is_valid())
                     continue;
 
-                cmd_list_node& freed_node = mPool.get(static_cast<unsigned>(cl.index));
+                queue_type const type = HandleToQueueType(cl);
+                unsigned const index = HandleToIndex(cl, type);
+                auto& pool = getPool(type);
+
+                cmd_list_node& freed_node = pool.get(index);
                 unique_allocators.get_value(freed_node.responsible_allocator, 0u) += 1;
-                mPool.release(static_cast<unsigned>(cl.index));
+                pool.release(index);
             }
     }
 
@@ -412,8 +425,12 @@ void phi::vk::CommandListPool::freeAndDiscard(cc::span<const handle::command_lis
     {
         if (cl.is_valid())
         {
-            mPool.get(static_cast<unsigned>(cl.index)).responsible_allocator->on_discard();
-            mPool.release(static_cast<unsigned>(cl.index));
+            queue_type const type = HandleToQueueType(cl);
+            unsigned const index = HandleToIndex(cl, type);
+            auto& pool = getPool(type);
+
+            pool.get(index).responsible_allocator->on_discard();
+            pool.release(index);
         }
     }
 }
@@ -423,34 +440,60 @@ unsigned phi::vk::CommandListPool::discardAndFreeAll()
     auto lg = std::lock_guard(mMutex);
 
     auto num_freed = 0u;
-    mPool.iterate_allocated_nodes([&](cmd_list_node& leaked_node, unsigned index) {
+    mPoolDirect.iterate_allocated_nodes([&](cmd_list_node& leaked_node, unsigned index) {
         ++num_freed;
         leaked_node.responsible_allocator->on_discard();
-        mPool.release(index);
+        mPoolDirect.release(index);
+    });
+    mPoolCompute.iterate_allocated_nodes([&](cmd_list_node& leaked_node, unsigned index) {
+        ++num_freed;
+        leaked_node.responsible_allocator->on_discard();
+        mPoolCompute.release(index);
+    });
+    mPoolCopy.iterate_allocated_nodes([&](cmd_list_node& leaked_node, unsigned index) {
+        ++num_freed;
+        leaked_node.responsible_allocator->on_discard();
+        mPoolCopy.release(index);
     });
 
     return num_freed;
 }
 
 void phi::vk::CommandListPool::initialize(phi::vk::BackendVulkan& backend,
-                                          unsigned num_allocators_per_thread,
-                                          unsigned num_cmdlists_per_allocator,
-                                          cc::span<phi::vk::CommandAllocatorBundle*> thread_allocators)
+                                          int num_direct_allocs,
+                                          int num_direct_lists_per_alloc,
+                                          int num_compute_allocs,
+                                          int num_compute_lists_per_alloc,
+                                          int num_copy_allocs,
+                                          int num_copy_lists_per_alloc,
+                                          cc::span<CommandAllocatorsPerThread*> thread_allocators)
 {
     mDevice = backend.mDevice.getDevice();
 
-    auto const num_cmdlists_per_thread = num_allocators_per_thread * num_cmdlists_per_allocator;
-    auto const num_cmdlists_total = num_cmdlists_per_thread * thread_allocators.size();
-    auto const num_allocators_total = num_allocators_per_thread * static_cast<unsigned>(thread_allocators.size());
+    auto const num_direct_lists_per_thread = size_t(num_direct_allocs * num_direct_lists_per_alloc);
+    auto const num_compute_lists_per_thread = size_t(num_compute_allocs * num_compute_lists_per_alloc);
+    auto const num_copy_lists_per_thread = size_t(num_copy_allocs * num_copy_lists_per_alloc);
 
-    mPool.initialize(num_cmdlists_total);
-    mFenceRing.initialize(mDevice, num_allocators_total + 5); // arbitrary safety buffer, should never be required
+    auto const num_direct_lists_total = num_direct_lists_per_thread * thread_allocators.size();
+    auto const num_compute_lists_total = num_compute_lists_per_thread * thread_allocators.size();
+    auto const num_copy_lists_total = num_copy_lists_per_thread * thread_allocators.size();
+
+    mPoolDirect.initialize(num_direct_lists_total);
+    mPoolCompute.initialize(num_compute_lists_total);
+    mPoolCopy.initialize(num_copy_lists_total);
+
+    mFenceRing.initialize(mDevice, thread_allocators.size() * (num_direct_allocs + num_compute_allocs + num_copy_allocs) + 5); // arbitrary safety buffer, should never be required
 
 
-    auto const direct_queue_family = static_cast<unsigned>(backend.mDevice.getQueueFamilyDirect());
+    auto const direct_queue_family = unsigned(backend.mDevice.getQueueFamilyDirect());
+    auto const compute_queue_family = unsigned(backend.mDevice.getQueueFamilyCompute());
+    auto const copy_queue_family = unsigned(backend.mDevice.getQueueFamilyCopy());
+
     for (auto i = 0u; i < thread_allocators.size(); ++i)
     {
-        thread_allocators[i]->initialize(mDevice, num_allocators_per_thread, num_cmdlists_per_allocator, direct_queue_family, &mFenceRing);
+        thread_allocators[i]->bundle_direct.initialize(mDevice, num_direct_allocs, num_direct_lists_per_alloc, direct_queue_family, &mFenceRing);
+        thread_allocators[i]->bundle_compute.initialize(mDevice, num_compute_allocs, num_compute_lists_per_alloc, compute_queue_family, &mFenceRing);
+        thread_allocators[i]->bundle_copy.initialize(mDevice, num_copy_allocs, num_copy_lists_per_alloc, copy_queue_family, &mFenceRing);
     }
 
     // Flush the backend
