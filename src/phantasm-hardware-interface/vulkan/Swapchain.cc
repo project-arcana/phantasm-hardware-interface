@@ -250,6 +250,8 @@ void phi::vk::Swapchain::createSwapchain(int width_hint, int height_hint)
         swapchain_info.clipped = true;
         swapchain_info.oldSwapchain = nullptr;
 
+        // NOTE: on some linux wms this causes false positive validation warnings, there is no workaround
+        // see https://github.com/project-arcana/phantasm-hardware-interface/issues/26
         PHI_VK_VERIFY_SUCCESS(vkCreateSwapchainKHR(mDevice, &swapchain_info, nullptr, &mSwapchain));
     }
 
