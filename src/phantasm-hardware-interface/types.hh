@@ -416,7 +416,10 @@ struct sampler_config
         border_color = sampler_border_color::white_float;
     }
 
-    sampler_config(sampler_filter filter, unsigned anisotropy = 16u) { init_default(filter, anisotropy); }
+    sampler_config(sampler_filter filter, unsigned anisotropy = 16u, sampler_address_mode address_mode = sampler_address_mode::wrap)
+    {
+        init_default(filter, anisotropy, address_mode);
+    }
     sampler_config() = default;
 };
 

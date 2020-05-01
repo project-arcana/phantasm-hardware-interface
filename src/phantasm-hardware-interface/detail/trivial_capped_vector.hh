@@ -29,6 +29,7 @@ public:
     constexpr uint8_t size() const { return _size; }
     constexpr uint8_t capacity() const { return N; }
     constexpr bool empty() const { return _size == 0; }
+    constexpr bool full() const { return _size == N; }
 
     constexpr T* data() { return &_vals[0]; }
     constexpr T const* data() const { return &_vals[0]; }
