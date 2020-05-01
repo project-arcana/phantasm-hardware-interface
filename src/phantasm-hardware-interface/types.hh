@@ -460,6 +460,8 @@ struct pipeline_config
     cull_mode cull = cull_mode::none;
     int samples = 1;
     bool conservative_raster = false;
+    bool frontface_counterclockwise = true;
+    bool wireframe = false;
 };
 
 /// operation to perform on render targets upon render pass begin

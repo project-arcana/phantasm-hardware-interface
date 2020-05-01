@@ -178,21 +178,24 @@ VkPipeline phi::vk::create_pipeline(VkDevice device,
                                     arg::framebuffer_config const& framebuf_config)
 {
     bool const no_vertices = vertex_size == 0;
-    if (no_vertices)
-    {
-        CC_ASSERT(vertex_attribs.empty() && "Did not expect vertex attributes for no-vertex mode");
-    }
+    CC_ASSERT(no_vertices ? vertex_attribs.empty() : true && "Did not expect vertex attributes for no-vertex mode");
 
     cc::capped_vector<shader, 6> shader_stages;
     cc::capped_vector<VkPipelineShaderStageCreateInfo, 6> shader_stage_create_infos;
 
+    bool has_pixel_shader = false;
     for (auto const& shader : shaders)
     {
         auto& new_shader = shader_stages.emplace_back();
         initialize_shader(new_shader, device, shader.data, shader.size, shader.entrypoint_name.c_str(), shader.stage);
 
         shader_stage_create_infos.push_back(get_shader_create_info(new_shader));
+
+        if (shader.stage == shader_stage::pixel)
+            has_pixel_shader = true;
     }
+
+    CC_ASSERT(framebuf_config.render_targets.empty() ? true : has_pixel_shader && "creating a PSO with rendertargets, but missing pixel shader");
 
     VkVertexInputBindingDescription vertex_bind_desc = {};
     vertex_bind_desc.binding = 0;
@@ -237,10 +240,10 @@ VkPipeline phi::vk::create_pipeline(VkDevice device,
     rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
     rasterizer.depthClampEnable = VK_FALSE;
     rasterizer.rasterizerDiscardEnable = VK_FALSE;
-    rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
+    rasterizer.polygonMode = config.wireframe ? VK_POLYGON_MODE_LINE : VK_POLYGON_MODE_FILL;
     rasterizer.lineWidth = 1.0f;
     rasterizer.cullMode = util::to_native(config.cull);
-    rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    rasterizer.frontFace = config.frontface_counterclockwise ? VK_FRONT_FACE_COUNTER_CLOCKWISE : VK_FRONT_FACE_CLOCKWISE;
     rasterizer.depthBiasEnable = VK_FALSE;
     rasterizer.depthBiasConstantFactor = 0.0f; // Optional
     rasterizer.depthBiasClamp = 0.0f;          // Optional
