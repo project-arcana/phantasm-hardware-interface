@@ -172,7 +172,7 @@ phi::handle::resource phi::d3d12::ResourcePool::createBufferInternal(uint64_t si
     return acquireBuffer(alloc, initial_state, size_bytes, stride_bytes);
 }
 
-phi::handle::resource phi::d3d12::ResourcePool::createMappedBuffer(uint64_t size_bytes, unsigned stride_bytes)
+phi::handle::resource phi::d3d12::ResourcePool::createMappedUploadBuffer(uint64_t size_bytes, unsigned stride_bytes)
 {
     constexpr D3D12_RESOURCE_STATES initial_state = D3D12_RESOURCE_STATE_GENERIC_READ;
 
@@ -182,7 +182,20 @@ phi::handle::resource phi::d3d12::ResourcePool::createMappedBuffer(uint64_t size
     D3D12_RANGE read_range = {0, 0}; // write-only
     void* data_start_void;
     alloc->GetResource()->Map(0, &read_range, &data_start_void);
-    util::set_object_name(alloc->GetResource(), "respool mapped buffer");
+    util::set_object_name(alloc->GetResource(), "respool mapped upload buffer");
+    return acquireBuffer(alloc, initial_state, size_bytes, stride_bytes, cc::bit_cast<std::byte*>(data_start_void));
+}
+
+phi::handle::resource phi::d3d12::ResourcePool::createMappedReadbackBuffer(uint64_t size_bytes, unsigned stride_bytes)
+{
+    constexpr D3D12_RESOURCE_STATES initial_state = D3D12_RESOURCE_STATE_COPY_DEST;
+
+    auto const desc = CD3DX12_RESOURCE_DESC::Buffer(size_bytes);
+    auto* const alloc = mAllocator.allocate(desc, initial_state, nullptr, D3D12_HEAP_TYPE_READBACK);
+
+    void* data_start_void;
+    alloc->GetResource()->Map(0, nullptr, &data_start_void); // nullptr to read_range: entire subresource might be read
+    util::set_object_name(alloc->GetResource(), "respool mapped readback buffer");
     return acquireBuffer(alloc, initial_state, size_bytes, stride_bytes, cc::bit_cast<std::byte*>(data_start_void));
 }
 

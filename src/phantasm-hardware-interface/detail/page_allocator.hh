@@ -1,30 +1,23 @@
 #pragma once
 
 #include <clean-core/array.hh>
+#include <clean-core/utility.hh>
 
 namespace phi::detail
 {
-// Divide ints and round up
-// a > 0, b > 0
-template <class T = int>
-constexpr T int_div_ceil(T a, T b)
-{
-    return 1 + ((a - 1) / b);
-}
-
 struct page_allocator
 {
     void initialize(unsigned num_elements, unsigned num_elems_per_page)
     {
-        auto const num_pages = int_div_ceil(num_elements, num_elems_per_page);
-        this->_page_size = static_cast<int>(num_elems_per_page);
+        auto const num_pages = cc::int_div_ceil(num_elements, num_elems_per_page);
+        _page_size = static_cast<int>(num_elems_per_page);
         _pages = cc::array<int>::filled(num_pages, 0);
     }
 
     /// allocate a block of the given size, returns the resulting page or -1
     [[nodiscard]] int allocate(int size)
     {
-        int const num_pages = int_div_ceil(size, _page_size);
+        int const num_pages = cc::int_div_ceil(size, _page_size);
 
         int num_contiguous_free_pages = 0;
         for (auto i = 0u; i < _pages.size(); ++i)

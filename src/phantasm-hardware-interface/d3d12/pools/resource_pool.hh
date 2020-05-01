@@ -31,7 +31,9 @@ public:
     [[nodiscard]] handle::resource createBufferInternal(uint64_t size_bytes, unsigned stride_bytes, bool allow_uav, D3D12_RESOURCE_STATES initial_state);
 
     /// create a mapped, UPLOAD_HEAP buffer, with an element stride if its an index or vertex buffer
-    [[nodiscard]] handle::resource createMappedBuffer(uint64_t size_bytes, unsigned stride_bytes = 0);
+    [[nodiscard]] handle::resource createMappedUploadBuffer(uint64_t size_bytes, unsigned stride_bytes = 0);
+
+    [[nodiscard]] handle::resource createMappedReadbackBuffer(uint64_t size_bytes, unsigned stride_bytes = 0);
 
     void free(handle::resource res);
     void free(cc::span<handle::resource const> resources);

@@ -87,10 +87,13 @@ public:
     /// create a buffer, with an element stride if its an index or vertex buffer
     [[nodiscard]] virtual handle::resource createBuffer(unsigned size_bytes, unsigned stride_bytes = 0, bool allow_uav = false) = 0;
 
-    /// create a mapped buffer for data uploads, with an element stride if its an index or vertex buffer
-    [[nodiscard]] virtual handle::resource createMappedBuffer(unsigned size_bytes, unsigned stride_bytes = 0) = 0;
+    /// create a persistently mapped buffer for data uploads, with an element stride if its an index or vertex buffer
+    [[nodiscard]] virtual handle::resource createUploadBuffer(unsigned size_bytes, unsigned stride_bytes = 0) = 0;
 
-    /// returns the mapped memory pointer, only valid for handles obtained from createMappedBuffer
+    /// create a persistently mapped buffer for GPU-to-CPU readback
+    [[nodiscard]] virtual handle::resource createReadbackBuffer(unsigned size_bytes, unsigned stride_bytes = 0) = 0;
+
+    /// returns the mapped memory pointer, only valid for handles obtained from createUploadBuffer or createReadbackBuffer
     virtual std::byte* getMappedMemory(handle::resource res) = 0;
 
     /// flushes writes to memory pointers received from getMappedMemory(res),

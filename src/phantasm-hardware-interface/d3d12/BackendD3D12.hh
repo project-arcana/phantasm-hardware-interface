@@ -73,9 +73,14 @@ public:
         return mPoolResources.createBuffer(size_bytes, stride_bytes, allow_uav);
     }
 
-    [[nodiscard]] handle::resource createMappedBuffer(unsigned size_bytes, unsigned stride_bytes = 0) override
+    [[nodiscard]] handle::resource createUploadBuffer(unsigned size_bytes, unsigned stride_bytes = 0) override
     {
-        return mPoolResources.createMappedBuffer(size_bytes, stride_bytes);
+        return mPoolResources.createMappedUploadBuffer(size_bytes, stride_bytes);
+    }
+
+    [[nodiscard]] handle::resource createReadbackBuffer(unsigned int size_bytes, unsigned int stride_bytes = 0) override
+    {
+        return mPoolResources.createMappedReadbackBuffer(size_bytes, stride_bytes);
     }
 
     [[nodiscard]] std::byte* getMappedMemory(handle::resource res) override { return mPoolResources.getMappedMemory(res); }
