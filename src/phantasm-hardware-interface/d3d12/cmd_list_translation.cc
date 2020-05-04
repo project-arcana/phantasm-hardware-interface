@@ -310,7 +310,7 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::transition_res
 
     for (auto const& transition : transition_res.transitions)
     {
-        D3D12_RESOURCE_STATES const after = util::to_native(transition.target_state, transition.dependant_shaders.has(shader_stage::pixel));
+        D3D12_RESOURCE_STATES const after = util::to_native(transition.target_state);
         D3D12_RESOURCE_STATES before;
 
         bool const before_known = _state_cache->transition_resource(transition.resource, after, before);
@@ -338,10 +338,8 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::transition_ima
     {
         CC_ASSERT(_globals.pool_resources->isImage(transition.resource));
         auto const& img_info = _globals.pool_resources->getImageInfo(transition.resource);
-        barriers.push_back(util::get_barrier_desc(_globals.pool_resources->getRawResource(transition.resource),
-                                                  util::to_native(transition.source_state, transition.source_dependencies.has(shader_stage::pixel)),
-                                                  util::to_native(transition.target_state, transition.target_dependencies.has(shader_stage::pixel)),
-                                                  transition.mip_level, transition.array_slice, img_info.num_mips));
+        barriers.push_back(util::get_barrier_desc(_globals.pool_resources->getRawResource(transition.resource), util::to_native(transition.source_state),
+                                                  util::to_native(transition.target_state), transition.mip_level, transition.array_slice, img_info.num_mips));
     }
 
     if (!barriers.empty())

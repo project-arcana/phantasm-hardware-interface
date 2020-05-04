@@ -7,6 +7,7 @@
 #include <phantasm-hardware-interface/d3d12/common/log.hh>
 #include <phantasm-hardware-interface/d3d12/common/native_enum.hh>
 #include <phantasm-hardware-interface/d3d12/common/util.hh>
+#include <phantasm-hardware-interface/d3d12/common/verify.hh>
 #include <phantasm-hardware-interface/d3d12/memory/D3D12MA.hh>
 
 namespace
@@ -24,6 +25,36 @@ constexpr char const* d3d12_get_tex_dim_literal(phi::texture_dimension tdim)
         return "3d";
     }
     return "ud";
+}
+
+constexpr char const* d3d12_get_heap_type_literal(phi::resource_heap heap)
+{
+    switch (heap)
+    {
+    case phi::resource_heap::gpu:
+        return "gpu";
+    case phi::resource_heap::upload:
+        return "upload";
+    case phi::resource_heap::readback:
+        return "readback";
+    }
+
+    return "unknown_heap_type";
+}
+
+constexpr D3D12_RESOURCE_STATES d3d12_get_initial_state_by_heap(phi::resource_heap heap)
+{
+    switch (heap)
+    {
+    case phi::resource_heap::gpu:
+        return D3D12_RESOURCE_STATE_COMMON;
+    case phi::resource_heap::upload:
+        return D3D12_RESOURCE_STATE_GENERIC_READ;
+    case phi::resource_heap::readback:
+        return D3D12_RESOURCE_STATE_COPY_DEST;
+    }
+
+    return D3D12_RESOURCE_STATE_COMMON;
 }
 }
 
@@ -56,7 +87,7 @@ void phi::d3d12::ResourcePool::destroy()
 
 phi::handle::resource phi::d3d12::ResourcePool::injectBackbufferResource(ID3D12Resource* raw_resource, D3D12_RESOURCE_STATES state)
 {
-    resource_node& backbuffer_node = mPool.get(static_cast<unsigned>(mInjectedBackbufferResource.index));
+    resource_node& backbuffer_node = mPool.get(unsigned(mInjectedBackbufferResource.index));
     backbuffer_node.type = resource_node::resource_type::image;
     backbuffer_node.resource = raw_resource;
     backbuffer_node.master_state = state;
@@ -85,7 +116,7 @@ phi::handle::resource phi::d3d12::ResourcePool::createTexture(format format, uns
 
     auto* const alloc = mAllocator.allocate(desc, initial_state);
     auto const real_mip_levels = alloc->GetResource()->GetDesc().MipLevels;
-    util::set_object_name(alloc->GetResource(), "respool texture%s[%u] m%u", d3d12_get_tex_dim_literal(dim), depth_or_array_size, real_mip_levels);
+    util::set_object_name(alloc->GetResource(), "respool texture%s[%u] (%ux%u, %u mips)", d3d12_get_tex_dim_literal(dim), depth_or_array_size, w, h, real_mip_levels);
 
     return acquireImage(alloc, format, initial_state, real_mip_levels, desc.DepthOrArraySize);
 }
@@ -146,18 +177,48 @@ phi::handle::resource phi::d3d12::ResourcePool::createRenderTarget(phi::format f
     }
 }
 
-phi::handle::resource phi::d3d12::ResourcePool::createBuffer(uint64_t size_bytes, unsigned stride_bytes, bool allow_uav)
+phi::handle::resource phi::d3d12::ResourcePool::createBuffer(uint64_t size_bytes, unsigned stride_bytes, resource_heap heap, bool allow_uav)
 {
-    constexpr D3D12_RESOURCE_STATES initial_state = D3D12_RESOURCE_STATE_COMMON;
+    D3D12_RESOURCE_STATES const initial_state = d3d12_get_initial_state_by_heap(heap);
 
     auto desc = CD3DX12_RESOURCE_DESC::Buffer(size_bytes);
 
     if (allow_uav)
         desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
-    auto* const alloc = mAllocator.allocate(desc, initial_state);
-    util::set_object_name(alloc->GetResource(), "respool buffer");
-    return acquireBuffer(alloc, initial_state, size_bytes, stride_bytes);
+    auto* const alloc = mAllocator.allocate(desc, initial_state, nullptr, util::to_native(heap));
+    util::set_object_name(alloc->GetResource(), "respool buffer (%uB, %uB stride, %s heap)", unsigned(size_bytes), stride_bytes,
+                          d3d12_get_heap_type_literal(heap));
+    return acquireBuffer(alloc, initial_state, size_bytes, stride_bytes, heap);
+}
+
+std::byte* phi::d3d12::ResourcePool::mapBuffer(phi::handle::resource res)
+{
+    CC_ASSERT(res.is_valid() && "attempted to map invalid handle");
+
+    resource_node const& node = mPool.get(unsigned(res.index));
+
+    CC_ASSERT(node.type == resource_node::resource_type::buffer && node.heap != resource_heap::gpu && //
+              "attempted to map non-buffer or buffer on GPU heap");
+
+
+    D3D12_RANGE range = {0, node.buffer.width};
+    void* data_start_void;
+    PHI_D3D12_VERIFY(node.resource->Map(0, &range, &data_start_void));
+    return cc::bit_cast<std::byte*>(data_start_void);
+}
+
+void phi::d3d12::ResourcePool::unmapBuffer(phi::handle::resource res)
+{
+    CC_ASSERT(res.is_valid() && "attempted to unmap invalid handle");
+
+    resource_node const& node = mPool.get(unsigned(res.index));
+
+    CC_ASSERT(node.type == resource_node::resource_type::buffer && node.heap != resource_heap::gpu && //
+              "attempted to unmap non-buffer or buffer on GPU heap");
+
+    D3D12_RANGE range = {0, node.heap == resource_heap::readback ? 0 : node.buffer.width};
+    node.resource->Unmap(0, &range);
 }
 
 phi::handle::resource phi::d3d12::ResourcePool::createBufferInternal(uint64_t size_bytes, unsigned stride_bytes, bool allow_uav, D3D12_RESOURCE_STATES initial_state)
@@ -169,35 +230,7 @@ phi::handle::resource phi::d3d12::ResourcePool::createBufferInternal(uint64_t si
 
     auto* const alloc = mAllocator.allocate(desc, initial_state);
     util::set_object_name(alloc->GetResource(), "respool internal buffer");
-    return acquireBuffer(alloc, initial_state, size_bytes, stride_bytes);
-}
-
-phi::handle::resource phi::d3d12::ResourcePool::createMappedUploadBuffer(uint64_t size_bytes, unsigned stride_bytes)
-{
-    constexpr D3D12_RESOURCE_STATES initial_state = D3D12_RESOURCE_STATE_GENERIC_READ;
-
-    auto const desc = CD3DX12_RESOURCE_DESC::Buffer(size_bytes);
-    auto* const alloc = mAllocator.allocate(desc, initial_state, nullptr, D3D12_HEAP_TYPE_UPLOAD);
-
-    D3D12_RANGE read_range = {0, 0}; // write-only
-    void* data_start_void;
-    alloc->GetResource()->Map(0, &read_range, &data_start_void);
-    util::set_object_name(alloc->GetResource(), "respool mapped upload buffer");
-    return acquireBuffer(alloc, initial_state, size_bytes, stride_bytes, cc::bit_cast<std::byte*>(data_start_void));
-}
-
-phi::handle::resource phi::d3d12::ResourcePool::createMappedReadbackBuffer(uint64_t size_bytes, unsigned stride_bytes)
-{
-    constexpr D3D12_RESOURCE_STATES initial_state = D3D12_RESOURCE_STATE_COPY_DEST;
-
-    auto const desc = CD3DX12_RESOURCE_DESC::Buffer(size_bytes);
-    auto* const alloc = mAllocator.allocate(desc, initial_state, nullptr, D3D12_HEAP_TYPE_READBACK);
-
-    D3D12_RANGE read_range = {0, size_bytes};
-    void* data_start_void;
-    alloc->GetResource()->Map(0, &read_range, &data_start_void); // nullptr to read_range: entire subresource might be read
-    util::set_object_name(alloc->GetResource(), "respool mapped readback buffer");
-    return acquireBuffer(alloc, initial_state, size_bytes, stride_bytes, cc::bit_cast<std::byte*>(data_start_void));
+    return acquireBuffer(alloc, initial_state, size_bytes, stride_bytes, resource_heap::gpu);
 }
 
 void phi::d3d12::ResourcePool::free(phi::handle::resource res)
@@ -209,13 +242,13 @@ void phi::d3d12::ResourcePool::free(phi::handle::resource res)
     // TODO: dangle check
 
     // This requires no synchronization, as D3D12MA internally syncs
-    resource_node& freed_node = mPool.get(static_cast<unsigned>(res.index));
+    resource_node& freed_node = mPool.get(unsigned(res.index));
     freed_node.allocation->Release();
 
     {
         // This is a write access to the pool and must be synced
         auto lg = std::lock_guard(mMutex);
-        mPool.release(static_cast<unsigned>(res.index));
+        mPool.release(unsigned(res.index));
     }
 }
 
@@ -228,17 +261,17 @@ void phi::d3d12::ResourcePool::free(cc::span<const phi::handle::resource> resour
         CC_ASSERT(res != mInjectedBackbufferResource && "the backbuffer resource must not be freed");
         if (res.is_valid())
         {
-            resource_node& freed_node = mPool.get(static_cast<unsigned>(res.index));
+            resource_node& freed_node = mPool.get(unsigned(res.index));
             // This is a write access to mAllocatorDescriptors
             freed_node.allocation->Release();
             // This is a write access to the pool and must be synced
-            mPool.release(static_cast<unsigned>(res.index));
+            mPool.release(unsigned(res.index));
         }
     }
 }
 
 phi::handle::resource phi::d3d12::ResourcePool::acquireBuffer(
-    D3D12MA::Allocation* alloc, D3D12_RESOURCE_STATES initial_state, uint64_t buffer_width, unsigned buffer_stride, std::byte* buffer_map)
+    D3D12MA::Allocation* alloc, D3D12_RESOURCE_STATES initial_state, uint64_t buffer_width, unsigned buffer_stride, phi::resource_heap heap)
 {
     unsigned res;
     {
@@ -250,10 +283,10 @@ phi::handle::resource phi::d3d12::ResourcePool::acquireBuffer(
     new_node.allocation = alloc;
     new_node.resource = alloc->GetResource();
     new_node.type = resource_node::resource_type::buffer;
+    new_node.heap = heap;
     new_node.master_state = initial_state;
-    new_node.buffer.width = static_cast<unsigned>(buffer_width);
+    new_node.buffer.width = unsigned(buffer_width);
     new_node.buffer.stride = buffer_stride;
-    new_node.buffer.map = buffer_map;
 
     return {static_cast<handle::index_t>(res)};
 }
@@ -272,6 +305,7 @@ phi::handle::resource phi::d3d12::ResourcePool::acquireImage(
     new_node.allocation = alloc;
     new_node.resource = alloc->GetResource();
     new_node.type = resource_node::resource_type::image;
+    new_node.heap = resource_heap::gpu;
     new_node.master_state = initial_state;
     new_node.image.num_mips = num_mips;
     new_node.image.num_array_layers = num_array_layers;

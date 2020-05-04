@@ -8,7 +8,7 @@
 
 namespace phi::d3d12::util
 {
-[[nodiscard]] constexpr D3D12_RESOURCE_STATES to_native(resource_state state, bool contains_pixel = false)
+[[nodiscard]] constexpr D3D12_RESOURCE_STATES to_native(resource_state state)
 {
     using rs = resource_state;
     switch (state)
@@ -25,8 +25,9 @@ namespace phi::d3d12::util
     case rs::constant_buffer:
         return D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
     case rs::shader_resource:
-        return contains_pixel ? D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE
-                              : D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+        return D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+    case rs::shader_resource_nonpixel:
+        return D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
     case rs::unordered_access:
         return D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
 
@@ -60,6 +61,22 @@ namespace phi::d3d12::util
 
     CC_UNREACHABLE("to_native uncaught argument");
     return D3D12_RESOURCE_STATE_COMMON;
+}
+
+[[nodiscard]] constexpr D3D12_HEAP_TYPE to_native(phi::resource_heap type)
+{
+    switch (type)
+    {
+    case phi::resource_heap::gpu:
+        return D3D12_HEAP_TYPE_DEFAULT;
+    case phi::resource_heap::upload:
+        return D3D12_HEAP_TYPE_UPLOAD;
+    case phi::resource_heap::readback:
+        return D3D12_HEAP_TYPE_READBACK;
+    }
+
+    CC_UNREACHABLE("to_native uncaught argument");
+    return D3D12_HEAP_TYPE_DEFAULT;
 }
 
 [[nodiscard]] constexpr D3D12_PRIMITIVE_TOPOLOGY_TYPE to_native(phi::primitive_topology topology)
