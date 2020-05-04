@@ -14,6 +14,7 @@
 #include "pools/cmd_list_pool.hh"
 #include "pools/pipeline_layout_cache.hh"
 #include "pools/pipeline_pool.hh"
+#include "pools/query_pool.hh"
 #include "pools/resource_pool.hh"
 #include "pools/shader_view_pool.hh"
 #include "resources/transition_barrier.hh"
@@ -421,9 +422,30 @@ void phi::vk::command_list_translator::execute(const phi::cmd::debug_marker& mar
         vkCmdInsertDebugUtilsLabelEXT(_cmd_list, &label);
 }
 
-void phi::vk::command_list_translator::execute(const phi::cmd::write_timestamp& timestamp) { CC_RUNTIME_ASSERT(false && "unimplemented"); }
+void phi::vk::command_list_translator::execute(const phi::cmd::write_timestamp& timestamp)
+{
+    VkQueryPool pool;
+    uint32_t const query_index = _globals.pool_queries->getQuery(timestamp.query_range, query_type::timestamp, timestamp.index, pool);
 
-void phi::vk::command_list_translator::execute(const phi::cmd::resolve_queries& resolve) { CC_RUNTIME_ASSERT(false && "unimplemented"); }
+    // NOTE: this is likely wildly inefficient on some non-desktop IHV, revisit when necessary
+    // it could be moved to the tail of cmd::resolve_queries without breaking API, which would at least reset in ranges > 1
+    // however then we'd need an initial command list resetting all queries on backend launch, skipping that for now
+    vkCmdResetQueryPool(_cmd_list, pool, query_index, 1);
+
+    vkCmdWriteTimestamp(_cmd_list, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, pool, query_index);
+}
+
+void phi::vk::command_list_translator::execute(const phi::cmd::resolve_queries& resolve)
+{
+    query_type type;
+    VkQueryPool raw_pool;
+    uint32_t const query_index_start = _globals.pool_queries->getQuery(resolve.src_query_range, resolve.query_start, raw_pool, type);
+
+    VkBuffer const raw_dest_buffer = _globals.pool_resources->getRawBuffer(resolve.dest_buffer);
+
+    VkQueryResultFlags flags = VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT;
+    vkCmdCopyQueryPoolResults(_cmd_list, raw_pool, query_index_start, resolve.num_queries, raw_dest_buffer, resolve.dest_offset, sizeof(uint64_t), flags);
+}
 
 void phi::vk::command_list_translator::execute(const phi::cmd::update_bottom_level& blas_update)
 {

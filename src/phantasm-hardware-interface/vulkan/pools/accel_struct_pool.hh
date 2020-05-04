@@ -35,7 +35,6 @@ public:
     {
         VkAccelerationStructureNV raw_as;
         uint64_t raw_as_handle;
-        std::byte* buffer_instances_map;
         handle::resource buffer_as;
         handle::resource buffer_scratch;
         handle::resource buffer_instances;

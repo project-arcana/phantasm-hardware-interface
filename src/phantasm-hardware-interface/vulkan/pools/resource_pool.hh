@@ -27,24 +27,16 @@ public:
     [[nodiscard]] handle::resource createRenderTarget(format format, unsigned w, unsigned h, unsigned samples, unsigned array_size);
 
     /// create a buffer, with an element stride if its an index or vertex buffer
-    [[nodiscard]] handle::resource createBuffer(uint64_t size_bytes, unsigned stride_bytes, bool allow_uav);
+    [[nodiscard]] handle::resource createBuffer(uint64_t size_bytes, unsigned stride_bytes, resource_heap heap, bool allow_uav);
 
-    [[nodiscard]] handle::resource createBufferInternal(uint64_t size_bytes, unsigned stride_bytes, VkBufferUsageFlags usage);
+    std::byte* mapBuffer(handle::resource res);
 
-    /// create a mapped, UPLOAD_HEAP buffer, with an element stride if its an index or vertex buffer
-    [[nodiscard]] handle::resource createMappedUploadBuffer(unsigned size_bytes, unsigned stride_bytes = 0);
+    void unmapBuffer(handle::resource res);
 
-    [[nodiscard]] handle::resource createMappedReadbackBuffer(unsigned size_bytes, unsigned stride_bytes = 0);
-
-    [[nodiscard]] handle::resource createMappedBufferInternal(uint64_t size_bytes, unsigned stride_bytes, VkBufferUsageFlags usage);
+    [[nodiscard]] handle::resource createBufferInternal(uint64_t size_bytes, unsigned stride_bytes, resource_heap heap, VkBufferUsageFlags usage);
 
     void free(handle::resource res);
     void free(cc::span<handle::resource const> resources);
-
-    /// only valid for resources created with createMappedBuffer
-    [[nodiscard]] std::byte* getMappedMemory(handle::resource res) { return mPool.get(static_cast<unsigned>(res.index)).buffer.map; }
-
-    void flushMappedMemory(handle::resource res);
 
 public:
     struct resource_node
@@ -64,9 +56,9 @@ public:
             VkDescriptorSet raw_uniform_dynamic_ds;
             VkDescriptorSet raw_uniform_dynamic_ds_compute;
 
-            uint32_t stride; ///< vertex size or index size
+            uint32_t stride;  ///< vertex size or index size
+            int num_vma_maps; ///< VMA requires all maps to be followed by unmaps before destruction, so track maps/unmaps
             uint64_t width;
-            std::byte* map;
         };
 
         struct image_info
@@ -91,6 +83,7 @@ public:
         VkPipelineStageFlags master_state_dependency;
         resource_state master_state;
         resource_type type;
+        phi::resource_heap heap;
     };
 
 public:
@@ -161,8 +154,7 @@ public:
     [[nodiscard]] VkImageView getBackbufferView() const { return mInjectedBackbufferView; }
 
 private:
-    [[nodiscard]] handle::resource acquireBuffer(
-        VmaAllocation alloc, VkBuffer buffer, VkBufferUsageFlags usage, uint64_t buffer_width = 0, unsigned buffer_stride = 0, std::byte* buffer_map = nullptr);
+    [[nodiscard]] handle::resource acquireBuffer(VmaAllocation alloc, VkBuffer buffer, VkBufferUsageFlags usage, uint64_t buffer_width, unsigned buffer_stride, resource_heap heap);
 
     [[nodiscard]] handle::resource acquireImage(
         VmaAllocation alloc, VkImage buffer, format pixel_format, unsigned num_mips, unsigned num_array_layers, unsigned num_samples, int width, int height);

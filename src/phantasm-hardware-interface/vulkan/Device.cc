@@ -90,6 +90,11 @@ void phi::vk::Device::initialize(vulkan_gpu_info const& device, backend_config c
         mInformation.device_properties = device.physical_device_props;
     }
 
+    // query limits
+    {
+
+    }
+
     if (hasRaytracing())
         initializeRaytracing();
 

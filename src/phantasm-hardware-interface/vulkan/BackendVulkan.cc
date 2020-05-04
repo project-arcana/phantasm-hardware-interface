@@ -117,6 +117,7 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg, const 
     mPoolResources.initialize(mDevice.getPhysicalDevice(), mDevice.getDevice(), config.max_num_resources);
     mPoolShaderViews.initialize(mDevice.getDevice(), &mPoolResources, config.max_num_cbvs, config.max_num_srvs, config.max_num_uavs, config.max_num_samplers);
     mPoolFences.initialize(mDevice.getDevice(), config.max_num_fences);
+    mPoolQueries.initialize(mDevice.getDevice(), config.num_timestamp_queries, config.num_occlusion_queries, config.num_pipeline_stat_queries);
 
     if (isRaytracingEnabled())
     {
@@ -133,7 +134,8 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg, const 
 
         for (auto& thread_comp : mThreadComponents)
         {
-            thread_comp.translator.initialize(mDevice.getDevice(), &mPoolShaderViews, &mPoolResources, &mPoolPipelines, &mPoolCmdLists, &mPoolAccelStructs);
+            thread_comp.translator.initialize(mDevice.getDevice(), &mPoolShaderViews, &mPoolResources, &mPoolPipelines, &mPoolCmdLists, &mPoolQueries,
+                                              &mPoolAccelStructs);
             thread_allocator_ptrs.push_back(&thread_comp.cmd_list_allocator);
         }
 
@@ -156,6 +158,7 @@ void phi::vk::BackendVulkan::destroy()
         mSwapchain.destroy();
 
         mPoolAccelStructs.destroy();
+        mPoolQueries.destroy(mDevice.getDevice());
         mPoolFences.destroy();
         mPoolShaderViews.destroy();
         mPoolCmdLists.destroy();
@@ -352,8 +355,10 @@ void phi::vk::BackendVulkan::uploadTopLevelInstances(phi::handle::accel_struct a
 {
     CC_ASSERT(isRaytracingEnabled() && "raytracing is not enabled");
     auto const& node = mPoolAccelStructs.getNode(as);
-    std::memcpy(node.buffer_instances_map, instances.data(), sizeof(accel_struct_geometry_instance) * instances.size());
-    flushMappedMemory(node.buffer_instances);
+
+    auto* const map = mPoolResources.mapBuffer(node.buffer_instances);
+    std::memcpy(map, instances.data(), sizeof(accel_struct_geometry_instance) * instances.size());
+    mPoolResources.unmapBuffer(node.buffer_instances);
 }
 
 phi::handle::resource phi::vk::BackendVulkan::getAccelStructBuffer(phi::handle::accel_struct as)
@@ -404,7 +409,7 @@ void phi::vk::BackendVulkan::printInformation(phi::handle::resource res) const
         {
             auto const& info = mPoolResources.getBufferInfo(res);
             log::info() << " buffer, raw pointer: " << info.raw_buffer;
-            log::info() << " " << info.width << " width, " << info.stride << " stride, raw mapped ptr: " << info.map;
+            log::info() << " " << info.width << " width, " << info.stride << " stride";
             log::info() << " raw dynamic CBV descriptor set: " << info.raw_uniform_dynamic_ds;
         }
     }

@@ -14,6 +14,7 @@
 #include "pools/cmd_list_pool.hh"
 #include "pools/fence_pool.hh"
 #include "pools/pipeline_pool.hh"
+#include "pools/query_pool.hh"
 #include "pools/resource_pool.hh"
 #include "pools/shader_view_pool.hh"
 
@@ -60,24 +61,19 @@ public:
         return mPoolResources.createRenderTarget(format, static_cast<unsigned>(size.width), static_cast<unsigned>(size.height), samples, array_size);
     }
 
-    [[nodiscard]] handle::resource createBuffer(unsigned size_bytes, unsigned stride_bytes = 0, bool allow_uav = false) override
+    [[nodiscard]] handle::resource createBuffer(unsigned int size_bytes, unsigned int stride_bytes, resource_heap heap, bool allow_uav) override
     {
-        return mPoolResources.createBuffer(size_bytes, stride_bytes, allow_uav);
+        return mPoolResources.createBuffer(size_bytes, stride_bytes, heap, allow_uav);
     }
 
     [[nodiscard]] handle::resource createUploadBuffer(unsigned size_bytes, unsigned stride_bytes = 0) override
     {
-        return mPoolResources.createMappedUploadBuffer(size_bytes, stride_bytes);
+        return createBuffer(size_bytes, stride_bytes, resource_heap::upload, false);
     }
 
-    [[nodiscard]] handle::resource createReadbackBuffer(unsigned int size_bytes, unsigned int stride_bytes = 0) override
-    {
-        return mPoolResources.createMappedReadbackBuffer(size_bytes, stride_bytes);
-    }
+    [[nodiscard]] std::byte* mapBuffer(handle::resource res) override { return mPoolResources.mapBuffer(res); }
 
-    [[nodiscard]] std::byte* getMappedMemory(handle::resource res) override { return mPoolResources.getMappedMemory(res); }
-
-    void flushMappedMemory(handle::resource res) override { mPoolResources.flushMappedMemory(res); }
+    void unmapBuffer(handle::resource res) override { return mPoolResources.unmapBuffer(res); }
 
     void free(handle::resource res) override { mPoolResources.free(res); }
     void freeRange(cc::span<handle::resource const> resources) override { mPoolResources.free(resources); }
@@ -158,18 +154,9 @@ public:
     // Query interface
     //
 
-    [[nodiscard]] handle::query_range createQueryRange(query_type type, unsigned int size) override
-    {
-        // NOCHECKIN
-        return {};
-        // return mPoolQueries.create(type, size);
-    }
+    [[nodiscard]] handle::query_range createQueryRange(query_type type, unsigned int size) override { return mPoolQueries.create(type, size); }
 
-    void free(handle::query_range query_range) override
-    {
-        // NOCHECKIN
-        // mPoolQueries.free(query_range);
-    }
+    void free(handle::query_range query_range) override { mPoolQueries.free(query_range); }
 
     //
     // Raytracing interface
@@ -214,6 +201,14 @@ public:
     // GPU info interface
     //
 
+    uint64_t getGPUTimestampFrequency() const override
+    {
+        float const nanoseconds_per_timestamp = mDevice.getDeviceProperties().limits.timestampPeriod;
+        uint64_t const timestamps_per_microsecond = uint64_t(1000.f / nanoseconds_per_timestamp);
+        // us -> ms -> s (Hz)
+        return timestamps_per_microsecond * 1000 * 1000;
+    }
+
     bool isRaytracingEnabled() const override { return mDevice.hasRaytracing(); }
 
     backend_type getBackendType() const override { return backend_type::vulkan; }
@@ -246,6 +241,7 @@ public:
     PipelinePool mPoolPipelines;
     ShaderViewPool mPoolShaderViews;
     FencePool mPoolFences;
+    QueryPool mPoolQueries;
     AccelStructPool mPoolAccelStructs;
 
     // Logic
