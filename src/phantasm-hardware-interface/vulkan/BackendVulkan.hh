@@ -153,6 +153,24 @@ public:
 
     void free(cc::span<handle::fence const> fences) override { mPoolFences.free(fences); }
 
+
+    //
+    // Query interface
+    //
+
+    [[nodiscard]] handle::query_range createQueryRange(query_type type, unsigned int size) override
+    {
+        // NOCHECKIN
+        return {};
+        // return mPoolQueries.create(type, size);
+    }
+
+    void free(handle::query_range query_range) override
+    {
+        // NOCHECKIN
+        // mPoolQueries.free(query_range);
+    }
+
     //
     // Raytracing interface
     //

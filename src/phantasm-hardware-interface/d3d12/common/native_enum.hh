@@ -8,7 +8,7 @@
 
 namespace phi::d3d12::util
 {
-[[nodiscard]] inline constexpr D3D12_RESOURCE_STATES to_native(resource_state state, bool contains_pixel = false)
+[[nodiscard]] constexpr D3D12_RESOURCE_STATES to_native(resource_state state, bool contains_pixel = false)
 {
     using rs = resource_state;
     switch (state)
@@ -62,7 +62,7 @@ namespace phi::d3d12::util
     return D3D12_RESOURCE_STATE_COMMON;
 }
 
-[[nodiscard]] inline constexpr D3D12_PRIMITIVE_TOPOLOGY_TYPE to_native(phi::primitive_topology topology)
+[[nodiscard]] constexpr D3D12_PRIMITIVE_TOPOLOGY_TYPE to_native(phi::primitive_topology topology)
 {
     switch (topology)
     {
@@ -80,7 +80,7 @@ namespace phi::d3d12::util
     return D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 }
 
-[[nodiscard]] inline constexpr D3D12_PRIMITIVE_TOPOLOGY to_native_topology(phi::primitive_topology topology)
+[[nodiscard]] constexpr D3D12_PRIMITIVE_TOPOLOGY to_native_topology(phi::primitive_topology topology)
 {
     switch (topology)
     {
@@ -98,7 +98,7 @@ namespace phi::d3d12::util
     return D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 }
 
-[[nodiscard]] inline constexpr D3D12_COMPARISON_FUNC to_native(phi::depth_function depth_func)
+[[nodiscard]] constexpr D3D12_COMPARISON_FUNC to_native(phi::depth_function depth_func)
 {
     switch (depth_func)
     {
@@ -126,7 +126,7 @@ namespace phi::d3d12::util
     return D3D12_COMPARISON_FUNC_LESS;
 }
 
-[[nodiscard]] inline constexpr D3D12_CULL_MODE to_native(phi::cull_mode cull_mode)
+[[nodiscard]] constexpr D3D12_CULL_MODE to_native(phi::cull_mode cull_mode)
 {
     switch (cull_mode)
     {
@@ -142,7 +142,7 @@ namespace phi::d3d12::util
     return D3D12_CULL_MODE_NONE;
 }
 
-[[nodiscard]] inline constexpr D3D12_COMMAND_LIST_TYPE to_native(queue_type type)
+[[nodiscard]] constexpr D3D12_COMMAND_LIST_TYPE to_native(queue_type type)
 {
     switch (type)
     {
@@ -158,7 +158,7 @@ namespace phi::d3d12::util
     return D3D12_COMMAND_LIST_TYPE_DIRECT;
 }
 
-[[nodiscard]] inline constexpr D3D12_SRV_DIMENSION to_native_srv_dim(resource_view_dimension sv_dim)
+[[nodiscard]] constexpr D3D12_SRV_DIMENSION to_native_srv_dim(resource_view_dimension sv_dim)
 {
     switch (sv_dim)
     {
@@ -191,7 +191,7 @@ namespace phi::d3d12::util
     return D3D12_SRV_DIMENSION_BUFFER;
 }
 
-[[nodiscard]] inline constexpr D3D12_UAV_DIMENSION to_native_uav_dim(resource_view_dimension sv_dim)
+[[nodiscard]] constexpr D3D12_UAV_DIMENSION to_native_uav_dim(resource_view_dimension sv_dim)
 {
     switch (sv_dim)
     {
@@ -219,12 +219,9 @@ namespace phi::d3d12::util
     }
 }
 
-[[nodiscard]] inline constexpr bool is_valid_as_uav_dim(resource_view_dimension sv_dim)
-{
-    return to_native_uav_dim(sv_dim) != D3D12_UAV_DIMENSION_UNKNOWN;
-}
+[[nodiscard]] constexpr bool is_valid_as_uav_dim(resource_view_dimension sv_dim) { return to_native_uav_dim(sv_dim) != D3D12_UAV_DIMENSION_UNKNOWN; }
 
-[[nodiscard]] inline constexpr D3D12_RTV_DIMENSION to_native_rtv_dim(resource_view_dimension sv_dim)
+[[nodiscard]] constexpr D3D12_RTV_DIMENSION to_native_rtv_dim(resource_view_dimension sv_dim)
 {
     switch (sv_dim)
     {
@@ -251,12 +248,9 @@ namespace phi::d3d12::util
     }
 }
 
-[[nodiscard]] inline constexpr bool is_valid_as_rtv_dim(resource_view_dimension sv_dim)
-{
-    return to_native_rtv_dim(sv_dim) != D3D12_RTV_DIMENSION_UNKNOWN;
-}
+[[nodiscard]] constexpr bool is_valid_as_rtv_dim(resource_view_dimension sv_dim) { return to_native_rtv_dim(sv_dim) != D3D12_RTV_DIMENSION_UNKNOWN; }
 
-[[nodiscard]] inline constexpr D3D12_DSV_DIMENSION to_native_dsv_dim(resource_view_dimension sv_dim)
+[[nodiscard]] constexpr D3D12_DSV_DIMENSION to_native_dsv_dim(resource_view_dimension sv_dim)
 {
     switch (sv_dim)
     {
@@ -279,7 +273,7 @@ namespace phi::d3d12::util
     }
 }
 
-[[nodiscard]] inline constexpr D3D12_FILTER to_native(sampler_filter filter, bool with_compare)
+[[nodiscard]] constexpr D3D12_FILTER to_native(sampler_filter filter, bool with_compare)
 {
     if (with_compare)
     {
@@ -334,7 +328,7 @@ namespace phi::d3d12::util
     return D3D12_FILTER_MIN_MAG_MIP_POINT;
 }
 
-[[nodiscard]] inline constexpr D3D12_TEXTURE_ADDRESS_MODE to_native(sampler_address_mode mode)
+[[nodiscard]] constexpr D3D12_TEXTURE_ADDRESS_MODE to_native(sampler_address_mode mode)
 {
     switch (mode)
     {
@@ -352,7 +346,7 @@ namespace phi::d3d12::util
     return D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 }
 
-[[nodiscard]] inline constexpr D3D12_COMPARISON_FUNC to_native(sampler_compare_func mode)
+[[nodiscard]] constexpr D3D12_COMPARISON_FUNC to_native(sampler_compare_func mode)
 {
     switch (mode)
     {
@@ -379,7 +373,7 @@ namespace phi::d3d12::util
     return D3D12_COMPARISON_FUNC_NEVER;
 }
 
-[[nodiscard]] inline constexpr D3D12_STATIC_BORDER_COLOR to_native(sampler_border_color color)
+[[nodiscard]] constexpr D3D12_STATIC_BORDER_COLOR to_native(sampler_border_color color)
 {
     switch (color)
     {
@@ -398,8 +392,24 @@ namespace phi::d3d12::util
     return D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
 }
 
+[[nodiscard]] constexpr D3D12_QUERY_TYPE to_query_type(query_type type)
+{
+    switch (type)
+    {
+    case query_type::timestamp:
+        return D3D12_QUERY_TYPE_TIMESTAMP;
+    case query_type::occlusion:
+        return D3D12_QUERY_TYPE_OCCLUSION;
+    case query_type::pipeline_stats:
+        return D3D12_QUERY_TYPE_PIPELINE_STATISTICS;
+    }
 
-[[nodiscard]] inline constexpr float to_opaque_border_color(sampler_border_color color)
+    CC_UNREACHABLE("to_native uncaught argument");
+    return D3D12_QUERY_TYPE_TIMESTAMP;
+}
+
+
+[[nodiscard]] constexpr float to_opaque_border_color(sampler_border_color color)
 {
     switch (color)
     {
@@ -417,7 +427,7 @@ namespace phi::d3d12::util
     return 1.f;
 }
 
-[[nodiscard]] inline constexpr float to_border_color_alpha(sampler_border_color color)
+[[nodiscard]] constexpr float to_border_color_alpha(sampler_border_color color)
 {
     switch (color)
     {
@@ -435,7 +445,7 @@ namespace phi::d3d12::util
     return 1.f;
 }
 
-[[nodiscard]] inline constexpr D3D12_RESOURCE_DIMENSION to_native(texture_dimension dim)
+[[nodiscard]] constexpr D3D12_RESOURCE_DIMENSION to_native(texture_dimension dim)
 {
     switch (dim)
     {
@@ -451,7 +461,7 @@ namespace phi::d3d12::util
     return D3D12_RESOURCE_DIMENSION_TEXTURE1D;
 }
 
-[[nodiscard]] inline constexpr D3D12_LOGIC_OP to_native(blend_logic_op op)
+[[nodiscard]] constexpr D3D12_LOGIC_OP to_native(blend_logic_op op)
 {
     switch (op)
     {
@@ -493,7 +503,7 @@ namespace phi::d3d12::util
     return D3D12_LOGIC_OP_NOOP;
 }
 
-[[nodiscard]] inline constexpr D3D12_BLEND_OP to_native(blend_op op)
+[[nodiscard]] constexpr D3D12_BLEND_OP to_native(blend_op op)
 {
     switch (op)
     {
@@ -513,7 +523,7 @@ namespace phi::d3d12::util
     return D3D12_BLEND_OP_ADD;
 }
 
-[[nodiscard]] inline constexpr D3D12_BLEND to_native(blend_factor bf)
+[[nodiscard]] constexpr D3D12_BLEND to_native(blend_factor bf)
 {
     switch (bf)
     {
@@ -544,7 +554,7 @@ namespace phi::d3d12::util
     return D3D12_BLEND_ZERO;
 }
 
-[[nodiscard]] inline constexpr D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS to_native_flags(accel_struct_build_flags_t flags)
+[[nodiscard]] constexpr D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS to_native_flags(accel_struct_build_flags_t flags)
 {
     D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS res = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_NONE;
 

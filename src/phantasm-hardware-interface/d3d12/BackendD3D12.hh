@@ -19,6 +19,7 @@
 #include "pools/cmd_list_pool.hh"
 #include "pools/fence_pool.hh"
 #include "pools/pso_pool.hh"
+#include "pools/query_pool.hh"
 #include "pools/resource_pool.hh"
 #include "pools/shader_view_pool.hh"
 #include "shader_table_construction.hh"
@@ -166,6 +167,14 @@ public:
     void free(cc::span<handle::fence const> fences) override { mPoolFences.free(fences); }
 
     //
+    // Query interface
+    //
+
+    [[nodiscard]] handle::query_range createQueryRange(query_type type, unsigned int size) override { return mPoolQueries.create(type, size); }
+
+    void free(handle::query_range query_range) override { mPoolQueries.free(query_range); }
+
+    //
     // Raytracing interface
     //
 
@@ -226,6 +235,9 @@ private:
         return (type == queue_type::direct ? mDirectQueue.getQueue() : (type == queue_type::compute ? mComputeQueue.getQueue() : mCopyQueue.getQueue()));
     }
 
+    struct per_thread_component;
+    per_thread_component& getCurrentThreadComponent();
+
 private:
     // Core components
     Adapter mAdapter;
@@ -248,9 +260,9 @@ private:
     ShaderViewPool mPoolShaderViews;
     FencePool mPoolFences;
     AccelStructPool mPoolAccelStructs;
+    QueryPool mPoolQueries;
 
     // Logic
-    struct per_thread_component;
     cc::fwd_array<per_thread_component> mThreadComponents;
     phi::detail::thread_association mThreadAssociation;
     ShaderTableConstructor mShaderTableCtor;

@@ -193,8 +193,9 @@ phi::handle::resource phi::d3d12::ResourcePool::createMappedReadbackBuffer(uint6
     auto const desc = CD3DX12_RESOURCE_DESC::Buffer(size_bytes);
     auto* const alloc = mAllocator.allocate(desc, initial_state, nullptr, D3D12_HEAP_TYPE_READBACK);
 
+    D3D12_RANGE read_range = {0, size_bytes};
     void* data_start_void;
-    alloc->GetResource()->Map(0, nullptr, &data_start_void); // nullptr to read_range: entire subresource might be read
+    alloc->GetResource()->Map(0, &read_range, &data_start_void); // nullptr to read_range: entire subresource might be read
     util::set_object_name(alloc->GetResource(), "respool mapped readback buffer");
     return acquireBuffer(alloc, initial_state, size_bytes, stride_bytes, cc::bit_cast<std::byte*>(data_start_void));
 }

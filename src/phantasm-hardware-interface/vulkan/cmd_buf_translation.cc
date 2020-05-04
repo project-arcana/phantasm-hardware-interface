@@ -421,6 +421,10 @@ void phi::vk::command_list_translator::execute(const phi::cmd::debug_marker& mar
         vkCmdInsertDebugUtilsLabelEXT(_cmd_list, &label);
 }
 
+void phi::vk::command_list_translator::execute(const phi::cmd::write_timestamp& timestamp) { CC_RUNTIME_ASSERT(false && "unimplemented"); }
+
+void phi::vk::command_list_translator::execute(const phi::cmd::resolve_queries& resolve) { CC_RUNTIME_ASSERT(false && "unimplemented"); }
+
 void phi::vk::command_list_translator::execute(const phi::cmd::update_bottom_level& blas_update)
 {
     auto& dest_node = _globals.pool_accel_structs->getNode(blas_update.dest);

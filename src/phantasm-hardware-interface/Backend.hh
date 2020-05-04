@@ -84,21 +84,21 @@ public:
         phi::format format, tg::isize2 size, unsigned samples = 1, unsigned array_size = 1, rt_clear_value const* optimized_clear_val = nullptr)
         = 0;
 
-    /// create a buffer, with an element stride if its an index or vertex buffer
-    [[nodiscard]] virtual handle::resource createBuffer(unsigned size_bytes, unsigned stride_bytes = 0, bool allow_uav = false) = 0;
+    /// create a buffer with optional element stride, allocation on an upload/readback heap, or allowing UAV access
+    [[nodiscard]] virtual handle::resource createBuffer(unsigned size_bytes, unsigned stride_bytes = 0, resource_heap heap = resource_heap::gpu, bool allow_uav = false)
+        = 0;
 
-    /// create a persistently mapped buffer for data uploads, with an element stride if its an index or vertex buffer
+    /// create a buffer with optional element stride on resource_heap::upload (shorthand function)
     [[nodiscard]] virtual handle::resource createUploadBuffer(unsigned size_bytes, unsigned stride_bytes = 0) = 0;
 
-    /// create a persistently mapped buffer for GPU-to-CPU readback
-    [[nodiscard]] virtual handle::resource createReadbackBuffer(unsigned size_bytes, unsigned stride_bytes = 0) = 0;
+    /// maps a buffer created on resource_heap::upload or ::readback to CPU-accessible memory and returns a pointer
+    /// multiple (nested) maps are allowed, leaving a resource_heap::upload buffer persistently mapped is validW
+    [[nodiscard]] virtual std::byte* mapBuffer(handle::resource res) = 0;
 
-    /// returns the mapped memory pointer, only valid for handles obtained from createUploadBuffer or createReadbackBuffer
-    virtual std::byte* getMappedMemory(handle::resource res) = 0;
-
-    /// flushes writes to memory pointers received from getMappedMemory(res),
-    /// making them GPU-visible in any successively submitted command lists (no-op on d3d12)
-    virtual void flushMappedMemory(handle::resource res) = 0;
+    /// unmaps a buffer, must have been previously mapped using mapBuffer
+    /// it is not necessary to unmap a buffer before destruction
+    /// on non-desktop it might be required to unmap upload buffers for the writes to become visible
+    virtual void unmapBuffer(handle::resource res) = 0;
 
     /// destroy a resource
     virtual void free(handle::resource res) = 0;
@@ -175,6 +175,14 @@ public:
     virtual void free(cc::span<handle::fence const> fences) = 0;
 
     //
+    // Query interface
+    //
+
+    [[nodiscard]] virtual handle::query_range createQueryRange(query_type type, unsigned size) = 0;
+
+    virtual void free(handle::query_range query_range) = 0;
+
+    //
     // Raytracing interface
     //
 
@@ -226,6 +234,9 @@ public:
     //
     // GPU info interface
     //
+
+    /// returns the frequency of GPU timestamps in Hz (seconds = timestamp_delta / getGPUTimestampFrequency())
+    virtual uint64_t getGPUTimestampFrequency() const = 0;
 
     virtual bool isRaytracingEnabled() const = 0;
 

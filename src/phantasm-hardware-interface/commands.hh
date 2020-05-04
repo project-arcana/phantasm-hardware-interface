@@ -27,6 +27,8 @@ namespace detail
     PHI_X(begin_render_pass)       \
     PHI_X(end_render_pass)         \
     PHI_X(debug_marker)            \
+    PHI_X(write_timestamp)         \
+    PHI_X(resolve_queries)         \
     PHI_X(update_bottom_level)     \
     PHI_X(update_top_level)        \
     PHI_X(dispatch_rays)           \
@@ -69,7 +71,7 @@ PHI_DEFINE_CMD(begin_render_pass)
 
     struct depth_stencil_info
     {
-        resource_view rv;
+        resource_view rv = resource_view::null();
         float clear_value_depth;
         uint8_t clear_value_stencil;
         rt_clear_type clear_type;
@@ -372,6 +374,34 @@ PHI_DEFINE_CMD(debug_marker)
 
     debug_marker() = default;
     debug_marker(char const* s) : string(s) {}
+};
+
+PHI_DEFINE_CMD(write_timestamp)
+{
+    handle::query_range query_range = handle::null_query_range; ///< the query_range in which to write a timestamp query
+    unsigned index = 0;                                         ///< relative index into the query_range, element to write to
+
+    write_timestamp() = default;
+    write_timestamp(handle::query_range qr, unsigned index = 0) : query_range(qr), index(index) {}
+};
+
+PHI_DEFINE_CMD(resolve_queries)
+{
+    handle::resource dest_buffer = handle::null_resource;           ///< the buffer in which to write the resolve data
+    handle::query_range src_query_range = handle::null_query_range; ///< the query_range from which to read
+    unsigned query_start = 0;                                       ///< relative index into the query_range, element to start the resolve from
+    unsigned num_queries = 1;                                       ///< amount of elements to resolve
+    unsigned dest_offset = 0;                                       ///< offset into the destination buffer
+
+
+    void init(handle::resource dest, handle::query_range qr, unsigned start = 0, unsigned num = 1, unsigned dest_offset = 0)
+    {
+        dest_buffer = dest;
+        src_query_range = qr;
+        query_start = start;
+        num_queries = num;
+        this->dest_offset = dest_offset;
+    }
 };
 
 /// update a bottom level raytracing acceleration structure (BLAS)

@@ -69,6 +69,10 @@ struct command_list_translator
 
     void execute(cmd::debug_marker const& marker);
 
+    void execute(cmd::write_timestamp const& timestamp);
+
+    void execute(cmd::resolve_queries const& resolve);
+
     void execute(cmd::update_bottom_level const& blas_update);
 
     void execute(cmd::update_top_level const& tlas_update);

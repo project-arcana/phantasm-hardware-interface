@@ -30,6 +30,7 @@ namespace phi::d3d12
 ///
 /// We might have to add defragmentation at some point, which would probably require an additional indirection
 /// Lookup and free is O(1), allocate is O(#pages), but still fast and skipping blocks
+/// Unsynchronized
 class DescriptorPageAllocator
 {
 public:
@@ -44,7 +45,7 @@ public:
             return -1;
 
         auto const res_page = mPageAllocator.allocate(num_descriptors);
-        CC_RUNTIME_ASSERT(res_page != -1 && "descriptor_page_allocator overcommitted!");
+        CC_RUNTIME_ASSERT(res_page != -1 && "DescriptorPageAllocator overcommitted!");
         return res_page;
     }
 

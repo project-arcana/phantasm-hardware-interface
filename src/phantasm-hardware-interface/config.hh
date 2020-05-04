@@ -94,12 +94,17 @@ struct backend_config
     unsigned max_num_accel_structs = 2048;
     unsigned max_num_raytrace_pipeline_states = 256;
 
-    /// command list allocator size (total = #threads * #allocs/thread * #lists/alloc)
+    /// command list allocator sizes (total = #threads * #allocs/thread * #lists/alloc)
     unsigned num_direct_cmdlist_allocators_per_thread = 5;
     unsigned num_direct_cmdlists_per_allocator = 5;
     unsigned num_compute_cmdlist_allocators_per_thread = 5;
     unsigned num_compute_cmdlists_per_allocator = 5;
     unsigned num_copy_cmdlist_allocators_per_thread = 3;
     unsigned num_copy_cmdlists_per_allocator = 3;
+
+    /// query heap sizes
+    unsigned num_timestamp_queries = 128;
+    unsigned num_occlusion_queries = 128;
+    unsigned num_pipeline_stat_queries = 32;
 };
 }

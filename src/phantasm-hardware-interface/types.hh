@@ -38,6 +38,9 @@ PHI_DEFINE_HANDLE(command_list);
 /// synchronization primitive storing a uint64, can be signalled and waited on from both CPU and GPU
 PHI_DEFINE_HANDLE(fence);
 
+/// multiple contiguous queries for timestamps, occlusion or pipeline statistics
+PHI_DEFINE_HANDLE(query_range);
+
 /// raytracing acceleration structure handle
 PHI_DEFINE_HANDLE(accel_struct);
 
@@ -100,9 +103,10 @@ enum class resource_state : uint8_t
     vertex_buffer,
     index_buffer,
 
-    constant_buffer,
-    shader_resource,
-    unordered_access,
+    constant_buffer,          // accessed via a CBV in a shader
+    shader_resource,          // accessed via a SRV in a shader
+    shader_resource_nonpixel, // accessed via a SRV in a non-pixel shader only
+    unordered_access,         // accessed via a UAV in a shader
 
     render_target,
     depth_read,
@@ -119,6 +123,13 @@ enum class resource_state : uint8_t
     present,
 
     raytrace_accel_struct,
+};
+
+enum class resource_heap : uint8_t
+{
+    gpu,     // default, fastest to access for the GPU
+    upload,  // for CPU -> GPU transfer
+    readback // for GPU -> CPU transfer
 };
 
 /// pixel format of a texture, or texture view (DXGI_FORMAT / VkFormat)
@@ -620,6 +631,14 @@ struct render_target_config
     format fmt = format::rgba8un;
     bool blend_enable = false;
     blend_state state;
+};
+
+/// the type of a handle::query_range
+enum class query_type : uint8_t
+{
+    timestamp,
+    occlusion,
+    pipeline_stats
 };
 
 /// flags to configure the building process of a raytracing acceleration structure

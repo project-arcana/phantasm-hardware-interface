@@ -14,6 +14,7 @@
 #include "pools/accel_struct_pool.hh"
 #include "pools/cmd_list_pool.hh"
 #include "pools/pso_pool.hh"
+#include "pools/query_pool.hh"
 #include "pools/resource_pool.hh"
 #include "pools/root_sig_cache.hh"
 #include "pools/shader_view_pool.hh"
@@ -22,9 +23,10 @@ void phi::d3d12::command_list_translator::initialize(ID3D12Device* device,
                                                      phi::d3d12::ShaderViewPool* sv_pool,
                                                      phi::d3d12::ResourcePool* resource_pool,
                                                      phi::d3d12::PipelineStateObjectPool* pso_pool,
-                                                     AccelStructPool* as_pool)
+                                                     AccelStructPool* as_pool,
+                                                     QueryPool* query_pool)
 {
-    _globals.initialize(device, sv_pool, resource_pool, pso_pool, as_pool);
+    _globals.initialize(device, sv_pool, resource_pool, pso_pool, as_pool, query_pool);
     _thread_local.initialize(*_globals.device);
 }
 
@@ -408,6 +410,24 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::resolve_textur
 }
 
 void phi::d3d12::command_list_translator::execute(const phi::cmd::debug_marker& marker) { util::set_pix_marker(_cmd_list, 0, marker.string); }
+
+void phi::d3d12::command_list_translator::execute(const phi::cmd::write_timestamp& timestamp)
+{
+    ID3D12QueryHeap* heap;
+    UINT const query_index = _globals.pool_queries->getQuery(timestamp.query_range, query_type::timestamp, timestamp.index, heap);
+
+    _cmd_list->EndQuery(heap, D3D12_QUERY_TYPE_TIMESTAMP, query_index);
+}
+
+void phi::d3d12::command_list_translator::execute(const phi::cmd::resolve_queries& resolve)
+{
+    query_type type;
+    ID3D12QueryHeap* heap;
+    UINT const query_index_start = _globals.pool_queries->getQuery(resolve.src_query_range, resolve.query_start, heap, type);
+
+    ID3D12Resource* const raw_dest_buffer = _globals.pool_resources->getRawResource(resolve.dest_buffer);
+    _cmd_list->ResolveQueryData(heap, util::to_query_type(type), query_index_start, resolve.num_queries, raw_dest_buffer, resolve.dest_offset);
+}
 
 void phi::d3d12::command_list_translator::execute(const phi::cmd::update_bottom_level& blas_update)
 {
