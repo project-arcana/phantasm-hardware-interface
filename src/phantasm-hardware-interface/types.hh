@@ -55,6 +55,7 @@ struct shader_argument
     unsigned constant_buffer_offset;
 };
 
+/// the type of a single shader
 enum class shader_stage : uint8_t
 {
     // graphics
@@ -75,6 +76,7 @@ enum class shader_stage : uint8_t
     ray_any_hit,
 };
 
+/// 0 to N shader_stages
 using shader_stage_flags_t = cc::flags<shader_stage, 16>;
 CC_FLAGS_ENUM_SIZED(shader_stage, 16);
 

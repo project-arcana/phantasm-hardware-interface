@@ -254,6 +254,35 @@ public:
         (free(handles), ...);
     }
 
+    [[nodiscard]] handle::resource createBufferFromInfo(arg::create_buffer_info const& info)
+    {
+        return createBuffer(info.size_bytes, info.stride_bytes, info.heap, info.allow_uav);
+    }
+
+    [[nodiscard]] handle::resource createRenderTargetFromInfo(arg::create_render_target_info const& info)
+    {
+        return createRenderTarget(info.format, {info.width, info.height}, info.num_samples, info.array_size);
+    }
+
+    [[nodiscard]] handle::resource createTextureFromInfo(arg::create_texture_info const& info)
+    {
+        return createTexture(info.fmt, {info.width, info.height}, info.num_mips, info.dim, info.depth_or_array_size, info.allow_uav);
+    }
+
+    [[nodiscard]] handle::resource createResourceFromInfo(arg::create_resource_info const& info)
+    {
+        switch (info.type)
+        {
+        case arg::create_resource_info::e_resource_render_target:
+            return createRenderTargetFromInfo(info.info_render_target);
+        case arg::create_resource_info::e_resource_texture:
+            return createTextureFromInfo(info.info_texture);
+        case arg::create_resource_info::e_resource_buffer:
+            return createBufferFromInfo(info.info_buffer);
+        }
+        CC_UNREACHABLE("invalid type");
+    }
+
 protected:
     Backend() = default;
 
