@@ -133,8 +133,8 @@ phi::handle::resource phi::d3d12::ResourcePool::createRenderTarget(phi::format f
         clear_value.Format = format_dxgi;
         if (optimized_clear_val)
         {
-            clear_value.DepthStencil.Depth = optimized_clear_val->depth_stencil.depth;
-            clear_value.DepthStencil.Stencil = optimized_clear_val->depth_stencil.stencil;
+            clear_value.DepthStencil.Depth = optimized_clear_val->red_or_depth / 255.f;
+            clear_value.DepthStencil.Stencil = optimized_clear_val->green_or_stencil;
         }
         else
         {
@@ -158,7 +158,10 @@ phi::handle::resource phi::d3d12::ResourcePool::createRenderTarget(phi::format f
         clear_value.Format = format_dxgi;
         if (optimized_clear_val)
         {
-            std::memcpy(clear_value.Color, optimized_clear_val->color, sizeof(clear_value.Color));
+            clear_value.Color[0] = optimized_clear_val->red_or_depth / 255.f;
+            clear_value.Color[1] = optimized_clear_val->green_or_stencil / 255.f;
+            clear_value.Color[2] = optimized_clear_val->blue / 255.f;
+            clear_value.Color[3] = optimized_clear_val->alpha / 255.f;
         }
         else
         {

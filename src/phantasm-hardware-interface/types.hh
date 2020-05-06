@@ -105,10 +105,10 @@ enum class resource_state : uint8_t
     vertex_buffer,
     index_buffer,
 
-    constant_buffer,          // accessed via a CBV in a shader
-    shader_resource,          // accessed via a SRV in a shader
+    constant_buffer,          // accessed via a CBV in any shader
+    shader_resource,          // accessed via a SRV in any shader
     shader_resource_nonpixel, // accessed via a SRV in a non-pixel shader only
-    unordered_access,         // accessed via a UAV in a shader
+    unordered_access,         // accessed via a UAV in any shader
 
     render_target,
     depth_read,
@@ -125,6 +125,14 @@ enum class resource_state : uint8_t
     present,
 
     raytrace_accel_struct,
+};
+
+/// information describing a single resource transition, specifying only the target state
+struct transition_info
+{
+    handle::resource resource;              ///< the resource to transition
+    resource_state target_state;            ///< the state the resource is transitioned into
+    shader_stage_flags_t dependent_shaders; ///< the shader stages accessing the resource afterwards, only applies to CBV, SRV and UAV states
 };
 
 enum class resource_heap : uint8_t
@@ -489,29 +497,19 @@ enum class rt_clear_type : uint8_t
 };
 
 /// value to clear a render target with
-union rt_clear_value {
-    float color[4];
-    struct
-    {
-        float depth;
-        uint8_t stencil;
-    } depth_stencil;
+struct rt_clear_value
+{
+    uint8_t red_or_depth;
+    uint8_t green_or_stencil;
+    uint8_t blue;
+    uint8_t alpha;
 
     rt_clear_value() = default;
-
     rt_clear_value(float r, float g, float b, float a)
+      : red_or_depth(uint8_t(r * 255)), green_or_stencil(uint8_t(g * 255)), blue(uint8_t(b * 255)), alpha(uint8_t(a * 255))
     {
-        color[0] = r;
-        color[1] = g;
-        color[2] = b;
-        color[3] = a;
     }
-
-    rt_clear_value(float depth, uint8_t stencil)
-    {
-        depth_stencil.depth = depth;
-        depth_stencil.stencil = stencil;
-    }
+    rt_clear_value(float depth, uint8_t stencil) : red_or_depth(uint8_t(depth * 255)), green_or_stencil(stencil) {}
 };
 
 /// blending logic operation a (graphics) handle::pipeline_state performs on its render targets
@@ -569,6 +567,7 @@ struct blend_state
     blend_factor blend_alpha_dest = blend_factor::zero;
     blend_op blend_op_alpha = blend_op::op_add;
 
+public:
     blend_state() = default;
 
     blend_state(blend_factor blend_color_src, //

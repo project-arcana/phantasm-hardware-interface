@@ -274,7 +274,7 @@ void phi::vk::command_list_translator::execute(const phi::cmd::transition_resour
 
     for (auto const& transition : transition_res.transitions)
     {
-        auto const after_dep = util::to_pipeline_stage_dependency(transition.target_state, util::to_pipeline_stage_flags_bitwise(transition.dependant_shaders));
+        auto const after_dep = util::to_pipeline_stage_dependency(transition.target_state, util::to_pipeline_stage_flags_bitwise(transition.dependent_shaders));
         CC_ASSERT(after_dep != 0 && "Transition shader dependencies must be specified if transitioning to a CBV/SRV/UAV");
 
         resource_state before;
@@ -519,14 +519,17 @@ void phi::vk::command_list_translator::execute(const phi::cmd::clear_textures& c
         if (is_depth_format(op.rv.pixel_format))
         {
             VkClearDepthStencilValue clearval = {};
-            clearval.depth = op.value.depth_stencil.depth;
-            clearval.stencil = op.value.depth_stencil.stencil;
+            clearval.depth = op.value.red_or_depth / 255.f;
+            clearval.stencil = op.value.green_or_stencil;
             vkCmdClearDepthStencilImage(_cmd_list, resource, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearval, 1, &range);
         }
         else
         {
             VkClearColorValue clearval = {};
-            std::memcpy(clearval.float32, op.value.color, sizeof(float[4]));
+            clearval.float32[0] = op.value.red_or_depth / 255.f;
+            clearval.float32[1] = op.value.green_or_stencil / 255.f;
+            clearval.float32[2] = op.value.blue / 255.f;
+            clearval.float32[3] = op.value.alpha / 255.f;
             vkCmdClearColorImage(_cmd_list, resource, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearval, 1, &range);
         }
     }

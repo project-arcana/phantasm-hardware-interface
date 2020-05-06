@@ -529,8 +529,8 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::clear_textures
             auto const dsv_desc = util::create_dsv_desc(op.rv);
             _globals.device->CreateDepthStencilView(resource, &dsv_desc, dsv);
 
-            _cmd_list->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, op.value.depth_stencil.depth,
-                                             op.value.depth_stencil.stencil, 0, nullptr);
+            _cmd_list->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, op.value.red_or_depth / 255.f,
+                                             op.value.green_or_stencil, 0, nullptr);
         }
         else
         {
@@ -549,7 +549,8 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::clear_textures
                 _globals.device->CreateRenderTargetView(resource, &rtv_desc, rtv);
             }
 
-            _cmd_list->ClearRenderTargetView(rtv, op.value.color, 0, nullptr);
+            float color_value[4] = {op.value.red_or_depth / 255.f, op.value.green_or_stencil / 255.f, op.value.blue / 255.f, op.value.alpha / 255.f};
+            _cmd_list->ClearRenderTargetView(rtv, color_value, 0, nullptr);
         }
     }
 

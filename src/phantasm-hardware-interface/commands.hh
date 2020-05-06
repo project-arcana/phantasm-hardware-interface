@@ -112,13 +112,6 @@ PHI_DEFINE_CMD(end_render_pass){
 
 PHI_DEFINE_CMD(transition_resources)
 {
-    struct transition_info
-    {
-        handle::resource resource;
-        resource_state target_state;
-        shader_stage_flags_t dependant_shaders;
-    };
-
     cmd_vector<transition_info, limits::max_resource_transitions> transitions;
 
 public:

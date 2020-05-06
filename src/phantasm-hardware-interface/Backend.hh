@@ -261,7 +261,7 @@ public:
 
     [[nodiscard]] handle::resource createRenderTargetFromInfo(arg::create_render_target_info const& info)
     {
-        return createRenderTarget(info.format, {info.width, info.height}, info.num_samples, info.array_size);
+        return createRenderTarget(info.format, {info.width, info.height}, info.num_samples, info.array_size, &info.clear_value);
     }
 
     [[nodiscard]] handle::resource createTextureFromInfo(arg::create_texture_info const& info)
