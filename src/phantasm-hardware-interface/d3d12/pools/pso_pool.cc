@@ -326,7 +326,7 @@ void phi::d3d12::PipelineStateObjectPool::destroy()
 
     if (num_leaks > 0)
     {
-        log::info()("warning: leaked {} handle::pipeline_state object{}", num_leaks, (num_leaks == 1 ? "" : "s"));
+        log::info()("leaked {} handle::pipeline_state object{}", num_leaks, (num_leaks == 1 ? "" : "s"));
     }
 
     mRootSigCache.destroy();

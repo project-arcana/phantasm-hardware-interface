@@ -64,7 +64,7 @@ void phi::d3d12::FencePool::destroy()
 
         if (num_leaks > 0)
         {
-            log::info()("warning: leaked {} handle::fence object{}", num_leaks, num_leaks == 1 ? "" : "s");
+            log::info()("leaked {} handle::fence object{}", num_leaks, num_leaks == 1 ? "" : "s");
         }
     }
 }

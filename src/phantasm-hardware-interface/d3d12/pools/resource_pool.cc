@@ -79,7 +79,7 @@ void phi::d3d12::ResourcePool::destroy()
 
     if (num_leaks > 0)
     {
-        log::info()("warning: leaked {} handle::resource object{}", num_leaks, (num_leaks == 1 ? "" : "s"));
+        log::info()("leaked {} handle::resource object{}", num_leaks, (num_leaks == 1 ? "" : "s"));
     }
 
     mAllocator.destroy();

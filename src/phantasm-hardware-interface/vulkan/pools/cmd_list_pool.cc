@@ -505,7 +505,7 @@ void phi::vk::CommandListPool::destroy()
     auto const num_leaks = discardAndFreeAll();
     if (num_leaks > 0)
     {
-        log::info()("warning: leaked {} handle::command_list object{}", num_leaks, (num_leaks == 1 ? "" : "s"));
+        log::info()("leaked {} handle::command_list object{}", num_leaks, (num_leaks == 1 ? "" : "s"));
     }
 
     mFenceRing.destroy(mDevice);

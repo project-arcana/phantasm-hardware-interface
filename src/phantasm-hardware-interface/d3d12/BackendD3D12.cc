@@ -286,7 +286,6 @@ void phi::d3d12::BackendD3D12::uploadTopLevelInstances(phi::handle::accel_struct
     CC_ASSERT(isRaytracingEnabled() && "raytracing is not enabled");
     auto const& node = mPoolAccelStructs.getNode(as);
     std::memcpy(node.buffer_instances_map, instances.data(), instances.size_bytes());
-    // flushMappedMemory(node.buffer_instances); (no-op)
 }
 
 phi::handle::resource phi::d3d12::BackendD3D12::getAccelStructBuffer(phi::handle::accel_struct as) { return mPoolAccelStructs.getNode(as).buffer_as; }
