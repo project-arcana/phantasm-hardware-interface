@@ -279,6 +279,8 @@ public:
             return createTextureFromInfo(info.info_texture);
         case arg::create_resource_info::e_resource_buffer:
             return createBufferFromInfo(info.info_buffer);
+        default:
+            CC_ASSERT(false && "invalid type");
         }
         CC_UNREACHABLE("invalid type");
     }
