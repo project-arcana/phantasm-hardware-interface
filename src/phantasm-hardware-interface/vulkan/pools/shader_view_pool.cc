@@ -67,8 +67,6 @@ phi::handle::shader_view phi::vk::ShaderViewPool::create(cc::span<resource_view 
         {
             auto const& uav = uavs[i];
 
-            new_node.resources.push_back(uav.resource);
-
             auto const uav_native_type = util::to_native_uav_desc_type(uav.dimension);
             auto const binding = spv::uav_binding_start + i;
 
@@ -98,8 +96,6 @@ phi::handle::shader_view phi::vk::ShaderViewPool::create(cc::span<resource_view 
         for (auto i = 0u; i < srvs.size(); ++i)
         {
             auto const& srv = srvs[i];
-            new_node.resources.push_back(srv.resource);
-
 
             auto const srv_native_type = util::to_native_srv_desc_type(srv.dimension);
             auto const binding = spv::srv_binding_start + i;
@@ -299,8 +295,6 @@ void phi::vk::ShaderViewPool::internalFree(phi::vk::ShaderViewPool::shader_view_
         vkDestroySampler(mDevice, s, nullptr);
     }
     node.samplers.clear();
-
-    node.resources.clear();
 
     // destroy the descriptor set layout used for creation
     vkDestroyDescriptorSetLayout(mDevice, node.raw_desc_set_layout, nullptr);

@@ -35,10 +35,6 @@ public:
     void destroy();
 
     [[nodiscard]] VkDescriptorSet get(handle::shader_view sv) const { return mPool.get(static_cast<unsigned>(sv.index)).raw_desc_set; }
-    [[nodiscard]] cc::span<handle::resource const> getResources(handle::shader_view sv) const
-    {
-        return mPool.get(static_cast<unsigned>(sv.index)).resources;
-    }
 
     [[nodiscard]] VkImageView makeImageView(resource_view const& sve, bool is_uav = false) const;
 
@@ -52,9 +48,6 @@ private:
         // This MUST stay alive, if it isn't alive, no warnings are emitted but
         // vkCmdBindDescriptorSets spuriously crashes the driver with compute binding points
         VkDescriptorSetLayout raw_desc_set_layout;
-
-        // handles contained in this shader view, for state tracking
-        cc::capped_vector<handle::resource, 16> resources;
 
         // image views in use by this shader view
         cc::vector<VkImageView> image_views;
