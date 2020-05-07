@@ -254,12 +254,12 @@ public:
     static create_resource_info texture(
         phi::format fmt, int w, int h, unsigned num_mips = 1, phi::texture_dimension dim = phi::texture_dimension::t2d, unsigned depth_or_array_size = 1, bool allow_uav = false)
     {
-        create(create_texture_info::create(fmt, w, h, num_mips, dim, depth_or_array_size, allow_uav));
+        return create(create_texture_info::create(fmt, w, h, num_mips, dim, depth_or_array_size, allow_uav));
     }
 
     static create_resource_info buffer(unsigned size_bytes, unsigned stride_bytes, phi::resource_heap heap = phi::resource_heap::gpu, bool allow_uav = false)
     {
-        create(create_buffer_info::create(size_bytes, stride_bytes, heap, allow_uav));
+        return create(create_buffer_info::create(size_bytes, stride_bytes, heap, allow_uav));
     }
 };
 }
