@@ -281,6 +281,7 @@ public:
             return createBufferFromInfo(info.info_buffer);
         default:
             CC_ASSERT(false && "invalid type");
+            return handle::null_resource;
         }
         CC_UNREACHABLE("invalid type");
     }
