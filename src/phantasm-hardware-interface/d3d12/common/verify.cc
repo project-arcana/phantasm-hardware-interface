@@ -5,8 +5,9 @@
 
 #include <clean-core/assert.hh>
 
+#include <phantasm-hardware-interface/detail/log.hh>
+
 #include "d3d12_sanitized.hh"
-#include "log.hh"
 #include "shared_com_ptr.hh"
 
 namespace
@@ -54,12 +55,12 @@ void print_dred_information(ID3D12Device* device)
     using namespace phi::d3d12;
 
     HRESULT removal_reason = device->GetDeviceRemovedReason();
-    log::dred() << "device removal reason: " << get_device_error_literal(removal_reason);
+    PHI_LOG_ASSERT << "device removal reason: " << get_device_error_literal(removal_reason);
 
     phi::d3d12::shared_com_ptr<ID3D12DeviceRemovedExtendedData> dred;
     if (SUCCEEDED(device->QueryInterface(PHI_COM_WRITE(dred))))
     {
-        log::dred() << "DRED detected, querying outputs";
+        PHI_LOG_ASSERT << "DRED detected, querying outputs";
         D3D12_DRED_AUTO_BREADCRUMBS_OUTPUT DredAutoBreadcrumbsOutput;
         D3D12_DRED_PAGE_FAULT_OUTPUT DredPageFaultOutput;
         auto hr1 = dred->GetAutoBreadcrumbsOutput(&DredAutoBreadcrumbsOutput);
@@ -74,17 +75,16 @@ void print_dred_information(ID3D12Device* device)
             auto num_breadcrumbs = 0u;
             while (breadcrumb != nullptr && num_breadcrumbs < 10)
             {
-                log::dred()("bc #{} size {}", num_breadcrumbs, breadcrumb->BreadcrumbCount);
+                PHI_LOG_ASSERT("bc #{} size {}", num_breadcrumbs, breadcrumb->BreadcrumbCount);
 
                 if (breadcrumb->pCommandListDebugNameA != nullptr)
-                    log::dred()("  on list\"{}\"", breadcrumb->pCommandListDebugNameA);
+                    PHI_LOG_ASSERT("  on list\"{}\"", breadcrumb->pCommandListDebugNameA);
 
                 if (breadcrumb->pCommandQueueDebugNameA != nullptr)
-                    log::dred()("  on queue\"{}\"", breadcrumb->pCommandQueueDebugNameA);
+                    PHI_LOG_ASSERT("  on queue\"{}\"", breadcrumb->pCommandQueueDebugNameA);
 
 
-                auto logger = log::dred();
-                logger.configure(rlog::no_sep);
+                auto logger = PHI_LOG_ASSERT;
                 logger << "    ";
 
                 unsigned const last_executed_i = *breadcrumb->pLastBreadcrumbValue;
@@ -103,23 +103,23 @@ void print_dred_information(ID3D12Device* device)
                 breadcrumb = breadcrumb->pNext;
                 ++num_breadcrumbs;
             }
-            log::dred() << "end of breadcrumb data";
+            PHI_LOG_ASSERT << "end of breadcrumb data";
         }
         else
         {
-            log::dred() << "DRED breadcrumb output query failed";
-            log::dred() << "use validation_level::on_extended_dred";
+            PHI_LOG_ASSERT << "DRED breadcrumb output query failed";
+            PHI_LOG_ASSERT << "use validation_level::on_extended_dred";
         }
 
         if (SUCCEEDED(hr2))
         {
-            log::dred()("pagefault VA: {}", DredPageFaultOutput.PageFaultVA);
+            PHI_LOG_ASSERT("pagefault VA: {}", DredPageFaultOutput.PageFaultVA);
 
             D3D12_DRED_ALLOCATION_NODE const* freed_node = DredPageFaultOutput.pHeadRecentFreedAllocationNode;
             while (freed_node != nullptr)
             {
                 if (freed_node->ObjectNameA)
-                    log::dred()("recently freed: {}", freed_node->ObjectNameA);
+                    PHI_LOG_ASSERT("recently freed: {}", freed_node->ObjectNameA);
 
                 freed_node = freed_node->pNext;
             }
@@ -128,22 +128,22 @@ void print_dred_information(ID3D12Device* device)
             while (allocated_node != nullptr)
             {
                 if (allocated_node->ObjectNameA)
-                    log::dred()("allocated: {}", allocated_node->ObjectNameA);
+                    PHI_LOG_ASSERT("allocated: {}", allocated_node->ObjectNameA);
 
                 allocated_node = allocated_node->pNext;
             }
 
-            log::dred() << "end of pagefault data";
+            PHI_LOG_ASSERT << "end of pagefault data";
         }
         else
         {
-            log::dred() << "DRED pagefault output query failed";
-            log::dred() << "use validation_level::on_extended_dred";
+            PHI_LOG_ASSERT << "DRED pagefault output query failed";
+            PHI_LOG_ASSERT << "use validation_level::on_extended_dred";
         }
     }
     else
     {
-        log::dred() << "no DRED active, use validation_level::on_extended_dred";
+        PHI_LOG_ASSERT << "no DRED active, use validation_level::on_extended_dred";
     }
 }
 }
@@ -185,7 +185,7 @@ void phi::d3d12::detail::dred_assert_handler(void* device_child, const char* exp
     }
     else
     {
-        log::err()("Failed to recover device from ID3D12DeviceChild {}", device_child);
+        PHI_LOG_ERROR("Failed to recover device from ID3D12DeviceChild {}", device_child);
     }
 
     // TODO: Graceful shutdown

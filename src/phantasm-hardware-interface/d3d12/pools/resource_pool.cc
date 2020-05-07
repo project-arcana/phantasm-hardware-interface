@@ -2,9 +2,10 @@
 
 #include <clean-core/bit_cast.hh>
 
+#include <phantasm-hardware-interface/detail/log.hh>
+
 #include <phantasm-hardware-interface/d3d12/common/d3dx12.hh>
 #include <phantasm-hardware-interface/d3d12/common/dxgi_format.hh>
-#include <phantasm-hardware-interface/d3d12/common/log.hh>
 #include <phantasm-hardware-interface/d3d12/common/native_enum.hh>
 #include <phantasm-hardware-interface/d3d12/common/util.hh>
 #include <phantasm-hardware-interface/d3d12/common/verify.hh>
@@ -79,7 +80,7 @@ void phi::d3d12::ResourcePool::destroy()
 
     if (num_leaks > 0)
     {
-        log::info()("leaked {} handle::resource object{}", num_leaks, (num_leaks == 1 ? "" : "s"));
+        PHI_LOG("leaked {} handle::resource object{}", num_leaks, (num_leaks == 1 ? "" : "s"));
     }
 
     mAllocator.destroy();

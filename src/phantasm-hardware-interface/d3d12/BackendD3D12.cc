@@ -2,11 +2,13 @@
 
 #include <clean-core/vector.hh>
 
+#include <phantasm-hardware-interface/detail/log.hh>
 #include <phantasm-hardware-interface/window_handle.hh>
+
+#include <rich-log/logger.hh>
 
 #include "cmd_list_translation.hh"
 #include "common/dxgi_format.hh"
-#include "common/log.hh"
 #include "common/native_enum.hh"
 #include "common/util.hh"
 #include "common/verify.hh"
@@ -27,6 +29,9 @@ struct BackendD3D12::per_thread_component
 
 void phi::d3d12::BackendD3D12::initialize(const phi::backend_config& config, const window_handle& window_handle)
 {
+    // just making sure
+    rlog::enable_win32_colors();
+
     mFlushEvent = CreateEventEx(nullptr, FALSE, FALSE, EVENT_ALL_ACCESS);
     CC_ASSERT(mFlushEvent != INVALID_HANDLE_VALUE && "failed to create win32 event");
 
@@ -317,7 +322,7 @@ void phi::d3d12::BackendD3D12::freeRange(cc::span<const phi::handle::accel_struc
 void phi::d3d12::BackendD3D12::printInformation(phi::handle::resource res) const
 {
     (void)res;
-    log::info() << "printInformation unimplemented";
+    PHI_LOG << "printInformation unimplemented";
 }
 
 bool phi::d3d12::BackendD3D12::startForcedDiagnosticCapture() { return mDiagnostics.start_capture(); }

@@ -2,9 +2,10 @@
 
 #include <clean-core/assert.hh>
 
+#include <phantasm-hardware-interface/detail/log.hh>
+
 #include "adapter_choice_util.hh"
 #include "common/d3d12_sanitized.hh"
-#include "common/log.hh"
 #include "common/verify.hh"
 
 void phi::d3d12::Adapter::initialize(const backend_config& config)
@@ -93,7 +94,7 @@ void phi::d3d12::Adapter::initialize(const backend_config& config)
             {
                 if (is_intel_gpu)
                 {
-                    log::info() << "GPU-based validation requested on an Intel GPU, disabling due to known crashes";
+                    PHI_LOG_WARN("GPU-based validation requested on an Intel GPU, disabling due to known crashes");
                 }
                 else
                 {
@@ -111,18 +112,18 @@ void phi::d3d12::Adapter::initialize(const backend_config& config)
                     }
                     else
                     {
-                        log::err() << "warning: failed to enable GPU-based validation";
+                        PHI_LOG_ERROR << "failed to enable GPU-based validation";
                     }
                 }
             }
         }
         else
         {
-            log::err() << "warning: failed to enable validation\n"
-                          "  verify that the D3D12 SDK is installed on this machine\n"
-                          "  refer to "
-                          "https://docs.microsoft.com/en-us/windows/uwp/gaming/"
-                          "use-the-directx-runtime-and-visual-studio-graphics-diagnostic-features";
+            PHI_LOG_ERROR << "failed to enable validation\n"
+                             "  verify that the D3D12 SDK is installed on this machine\n"
+                             "  refer to "
+                             "https://docs.microsoft.com/en-us/windows/uwp/gaming/"
+                             "use-the-directx-runtime-and-visual-studio-graphics-diagnostic-features";
         }
     }
 }

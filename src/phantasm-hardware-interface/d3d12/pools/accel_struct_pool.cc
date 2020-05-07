@@ -3,8 +3,9 @@
 #include <clean-core/utility.hh>
 #include <clean-core/vector.hh>
 
+#include <phantasm-hardware-interface/detail/log.hh>
+
 #include <phantasm-hardware-interface/d3d12/common/d3d12_sanitized.hh>
-#include <phantasm-hardware-interface/d3d12/common/log.hh>
 #include <phantasm-hardware-interface/d3d12/common/native_enum.hh>
 #include <phantasm-hardware-interface/d3d12/common/verify.hh>
 
@@ -162,7 +163,7 @@ void phi::d3d12::AccelStructPool::destroy()
 
         if (num_leaks > 0)
         {
-            log::info()("leaked {} handle::accel_struct object{}", num_leaks, num_leaks == 1 ? "" : "s");
+            PHI_LOG("leaked {} handle::accel_struct object{}", num_leaks, num_leaks == 1 ? "" : "s");
         }
     }
 }

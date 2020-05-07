@@ -4,9 +4,10 @@
 
 #include <clean-core/utility.hh>
 
+#include <phantasm-hardware-interface/detail/log.hh>
+
 #include <phantasm-hardware-interface/detail/flat_map.hh>
 #include <phantasm-hardware-interface/vulkan/BackendVulkan.hh>
-#include <phantasm-hardware-interface/vulkan/common/log.hh>
 #include <phantasm-hardware-interface/vulkan/common/util.hh>
 
 void phi::vk::cmd_allocator_node::initialize(VkDevice device, unsigned num_cmd_lists, unsigned queue_family_index, FenceRingbuffer* fence_ring)
@@ -505,7 +506,7 @@ void phi::vk::CommandListPool::destroy()
     auto const num_leaks = discardAndFreeAll();
     if (num_leaks > 0)
     {
-        log::info()("leaked {} handle::command_list object{}", num_leaks, (num_leaks == 1 ? "" : "s"));
+        PHI_LOG("leaked {} handle::command_list object{}", num_leaks, (num_leaks == 1 ? "" : "s"));
     }
 
     mFenceRing.destroy(mDevice);

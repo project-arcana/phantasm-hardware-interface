@@ -3,10 +3,10 @@
 #include <phantasm-hardware-interface/detail/byte_util.hh>
 #include <phantasm-hardware-interface/detail/command_reading.hh>
 #include <phantasm-hardware-interface/detail/incomplete_state_cache.hh>
+#include <phantasm-hardware-interface/detail/log.hh>
 #include <phantasm-hardware-interface/util.hh>
 
 #include "Swapchain.hh"
-#include "common/log.hh"
 #include "common/native_enum.hh"
 #include "common/util.hh"
 #include "common/verify.hh"

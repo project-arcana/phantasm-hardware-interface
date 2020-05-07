@@ -2,7 +2,8 @@
 
 #include <clean-core/capped_vector.hh>
 
-#include <phantasm-hardware-interface/vulkan/common/log.hh>
+#include <phantasm-hardware-interface/detail/log.hh>
+
 #include <phantasm-hardware-interface/vulkan/common/native_enum.hh>
 #include <phantasm-hardware-interface/vulkan/common/vk_format.hh>
 #include <phantasm-hardware-interface/vulkan/loader/spirv_patch_util.hh>
@@ -226,7 +227,7 @@ void phi::vk::ShaderViewPool::destroy()
 
     if (num_leaks > 0)
     {
-        log::info()("leaked {} handle::shader_view object{}", num_leaks, num_leaks == 1 ? "" : "s");
+        PHI_LOG("leaked {} handle::shader_view object{}", num_leaks, num_leaks == 1 ? "" : "s");
     }
 
     mAllocator.destroy();

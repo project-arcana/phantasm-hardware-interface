@@ -5,8 +5,9 @@
 
 #include <typed-geometry/tg.hh>
 
+#include <phantasm-hardware-interface/detail/log.hh>
+
 #include <phantasm-hardware-interface/util.hh>
-#include <phantasm-hardware-interface/vulkan/common/log.hh>
 #include <phantasm-hardware-interface/vulkan/common/native_enum.hh>
 #include <phantasm-hardware-interface/vulkan/common/util.hh>
 #include <phantasm-hardware-interface/vulkan/common/verify.hh>
@@ -313,7 +314,7 @@ void phi::vk::ResourcePool::destroy()
 
     if (num_leaks > 0)
     {
-        log::info()("leaked {} handle::resource object{}", num_leaks, num_leaks == 1 ? "" : "s");
+        PHI_LOG("leaked {} handle::resource object{}", num_leaks, num_leaks == 1 ? "" : "s");
     }
 
     vmaDestroyAllocator(mAllocator);

@@ -1,7 +1,8 @@
 #include "fence_pool.hh"
 
+#include <phantasm-hardware-interface/detail/log.hh>
+
 #include <phantasm-hardware-interface/d3d12/common/d3d12_sanitized.hh>
-#include <phantasm-hardware-interface/d3d12/common/log.hh>
 #include <phantasm-hardware-interface/d3d12/common/verify.hh>
 
 phi::handle::fence phi::d3d12::FencePool::createFence()
@@ -64,7 +65,7 @@ void phi::d3d12::FencePool::destroy()
 
         if (num_leaks > 0)
         {
-            log::info()("leaked {} handle::fence object{}", num_leaks, num_leaks == 1 ? "" : "s");
+            PHI_LOG("leaked {} handle::fence object{}", num_leaks, num_leaks == 1 ? "" : "s");
         }
     }
 }

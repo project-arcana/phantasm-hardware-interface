@@ -4,8 +4,8 @@
 #include <clean-core/vector.hh>
 
 #include <phantasm-hardware-interface/detail/byte_util.hh>
+#include <phantasm-hardware-interface/detail/log.hh>
 
-#include <phantasm-hardware-interface/d3d12/common/log.hh>
 #include <phantasm-hardware-interface/d3d12/common/native_enum.hh>
 #include <phantasm-hardware-interface/d3d12/common/util.hh>
 #include <phantasm-hardware-interface/d3d12/common/verify.hh>
@@ -326,7 +326,7 @@ void phi::d3d12::PipelineStateObjectPool::destroy()
 
     if (num_leaks > 0)
     {
-        log::info()("leaked {} handle::pipeline_state object{}", num_leaks, (num_leaks == 1 ? "" : "s"));
+        PHI_LOG("leaked {} handle::pipeline_state object{}", num_leaks, (num_leaks == 1 ? "" : "s"));
     }
 
     mRootSigCache.destroy();
