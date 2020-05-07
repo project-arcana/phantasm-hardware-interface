@@ -151,7 +151,7 @@ struct create_render_target_info
     rt_clear_value clear_value;
 
 public:
-    static create_render_target_info create(phi::format fmt, int w, int h, unsigned num_samples = 1, unsigned array_size = 1, rt_clear_value clear_val = {0, 0, 0, 255})
+    static create_render_target_info create(phi::format fmt, int w, int h, unsigned num_samples = 1, unsigned array_size = 1, rt_clear_value clear_val = {0.f, 0.f, 0.f, 1.f})
     {
         return create_render_target_info{fmt, w, h, num_samples, array_size, clear_val};
     }
