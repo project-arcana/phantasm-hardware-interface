@@ -7,11 +7,11 @@
 #include <clean-core/bit_cast.hh>
 #include <clean-core/utility.hh>
 
+#include <phantasm-hardware-interface/detail/log.hh>
 #include <phantasm-hardware-interface/detail/unique_buffer.hh>
 #include <phantasm-hardware-interface/lib/spirv_reflect.hh>
 #include <phantasm-hardware-interface/limits.hh>
 
-#include <phantasm-hardware-interface/vulkan/common/log.hh>
 #include <phantasm-hardware-interface/vulkan/common/native_enum.hh>
 #include <phantasm-hardware-interface/vulkan/loader/volk.hh>
 
@@ -250,23 +250,21 @@ bool phi::vk::util::is_consistent_with_reflection(cc::span<const phi::vk::util::
 
         if (ri.num_cbvs != (shape.has_cbv ? 1 : 0))
         {
-            log::err() << "[phi][vk] SPIR-V reflection inconsistent - CBVs: " << ri.num_cbvs << " reflected, vs " << (shape.has_cbv ? 1 : 0)
-                       << " in shape #" << i;
+            PHI_LOG_ERROR << "SPIR-V reflection inconsistent - CBVs: " << ri.num_cbvs << " reflected, vs " << (shape.has_cbv ? 1 : 0) << " in shape #" << i;
             return false;
         }
 
         if (ri.num_srvs != shape.num_srvs)
         {
-            log::err() << "[phi][vk] SPIR-V reflection inconsistent - SRVs: " << ri.num_srvs << " reflected, vs " << shape.num_srvs << " in shape #" << i;
+            PHI_LOG_ERROR << "SPIR-V reflection inconsistent - SRVs: " << ri.num_srvs << " reflected, vs " << shape.num_srvs << " in shape #" << i;
         }
         if (ri.num_uavs != shape.num_uavs)
         {
-            log::err() << "[phi][vk] SPIR-V reflection inconsistent - UAVs: " << ri.num_uavs << " reflected, vs " << shape.num_uavs << " in shape #" << i;
+            PHI_LOG_ERROR << "SPIR-V reflection inconsistent - UAVs: " << ri.num_uavs << " reflected, vs " << shape.num_uavs << " in shape #" << i;
         }
         if (ri.num_samplers != shape.num_samplers)
         {
-            log::err() << "[phi][vk] SPIR-V reflection inconsistent - Samplers: " << ri.num_samplers << " reflected, vs " << shape.num_samplers
-                       << " in shape #" << i;
+            PHI_LOG_ERROR << "SPIR-V reflection inconsistent - Samplers: " << ri.num_samplers << " reflected, vs " << shape.num_samplers << " in shape #" << i;
         }
     }
     return true;
@@ -274,7 +272,7 @@ bool phi::vk::util::is_consistent_with_reflection(cc::span<const phi::vk::util::
 
 void phi::vk::util::print_spirv_info(cc::span<const phi::vk::util::spirv_desc_info> info)
 {
-    auto log_obj = log::info();
+    auto log_obj = PHI_LOG;
     log_obj << "SPIR-V descriptor info:\n";
     for (auto const& i : info)
     {

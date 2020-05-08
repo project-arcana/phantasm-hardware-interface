@@ -13,6 +13,7 @@ class ResourcePool;
 class PipelineStateObjectPool;
 class AccelStructPool;
 class CommandListPool;
+class QueryPool;
 
 class CPUDescriptorLinearAllocator;
 

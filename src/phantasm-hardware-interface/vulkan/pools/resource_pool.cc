@@ -5,8 +5,9 @@
 
 #include <typed-geometry/tg.hh>
 
+#include <phantasm-hardware-interface/detail/log.hh>
+
 #include <phantasm-hardware-interface/util.hh>
-#include <phantasm-hardware-interface/vulkan/common/log.hh>
 #include <phantasm-hardware-interface/vulkan/common/native_enum.hh>
 #include <phantasm-hardware-interface/vulkan/common/util.hh>
 #include <phantasm-hardware-interface/vulkan/common/verify.hh>
@@ -29,6 +30,21 @@ constexpr char const* vk_get_tex_dim_literal(phi::texture_dimension tdim)
         return "3d";
     }
     return "ud";
+}
+
+constexpr VmaMemoryUsage vk_heap_to_vma(phi::resource_heap heap)
+{
+    switch (heap)
+    {
+    case phi::resource_heap::gpu:
+        return VMA_MEMORY_USAGE_GPU_ONLY;
+    case phi::resource_heap::upload:
+        return VMA_MEMORY_USAGE_CPU_TO_GPU;
+    case phi::resource_heap::readback:
+        return VMA_MEMORY_USAGE_GPU_TO_CPU;
+    }
+
+    CC_UNREACHABLE_SWITCH_WORKAROUND(heap);
 }
 }
 
@@ -122,7 +138,7 @@ phi::handle::resource phi::vk::ResourcePool::createRenderTarget(phi::format form
     return acquireImage(res_alloc, res_image, format, image_info.mipLevels, image_info.arrayLayers, samples, w, h);
 }
 
-phi::handle::resource phi::vk::ResourcePool::createBuffer(uint64_t size_bytes, unsigned stride_bytes, bool allow_uav)
+phi::handle::resource phi::vk::ResourcePool::createBuffer(uint64_t size_bytes, unsigned stride_bytes, resource_heap heap, bool allow_uav)
 {
     VkBufferCreateInfo buffer_info = {};
     buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -133,20 +149,75 @@ phi::handle::resource phi::vk::ResourcePool::createBuffer(uint64_t size_bytes, u
     buffer_info.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
                         | VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
 
-    if (allow_uav)
+    if (allow_uav || heap == resource_heap::upload) // NOTE: not quite sure why upload buffers require these two flags as well
         buffer_info.usage |= VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
 
     VmaAllocationCreateInfo alloc_info = {};
-    alloc_info.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+    alloc_info.usage = vk_heap_to_vma(heap);
 
     VmaAllocation res_alloc;
     VkBuffer res_buffer;
     PHI_VK_VERIFY_SUCCESS(vmaCreateBuffer(mAllocator, &buffer_info, &alloc_info, &res_buffer, &res_alloc, nullptr));
     util::set_object_name(mDevice, res_buffer, "respool buffer");
-    return acquireBuffer(res_alloc, res_buffer, buffer_info.usage, size_bytes, stride_bytes);
+    return acquireBuffer(res_alloc, res_buffer, buffer_info.usage, size_bytes, stride_bytes, heap);
 }
 
-phi::handle::resource phi::vk::ResourcePool::createBufferInternal(uint64_t size_bytes, unsigned stride_bytes, VkBufferUsageFlags usage)
+std::byte* phi::vk::ResourcePool::mapBuffer(phi::handle::resource res)
+{
+    CC_ASSERT(res.is_valid() && "attempted to map invalid handle");
+
+    resource_node& node = mPool.get(unsigned(res.index));
+
+    CC_ASSERT(node.type == resource_node::resource_type::buffer && node.heap != resource_heap::gpu && //
+              "attempted to map non-buffer or buffer on GPU heap");
+
+    void* data_start_void;
+    vmaMapMemory(mAllocator, node.allocation, &data_start_void);
+    // read-write access to pool, but access to resource is user-synchronized
+    node.buffer.num_vma_maps++;
+
+
+    // NOTE: Vulkan terminology:
+    // "flush" - make CPU -> GPU writes visible
+    // "invalidate" - make CPU <- GPU reads visible
+    // this ONLY applies to memory that does not have VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+    // however, all PC GPUs (AMD, NVidia, Intel) are always HOST_COHERENT if they are HOST_VISIBLE
+    // still, to be aligned with D3D12, we:
+    //      - invalidate readback buffers on map
+    //      - flush upload buffers on unmap
+    //
+    // further reading: https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html/memory_mapping.html
+
+    if (node.heap == resource_heap::readback)
+    {
+        vmaInvalidateAllocation(mAllocator, node.allocation, 0, node.buffer.width);
+    }
+
+    return cc::bit_cast<std::byte*>(data_start_void);
+}
+
+void phi::vk::ResourcePool::unmapBuffer(phi::handle::resource res)
+{
+    CC_ASSERT(res.is_valid() && "attempted to unmap invalid handle");
+
+    resource_node& node = mPool.get(unsigned(res.index));
+
+    CC_ASSERT(node.type == resource_node::resource_type::buffer && node.heap != resource_heap::gpu && //
+              "attempted to unmap non-buffer or buffer on GPU heap");
+
+    vmaUnmapMemory(mAllocator, node.allocation);
+    // read-write access to pool, but access to resource is user-synchronized
+    node.buffer.num_vma_maps--;
+    CC_ASSERT(node.buffer.num_vma_maps >= 0 && "more unmaps than maps on resource");
+
+    // see note in ::mapBuffer above
+    if (node.heap == resource_heap::upload)
+    {
+        vmaFlushAllocation(mAllocator, node.allocation, 0, node.buffer.width);
+    }
+}
+
+phi::handle::resource phi::vk::ResourcePool::createBufferInternal(uint64_t size_bytes, unsigned stride_bytes, resource_heap heap, VkBufferUsageFlags usage)
 {
     VkBufferCreateInfo buffer_info = {};
     buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -154,76 +225,13 @@ phi::handle::resource phi::vk::ResourcePool::createBufferInternal(uint64_t size_
     buffer_info.usage = usage;
 
     VmaAllocationCreateInfo alloc_info = {};
-    alloc_info.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+    alloc_info.usage = vk_heap_to_vma(heap);
 
     VmaAllocation res_alloc;
     VkBuffer res_buffer;
     PHI_VK_VERIFY_SUCCESS(vmaCreateBuffer(mAllocator, &buffer_info, &alloc_info, &res_buffer, &res_alloc, nullptr));
     util::set_object_name(mDevice, res_buffer, "respool internal buffer");
-    return acquireBuffer(res_alloc, res_buffer, buffer_info.usage, size_bytes, stride_bytes);
-}
-
-phi::handle::resource phi::vk::ResourcePool::createMappedUploadBuffer(unsigned size_bytes, unsigned stride_bytes)
-{
-    VkBufferCreateInfo buffer_info = {};
-    buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    buffer_info.size = size_bytes;
-    // right now we'll just take all usages this thing might have in API semantics
-    // it might be required down the line to restrict this (as in, make it part of API)
-    buffer_info.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT
-                        | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
-
-    VmaAllocationCreateInfo alloc_info = {};
-    alloc_info.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
-    alloc_info.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT;
-
-    VmaAllocation res_alloc;
-    VmaAllocationInfo res_alloc_info;
-    VkBuffer res_buffer;
-    PHI_VK_VERIFY_SUCCESS(vmaCreateBuffer(mAllocator, &buffer_info, &alloc_info, &res_buffer, &res_alloc, &res_alloc_info));
-    CC_ASSERT(res_alloc_info.pMappedData != nullptr);
-    util::set_object_name(mDevice, res_buffer, "respool mapped upload buffer");
-    return acquireBuffer(res_alloc, res_buffer, buffer_info.usage, size_bytes, stride_bytes, cc::bit_cast<std::byte*>(res_alloc_info.pMappedData));
-}
-
-phi::handle::resource phi::vk::ResourcePool::createMappedReadbackBuffer(unsigned size_bytes, unsigned stride_bytes)
-{
-    VkBufferCreateInfo buffer_info = {};
-    buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    buffer_info.size = size_bytes;
-    buffer_info.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-
-    VmaAllocationCreateInfo alloc_info = {};
-    alloc_info.usage = VMA_MEMORY_USAGE_GPU_TO_CPU;
-    alloc_info.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT;
-
-    VmaAllocation res_alloc;
-    VmaAllocationInfo res_alloc_info;
-    VkBuffer res_buffer;
-    PHI_VK_VERIFY_SUCCESS(vmaCreateBuffer(mAllocator, &buffer_info, &alloc_info, &res_buffer, &res_alloc, &res_alloc_info));
-    CC_ASSERT(res_alloc_info.pMappedData != nullptr);
-    util::set_object_name(mDevice, res_buffer, "respool mapped readback buffer");
-    return acquireBuffer(res_alloc, res_buffer, buffer_info.usage, size_bytes, stride_bytes, cc::bit_cast<std::byte*>(res_alloc_info.pMappedData));
-}
-
-phi::handle::resource phi::vk::ResourcePool::createMappedBufferInternal(uint64_t size_bytes, unsigned stride_bytes, VkBufferUsageFlags usage)
-{
-    VkBufferCreateInfo buffer_info = {};
-    buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    buffer_info.size = size_bytes;
-    buffer_info.usage = usage;
-
-    VmaAllocationCreateInfo alloc_info = {};
-    alloc_info.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
-    alloc_info.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT;
-
-    VmaAllocation res_alloc;
-    VmaAllocationInfo res_alloc_info;
-    VkBuffer res_buffer;
-    PHI_VK_VERIFY_SUCCESS(vmaCreateBuffer(mAllocator, &buffer_info, &alloc_info, &res_buffer, &res_alloc, &res_alloc_info));
-    CC_ASSERT(res_alloc_info.pMappedData != nullptr);
-    util::set_object_name(mDevice, res_buffer, "respool internal mapped buffer");
-    return acquireBuffer(res_alloc, res_buffer, buffer_info.usage, size_bytes, stride_bytes, cc::bit_cast<std::byte*>(res_alloc_info.pMappedData));
+    return acquireBuffer(res_alloc, res_buffer, buffer_info.usage, size_bytes, stride_bytes, heap);
 }
 
 void phi::vk::ResourcePool::free(phi::handle::resource res)
@@ -261,13 +269,6 @@ void phi::vk::ResourcePool::free(cc::span<const phi::handle::resource> resources
     }
 }
 
-void phi::vk::ResourcePool::flushMappedMemory(phi::handle::resource res)
-{
-    auto const& node = internalGet(res);
-    CC_ASSERT(node.type == resource_node::resource_type::buffer && node.buffer.map != nullptr && "given resource is not a mapped buffer");
-    vmaFlushAllocation(mAllocator, node.allocation, 0, node.buffer.width);
-}
-
 void phi::vk::ResourcePool::initialize(VkPhysicalDevice physical, VkDevice device, unsigned max_num_resources)
 {
     mDevice = device;
@@ -286,6 +287,7 @@ void phi::vk::ResourcePool::initialize(VkPhysicalDevice physical, VkDevice devic
         resource_node& backbuffer_node = mPool.get(static_cast<unsigned>(mInjectedBackbufferResource.index));
         backbuffer_node.type = resource_node::resource_type::image;
         backbuffer_node.master_state = resource_state::undefined;
+        backbuffer_node.heap = resource_heap::gpu;
         backbuffer_node.image.raw_image = nullptr;
         backbuffer_node.image.pixel_format = format::bgra8un;
         backbuffer_node.image.num_samples = 1;
@@ -312,7 +314,7 @@ void phi::vk::ResourcePool::destroy()
 
     if (num_leaks > 0)
     {
-        log::info()("warning: leaked {} handle::resource object{}", num_leaks, num_leaks == 1 ? "" : "s");
+        PHI_LOG("leaked {} handle::resource object{}", num_leaks, num_leaks == 1 ? "" : "s");
     }
 
     vmaDestroyAllocator(mAllocator);
@@ -350,8 +352,7 @@ phi::handle::resource phi::vk::ResourcePool::injectBackbufferResource(
     return mInjectedBackbufferResource;
 }
 
-phi::handle::resource phi::vk::ResourcePool::acquireBuffer(
-    VmaAllocation alloc, VkBuffer buffer, VkBufferUsageFlags usage, uint64_t buffer_width, unsigned buffer_stride, std::byte* buffer_map)
+phi::handle::resource phi::vk::ResourcePool::acquireBuffer(VmaAllocation alloc, VkBuffer buffer, VkBufferUsageFlags usage, uint64_t buffer_width, unsigned buffer_stride, resource_heap heap)
 {
     bool const create_cbv_desc = (buffer_width < 65536) && (usage & VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
 
@@ -408,12 +409,13 @@ phi::handle::resource phi::vk::ResourcePool::acquireBuffer(
     resource_node& new_node = mPool.get(res);
     new_node.allocation = alloc;
     new_node.type = resource_node::resource_type::buffer;
+    new_node.heap = heap;
     new_node.buffer.raw_buffer = buffer;
     new_node.buffer.raw_uniform_dynamic_ds = cbv_desc_set;
     new_node.buffer.raw_uniform_dynamic_ds_compute = cbv_desc_set_compute;
     new_node.buffer.width = buffer_width;
     new_node.buffer.stride = buffer_stride;
-    new_node.buffer.map = buffer_map;
+    new_node.buffer.num_vma_maps = 0;
 
     new_node.master_state = resource_state::undefined;
     new_node.master_state_dependency = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
@@ -432,6 +434,7 @@ phi::handle::resource phi::vk::ResourcePool::acquireImage(
     resource_node& new_node = mPool.get(res);
     new_node.allocation = alloc;
     new_node.type = resource_node::resource_type::image;
+    new_node.heap = resource_heap::gpu;
     new_node.image.raw_image = image;
     new_node.image.pixel_format = pixel_format;
     new_node.image.num_mips = num_mips;
@@ -455,6 +458,12 @@ void phi::vk::ResourcePool::internalFree(resource_node& node)
     }
     else
     {
+        for (auto _ = 0; _ < node.buffer.num_vma_maps; ++_)
+        {
+            // clear remaining VMA maps
+            vmaUnmapMemory(mAllocator, node.allocation);
+        }
+
         vmaDestroyBuffer(mAllocator, node.buffer.raw_buffer, node.allocation);
 
         // This does require synchronization

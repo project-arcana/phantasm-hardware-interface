@@ -3,8 +3,9 @@
 #include <clean-core/utility.hh>
 #include <clean-core/vector.hh>
 
+#include <phantasm-hardware-interface/detail/log.hh>
+
 #include <phantasm-hardware-interface/d3d12/common/d3d12_sanitized.hh>
-#include <phantasm-hardware-interface/d3d12/common/log.hh>
 #include <phantasm-hardware-interface/d3d12/common/native_enum.hh>
 #include <phantasm-hardware-interface/d3d12/common/verify.hh>
 
@@ -104,8 +105,8 @@ phi::handle::accel_struct phi::d3d12::AccelStructPool::createTopLevelAS(unsigned
         = mResourcePool->createBufferInternal(prebuild_info.ResultDataMaxSizeInBytes, 0, true, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE);
     new_node.buffer_scratch = mResourcePool->createBufferInternal(
         cc::max<UINT64>(prebuild_info.ScratchDataSizeInBytes, prebuild_info.UpdateScratchDataSizeInBytes), 0, true, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-    new_node.buffer_instances = mResourcePool->createMappedUploadBuffer(sizeof(accel_struct_geometry_instance) * num_instances);
-    new_node.buffer_instances_map = mResourcePool->getMappedMemory(new_node.buffer_instances);
+    new_node.buffer_instances = mResourcePool->createBuffer(sizeof(accel_struct_geometry_instance) * num_instances, 0, resource_heap::upload, false);
+    new_node.buffer_instances_map = mResourcePool->mapBuffer(new_node.buffer_instances);
 
     // query GPU address (raw native handle)
     new_node.raw_as_handle = mResourcePool->getRawResource(new_node.buffer_as)->GetGPUVirtualAddress();
@@ -162,7 +163,7 @@ void phi::d3d12::AccelStructPool::destroy()
 
         if (num_leaks > 0)
         {
-            log::info()("warning: leaked {} handle::accel_struct object{}", num_leaks, num_leaks == 1 ? "" : "s");
+            PHI_LOG("leaked {} handle::accel_struct object{}", num_leaks, num_leaks == 1 ? "" : "s");
         }
     }
 }

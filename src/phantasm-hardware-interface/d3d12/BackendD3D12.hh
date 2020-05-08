@@ -19,6 +19,7 @@
 #include "pools/cmd_list_pool.hh"
 #include "pools/fence_pool.hh"
 #include "pools/pso_pool.hh"
+#include "pools/query_pool.hh"
 #include "pools/resource_pool.hh"
 #include "pools/shader_view_pool.hh"
 #include "shader_table_construction.hh"
@@ -68,27 +69,19 @@ public:
         return mPoolResources.createRenderTarget(format, unsigned(size.width), unsigned(size.height), samples, array_size, optimized_clear_val);
     }
 
-    [[nodiscard]] handle::resource createBuffer(unsigned size_bytes, unsigned stride_bytes, bool allow_uav) override
+    [[nodiscard]] handle::resource createBuffer(unsigned int size_bytes, unsigned int stride_bytes, resource_heap heap, bool allow_uav) override
     {
-        return mPoolResources.createBuffer(size_bytes, stride_bytes, allow_uav);
+        return mPoolResources.createBuffer(size_bytes, stride_bytes, heap, allow_uav);
     }
 
     [[nodiscard]] handle::resource createUploadBuffer(unsigned size_bytes, unsigned stride_bytes = 0) override
     {
-        return mPoolResources.createMappedUploadBuffer(size_bytes, stride_bytes);
+        return createBuffer(size_bytes, stride_bytes, resource_heap::upload, false);
     }
 
-    [[nodiscard]] handle::resource createReadbackBuffer(unsigned int size_bytes, unsigned int stride_bytes = 0) override
-    {
-        return mPoolResources.createMappedReadbackBuffer(size_bytes, stride_bytes);
-    }
+    [[nodiscard]] std::byte* mapBuffer(handle::resource res) override { return mPoolResources.mapBuffer(res); }
 
-    [[nodiscard]] std::byte* getMappedMemory(handle::resource res) override { return mPoolResources.getMappedMemory(res); }
-
-    void flushMappedMemory(handle::resource /*res*/) override
-    {
-        // all d3d12 mapped buffers are host coherent, we don't have to do anything here
-    }
+    void unmapBuffer(handle::resource res) override { return mPoolResources.unmapBuffer(res); }
 
     void free(handle::resource res) override { mPoolResources.free(res); }
 
@@ -166,6 +159,14 @@ public:
     void free(cc::span<handle::fence const> fences) override { mPoolFences.free(fences); }
 
     //
+    // Query interface
+    //
+
+    [[nodiscard]] handle::query_range createQueryRange(query_type type, unsigned int size) override { return mPoolQueries.create(type, size); }
+
+    void free(handle::query_range query_range) override { mPoolQueries.free(query_range); }
+
+    //
     // Raytracing interface
     //
 
@@ -208,6 +209,13 @@ public:
     // GPU info interface
     //
 
+    uint64_t getGPUTimestampFrequency() const override
+    {
+        uint64_t res;
+        mDirectQueue.getQueue().GetTimestampFrequency(&res);
+        return res;
+    }
+
     bool isRaytracingEnabled() const override;
 
     backend_type getBackendType() const override { return backend_type::d3d12; }
@@ -225,6 +233,9 @@ private:
     {
         return (type == queue_type::direct ? mDirectQueue.getQueue() : (type == queue_type::compute ? mComputeQueue.getQueue() : mCopyQueue.getQueue()));
     }
+
+    struct per_thread_component;
+    per_thread_component& getCurrentThreadComponent();
 
 private:
     // Core components
@@ -248,9 +259,9 @@ private:
     ShaderViewPool mPoolShaderViews;
     FencePool mPoolFences;
     AccelStructPool mPoolAccelStructs;
+    QueryPool mPoolQueries;
 
     // Logic
-    struct per_thread_component;
     cc::fwd_array<per_thread_component> mThreadComponents;
     phi::detail::thread_association mThreadAssociation;
     ShaderTableConstructor mShaderTableCtor;

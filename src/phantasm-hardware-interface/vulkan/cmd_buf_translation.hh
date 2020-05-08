@@ -14,16 +14,18 @@ class ResourcePool;
 class PipelinePool;
 class CommandListPool;
 class AccelStructPool;
+class QueryPool;
 
 struct translator_global_memory
 {
-    void initialize(VkDevice device, ShaderViewPool* sv_pool, ResourcePool* resource_pool, PipelinePool* pso_pool, CommandListPool* cmd_pool, AccelStructPool* as_pool)
+    void initialize(VkDevice device, ShaderViewPool* sv_pool, ResourcePool* resource_pool, PipelinePool* pso_pool, CommandListPool* cmd_pool, QueryPool* query_pool, AccelStructPool* as_pool)
     {
         this->device = device;
         this->pool_shader_views = sv_pool;
         this->pool_resources = resource_pool;
         this->pool_pipeline_states = pso_pool;
         this->pool_cmd_lists = cmd_pool;
+        this->pool_queries = query_pool;
         this->pool_accel_structs = as_pool;
     }
 
@@ -32,6 +34,7 @@ struct translator_global_memory
     ResourcePool* pool_resources = nullptr;
     PipelinePool* pool_pipeline_states = nullptr;
     CommandListPool* pool_cmd_lists = nullptr;
+    QueryPool* pool_queries = nullptr;
     AccelStructPool* pool_accel_structs = nullptr;
 
     translator_global_memory() = default;
@@ -40,9 +43,9 @@ struct translator_global_memory
 /// responsible for filling command lists, 1 per thread
 struct command_list_translator
 {
-    void initialize(VkDevice device, ShaderViewPool* sv_pool, ResourcePool* resource_pool, PipelinePool* pso_pool, CommandListPool* cmd_pool, AccelStructPool* as_pool)
+    void initialize(VkDevice device, ShaderViewPool* sv_pool, ResourcePool* resource_pool, PipelinePool* pso_pool, CommandListPool* cmd_pool, QueryPool* query_pool, AccelStructPool* as_pool)
     {
-        _globals.initialize(device, sv_pool, resource_pool, pso_pool, cmd_pool, as_pool);
+        _globals.initialize(device, sv_pool, resource_pool, pso_pool, cmd_pool, query_pool, as_pool);
     }
 
     void translateCommandList(VkCommandBuffer list, handle::command_list list_handle, vk_incomplete_state_cache* state_cache, std::byte* buffer, size_t buffer_size);
@@ -68,6 +71,10 @@ struct command_list_translator
     void execute(cmd::resolve_texture const& resolve);
 
     void execute(cmd::debug_marker const& marker);
+
+    void execute(cmd::write_timestamp const& timestamp);
+
+    void execute(cmd::resolve_queries const& resolve);
 
     void execute(cmd::update_bottom_level const& blas_update);
 

@@ -1,8 +1,8 @@
 #include "root_signature.hh"
 
+#include <phantasm-hardware-interface/detail/log.hh>
 #include <phantasm-hardware-interface/limits.hh>
 
-#include <phantasm-hardware-interface/d3d12/common/log.hh>
 #include <phantasm-hardware-interface/d3d12/common/native_enum.hh>
 #include <phantasm-hardware-interface/d3d12/common/verify.hh>
 
@@ -48,7 +48,7 @@ ID3D12RootSignature* phi::d3d12::create_root_signature(ID3D12Device& device,
     auto const serialize_hr = D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1_0, serialized_root_sig.override(), error_blob.override());
     if (serialize_hr == E_INVALIDARG)
     {
-        log::err()("root signature serialization failed:\n{}", static_cast<char*>(error_blob->GetBufferPointer()));
+        PHI_LOG_ERROR("root signature serialization failed:\n{}", static_cast<char*>(error_blob->GetBufferPointer()));
     }
     PHI_D3D12_ASSERT_FULL(serialize_hr, &device);
 

@@ -4,9 +4,9 @@
 
 #include <clean-core/utility.hh>
 
+#include <phantasm-hardware-interface/detail/log.hh>
 #include <phantasm-hardware-interface/limits.hh>
 
-#include "common/log.hh"
 #include "common/verify.hh"
 #include "queue_util.hh"
 

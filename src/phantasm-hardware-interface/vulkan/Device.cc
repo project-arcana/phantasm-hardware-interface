@@ -3,7 +3,8 @@
 #include <clean-core/assert.hh>
 #include <clean-core/capped_vector.hh>
 
-#include "common/log.hh"
+#include <phantasm-hardware-interface/detail/log.hh>
+
 #include "common/verify.hh"
 #include "gpu_choice_util.hh"
 #include "queue_util.hh"
@@ -80,14 +81,18 @@ void phi::vk::Device::initialize(vulkan_gpu_info const& device, backend_config c
         if (mQueueIndices.copy.valid())
             vkGetDeviceQueue(mDevice, uint32_t(mQueueIndices.copy.family_index), uint32_t(mQueueIndices.copy.queue_index), &mQueueCopy);
 
-        //        log::info() << "queues: " << mQueueDirect << mQueueCompute << mQueueCopy;
-        //        log::info() << "fams: " << getQueueFamilyDirect() << ", " << getQueueFamilyCompute() << ", " << getQueueFamilyCopy();
+        //        PHI_LOG << "queues: " << mQueueDirect << mQueueCompute << mQueueCopy;
+        //        PHI_LOG << "fams: " << getQueueFamilyDirect() << ", " << getQueueFamilyCompute() << ", " << getQueueFamilyCopy();
     }
 
     // copy info
     {
         mInformation.memory_properties = device.mem_props;
         mInformation.device_properties = device.physical_device_props;
+    }
+
+    // query limits
+    {
     }
 
     if (hasRaytracing())

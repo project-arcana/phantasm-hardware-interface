@@ -23,6 +23,7 @@ namespace phi::vk::util
     case rs::constant_buffer:
         return VK_ACCESS_UNIFORM_READ_BIT;
     case rs::shader_resource:
+    case rs::shader_resource_nonpixel:
         return VK_ACCESS_SHADER_READ_BIT;
     case rs::unordered_access:
         return VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
@@ -70,6 +71,7 @@ namespace phi::vk::util
         return VK_IMAGE_LAYOUT_UNDEFINED;
 
     case rs::shader_resource:
+    case rs::shader_resource_nonpixel:
         return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     case rs::unordered_access:
         return VK_IMAGE_LAYOUT_GENERAL;
@@ -181,6 +183,7 @@ namespace phi::vk::util
 
     case rs::constant_buffer:
     case rs::shader_resource:
+    case rs::shader_resource_nonpixel:
     case rs::unordered_access:
         return shader_flags;
 

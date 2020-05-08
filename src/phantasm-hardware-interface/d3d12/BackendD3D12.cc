@@ -2,11 +2,13 @@
 
 #include <clean-core/vector.hh>
 
+#include <phantasm-hardware-interface/detail/log.hh>
 #include <phantasm-hardware-interface/window_handle.hh>
+
+#include <rich-log/logger.hh>
 
 #include "cmd_list_translation.hh"
 #include "common/dxgi_format.hh"
-#include "common/log.hh"
 #include "common/native_enum.hh"
 #include "common/util.hh"
 #include "common/verify.hh"
@@ -27,6 +29,9 @@ struct BackendD3D12::per_thread_component
 
 void phi::d3d12::BackendD3D12::initialize(const phi::backend_config& config, const window_handle& window_handle)
 {
+    // just making sure
+    rlog::enable_win32_colors();
+
     mFlushEvent = CreateEventEx(nullptr, FALSE, FALSE, EVENT_ALL_ACCESS);
     CC_ASSERT(mFlushEvent != INVALID_HANDLE_VALUE && "failed to create win32 event");
 
@@ -75,6 +80,7 @@ void phi::d3d12::BackendD3D12::initialize(const phi::backend_config& config, con
         mPoolShaderViews.initialize(&device, &mPoolResources, config.max_num_cbvs, config.max_num_srvs + config.max_num_uavs, config.max_num_samplers);
         mPoolPSOs.initialize(mDevice.getDevice5(), config.max_num_pipeline_states, config.max_num_raytrace_pipeline_states);
         mPoolFences.initialize(&device, config.max_num_fences);
+        mPoolQueries.initialize(device, config.num_timestamp_queries, config.num_occlusion_queries, config.num_pipeline_stat_queries);
 
         if (isRaytracingEnabled())
         {
@@ -93,7 +99,7 @@ void phi::d3d12::BackendD3D12::initialize(const phi::backend_config& config, con
 
         for (auto& thread_comp : mThreadComponents)
         {
-            thread_comp.translator.initialize(&device, &mPoolShaderViews, &mPoolResources, &mPoolPSOs, &mPoolAccelStructs);
+            thread_comp.translator.initialize(&device, &mPoolShaderViews, &mPoolResources, &mPoolPSOs, &mPoolAccelStructs, &mPoolQueries);
             thread_allocator_ptrs.push_back(&thread_comp.cmd_list_allocator);
         }
 
@@ -178,7 +184,7 @@ phi::format phi::d3d12::BackendD3D12::getBackbufferFormat() const { return util:
 
 phi::handle::command_list phi::d3d12::BackendD3D12::recordCommandList(std::byte* buffer, size_t size, queue_type queue)
 {
-    auto& thread_comp = mThreadComponents[mThreadAssociation.get_current_index()];
+    auto& thread_comp = getCurrentThreadComponent();
     ID3D12GraphicsCommandList5* raw_list5;
     auto const res = mPoolCmdLists.create(raw_list5, thread_comp.cmd_list_allocator, queue);
     thread_comp.translator.translateCommandList(raw_list5, queue, mPoolCmdLists.getStateCache(res), buffer, size);
@@ -195,7 +201,7 @@ void phi::d3d12::BackendD3D12::submit(cc::span<const phi::handle::command_list> 
     unsigned last_cl_index = 0;
     unsigned num_cls_in_batch = 0;
 
-    auto& thread_comp = mThreadComponents[mThreadAssociation.get_current_index()];
+    auto& thread_comp = getCurrentThreadComponent();
 
     auto const submit_flush = [&]() {
         target_queue.ExecuteCommandLists(UINT(submit_batch.size()), submit_batch.data());
@@ -284,8 +290,7 @@ void phi::d3d12::BackendD3D12::uploadTopLevelInstances(phi::handle::accel_struct
 {
     CC_ASSERT(isRaytracingEnabled() && "raytracing is not enabled");
     auto const& node = mPoolAccelStructs.getNode(as);
-    std::memcpy(node.buffer_instances_map, instances.data(), sizeof(accel_struct_geometry_instance) * instances.size());
-    // flushMappedMemory(node.buffer_instances); (no-op)
+    std::memcpy(node.buffer_instances_map, instances.data(), instances.size_bytes());
 }
 
 phi::handle::resource phi::d3d12::BackendD3D12::getAccelStructBuffer(phi::handle::accel_struct as) { return mPoolAccelStructs.getNode(as).buffer_as; }
@@ -317,7 +322,7 @@ void phi::d3d12::BackendD3D12::freeRange(cc::span<const phi::handle::accel_struc
 void phi::d3d12::BackendD3D12::printInformation(phi::handle::resource res) const
 {
     (void)res;
-    log::info() << "printInformation unimplemented";
+    PHI_LOG << "printInformation unimplemented";
 }
 
 bool phi::d3d12::BackendD3D12::startForcedDiagnosticCapture() { return mDiagnostics.start_capture(); }
@@ -325,3 +330,12 @@ bool phi::d3d12::BackendD3D12::startForcedDiagnosticCapture() { return mDiagnost
 bool phi::d3d12::BackendD3D12::endForcedDiagnosticCapture() { return mDiagnostics.end_capture(); }
 
 bool phi::d3d12::BackendD3D12::isRaytracingEnabled() const { return mDevice.hasRaytracing(); }
+
+phi::d3d12::BackendD3D12::per_thread_component& phi::d3d12::BackendD3D12::getCurrentThreadComponent()
+{
+    auto const current_index = mThreadAssociation.get_current_index();
+    CC_ASSERT_MSG(current_index < mThreadComponents.size(),
+                  "Accessed phi Backend from more OS threads than configured in backend_config\n"
+                  "recordCommandList() and submit() must only be used from at most backend_config::num_threads unique OS threads in total");
+    return mThreadComponents[current_index];
+}

@@ -59,6 +59,8 @@ struct page_allocator
 public:
     [[nodiscard]] int get_page_size() const { return _page_size; }
     [[nodiscard]] int get_num_pages() const { return int(_pages.size()); }
+    /// NOTE: this is the size given to ::allocate, ceiled to _page_size
+    [[nodiscard]] int get_allocation_size_in_elements(int page) const { return _pages[unsigned(page)] * _page_size; }
 
 private:
     // pages, each element is a natural number n

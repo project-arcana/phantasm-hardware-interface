@@ -3,7 +3,8 @@
 #include <clean-core/utility.hh>
 #include <clean-core/vector.hh>
 
-#include <phantasm-hardware-interface/vulkan/common/log.hh>
+#include <phantasm-hardware-interface/detail/log.hh>
+
 #include <phantasm-hardware-interface/vulkan/common/native_enum.hh>
 #include <phantasm-hardware-interface/vulkan/common/util.hh>
 #include <phantasm-hardware-interface/vulkan/common/verify.hh>
@@ -106,8 +107,8 @@ phi::handle::accel_struct phi::vk::AccelStructPool::createBottomLevelAS(cc::span
     VkDeviceSize buffer_size_as = 0, buffer_size_scratch = 0;
     query_accel_struct_buffer_sizes(mDevice, raw_as, buffer_size_as, buffer_size_scratch);
 
-    auto const buffer_as = mResourcePool->createBufferInternal(buffer_size_as, 0, VK_BUFFER_USAGE_RAY_TRACING_BIT_NV);
-    auto const buffer_scratch = mResourcePool->createBufferInternal(buffer_size_scratch, 0, VK_BUFFER_USAGE_RAY_TRACING_BIT_NV);
+    auto const buffer_as = mResourcePool->createBufferInternal(buffer_size_as, 0, resource_heap::gpu, VK_BUFFER_USAGE_RAY_TRACING_BIT_NV);
+    auto const buffer_scratch = mResourcePool->createBufferInternal(buffer_size_scratch, 0, resource_heap::gpu, VK_BUFFER_USAGE_RAY_TRACING_BIT_NV);
 
     // Bind the AS buffer's memory to the AS
     VkBindAccelerationStructureMemoryInfoNV bind_mem_info = {};
@@ -148,11 +149,11 @@ phi::handle::accel_struct phi::vk::AccelStructPool::createTopLevelAS(unsigned nu
     VkDeviceSize buffer_size_as = 0, buffer_size_scratch = 0;
     query_accel_struct_buffer_sizes(mDevice, raw_as, buffer_size_as, buffer_size_scratch);
 
-    auto const buffer_as = mResourcePool->createBufferInternal(buffer_size_as, 0, VK_BUFFER_USAGE_RAY_TRACING_BIT_NV);
-    auto const buffer_scratch = mResourcePool->createBufferInternal(buffer_size_scratch, 0, VK_BUFFER_USAGE_RAY_TRACING_BIT_NV);
+    auto const buffer_as = mResourcePool->createBufferInternal(buffer_size_as, 0, resource_heap::gpu, VK_BUFFER_USAGE_RAY_TRACING_BIT_NV);
+    auto const buffer_scratch = mResourcePool->createBufferInternal(buffer_size_scratch, 0, resource_heap::gpu, VK_BUFFER_USAGE_RAY_TRACING_BIT_NV);
 
     auto const buffer_size_instances = sizeof(accel_struct_geometry_instance) * num_instances;
-    auto const buffer_instances = mResourcePool->createMappedBufferInternal(buffer_size_instances, 0, VK_BUFFER_USAGE_RAY_TRACING_BIT_NV);
+    auto const buffer_instances = mResourcePool->createBufferInternal(buffer_size_instances, 0, resource_heap::upload, VK_BUFFER_USAGE_RAY_TRACING_BIT_NV);
 
     // Bind the AS buffer's memory to the AS
     VkBindAccelerationStructureMemoryInfoNV bind_mem_info = {};
@@ -218,7 +219,7 @@ void phi::vk::AccelStructPool::destroy()
 
         if (num_leaks > 0)
         {
-            log::info()("warning: leaked {} handle::accel_struct object{}", num_leaks, num_leaks == 1 ? "" : "s");
+            PHI_LOG("leaked {} handle::accel_struct object{}", num_leaks, num_leaks == 1 ? "" : "s");
         }
     }
 }
@@ -251,15 +252,6 @@ phi::handle::accel_struct phi::vk::AccelStructPool::acquireAccelStruct(VkAcceler
     new_node.geometries.clear();
 
     PHI_VK_VERIFY_SUCCESS(vkGetAccelerationStructureHandleNV(mDevice, raw_as, sizeof(new_node.raw_as_handle), &new_node.raw_as_handle));
-
-    if (new_node.buffer_instances.is_valid())
-    {
-        new_node.buffer_instances_map = mResourcePool->getMappedMemory(new_node.buffer_instances);
-    }
-    else
-    {
-        new_node.buffer_instances_map = nullptr;
-    }
 
     return {static_cast<handle::index_t>(res)};
 }

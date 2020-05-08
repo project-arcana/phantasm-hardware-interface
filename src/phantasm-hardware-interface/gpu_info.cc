@@ -1,8 +1,8 @@
 #include "gpu_info.hh"
 
-#include <cstdio>
-
 #include <clean-core/assert.hh>
+
+#include <rich-log/log.hh>
 
 namespace
 {
@@ -52,6 +52,11 @@ constexpr char const* get_present_mode_literal(phi::present_mode mode)
     CC_UNREACHABLE_SWITCH_WORKAROUND(mode);
 }
 
+constexpr void phi_log(rlog::MessageBuilder& builder)
+{
+    builder.set_domain(rlog::domain("PHI"));
+    builder.set_separator("");
+}
 }
 
 size_t phi::get_preferred_gpu(cc::span<const phi::gpu_info> candidates, phi::adapter_preference preference, bool verbose)
@@ -146,24 +151,22 @@ void phi::print_startup_message(cc::span<const phi::gpu_info> gpu_candidates, si
     if (!config.print_startup_message)
         return;
 
-    std::printf("[phi] %s backend initialized, validation: %s, present mode: %s\n", //
-                is_d3d12 ? "d3d12" : "vulkan", get_validation_literal(config.validation), get_present_mode_literal(config.present));
+    LOG(phi_log, "{} backend initialized, validation: {}, present mode: {}", //
+        is_d3d12 ? "d3d12" : "vulkan", get_validation_literal(config.validation), get_present_mode_literal(config.present));
 
     if (verbose)
-        std::printf("[phi]   %u backbuffers, %u threads, max %u resources, max %u PSOs\n", //
-                    config.num_backbuffers, config.num_threads, config.max_num_resources, config.max_num_pipeline_states);
+        LOG(phi_log, "   {} backbuffers, {} threads, max {} resources, max {} PSOs", //
+            config.num_backbuffers, config.num_threads, config.max_num_resources, config.max_num_pipeline_states);
 
     if (chosen_index < gpu_candidates.size())
     {
-        std::printf("[phi]   chose gpu #%zu (%s) from %zu candidate%s, preference: %s\n", //
-                    chosen_index, gpu_candidates[chosen_index].description.c_str(), gpu_candidates.size(), (gpu_candidates.size() == 1 ? "" : "s"),
-                    get_preference_literal(config.adapter));
+        LOG(phi_log, "   chose gpu #{} ({}) from {} candidate{}, preference: {}", //
+            chosen_index, gpu_candidates[chosen_index].description.c_str(), gpu_candidates.size(), (gpu_candidates.size() == 1 ? "" : "s"),
+            get_preference_literal(config.adapter));
     }
     else
     {
-        std::printf("[phi]   failed to choose gpu from %zu candidate%s, preference: %s\n", //
-                    gpu_candidates.size(), (gpu_candidates.size() == 1 ? "" : "s"), get_preference_literal(config.adapter));
+        LOG(phi_log, "   failed to choose gpu from {} candidate{}, preference: {}", //
+            gpu_candidates.size(), (gpu_candidates.size() == 1 ? "" : "s"), get_preference_literal(config.adapter));
     }
-
-    std::fflush(stdout);
 }

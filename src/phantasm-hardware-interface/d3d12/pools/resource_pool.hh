@@ -26,20 +26,16 @@ public:
         phi::format format, unsigned w, unsigned h, unsigned samples, unsigned array_size, rt_clear_value const* optimized_clear_val = nullptr);
 
     /// create a buffer, with an element stride if its an index or vertex buffer
-    [[nodiscard]] handle::resource createBuffer(uint64_t size_bytes, unsigned stride_bytes, bool allow_uav);
+    [[nodiscard]] handle::resource createBuffer(uint64_t size_bytes, unsigned stride_bytes, resource_heap heap, bool allow_uav);
+
+    [[nodiscard]] std::byte* mapBuffer(handle::resource res);
+
+    void unmapBuffer(handle::resource res);
 
     [[nodiscard]] handle::resource createBufferInternal(uint64_t size_bytes, unsigned stride_bytes, bool allow_uav, D3D12_RESOURCE_STATES initial_state);
 
-    /// create a mapped, UPLOAD_HEAP buffer, with an element stride if its an index or vertex buffer
-    [[nodiscard]] handle::resource createMappedUploadBuffer(uint64_t size_bytes, unsigned stride_bytes = 0);
-
-    [[nodiscard]] handle::resource createMappedReadbackBuffer(uint64_t size_bytes, unsigned stride_bytes = 0);
-
     void free(handle::resource res);
     void free(cc::span<handle::resource const> resources);
-
-    /// only valid for resources created with createMappedBuffer
-    [[nodiscard]] std::byte* getMappedMemory(handle::resource res) { return mPool.get(static_cast<unsigned>(res.index)).buffer.map; }
 
 public:
     struct resource_node
@@ -55,7 +51,6 @@ public:
         {
             uint32_t width;
             uint32_t stride; ///< vertex size or index size
-            std::byte* map;
         };
 
         struct image_info
@@ -76,6 +71,7 @@ public:
 
         D3D12_RESOURCE_STATES master_state = D3D12_RESOURCE_STATE_COMMON;
         resource_type type;
+        phi::resource_heap heap;
     };
 
 public:
@@ -147,11 +143,7 @@ public:
     [[nodiscard]] bool isBackbuffer(handle::resource res) const { return res == mInjectedBackbufferResource; }
 
 private:
-    [[nodiscard]] handle::resource acquireBuffer(D3D12MA::Allocation* alloc,
-                                                 D3D12_RESOURCE_STATES initial_state,
-                                                 uint64_t buffer_width = 0,
-                                                 unsigned buffer_stride = 0,
-                                                 std::byte* buffer_map = nullptr);
+    [[nodiscard]] handle::resource acquireBuffer(D3D12MA::Allocation* alloc, D3D12_RESOURCE_STATES initial_state, uint64_t buffer_width, unsigned buffer_stride, resource_heap heap);
 
     [[nodiscard]] handle::resource acquireImage(D3D12MA::Allocation* alloc, format pixel_format, D3D12_RESOURCE_STATES initial_state, unsigned num_mips, unsigned num_array_layers);
 

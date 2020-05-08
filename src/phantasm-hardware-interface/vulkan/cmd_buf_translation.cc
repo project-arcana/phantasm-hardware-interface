@@ -3,10 +3,10 @@
 #include <phantasm-hardware-interface/detail/byte_util.hh>
 #include <phantasm-hardware-interface/detail/command_reading.hh>
 #include <phantasm-hardware-interface/detail/incomplete_state_cache.hh>
+#include <phantasm-hardware-interface/detail/log.hh>
 #include <phantasm-hardware-interface/util.hh>
 
 #include "Swapchain.hh"
-#include "common/log.hh"
 #include "common/native_enum.hh"
 #include "common/util.hh"
 #include "common/verify.hh"
@@ -14,6 +14,7 @@
 #include "pools/cmd_list_pool.hh"
 #include "pools/pipeline_layout_cache.hh"
 #include "pools/pipeline_pool.hh"
+#include "pools/query_pool.hh"
 #include "pools/resource_pool.hh"
 #include "pools/shader_view_pool.hh"
 #include "resources/transition_barrier.hh"
@@ -273,7 +274,7 @@ void phi::vk::command_list_translator::execute(const phi::cmd::transition_resour
 
     for (auto const& transition : transition_res.transitions)
     {
-        auto const after_dep = util::to_pipeline_stage_dependency(transition.target_state, util::to_pipeline_stage_flags_bitwise(transition.dependant_shaders));
+        auto const after_dep = util::to_pipeline_stage_dependency(transition.target_state, util::to_pipeline_stage_flags_bitwise(transition.dependent_shaders));
         CC_ASSERT(after_dep != 0 && "Transition shader dependencies must be specified if transitioning to a CBV/SRV/UAV");
 
         resource_state before;
@@ -421,6 +422,31 @@ void phi::vk::command_list_translator::execute(const phi::cmd::debug_marker& mar
         vkCmdInsertDebugUtilsLabelEXT(_cmd_list, &label);
 }
 
+void phi::vk::command_list_translator::execute(const phi::cmd::write_timestamp& timestamp)
+{
+    VkQueryPool pool;
+    uint32_t const query_index = _globals.pool_queries->getQuery(timestamp.query_range, query_type::timestamp, timestamp.index, pool);
+
+    // NOTE: this is likely wildly inefficient on some non-desktop IHV, revisit when necessary
+    // it could be moved to the tail of cmd::resolve_queries without breaking API, which would at least reset in ranges > 1
+    // however then we'd need an initial command list resetting all queries on backend launch, skipping that for now
+    vkCmdResetQueryPool(_cmd_list, pool, query_index, 1);
+
+    vkCmdWriteTimestamp(_cmd_list, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, pool, query_index);
+}
+
+void phi::vk::command_list_translator::execute(const phi::cmd::resolve_queries& resolve)
+{
+    query_type type;
+    VkQueryPool raw_pool;
+    uint32_t const query_index_start = _globals.pool_queries->getQuery(resolve.src_query_range, resolve.query_start, raw_pool, type);
+
+    VkBuffer const raw_dest_buffer = _globals.pool_resources->getRawBuffer(resolve.dest_buffer);
+
+    VkQueryResultFlags flags = VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT;
+    vkCmdCopyQueryPoolResults(_cmd_list, raw_pool, query_index_start, resolve.num_queries, raw_dest_buffer, resolve.dest_offset, sizeof(uint64_t), flags);
+}
+
 void phi::vk::command_list_translator::execute(const phi::cmd::update_bottom_level& blas_update)
 {
     auto& dest_node = _globals.pool_accel_structs->getNode(blas_update.dest);
@@ -493,14 +519,17 @@ void phi::vk::command_list_translator::execute(const phi::cmd::clear_textures& c
         if (is_depth_format(op.rv.pixel_format))
         {
             VkClearDepthStencilValue clearval = {};
-            clearval.depth = op.value.depth_stencil.depth;
-            clearval.stencil = op.value.depth_stencil.stencil;
+            clearval.depth = op.value.red_or_depth / 255.f;
+            clearval.stencil = op.value.green_or_stencil;
             vkCmdClearDepthStencilImage(_cmd_list, resource, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearval, 1, &range);
         }
         else
         {
             VkClearColorValue clearval = {};
-            std::memcpy(clearval.float32, op.value.color, sizeof(float[4]));
+            clearval.float32[0] = op.value.red_or_depth / 255.f;
+            clearval.float32[1] = op.value.green_or_stencil / 255.f;
+            clearval.float32[2] = op.value.blue / 255.f;
+            clearval.float32[3] = op.value.alpha / 255.f;
             vkCmdClearColorImage(_cmd_list, resource, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearval, 1, &range);
         }
     }

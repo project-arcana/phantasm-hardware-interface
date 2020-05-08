@@ -2,7 +2,8 @@
 
 #include <clean-core/capped_vector.hh>
 
-#include <phantasm-hardware-interface/vulkan/common/log.hh>
+#include <phantasm-hardware-interface/detail/log.hh>
+
 #include <phantasm-hardware-interface/vulkan/common/native_enum.hh>
 #include <phantasm-hardware-interface/vulkan/common/vk_format.hh>
 #include <phantasm-hardware-interface/vulkan/loader/spirv_patch_util.hh>
@@ -66,8 +67,6 @@ phi::handle::shader_view phi::vk::ShaderViewPool::create(cc::span<resource_view 
         {
             auto const& uav = uavs[i];
 
-            new_node.resources.push_back(uav.resource);
-
             auto const uav_native_type = util::to_native_uav_desc_type(uav.dimension);
             auto const binding = spv::uav_binding_start + i;
 
@@ -97,8 +96,6 @@ phi::handle::shader_view phi::vk::ShaderViewPool::create(cc::span<resource_view 
         for (auto i = 0u; i < srvs.size(); ++i)
         {
             auto const& srv = srvs[i];
-            new_node.resources.push_back(srv.resource);
-
 
             auto const srv_native_type = util::to_native_srv_desc_type(srv.dimension);
             auto const binding = spv::srv_binding_start + i;
@@ -226,7 +223,7 @@ void phi::vk::ShaderViewPool::destroy()
 
     if (num_leaks > 0)
     {
-        log::info()("warning: leaked {} handle::shader_view object{}", num_leaks, num_leaks == 1 ? "" : "s");
+        PHI_LOG("leaked {} handle::shader_view object{}", num_leaks, num_leaks == 1 ? "" : "s");
     }
 
     mAllocator.destroy();
@@ -298,8 +295,6 @@ void phi::vk::ShaderViewPool::internalFree(phi::vk::ShaderViewPool::shader_view_
         vkDestroySampler(mDevice, s, nullptr);
     }
     node.samplers.clear();
-
-    node.resources.clear();
 
     // destroy the descriptor set layout used for creation
     vkDestroyDescriptorSetLayout(mDevice, node.raw_desc_set_layout, nullptr);

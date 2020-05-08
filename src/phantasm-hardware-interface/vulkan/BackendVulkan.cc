@@ -2,9 +2,12 @@
 
 #include <clean-core/array.hh>
 
+#include <phantasm-hardware-interface/detail/log.hh>
+
+#include <rich-log/logger.hh>
+
 #include "cmd_buf_translation.hh"
 #include "common/debug_callback.hh"
-#include "common/log.hh"
 #include "common/verify.hh"
 #include "common/vk_format.hh"
 #include "gpu_choice_util.hh"
@@ -24,6 +27,9 @@ struct BackendVulkan::per_thread_component
 
 void phi::vk::BackendVulkan::initialize(const backend_config& config_arg, const window_handle& window_handle)
 {
+    // just making sure
+    rlog::enable_win32_colors();
+
     PHI_VK_VERIFY_SUCCESS(volkInitialize());
 
     // copy explicitly for modifications
@@ -32,7 +38,7 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg, const 
     mDiagnostics.init();
     if (mDiagnostics.is_renderdoc_present() && config.validation >= validation_level::on)
     {
-        log::info()("info: Validation layers requested while running RenderDoc, disabling due to known crashes");
+        PHI_LOG("Validation layers requested while running RenderDoc, disabling due to known crashes");
         config.validation = validation_level::off;
     }
 
@@ -117,6 +123,7 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg, const 
     mPoolResources.initialize(mDevice.getPhysicalDevice(), mDevice.getDevice(), config.max_num_resources);
     mPoolShaderViews.initialize(mDevice.getDevice(), &mPoolResources, config.max_num_cbvs, config.max_num_srvs, config.max_num_uavs, config.max_num_samplers);
     mPoolFences.initialize(mDevice.getDevice(), config.max_num_fences);
+    mPoolQueries.initialize(mDevice.getDevice(), config.num_timestamp_queries, config.num_occlusion_queries, config.num_pipeline_stat_queries);
 
     if (isRaytracingEnabled())
     {
@@ -133,7 +140,8 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg, const 
 
         for (auto& thread_comp : mThreadComponents)
         {
-            thread_comp.translator.initialize(mDevice.getDevice(), &mPoolShaderViews, &mPoolResources, &mPoolPipelines, &mPoolCmdLists, &mPoolAccelStructs);
+            thread_comp.translator.initialize(mDevice.getDevice(), &mPoolShaderViews, &mPoolResources, &mPoolPipelines, &mPoolCmdLists, &mPoolQueries,
+                                              &mPoolAccelStructs);
             thread_allocator_ptrs.push_back(&thread_comp.cmd_list_allocator);
         }
 
@@ -156,6 +164,7 @@ void phi::vk::BackendVulkan::destroy()
         mSwapchain.destroy();
 
         mPoolAccelStructs.destroy();
+        mPoolQueries.destroy(mDevice.getDevice());
         mPoolFences.destroy();
         mPoolShaderViews.destroy();
         mPoolCmdLists.destroy();
@@ -325,7 +334,7 @@ phi::handle::pipeline_state phi::vk::BackendVulkan::createRaytracingPipelineStat
                                                                                   unsigned max_attribute_size_bytes)
 {
     CC_ASSERT(isRaytracingEnabled() && "raytracing is not enabled");
-    log::err()("createRaytracingPipelineState unimplemented");
+    PHI_LOG_ERROR("createRaytracingPipelineState unimplemented");
     return handle::null_pipeline_state;
 }
 
@@ -352,13 +361,15 @@ void phi::vk::BackendVulkan::uploadTopLevelInstances(phi::handle::accel_struct a
 {
     CC_ASSERT(isRaytracingEnabled() && "raytracing is not enabled");
     auto const& node = mPoolAccelStructs.getNode(as);
-    std::memcpy(node.buffer_instances_map, instances.data(), sizeof(accel_struct_geometry_instance) * instances.size());
-    flushMappedMemory(node.buffer_instances);
+
+    auto* const map = mPoolResources.mapBuffer(node.buffer_instances);
+    std::memcpy(map, instances.data(), sizeof(accel_struct_geometry_instance) * instances.size());
+    mPoolResources.unmapBuffer(node.buffer_instances);
 }
 
 phi::handle::resource phi::vk::BackendVulkan::getAccelStructBuffer(phi::handle::accel_struct as)
 {
-    log::err()("calculateShaderTableSize unimplemented");
+    PHI_LOG_ERROR("calculateShaderTableSize unimplemented");
     return handle::null_resource;
 }
 
@@ -366,13 +377,13 @@ phi::shader_table_sizes phi::vk::BackendVulkan::calculateShaderTableSize(phi::ar
                                                                          phi::arg::shader_table_records miss_records,
                                                                          phi::arg::shader_table_records hit_group_records)
 {
-    log::err()("calculateShaderTableSize unimplemented");
+    PHI_LOG_ERROR("calculateShaderTableSize unimplemented");
     return {};
 }
 
 void phi::vk::BackendVulkan::writeShaderTable(std::byte* dest, handle::pipeline_state pso, unsigned stride, arg::shader_table_records records)
 {
-    log::err()("writeShaderTable unimplemented");
+    PHI_LOG_ERROR("writeShaderTable unimplemented");
 }
 
 void phi::vk::BackendVulkan::free(phi::handle::accel_struct as)
@@ -389,23 +400,23 @@ void phi::vk::BackendVulkan::freeRange(cc::span<const phi::handle::accel_struct>
 
 void phi::vk::BackendVulkan::printInformation(phi::handle::resource res) const
 {
-    log::info() << "Inspecting resource " << res.index;
+    PHI_LOG << "Inspecting resource " << res.index;
     if (!res.is_valid())
-        log::info() << "  invalid (== handle::null_resource)";
+        PHI_LOG << "  invalid (== handle::null_resource)";
     else
     {
         if (mPoolResources.isImage(res))
         {
             auto const& info = mPoolResources.getImageInfo(res);
-            log::info() << " image, raw pointer: " << info.raw_image;
-            log::info() << " " << info.num_mips << " mips, " << info.num_array_layers << " array layers, format: " << unsigned(info.pixel_format);
+            PHI_LOG << " image, raw pointer: " << info.raw_image;
+            PHI_LOG << " " << info.num_mips << " mips, " << info.num_array_layers << " array layers, format: " << unsigned(info.pixel_format);
         }
         else
         {
             auto const& info = mPoolResources.getBufferInfo(res);
-            log::info() << " buffer, raw pointer: " << info.raw_buffer;
-            log::info() << " " << info.width << " width, " << info.stride << " stride, raw mapped ptr: " << info.map;
-            log::info() << " raw dynamic CBV descriptor set: " << info.raw_uniform_dynamic_ds;
+            PHI_LOG << " buffer, raw pointer: " << info.raw_buffer;
+            PHI_LOG << " " << info.width << " width, " << info.stride << " stride";
+            PHI_LOG << " raw dynamic CBV descriptor set: " << info.raw_uniform_dynamic_ds;
         }
     }
 }

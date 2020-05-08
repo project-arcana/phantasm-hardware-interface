@@ -2,7 +2,8 @@
 
 #include <clean-core/defer.hh>
 
-#include <phantasm-hardware-interface/vulkan/common/log.hh>
+#include <phantasm-hardware-interface/detail/log.hh>
+
 #include <phantasm-hardware-interface/vulkan/common/util.hh>
 #include <phantasm-hardware-interface/vulkan/loader/spirv_patch_util.hh>
 #include <phantasm-hardware-interface/vulkan/render_pass_pipeline.hh>
@@ -162,7 +163,7 @@ void phi::vk::PipelinePool::destroy()
 
     if (num_leaks > 0)
     {
-        log::info()("warning: leaked {} handle::pipeline_state object{}", num_leaks, (num_leaks == 1 ? "" : "s"));
+        PHI_LOG("leaked {} handle::pipeline_state object{}", num_leaks, (num_leaks == 1 ? "" : "s"));
     }
 
     mLayoutCache.destroy(mDevice);

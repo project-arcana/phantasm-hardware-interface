@@ -17,13 +17,14 @@ struct translator_thread_local_memory
 
 struct translator_global_memory
 {
-    void initialize(ID3D12Device* device, ShaderViewPool* sv_pool, ResourcePool* resource_pool, PipelineStateObjectPool* pso_pool, AccelStructPool* as_pool)
+    void initialize(ID3D12Device* device, ShaderViewPool* sv_pool, ResourcePool* resource_pool, PipelineStateObjectPool* pso_pool, AccelStructPool* as_pool, QueryPool* query_pool)
     {
         this->device = device;
         this->pool_shader_views = sv_pool;
         this->pool_resources = resource_pool;
         this->pool_pipeline_states = pso_pool;
         this->pool_accel_structs = as_pool;
+        this->pool_queries = query_pool;
     }
 
     ID3D12Device* device;
@@ -31,12 +32,13 @@ struct translator_global_memory
     ResourcePool* pool_resources;
     PipelineStateObjectPool* pool_pipeline_states;
     AccelStructPool* pool_accel_structs;
+    QueryPool* pool_queries;
 };
 
 /// responsible for filling command lists, 1 per thread
 struct command_list_translator
 {
-    void initialize(ID3D12Device* device, ShaderViewPool* sv_pool, ResourcePool* resource_pool, PipelineStateObjectPool* pso_pool, AccelStructPool* as_pool);
+    void initialize(ID3D12Device* device, ShaderViewPool* sv_pool, ResourcePool* resource_pool, PipelineStateObjectPool* pso_pool, AccelStructPool* as_pool, QueryPool* query_pool);
 
     void translateCommandList(ID3D12GraphicsCommandList5* list, queue_type type, d3d12_incomplete_state_cache* state_cache, std::byte* buffer, size_t buffer_size);
 
@@ -61,6 +63,10 @@ struct command_list_translator
     void execute(cmd::resolve_texture const& resolve);
 
     void execute(cmd::debug_marker const& marker);
+
+    void execute(cmd::write_timestamp const& timestamp);
+
+    void execute(cmd::resolve_queries const& resolve);
 
     void execute(cmd::update_bottom_level const& blas_update);
 

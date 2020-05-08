@@ -38,6 +38,9 @@ PHI_DEFINE_HANDLE(command_list);
 /// synchronization primitive storing a uint64, can be signalled and waited on from both CPU and GPU
 PHI_DEFINE_HANDLE(fence);
 
+/// multiple contiguous queries for timestamps, occlusion or pipeline statistics
+PHI_DEFINE_HANDLE(query_range);
+
 /// raytracing acceleration structure handle
 PHI_DEFINE_HANDLE(accel_struct);
 
@@ -52,6 +55,7 @@ struct shader_argument
     unsigned constant_buffer_offset;
 };
 
+/// the type of a single shader
 enum class shader_stage : uint8_t
 {
     // graphics
@@ -72,6 +76,7 @@ enum class shader_stage : uint8_t
     ray_any_hit,
 };
 
+/// 0 to N shader_stages
 using shader_stage_flags_t = cc::flags<shader_stage, 16>;
 CC_FLAGS_ENUM_SIZED(shader_stage, 16);
 
@@ -100,9 +105,10 @@ enum class resource_state : uint8_t
     vertex_buffer,
     index_buffer,
 
-    constant_buffer,
-    shader_resource,
-    unordered_access,
+    constant_buffer,          // accessed via a CBV in any shader
+    shader_resource,          // accessed via a SRV in any shader
+    shader_resource_nonpixel, // accessed via a SRV in a non-pixel shader only
+    unordered_access,         // accessed via a UAV in any shader
 
     render_target,
     depth_read,
@@ -119,6 +125,21 @@ enum class resource_state : uint8_t
     present,
 
     raytrace_accel_struct,
+};
+
+/// information describing a single resource transition, specifying only the target state
+struct transition_info
+{
+    handle::resource resource;              ///< the resource to transition
+    resource_state target_state;            ///< the state the resource is transitioned into
+    shader_stage_flags_t dependent_shaders; ///< the shader stages accessing the resource afterwards, only applies to CBV, SRV and UAV states
+};
+
+enum class resource_heap : uint8_t
+{
+    gpu,     // default, fastest to access for the GPU
+    upload,  // for CPU -> GPU transfer
+    readback // for GPU -> CPU transfer
 };
 
 /// pixel format of a texture, or texture view (DXGI_FORMAT / VkFormat)
@@ -476,29 +497,19 @@ enum class rt_clear_type : uint8_t
 };
 
 /// value to clear a render target with
-union rt_clear_value {
-    float color[4];
-    struct
-    {
-        float depth;
-        uint8_t stencil;
-    } depth_stencil;
+struct rt_clear_value
+{
+    uint8_t red_or_depth;
+    uint8_t green_or_stencil;
+    uint8_t blue;
+    uint8_t alpha;
 
     rt_clear_value() = default;
-
     rt_clear_value(float r, float g, float b, float a)
+      : red_or_depth(uint8_t(r * 255)), green_or_stencil(uint8_t(g * 255)), blue(uint8_t(b * 255)), alpha(uint8_t(a * 255))
     {
-        color[0] = r;
-        color[1] = g;
-        color[2] = b;
-        color[3] = a;
     }
-
-    rt_clear_value(float depth, uint8_t stencil)
-    {
-        depth_stencil.depth = depth;
-        depth_stencil.stencil = stencil;
-    }
+    rt_clear_value(float depth, uint8_t stencil) : red_or_depth(uint8_t(depth * 255)), green_or_stencil(stencil) {}
 };
 
 /// blending logic operation a (graphics) handle::pipeline_state performs on its render targets
@@ -556,6 +567,7 @@ struct blend_state
     blend_factor blend_alpha_dest = blend_factor::zero;
     blend_op blend_op_alpha = blend_op::op_add;
 
+public:
     blend_state() = default;
 
     blend_state(blend_factor blend_color_src, //
@@ -620,6 +632,14 @@ struct render_target_config
     format fmt = format::rgba8un;
     bool blend_enable = false;
     blend_state state;
+};
+
+/// the type of a handle::query_range
+enum class query_type : uint8_t
+{
+    timestamp,
+    occlusion,
+    pipeline_stats
 };
 
 /// flags to configure the building process of a raytracing acceleration structure

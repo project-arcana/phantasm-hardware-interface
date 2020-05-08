@@ -11,7 +11,7 @@
 #include <renderdoc_app/renderdoc_app.h>
 
 #include <phantasm-hardware-interface/detail/renderdoc_loader.hh>
-#include <phantasm-hardware-interface/d3d12/common/log.hh>
+#include <phantasm-hardware-interface/detail/log.hh>
 
 #include "verify.hh"
 
@@ -22,7 +22,7 @@ void phi::d3d12::util::diagnostic_state::init()
     if (detail::hr_succeeded(::DXGIGetDebugInterface1(0, IID_PPV_ARGS(&_pix_handle))))
     {
         _pix_capture_running = false;
-        log::info() << "PIX detected";
+        PHI_LOG << "PIX detected";
     }
     else
 #endif
@@ -34,7 +34,7 @@ void phi::d3d12::util::diagnostic_state::init()
     _renderdoc_handle = ::phi::detail::load_renderdoc();
     if (_renderdoc_handle)
     {
-        log::info() << "RenderDoc detected";
+        PHI_LOG << "RenderDoc detected";
     }
 }
 
@@ -62,7 +62,7 @@ bool phi::d3d12::util::diagnostic_state::start_capture()
 #ifdef PHI_HAS_PIX
     if (_pix_handle)
     {
-        log::info() << "starting PIX capture";
+        PHI_LOG << "starting PIX capture";
         _pix_handle->BeginCapture();
         _pix_capture_running = true;
         return true;
@@ -71,7 +71,7 @@ bool phi::d3d12::util::diagnostic_state::start_capture()
 
     if (_renderdoc_handle)
     {
-        log::info() << "starting RenderDoc capture";
+        PHI_LOG << "starting RenderDoc capture";
         _renderdoc_handle->StartFrameCapture(nullptr, nullptr);
         _renderdoc_capture_running = true;
         return true;
@@ -85,7 +85,7 @@ bool phi::d3d12::util::diagnostic_state::end_capture()
 #ifdef PHI_HAS_PIX
     if (_pix_handle && _pix_capture_running)
     {
-        log::info() << "ending PIX capture";
+        PHI_LOG << "ending PIX capture";
         _pix_handle->EndCapture();
         _pix_capture_running = false;
         return true;
@@ -94,7 +94,7 @@ bool phi::d3d12::util::diagnostic_state::end_capture()
 
     if (_renderdoc_handle && _renderdoc_capture_running)
     {
-        log::info() << "ending RenderDoc capture";
+        PHI_LOG << "ending RenderDoc capture";
         _renderdoc_handle->EndFrameCapture(nullptr, nullptr);
         _renderdoc_capture_running = false;
         return true;
@@ -111,7 +111,7 @@ void phi::d3d12::util::set_pix_marker(ID3D12GraphicsCommandList* cmdlist, UINT64
     (void)cmdlist;
     (void)color;
     (void)string;
-    log::err()("PIX integration missing, enable the PHI_ENABLE_D3D12_PIX CMake option");
+    PHI_LOG_ERROR("PIX integration missing, enable the PHI_ENABLE_D3D12_PIX CMake option");
 #endif
 }
 
@@ -123,7 +123,7 @@ void phi::d3d12::util::set_pix_marker(ID3D12CommandQueue* cmdqueue, UINT64 color
     (void)cmdqueue;
     (void)color;
     (void)string;
-    log::err()("PIX integration missing, enable the PHI_ENABLE_D3D12_PIX CMake option");
+    PHI_LOG_ERROR("PIX integration missing, enable the PHI_ENABLE_D3D12_PIX CMake option");
 #endif
 }
 
@@ -134,6 +134,6 @@ void phi::d3d12::util::set_pix_marker_cpu(UINT64 color, const char* string)
 #else
     (void)color;
     (void)string;
-    log::err()("PIX integration missing, enable the PHI_ENABLE_D3D12_PIX CMake option");
+    PHI_LOG_ERROR("PIX integration missing, enable the PHI_ENABLE_D3D12_PIX CMake option");
 #endif
 }

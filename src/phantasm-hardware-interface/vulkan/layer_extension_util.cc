@@ -1,11 +1,11 @@
 #include "layer_extension_util.hh"
 
-#include <phantasm-hardware-interface/config.hh>
-
 #include <clean-core/utility.hh>
 #include <clean-core/vector.hh>
 
-#include "common/log.hh"
+#include <phantasm-hardware-interface/config.hh>
+#include <phantasm-hardware-interface/detail/log.hh>
+
 #include "common/unique_name_set.hh"
 #include "common/verify.hh"
 #include "surface_util.hh"
@@ -177,17 +177,17 @@ phi::vk::lay_ext_array phi::vk::get_used_instance_lay_ext(const phi::vk::lay_ext
     {
         if (!add_layer("VK_LAYER_KHRONOS_validation"))
         {
-            log::err() << "validation enabled, but no layers available on Vulkan instance\n"
-                          "  download the latest LunarG SDK for your operating system,\n"
-                          "  then set these environment variables: (all paths absolute)\n"
-                          "  VK_LAYER_PATH - <sdk>/x86_64/etc/vulkan/explicit_layer.d/\n"
-                          "  VULKAN_SDK - <sdk>/x86_64/bin\n"
-                          "  LD_LIBRARY_PATH - <VALUE>:<sdk>/x86_64/lib (append)";
+            PHI_LOG_ERROR << "validation enabled, but no layers available on Vulkan instance\n"
+                             "  download the latest LunarG SDK for your operating system,\n"
+                             "  then set these environment variables: (all paths absolute)\n"
+                             "  VK_LAYER_PATH - <sdk>/x86_64/etc/vulkan/explicit_layer.d/\n"
+                             "  VULKAN_SDK - <sdk>/x86_64/bin\n"
+                             "  LD_LIBRARY_PATH - <VALUE>:<sdk>/x86_64/lib (append)";
         }
 
         if (!add_ext(VK_EXT_DEBUG_UTILS_EXTENSION_NAME))
         {
-            log::err() << "missing debug utils extension";
+            PHI_LOG_ERROR << "missing debug utils extension";
         }
     }
 
@@ -195,7 +195,7 @@ phi::vk::lay_ext_array phi::vk::get_used_instance_lay_ext(const phi::vk::lay_ext
     {
         if (!add_ext("VK_EXT_validation_features"))
         {
-            log::err() << "missing GPU-assisted validation extension";
+            PHI_LOG_ERROR << "missing GPU-assisted validation extension";
         }
     }
 
@@ -203,7 +203,7 @@ phi::vk::lay_ext_array phi::vk::get_used_instance_lay_ext(const phi::vk::lay_ext
     {
         if (!add_layer("VK_LAYER_LUNARG_api_dump"))
         {
-            log::err() << "missing API dump layer";
+            PHI_LOG_ERROR << "missing API dump layer";
         }
     }
 
@@ -211,7 +211,7 @@ phi::vk::lay_ext_array phi::vk::get_used_instance_lay_ext(const phi::vk::lay_ext
     for (char const* const required_device_ext : get_platform_instance_extensions())
     {
         if (!add_ext(required_device_ext))
-            log::err() << "missing required extension" << required_device_ext;
+            PHI_LOG_ERROR << "missing required extension" << required_device_ext;
     }
 
 
@@ -242,12 +242,12 @@ phi::vk::lay_ext_array phi::vk::get_used_device_lay_ext(const phi::vk::lay_ext_s
 
     if (!add_ext(VK_KHR_SWAPCHAIN_EXTENSION_NAME))
     {
-        log::err() << "missing swapchain extension";
+        PHI_LOG_ERROR << "missing swapchain extension";
     }
 
     if (!add_ext(VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME))
     {
-        log::err() << "missing timeline semaphore extension, try updating GPU drivers";
+        PHI_LOG_ERROR << "missing timeline semaphore extension, try updating GPU drivers";
     }
 
     // additional extensions
@@ -268,7 +268,7 @@ phi::vk::lay_ext_array phi::vk::get_used_device_lay_ext(const phi::vk::lay_ext_s
             }
             else
             {
-                log::err()("missing raytracing extension dependency {}, try updating GPU drivers", VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME);
+                PHI_LOG_ERROR("missing raytracing extension dependency {}, try updating GPU drivers", VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME);
             }
         }
     }

@@ -43,7 +43,6 @@ phi::handle::shader_view phi::d3d12::ShaderViewPool::create(cc::span<resource_vi
         auto& new_node = mPool.get(pool_index);
         new_node.sampler_alloc_handle = sampler_alloc;
         new_node.srv_uav_alloc_handle = srv_uav_alloc;
-        new_node.resources.clear();
 
         // Create the descriptors in-place
         // SRVs and UAVs
@@ -54,8 +53,6 @@ phi::handle::shader_view phi::d3d12::ShaderViewPool::create(cc::span<resource_vi
 
             for (auto const& srv : srvs)
             {
-                new_node.resources.push_back(srv.resource);
-
                 ID3D12Resource* const raw_resource = mResourcePool->getRawResource(srv.resource);
                 auto const cpu_handle = mSRVUAVAllocator.incrementToIndex(srv_uav_cpu_base, srv_uav_desc_index++);
                 // Create a SRV based on the shader_view_element
@@ -65,8 +62,6 @@ phi::handle::shader_view phi::d3d12::ShaderViewPool::create(cc::span<resource_vi
 
             for (auto const& uav : uavs)
             {
-                new_node.resources.push_back(uav.resource);
-
                 ID3D12Resource* const raw_resource = mResourcePool->getRawResource(uav.resource);
                 auto const cpu_handle = mSRVUAVAllocator.incrementToIndex(srv_uav_cpu_base, srv_uav_desc_index++);
 
@@ -103,9 +98,6 @@ phi::handle::shader_view phi::d3d12::ShaderViewPool::create(cc::span<resource_vi
         {
             new_node.sampler_handle = {};
         }
-
-        new_node.num_srvs = cc::uint16(srvs.size());
-        new_node.num_uavs = cc::uint16(uavs.size());
     }
 
     return {static_cast<handle::index_t>(pool_index)};
@@ -114,7 +106,6 @@ phi::handle::shader_view phi::d3d12::ShaderViewPool::create(cc::span<resource_vi
 void phi::d3d12::ShaderViewPool::free(phi::handle::shader_view sv)
 {
     auto& data = mPool.get(static_cast<unsigned>(sv.index));
-    data.resources.clear();
     {
         auto lg = std::lock_guard(mMutex);
         mSRVUAVAllocator.free(data.srv_uav_alloc_handle);
@@ -129,7 +120,6 @@ void phi::d3d12::ShaderViewPool::free(cc::span<const phi::handle::shader_view> s
     for (auto sv : svs)
     {
         auto& data = mPool.get(static_cast<unsigned>(sv.index));
-        data.resources.clear();
         mSRVUAVAllocator.free(data.srv_uav_alloc_handle);
         mSamplerAllocator.free(data.sampler_alloc_handle);
         mPool.release(static_cast<unsigned>(sv.index));

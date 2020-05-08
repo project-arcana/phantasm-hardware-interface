@@ -4,16 +4,17 @@
 #include <phantasm-hardware-interface/detail/command_reading.hh>
 #include <phantasm-hardware-interface/detail/format_size.hh>
 #include <phantasm-hardware-interface/detail/incomplete_state_cache.hh>
+#include <phantasm-hardware-interface/detail/log.hh>
 
 #include "Swapchain.hh"
 #include "common/diagnostic_util.hh"
 #include "common/dxgi_format.hh"
-#include "common/log.hh"
 #include "common/native_enum.hh"
 #include "common/util.hh"
 #include "pools/accel_struct_pool.hh"
 #include "pools/cmd_list_pool.hh"
 #include "pools/pso_pool.hh"
+#include "pools/query_pool.hh"
 #include "pools/resource_pool.hh"
 #include "pools/root_sig_cache.hh"
 #include "pools/shader_view_pool.hh"
@@ -22,9 +23,10 @@ void phi::d3d12::command_list_translator::initialize(ID3D12Device* device,
                                                      phi::d3d12::ShaderViewPool* sv_pool,
                                                      phi::d3d12::ResourcePool* resource_pool,
                                                      phi::d3d12::PipelineStateObjectPool* pso_pool,
-                                                     AccelStructPool* as_pool)
+                                                     AccelStructPool* as_pool,
+                                                     QueryPool* query_pool)
 {
-    _globals.initialize(device, sv_pool, resource_pool, pso_pool, as_pool);
+    _globals.initialize(device, sv_pool, resource_pool, pso_pool, as_pool, query_pool);
     _thread_local.initialize(*_globals.device);
 }
 
@@ -308,7 +310,7 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::transition_res
 
     for (auto const& transition : transition_res.transitions)
     {
-        D3D12_RESOURCE_STATES const after = util::to_native(transition.target_state, transition.dependant_shaders.has(shader_stage::pixel));
+        D3D12_RESOURCE_STATES const after = util::to_native(transition.target_state);
         D3D12_RESOURCE_STATES before;
 
         bool const before_known = _state_cache->transition_resource(transition.resource, after, before);
@@ -336,10 +338,8 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::transition_ima
     {
         CC_ASSERT(_globals.pool_resources->isImage(transition.resource));
         auto const& img_info = _globals.pool_resources->getImageInfo(transition.resource);
-        barriers.push_back(util::get_barrier_desc(_globals.pool_resources->getRawResource(transition.resource),
-                                                  util::to_native(transition.source_state, transition.source_dependencies.has(shader_stage::pixel)),
-                                                  util::to_native(transition.target_state, transition.target_dependencies.has(shader_stage::pixel)),
-                                                  transition.mip_level, transition.array_slice, img_info.num_mips));
+        barriers.push_back(util::get_barrier_desc(_globals.pool_resources->getRawResource(transition.resource), util::to_native(transition.source_state),
+                                                  util::to_native(transition.target_state), transition.mip_level, transition.array_slice, img_info.num_mips));
     }
 
     if (!barriers.empty())
@@ -408,6 +408,24 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::resolve_textur
 }
 
 void phi::d3d12::command_list_translator::execute(const phi::cmd::debug_marker& marker) { util::set_pix_marker(_cmd_list, 0, marker.string); }
+
+void phi::d3d12::command_list_translator::execute(const phi::cmd::write_timestamp& timestamp)
+{
+    ID3D12QueryHeap* heap;
+    UINT const query_index = _globals.pool_queries->getQuery(timestamp.query_range, query_type::timestamp, timestamp.index, heap);
+
+    _cmd_list->EndQuery(heap, D3D12_QUERY_TYPE_TIMESTAMP, query_index);
+}
+
+void phi::d3d12::command_list_translator::execute(const phi::cmd::resolve_queries& resolve)
+{
+    query_type type;
+    ID3D12QueryHeap* heap;
+    UINT const query_index_start = _globals.pool_queries->getQuery(resolve.src_query_range, resolve.query_start, heap, type);
+
+    ID3D12Resource* const raw_dest_buffer = _globals.pool_resources->getRawResource(resolve.dest_buffer);
+    _cmd_list->ResolveQueryData(heap, util::to_query_type(type), query_index_start, resolve.num_queries, raw_dest_buffer, resolve.dest_offset);
+}
 
 void phi::d3d12::command_list_translator::execute(const phi::cmd::update_bottom_level& blas_update)
 {
@@ -511,8 +529,8 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::clear_textures
             auto const dsv_desc = util::create_dsv_desc(op.rv);
             _globals.device->CreateDepthStencilView(resource, &dsv_desc, dsv);
 
-            _cmd_list->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, op.value.depth_stencil.depth,
-                                             op.value.depth_stencil.stencil, 0, nullptr);
+            _cmd_list->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, op.value.red_or_depth / 255.f,
+                                             op.value.green_or_stencil, 0, nullptr);
         }
         else
         {
@@ -531,7 +549,8 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::clear_textures
                 _globals.device->CreateRenderTargetView(resource, &rtv_desc, rtv);
             }
 
-            _cmd_list->ClearRenderTargetView(rtv, op.value.color, 0, nullptr);
+            float color_value[4] = {op.value.red_or_depth / 255.f, op.value.green_or_stencil / 255.f, op.value.blue / 255.f, op.value.alpha / 255.f};
+            _cmd_list->ClearRenderTargetView(rtv, color_value, 0, nullptr);
         }
     }
 
