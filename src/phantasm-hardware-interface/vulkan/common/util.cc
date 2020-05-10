@@ -20,15 +20,6 @@ cc::capped_vector<VkVertexInputAttributeDescription, 16> phi::vk::util::get_nati
     return res;
 }
 
-VkVertexInputBindingDescription phi::vk::util::get_vertex_binding(uint32_t vertex_size)
-{
-    VkVertexInputBindingDescription res = {};
-    res.binding = 0;
-    res.stride = vertex_size;
-    res.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-    return res;
-}
-
 void phi::vk::util::set_object_name(VkDevice device, VkObjectType obj_type, void* obj_handle, const char* string)
 {
     if (vkSetDebugUtilsObjectNameEXT)

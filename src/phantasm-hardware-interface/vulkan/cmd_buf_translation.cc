@@ -168,7 +168,25 @@ void phi::vk::command_list_translator::execute(const phi::cmd::begin_render_pass
         // to the size of the first render target instead of the specified viewport
         // this behavior is consistent with d3d12
 
-        util::set_viewport(_cmd_list, begin_rp.viewport, begin_rp.viewport_offset);
+        // NOTE: vulkans viewport has a flipped y axis
+        // we set a normal, non flipped viewport here and flip via the -fvk-invert-y flag in dxc
+
+        VkViewport viewport = {};
+        viewport.x = float(begin_rp.viewport_offset.x);
+        viewport.y = float(begin_rp.viewport_offset.y);
+        viewport.width = float(begin_rp.viewport.width);
+        viewport.height = float(begin_rp.viewport.height);
+        viewport.minDepth = 0.0f;
+        viewport.maxDepth = 1.0f;
+
+        VkRect2D scissor = {};
+        scissor.offset = {0, 0};
+        scissor.extent.width = unsigned(begin_rp.viewport.width + begin_rp.viewport_offset.x);
+        scissor.extent.height = unsigned(begin_rp.viewport.height + begin_rp.viewport_offset.y);
+
+        vkCmdSetViewport(_cmd_list, 0, 1, &viewport);
+        vkCmdSetScissor(_cmd_list, 0, 1, &scissor);
+
         vkCmdBeginRenderPass(_cmd_list, &rp_begin_info, VK_SUBPASS_CONTENTS_INLINE);
     }
 }
