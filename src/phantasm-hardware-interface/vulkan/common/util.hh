@@ -16,35 +16,8 @@
 
 namespace phi::vk::util
 {
-inline void set_viewport(VkCommandBuffer command_buf, tg::isize2 size, tg::ivec2 offset = {0, 0})
-{
-    // vulkans viewport has a flipped y axis
-    // this can be remedied by setting a negative height, see
-    // https://www.saschawillems.de/blog/2019/03/29/flipping-the-vulkan-viewport/
-
-    // however, this call now sets a normal, non flipped viewport,
-    // we take care of flip via the -fvk-invert-y flag in dxc
-
-    VkViewport viewport = {};
-    viewport.x = float(offset.x);
-    viewport.y = float(offset.y);
-    viewport.width = float(size.width);
-    viewport.height = float(size.height);
-    viewport.minDepth = 0.0f;
-    viewport.maxDepth = 1.0f;
-
-    VkRect2D scissor = {};
-    scissor.offset = {0, 0};
-    scissor.extent.width = unsigned(size.width + offset.x);
-    scissor.extent.height = unsigned(size.height + offset.y);
-
-    vkCmdSetViewport(command_buf, 0, 1, &viewport);
-    vkCmdSetScissor(command_buf, 0, 1, &scissor);
-}
-
 [[nodiscard]] cc::capped_vector<VkVertexInputAttributeDescription, 16> get_native_vertex_format(cc::span<vertex_attribute_info const> attrib_info);
 
-[[nodiscard]] VkVertexInputBindingDescription get_vertex_binding(uint32_t vertex_size);
 
 void set_object_name(VkDevice device, VkObjectType obj_type, void* obj_handle, const char* string);
 
@@ -75,7 +48,7 @@ inline constexpr VkObjectType as_obj_type_enum = get_object_type<VkT>();
 }
 
 template <class VkT>
-void set_object_name(VkDevice device, VkT* object, char const* fmt, ...)
+void set_object_name(VkDevice device, VkT* object, char const* fmt, ...) CC_PRINTF_FUNC(3, 4)
 {
     char name_formatted[1024];
     {

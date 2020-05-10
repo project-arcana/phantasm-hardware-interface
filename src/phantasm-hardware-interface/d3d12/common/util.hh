@@ -1,8 +1,9 @@
 #pragma once
 
-#include <typed-geometry/types/size.hh>
-
 #include <clean-core/capped_vector.hh>
+#include <clean-core/macros.hh>
+
+#include <typed-geometry/types/size.hh>
 
 #include <phantasm-hardware-interface/d3d12/common/d3d12_sanitized.hh>
 #include <phantasm-hardware-interface/types.hh>
@@ -18,7 +19,7 @@ namespace phi::d3d12::util
 
 [[nodiscard]] cc::capped_vector<D3D12_INPUT_ELEMENT_DESC, 16> get_native_vertex_format(cc::span<vertex_attribute_info const> attrib_info);
 
-void set_object_name(ID3D12Object* object, char const* name, ...);
+void set_object_name(ID3D12Object* object, char const* name, ...) CC_PRINTF_FUNC(2, 3);
 
 /// create a SRV description based on a shader_view_element
 /// the raw resource is only required in case a raytracing AS is described

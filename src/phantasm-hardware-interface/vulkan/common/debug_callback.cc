@@ -43,7 +43,7 @@ VkBool32 phi::vk::detail::debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT 
 {
     // if (severity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
     {
-        RICH_LOG_IMPL(phi::log::phi_log_vulkan)("[API][{}][{}] {}", to_literal(type), to_literal(severity), callback_data->pMessage);
+        RICH_LOG_IMPL(phi::detail::vulkan_log)("[API][{}][{}] {}", to_literal(type), to_literal(severity), callback_data->pMessage);
     }
     return VK_FALSE;
 }
