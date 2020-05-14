@@ -34,14 +34,17 @@ enum class gpu_capabilities : uint8_t
 // explicit GPU features
 enum class gpu_feature : uint8_t
 {
-    raytracing,
-    shading_rate_t1,
-    shading_rate_t2,
-    hlsl_sm6,
-    hlsl_wave_ops
+    raytracing,               ///< raytracing (tier 1 or higher)
+    conservative_raster,      ///< conservative rasterization (tier 1 or higher)
+    mesh_shaders,             ///< task/mesh shading pipeline (tier 1 or higher)
+    rasterizer_ordered_views, ///< rasterizer ordered views (ROVs)
+    shading_rate_t1,          ///< variable rate shading tier 1 or higher
+    shading_rate_t2,          ///< variable rate shading tier 2 or higher
+    hlsl_sm6,                 ///< shader model 6.0 or higher
+    hlsl_wave_ops             ///< HLSL SM6 wave ops
 };
 
-using gpu_feature_flags = cc::flags<gpu_feature, 16>;
+using gpu_feature_flags = cc::flags<gpu_feature, 32>;
 
 struct gpu_info
 {

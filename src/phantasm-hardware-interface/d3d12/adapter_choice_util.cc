@@ -2,6 +2,8 @@
 
 #include <cstdio>
 
+#include <sdkddkver.h>
+
 #include <clean-core/array.hh>
 #include <clean-core/assert.hh>
 
@@ -102,7 +104,27 @@ phi::gpu_feature_flags phi::d3d12::check_capabilities(ID3D12Device* device)
 {
     gpu_feature_flags res = {};
 
+    // for D3D12 feature tiers and how they map to GPUs, see:
+    // https://en.wikipedia.org/wiki/Feature_levels_in_Direct3D#Support_matrix
+
     // Capability checks
+
+    {
+        D3D12_FEATURE_DATA_D3D12_OPTIONS feat_data = {};
+        auto const success = SUCCEEDED(device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &feat_data, sizeof(feat_data)));
+
+        if (success)
+        {
+            if (feat_data.ConservativeRasterizationTier != D3D12_CONSERVATIVE_RASTERIZATION_TIER_NOT_SUPPORTED)
+            {
+                res |= gpu_feature::conservative_raster;
+            }
+            if (feat_data.ROVsSupported)
+            {
+                res |= gpu_feature::rasterizer_ordered_views;
+            }
+        }
+    }
 
     // SM 6.0
     {
@@ -127,7 +149,7 @@ phi::gpu_feature_flags phi::d3d12::check_capabilities(ID3D12Device* device)
         }
     }
 
-    // Device5 (this is purely OS-based, Win10 1809+)
+    // Device5 (this is purely OS-based, Win10 1809+, aka Redstone 5)
     shared_com_ptr<ID3D12Device5> device5;
     auto const has_device5 = SUCCEEDED(device->QueryInterface(PHI_COM_WRITE(device5)));
 
@@ -162,6 +184,21 @@ phi::gpu_feature_flags phi::d3d12::check_capabilities(ID3D12Device* device)
                 }
             }
         }
+
+        // Mesh and Amplification shaders were added in Win10 20H1, also known as Win10 2004 (Released May 2020)
+        // NOTE: Explicitly do not use NTDDI_WIN10_20H1 on the right hand as it isn't defined on previous versions
+#if WDK_NTDDI_VERSION >= 0x0A000008
+        // Mesh/Amplification shaders
+        {
+            D3D12_FEATURE_DATA_D3D12_OPTIONS7 feat_data = {};
+            auto const success = SUCCEEDED(device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS7, &feat_data, sizeof(feat_data)));
+
+            if (success && feat_data.MeshShaderTier >= D3D12_MESH_SHADER_TIER_1)
+            {
+                res |= gpu_feature::mesh_shaders;
+            }
+        }
+#endif
     }
 
 
