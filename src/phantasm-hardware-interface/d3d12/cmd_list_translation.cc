@@ -407,8 +407,6 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::resolve_textur
     _cmd_list->ResolveSubresource(dest_raw, dest_subres_index, src_raw, src_subres_index, util::to_dxgi_format(dest_info.pixel_format));
 }
 
-void phi::d3d12::command_list_translator::execute(const phi::cmd::debug_marker& marker) { util::set_pix_marker(_cmd_list, 0, marker.string); }
-
 void phi::d3d12::command_list_translator::execute(const phi::cmd::write_timestamp& timestamp)
 {
     ID3D12QueryHeap* heap;
@@ -426,6 +424,10 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::resolve_querie
     ID3D12Resource* const raw_dest_buffer = _globals.pool_resources->getRawResource(resolve.dest_buffer);
     _cmd_list->ResolveQueryData(heap, util::to_query_type(type), query_index_start, resolve.num_queries, raw_dest_buffer, resolve.dest_offset);
 }
+
+void phi::d3d12::command_list_translator::execute(const phi::cmd::begin_debug_label& label) { util::begin_pix_marker(_cmd_list, 0, label.string); }
+
+void phi::d3d12::command_list_translator::execute(const phi::cmd::end_debug_label&) { util::end_pix_marker(_cmd_list); }
 
 void phi::d3d12::command_list_translator::execute(const phi::cmd::update_bottom_level& blas_update)
 {

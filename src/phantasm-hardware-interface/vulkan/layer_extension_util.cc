@@ -184,11 +184,6 @@ phi::vk::lay_ext_array phi::vk::get_used_instance_lay_ext(const phi::vk::lay_ext
                              "  VULKAN_SDK - <sdk>/x86_64/bin\n"
                              "  LD_LIBRARY_PATH - <VALUE>:<sdk>/x86_64/lib (append)";
         }
-
-        if (!add_ext(VK_EXT_DEBUG_UTILS_EXTENSION_NAME))
-        {
-            PHI_LOG_ERROR << "missing debug utils extension";
-        }
     }
 
     if (config.validation >= validation_level::on_extended)
@@ -205,6 +200,15 @@ phi::vk::lay_ext_array phi::vk::get_used_instance_lay_ext(const phi::vk::lay_ext
         {
             PHI_LOG_ERROR << "missing API dump layer";
         }
+    }
+
+    // VK_EXT_debug_utils
+    // for cmd::debug_marker, object debug names
+    // spec: https://www.khronos.org/registry/vulkan/specs/1.2-extensions/man/html/VK_EXT_debug_utils.html
+    // this is the revised version of VK_EXT_DEBUG_MARKER_EXTENSION_NAME (which is more or less deprecated)
+    if (!add_ext(VK_EXT_DEBUG_UTILS_EXTENSION_NAME))
+    {
+        PHI_LOG_ERROR << "missing debug utils extension";
     }
 
     // platform extensions

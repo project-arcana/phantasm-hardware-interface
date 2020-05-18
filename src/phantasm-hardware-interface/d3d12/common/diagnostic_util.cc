@@ -103,37 +103,26 @@ bool phi::d3d12::util::diagnostic_state::end_capture()
     return false;
 }
 
-void phi::d3d12::util::set_pix_marker(ID3D12GraphicsCommandList* cmdlist, UINT64 color, const char* string)
+void phi::d3d12::util::begin_pix_marker(ID3D12GraphicsCommandList* cmdlist, UINT64 color, const char* string)
 {
 #ifdef PHI_HAS_PIX
-    ::PIXSetMarker(cmdlist, color, string);
+    ::PIXBeginEvent(cmdlist, color, string);
 #else
     (void)cmdlist;
     (void)color;
     (void)string;
-    PHI_LOG_ERROR("PIX integration missing, enable the PHI_ENABLE_D3D12_PIX CMake option");
+    PHI_LOG_WARN("PIX integration missing, enable the PHI_ENABLE_D3D12_PIX CMake option");
 #endif
 }
 
-void phi::d3d12::util::set_pix_marker(ID3D12CommandQueue* cmdqueue, UINT64 color, const char* string)
+void phi::d3d12::util::end_pix_marker(ID3D12GraphicsCommandList* cmdlist)
 {
 #ifdef PHI_HAS_PIX
-    ::PIXSetMarker(cmdqueue, color, string);
+    ::PIXEndEvent(cmdlist);
 #else
-    (void)cmdqueue;
+    (void)cmdlist;
     (void)color;
     (void)string;
-    PHI_LOG_ERROR("PIX integration missing, enable the PHI_ENABLE_D3D12_PIX CMake option");
-#endif
-}
-
-void phi::d3d12::util::set_pix_marker_cpu(UINT64 color, const char* string)
-{
-#ifdef PHI_HAS_PIX
-    ::PIXSetMarker(color, string);
-#else
-    (void)color;
-    (void)string;
-    PHI_LOG_ERROR("PIX integration missing, enable the PHI_ENABLE_D3D12_PIX CMake option");
+    PHI_LOG_WARN("PIX integration missing, enable the PHI_ENABLE_D3D12_PIX CMake option");
 #endif
 }
