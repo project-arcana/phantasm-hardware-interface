@@ -121,10 +121,8 @@ phi::handle::command_list phi::d3d12::CommandListPool::create(ID3D12GraphicsComm
 {
     handle::command_list res_handle;
     cmd_list_node* new_node;
-    {
-        auto lg = std::lock_guard(mMutex);
-        res_handle = acquireNodeInternal(type, new_node, out_cmdlist);
-    }
+    res_handle = acquireNodeInternal(type, new_node, out_cmdlist);
+
 
     new_node->responsible_allocator = thread_allocator.get(type).acquireMemory(out_cmdlist);
     return res_handle;
@@ -185,60 +183,16 @@ phi::handle::command_list phi::d3d12::CommandListPool::acquireNodeInternal(phi::
                                                                            phi::d3d12::CommandListPool::cmd_list_node*& out_node,
                                                                            ID3D12GraphicsCommandList5*& out_cmdlist)
 {
-    internal_handle_data res;
-    res.type = type;
-
-    switch (type)
+    unsigned res_index;
+    auto& pool = getPool(type);
     {
-    case queue_type::direct:
-        res.pool_index = mPoolDirect.acquire();
-        out_node = &mPoolDirect.get(res.pool_index);
-        out_cmdlist = mRawListsDirect[res.pool_index];
-        break;
-    case queue_type::compute:
-        res.pool_index = mPoolCompute.acquire();
-        out_node = &mPoolCompute.get(res.pool_index);
-        out_cmdlist = mRawListsCompute[res.pool_index];
-        break;
-    case queue_type::copy:
-        res.pool_index = mPoolCopy.acquire();
-        out_node = &mPoolCopy.get(res.pool_index);
-        out_cmdlist = mRawListsCopy[res.pool_index];
-        break;
-    default:
-        CC_UNREACHABLE("invalid queue type");
+        auto lg = std::lock_guard(mMutex);
+        res_index = pool.acquire();
     }
 
-    auto const res_convert = cc::bit_cast<handle::command_list>(res);
-    CC_ASSERT(res_convert.is_valid() && "created invalid commandlist by bit_cast");
-    return res_convert;
-}
-
-phi::d3d12::CommandListPool::cmd_list_node* phi::d3d12::CommandListPool::getNodeInternal(phi::handle::command_list cl,
-                                                                                         phi::d3d12::CommandListPool::cmdlist_linked_pool_t*& out_pool,
-                                                                                         ID3D12GraphicsCommandList5*& out_cmdlist)
-{
-    CC_ASSERT(cl.is_valid() && "invalid commandlist handle");
-    auto const internal = cc::bit_cast<internal_handle_data>(cl);
-
-    switch (internal.type)
-    {
-    case queue_type::direct:
-        out_pool = &mPoolDirect;
-        out_cmdlist = mRawListsDirect[internal.pool_index];
-        return &mPoolDirect.get(internal.pool_index);
-    case queue_type::compute:
-        out_pool = &mPoolCompute;
-        out_cmdlist = mRawListsCompute[internal.pool_index];
-        return &mPoolCompute.get(internal.pool_index);
-    case queue_type::copy:
-        out_pool = &mPoolCopy;
-        out_cmdlist = mRawListsCopy[internal.pool_index];
-        return &mPoolCopy.get(internal.pool_index);
-    default:
-        CC_UNREACHABLE("invalid queue type in handle::command_list");
-        return nullptr;
-    }
+    out_node = &pool.get(res_index);
+    out_cmdlist = getList(res_index, type);
+    return IndexToHandle(res_index, type);
 }
 
 void phi::d3d12::CommandAllocatorBundle::initialize(

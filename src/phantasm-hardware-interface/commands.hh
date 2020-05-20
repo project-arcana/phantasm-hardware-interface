@@ -26,9 +26,10 @@ namespace detail
     PHI_X(resolve_texture)         \
     PHI_X(begin_render_pass)       \
     PHI_X(end_render_pass)         \
-    PHI_X(debug_marker)            \
     PHI_X(write_timestamp)         \
     PHI_X(resolve_queries)         \
+    PHI_X(begin_debug_label)       \
+    PHI_X(end_debug_label)         \
     PHI_X(update_bottom_level)     \
     PHI_X(update_top_level)        \
     PHI_X(dispatch_rays)           \
@@ -360,15 +361,6 @@ public:
     }
 };
 
-/// set a debug marker for diagnostic tools like renderdoc, nsight, or pix
-PHI_DEFINE_CMD(debug_marker)
-{
-    char const* string = "UNLABELED_DEBUG_MARKER";
-
-    debug_marker() = default;
-    debug_marker(char const* s) : string(s) {}
-};
-
 PHI_DEFINE_CMD(write_timestamp)
 {
     handle::query_range query_range = handle::null_query_range; ///< the query_range in which to write a timestamp query
@@ -395,6 +387,21 @@ PHI_DEFINE_CMD(resolve_queries)
         num_queries = num;
         this->dest_offset = dest_offset;
     }
+};
+
+/// begin a debug label on the cmdlist
+/// for diagnostic tools like renderdoc, nsight, gpa, pix
+/// close it using cmd::end_debug_label
+PHI_DEFINE_CMD(begin_debug_label)
+{
+    char const* string = "UNLABELED_DEBUG_MARKER";
+
+    begin_debug_label() = default;
+    begin_debug_label(char const* s) : string(s) {}
+};
+
+PHI_DEFINE_CMD(end_debug_label){
+    // empty
 };
 
 /// update a bottom level raytracing acceleration structure (BLAS)

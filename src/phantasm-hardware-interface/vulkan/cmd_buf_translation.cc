@@ -429,17 +429,6 @@ void phi::vk::command_list_translator::execute(const phi::cmd::resolve_texture& 
     vkCmdResolveImage(_cmd_list, src_image, src_layout, dest_image, dest_layout, 1, &region);
 }
 
-void phi::vk::command_list_translator::execute(const phi::cmd::debug_marker& marker)
-{
-    VkDebugUtilsLabelEXT label = {};
-    label.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
-    label.pLabelName = marker.string;
-
-    // this function pointer is not available in all configurations
-    if (vkCmdInsertDebugUtilsLabelEXT)
-        vkCmdInsertDebugUtilsLabelEXT(_cmd_list, &label);
-}
-
 void phi::vk::command_list_translator::execute(const phi::cmd::write_timestamp& timestamp)
 {
     VkQueryPool pool;
@@ -463,6 +452,26 @@ void phi::vk::command_list_translator::execute(const phi::cmd::resolve_queries& 
 
     VkQueryResultFlags flags = VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT;
     vkCmdCopyQueryPoolResults(_cmd_list, raw_pool, query_index_start, resolve.num_queries, raw_dest_buffer, resolve.dest_offset, sizeof(uint64_t), flags);
+}
+
+void phi::vk::command_list_translator::execute(const phi::cmd::begin_debug_label& label)
+{
+    // TODO: it's currently not a hard error if this extension is missing
+    // resolve this depending on availability of vk_ext_debug_utils
+    CC_ASSERT(vkCmdBeginDebugUtilsLabelEXT != nullptr && "cmd::begin_debug_label not available, contact maintainers");
+
+    VkDebugUtilsLabelEXT info = {};
+    info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
+    info.pLabelName = label.string;
+
+    vkCmdBeginDebugUtilsLabelEXT(_cmd_list, &info);
+}
+
+void phi::vk::command_list_translator::execute(const phi::cmd::end_debug_label&)
+{
+    // see execute(begin_debug_label);
+    CC_ASSERT(vkCmdBeginDebugUtilsLabelEXT != nullptr && "cmd::end_debug_label not available, contact maintainers");
+    vkCmdEndDebugUtilsLabelEXT(_cmd_list);
 }
 
 void phi::vk::command_list_translator::execute(const phi::cmd::update_bottom_level& blas_update)
