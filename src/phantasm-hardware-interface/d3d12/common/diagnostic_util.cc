@@ -121,8 +121,6 @@ void phi::d3d12::util::end_pix_marker(ID3D12GraphicsCommandList* cmdlist)
     ::PIXEndEvent(cmdlist);
 #else
     (void)cmdlist;
-    (void)color;
-    (void)string;
     PHI_LOG_WARN("PIX integration missing, enable the PHI_ENABLE_D3D12_PIX CMake option");
 #endif
 }
