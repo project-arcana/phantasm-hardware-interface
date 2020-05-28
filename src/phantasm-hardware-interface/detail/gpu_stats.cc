@@ -88,7 +88,7 @@ struct nvml_dll_state
         }
 #elif defined(CC_OS_LINUX)
         // Available globally
-        dll = dlopen("libnvidia-ml.so", RTLD_LAZY | RTLD_GLOBAL);
+        _dll = dlopen("libnvidia-ml.so", RTLD_LAZY | RTLD_GLOBAL);
 #endif
 
         if (!_dll)
