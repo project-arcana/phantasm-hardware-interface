@@ -146,11 +146,14 @@ phi::handle::resource phi::vk::ResourcePool::createBuffer(uint64_t size_bytes, u
 
     // right now we'll just take all usages this thing might have in API semantics
     // it might be required down the line to restrict this (as in, make it part of API)
-    buffer_info.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
-                        | VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+    buffer_info.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT
+                        | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
 
-    if (allow_uav || heap == resource_heap::upload) // NOTE: not quite sure why upload buffers require these two flags as well
-        buffer_info.usage |= VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+    // NOTE: we currently do not make use of allow_uav or the heap type to restrict usage flags at all
+    // allow_uav might have been a poor API decision, we might need something more finegrained instead, and have the default be allowing everything
+    // problem is, in d3d12 ALLOW_UNORDERED_ACCESS is exclusive with ALLOW_DEPTH_STENCIL, so defaulting right away is not possible
+    (void)allow_uav;
+    // if (allow_uav || heap == resource_heap::upload) { ... }
 
     VmaAllocationCreateInfo alloc_info = {};
     alloc_info.usage = vk_heap_to_vma(heap);
