@@ -303,12 +303,12 @@ public:
         texture_info.array_size = 1;
     }
 
-    void init_as_structured_buffer(handle::resource res, unsigned num_elements, unsigned stride_bytes)
+    void init_as_structured_buffer(handle::resource res, unsigned num_elements, unsigned stride_bytes, unsigned element_start = 0)
     {
         resource = res;
         dimension = resource_view_dimension::buffer;
         buffer_info.num_elements = num_elements;
-        buffer_info.element_start = 0;
+        buffer_info.element_start = element_start;
         buffer_info.element_stride_bytes = stride_bytes;
     }
 
