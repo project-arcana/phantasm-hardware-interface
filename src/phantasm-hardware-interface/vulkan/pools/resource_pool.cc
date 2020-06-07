@@ -46,6 +46,21 @@ constexpr VmaMemoryUsage vk_heap_to_vma(phi::resource_heap heap)
 
     CC_UNREACHABLE_SWITCH_WORKAROUND(heap);
 }
+
+constexpr char const* vk_get_heap_type_literal(phi::resource_heap heap)
+{
+    switch (heap)
+    {
+    case phi::resource_heap::gpu:
+        return "gpu";
+    case phi::resource_heap::upload:
+        return "upload";
+    case phi::resource_heap::readback:
+        return "readback";
+    }
+
+    return "unknown_heap_type";
+}
 }
 
 phi::handle::resource phi::vk::ResourcePool::createTexture(format format, unsigned w, unsigned h, unsigned mips, texture_dimension dim, unsigned depth_or_array_size, bool allow_uav)
@@ -90,7 +105,8 @@ phi::handle::resource phi::vk::ResourcePool::createTexture(format format, unsign
     VmaAllocation res_alloc;
     VkImage res_image;
     PHI_VK_VERIFY_SUCCESS(vmaCreateImage(mAllocator, &image_info, &alloc_info, &res_image, &res_alloc, nullptr));
-    util::set_object_name(mDevice, res_image, "respool texture%s[%u] m%u", vk_get_tex_dim_literal(dim), depth_or_array_size, image_info.mipLevels);
+    util::set_object_name(mDevice, res_image, "respool texture%s[%u] (%ux%u, %u mips)", vk_get_tex_dim_literal(dim), depth_or_array_size, w, h,
+                          image_info.mipLevels);
     return acquireImage(res_alloc, res_image, format, image_info.mipLevels, image_info.arrayLayers, 1, w, h);
 }
 
@@ -161,7 +177,7 @@ phi::handle::resource phi::vk::ResourcePool::createBuffer(uint64_t size_bytes, u
     VmaAllocation res_alloc;
     VkBuffer res_buffer;
     PHI_VK_VERIFY_SUCCESS(vmaCreateBuffer(mAllocator, &buffer_info, &alloc_info, &res_buffer, &res_alloc, nullptr));
-    util::set_object_name(mDevice, res_buffer, "respool buffer");
+    util::set_object_name(mDevice, res_buffer, "respool buffer (%uB, %uB stride, %s heap)", unsigned(size_bytes), stride_bytes, vk_get_heap_type_literal(heap));
     return acquireBuffer(res_alloc, res_buffer, buffer_info.usage, size_bytes, stride_bytes, heap);
 }
 
