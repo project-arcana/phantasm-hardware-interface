@@ -601,6 +601,25 @@ enum class query_type : uint8_t
     pipeline_stats
 };
 
+/// indirect draw command, as it is laid out in a GPU buffer
+struct gpu_indirect_command_draw
+{
+    uint32_t num_vertices;
+    uint32_t num_instances;
+    uint32_t vertex_offset;
+    uint32_t instance_offset;
+};
+
+/// indirect indexed draw command, as it is laid out in a GPU buffer
+struct gpu_indirect_command_draw_indexed
+{
+    uint32_t num_indices;
+    uint32_t num_instances;
+    uint32_t index_offset;
+    int32_t vertex_offset;
+    uint32_t instance_offset;
+};
+
 /// flags to configure the building process of a raytracing acceleration structure
 enum class accel_struct_build_flags : uint8_t
 {
