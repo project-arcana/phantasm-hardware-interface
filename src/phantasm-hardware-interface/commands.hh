@@ -17,6 +17,7 @@ namespace detail
 {
 #define PHI_CMD_TYPE_VALUES        \
     PHI_X(draw)                    \
+    PHI_X(draw_indirect)           \
     PHI_X(dispatch)                \
     PHI_X(transition_resources)    \
     PHI_X(transition_image_slices) \
@@ -168,11 +169,11 @@ PHI_DEFINE_CMD(draw)
 {
     static_assert(limits::max_root_constant_bytes > 0, "root constant size must be nonzero");
 
-    std::byte root_constants[limits::max_root_constant_bytes];
-    cmd_vector<shader_argument, limits::max_shader_arguments> shader_arguments;
+    std::byte root_constants[limits::max_root_constant_bytes];                  // optional
+    cmd_vector<shader_argument, limits::max_shader_arguments> shader_arguments; // optional
     handle::pipeline_state pipeline_state = handle::null_pipeline_state;
-    handle::resource vertex_buffer = handle::null_resource;
-    handle::resource index_buffer = handle::null_resource;
+    handle::resource vertex_buffer = handle::null_resource; // optional
+    handle::resource index_buffer = handle::null_resource;  // optional
     unsigned num_indices = 0;
     unsigned index_offset = 0;
     unsigned vertex_offset = 0;
@@ -210,6 +211,37 @@ public:
     }
 
     void set_scissor(int left, int top, int right, int bot) { scissor = tg::iaabb2({left, top}, {right, bot}); }
+};
+
+PHI_DEFINE_CMD(draw_indirect)
+{
+    std::byte root_constants[limits::max_root_constant_bytes];                  // optional
+    cmd_vector<shader_argument, limits::max_shader_arguments> shader_arguments; // optional
+    handle::pipeline_state pipeline_state = handle::null_pipeline_state;
+
+    handle::resource indirect_argument_buffer = handle::null_resource;
+    unsigned argument_buffer_offset = 0;
+    unsigned num_arguments = 0;
+
+    handle::resource vertex_buffer = handle::null_resource; // optional
+    handle::resource index_buffer = handle::null_resource;  // optional
+
+public:
+    // convenience
+
+    void add_shader_arg(handle::resource cbv, unsigned cbv_off = 0, handle::shader_view sv = handle::null_shader_view)
+    {
+        shader_arguments.push_back(shader_argument{cbv, sv, cbv_off});
+    }
+
+    template <class T>
+    void write_root_constants(T const& data)
+    {
+        static_assert(sizeof(T) <= sizeof(root_constants), "data too large");
+        static_assert(std::is_trivially_copyable_v<T>, "data not memcpyable");
+        static_assert(!std::is_pointer_v<T>, "provide direct reference to data");
+        std::memcpy(root_constants, &data, sizeof(T));
+    }
 };
 
 PHI_DEFINE_CMD(dispatch)

@@ -66,11 +66,16 @@ public:
 
     bool isRaytracingPipeline(handle::pipeline_state ps) const;
 
+    ID3D12CommandSignature* getGlobalComSigDraw() const { return mGlobalComSigDraw; }
+    ID3D12CommandSignature* getGlobalComSigDrawIndexed() const { return mGlobalComSigDrawIndexed; }
+
 private:
     ID3D12Device5* mDevice = nullptr;
 
     RootSignatureCache mRootSigCache;
     ID3D12RootSignature* mEmptyRaytraceRootSignature = nullptr;
+    ID3D12CommandSignature* mGlobalComSigDraw = nullptr;
+    ID3D12CommandSignature* mGlobalComSigDrawIndexed = nullptr;
 
     phi::detail::linked_pool<pso_node, unsigned> mPool;
     phi::detail::linked_pool<rt_pso_node, unsigned> mPoolRaytracing;

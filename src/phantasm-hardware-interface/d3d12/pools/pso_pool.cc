@@ -308,6 +308,31 @@ void phi::d3d12::PipelineStateObjectPool::initialize(ID3D12Device5* device_rt, u
     mRootSigCache.initialize((max_num_psos / 2) + max_num_psos_raytracing); // almost arbitrary, revisit if this blows up
 
     mEmptyRaytraceRootSignature = mRootSigCache.getOrCreate(*mDevice, {}, false, root_signature_type::raytrace_global)->raw_root_sig;
+
+    cc::array<D3D12_INDIRECT_ARGUMENT_DESC> indirect_args(256);
+
+    for (auto& arg : indirect_args)
+        arg.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW;
+
+
+    D3D12_COMMAND_SIGNATURE_DESC desc = {};
+    desc.NumArgumentDescs = UINT(indirect_args.size());
+    desc.pArgumentDescs = indirect_args.data();
+    desc.ByteStride = sizeof(gpu_indirect_command_draw);
+    desc.NodeMask = 0;
+
+    static_assert(sizeof(D3D12_DRAW_ARGUMENTS) == sizeof(gpu_indirect_command_draw), "gpu argument type compiles to incorrect size");
+
+    mDevice->CreateCommandSignature(&desc, nullptr, IID_PPV_ARGS(&mGlobalComSigDraw));
+
+    for (auto& arg : indirect_args)
+        arg.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW_INDEXED;
+
+    desc.ByteStride = sizeof(gpu_indirect_command_draw_indexed);
+
+    static_assert(sizeof(D3D12_DRAW_INDEXED_ARGUMENTS) == sizeof(gpu_indirect_command_draw_indexed), "gpu argument type compiles to incorrect size");
+
+    mDevice->CreateCommandSignature(&desc, nullptr, IID_PPV_ARGS(&mGlobalComSigDrawIndexed));
 }
 
 void phi::d3d12::PipelineStateObjectPool::destroy()
@@ -330,6 +355,9 @@ void phi::d3d12::PipelineStateObjectPool::destroy()
     }
 
     mRootSigCache.destroy();
+
+    mGlobalComSigDraw->Release();
+    mGlobalComSigDrawIndexed->Release();
 }
 
 const phi::d3d12::PipelineStateObjectPool::rt_pso_node& phi::d3d12::PipelineStateObjectPool::getRaytrace(phi::handle::pipeline_state ps) const
