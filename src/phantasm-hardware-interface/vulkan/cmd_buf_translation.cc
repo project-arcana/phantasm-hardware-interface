@@ -643,7 +643,9 @@ void phi::vk::command_list_translator::bind_shader_arguments(phi::handle::pipeli
         {
             if (bound_arg.update_cbv(arg.constant_buffer, arg.constant_buffer_offset))
             {
-                auto const cbv_desc_set = _globals.pool_resources->getRawCBVDescriptorSet(arg.constant_buffer);
+                auto const cbv_desc_set = bind_point == VK_PIPELINE_BIND_POINT_GRAPHICS
+                                              ? _globals.pool_resources->getRawCBVDescriptorSet(arg.constant_buffer)
+                                              : _globals.pool_resources->getRawCBVDescriptorSetCompute(arg.constant_buffer);
                 vkCmdBindDescriptorSets(_cmd_list, bind_point, pipeline_layout.raw_layout, i + limits::max_shader_arguments, 1, &cbv_desc_set, 1,
                                         &arg.constant_buffer_offset);
             }
