@@ -309,15 +309,12 @@ void phi::d3d12::PipelineStateObjectPool::initialize(ID3D12Device5* device_rt, u
 
     mEmptyRaytraceRootSignature = mRootSigCache.getOrCreate(*mDevice, {}, false, root_signature_type::raytrace_global)->raw_root_sig;
 
-    cc::array<D3D12_INDIRECT_ARGUMENT_DESC> indirect_args(256);
-
-    for (auto& arg : indirect_args)
-        arg.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW;
-
+    D3D12_INDIRECT_ARGUMENT_DESC indirect_arg;
+    indirect_arg.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW;
 
     D3D12_COMMAND_SIGNATURE_DESC desc = {};
-    desc.NumArgumentDescs = UINT(indirect_args.size());
-    desc.pArgumentDescs = indirect_args.data();
+    desc.NumArgumentDescs = 1;
+    desc.pArgumentDescs = &indirect_arg;
     desc.ByteStride = sizeof(gpu_indirect_command_draw);
     desc.NodeMask = 0;
 
@@ -325,9 +322,7 @@ void phi::d3d12::PipelineStateObjectPool::initialize(ID3D12Device5* device_rt, u
 
     mDevice->CreateCommandSignature(&desc, nullptr, IID_PPV_ARGS(&mGlobalComSigDraw));
 
-    for (auto& arg : indirect_args)
-        arg.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW_INDEXED;
-
+    indirect_arg.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW_INDEXED;
     desc.ByteStride = sizeof(gpu_indirect_command_draw_indexed);
 
     static_assert(sizeof(D3D12_DRAW_INDEXED_ARGUMENTS) == sizeof(gpu_indirect_command_draw_indexed), "gpu argument type compiles to incorrect size");
