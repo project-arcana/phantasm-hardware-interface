@@ -81,9 +81,6 @@ struct command_list_translator
     void execute(cmd::clear_textures const& clear_tex);
 
 private:
-
-
-private:
     // non-owning constant (global)
     translator_global_memory _globals;
 
