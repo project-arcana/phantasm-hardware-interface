@@ -249,6 +249,61 @@ void phi::vk::command_list_translator::execute(const phi::cmd::draw& draw)
     }
 }
 
+void phi::vk::command_list_translator::execute(const phi::cmd::draw_indirect& draw_indirect)
+{
+    if (_bound.update_pso(draw_indirect.pipeline_state))
+    {
+        // a new handle::pipeline_state invalidates (!= always changes)
+        //      - The bound pipeline layout
+        //      - The bound pipeline
+        auto const& pso_node = _globals.pool_pipeline_states->get(draw_indirect.pipeline_state);
+        _bound.update_pipeline_layout(pso_node.associated_pipeline_layout->raw_layout);
+        vkCmdBindPipeline(_cmd_list, VK_PIPELINE_BIND_POINT_GRAPHICS, pso_node.raw_pipeline);
+    }
+
+    // Index buffer (optional)
+    if (draw_indirect.index_buffer != _bound.index_buffer)
+    {
+        _bound.index_buffer = draw_indirect.index_buffer;
+        if (draw_indirect.index_buffer.is_valid())
+        {
+            auto const& ind_buf_info = _globals.pool_resources->getBufferInfo(draw_indirect.index_buffer);
+            vkCmdBindIndexBuffer(_cmd_list, ind_buf_info.raw_buffer, 0, (ind_buf_info.stride == 4) ? VK_INDEX_TYPE_UINT32 : VK_INDEX_TYPE_UINT16);
+        }
+    }
+
+    // Vertex buffer
+    if (draw_indirect.vertex_buffer != _bound.vertex_buffer)
+    {
+        _bound.vertex_buffer = draw_indirect.vertex_buffer;
+        if (draw_indirect.vertex_buffer.is_valid())
+        {
+            VkBuffer vertex_buffers[] = {_globals.pool_resources->getRawBuffer(draw_indirect.vertex_buffer)};
+            VkDeviceSize offsets[] = {0};
+            vkCmdBindVertexBuffers(_cmd_list, 0, 1, vertex_buffers, offsets);
+        }
+    }
+
+    // Shader arguments
+    bind_shader_arguments(draw_indirect.pipeline_state, draw_indirect.root_constants, draw_indirect.shader_arguments, VK_PIPELINE_BIND_POINT_GRAPHICS);
+
+    // Indirect draw command
+    auto const raw_argument_buffer = _globals.pool_resources->getRawBuffer(draw_indirect.indirect_argument_buffer);
+    if (draw_indirect.index_buffer.is_valid())
+    {
+        static_assert(sizeof(VkDrawIndexedIndirectCommand) == sizeof(gpu_indirect_command_draw_indexed), "gpu argument type compiles to incorrect "
+                                                                                                         "size");
+        vkCmdDrawIndexedIndirect(_cmd_list, raw_argument_buffer, VkDeviceSize(draw_indirect.argument_buffer_offset), draw_indirect.num_arguments,
+                                 sizeof(VkDrawIndexedIndirectCommand));
+    }
+    else
+    {
+        static_assert(sizeof(VkDrawIndirectCommand) == sizeof(gpu_indirect_command_draw), "gpu argument type compiles to incorrect size");
+        vkCmdDrawIndirect(_cmd_list, raw_argument_buffer, VkDeviceSize(draw_indirect.argument_buffer_offset), draw_indirect.num_arguments,
+                          sizeof(VkDrawIndirectCommand));
+    }
+}
+
 void phi::vk::command_list_translator::execute(const phi::cmd::dispatch& dispatch)
 {
     auto const& pso_node = _globals.pool_pipeline_states->get(dispatch.pipeline_state);
@@ -588,7 +643,9 @@ void phi::vk::command_list_translator::bind_shader_arguments(phi::handle::pipeli
         {
             if (bound_arg.update_cbv(arg.constant_buffer, arg.constant_buffer_offset))
             {
-                auto const cbv_desc_set = _globals.pool_resources->getRawCBVDescriptorSet(arg.constant_buffer);
+                auto const cbv_desc_set = bind_point == VK_PIPELINE_BIND_POINT_GRAPHICS
+                                              ? _globals.pool_resources->getRawCBVDescriptorSet(arg.constant_buffer)
+                                              : _globals.pool_resources->getRawCBVDescriptorSetCompute(arg.constant_buffer);
                 vkCmdBindDescriptorSets(_cmd_list, bind_point, pipeline_layout.raw_layout, i + limits::max_shader_arguments, 1, &cbv_desc_set, 1,
                                         &arg.constant_buffer_offset);
             }

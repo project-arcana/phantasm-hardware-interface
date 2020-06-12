@@ -46,6 +46,21 @@ constexpr VmaMemoryUsage vk_heap_to_vma(phi::resource_heap heap)
 
     CC_UNREACHABLE_SWITCH_WORKAROUND(heap);
 }
+
+constexpr char const* vk_get_heap_type_literal(phi::resource_heap heap)
+{
+    switch (heap)
+    {
+    case phi::resource_heap::gpu:
+        return "gpu";
+    case phi::resource_heap::upload:
+        return "upload";
+    case phi::resource_heap::readback:
+        return "readback";
+    }
+
+    return "unknown_heap_type";
+}
 }
 
 phi::handle::resource phi::vk::ResourcePool::createTexture(format format, unsigned w, unsigned h, unsigned mips, texture_dimension dim, unsigned depth_or_array_size, bool allow_uav)
@@ -90,7 +105,8 @@ phi::handle::resource phi::vk::ResourcePool::createTexture(format format, unsign
     VmaAllocation res_alloc;
     VkImage res_image;
     PHI_VK_VERIFY_SUCCESS(vmaCreateImage(mAllocator, &image_info, &alloc_info, &res_image, &res_alloc, nullptr));
-    util::set_object_name(mDevice, res_image, "respool texture%s[%u] m%u", vk_get_tex_dim_literal(dim), depth_or_array_size, image_info.mipLevels);
+    util::set_object_name(mDevice, res_image, "respool texture%s[%u] (%ux%u, %u mips)", vk_get_tex_dim_literal(dim), depth_or_array_size, w, h,
+                          image_info.mipLevels);
     return acquireImage(res_alloc, res_image, format, image_info.mipLevels, image_info.arrayLayers, 1, w, h);
 }
 
@@ -147,10 +163,14 @@ phi::handle::resource phi::vk::ResourcePool::createBuffer(uint64_t size_bytes, u
     // right now we'll just take all usages this thing might have in API semantics
     // it might be required down the line to restrict this (as in, make it part of API)
     buffer_info.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
-                        | VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+                        | VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT
+                        | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
 
-    if (allow_uav || heap == resource_heap::upload) // NOTE: not quite sure why upload buffers require these two flags as well
-        buffer_info.usage |= VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+    // NOTE: we currently do not make use of allow_uav or the heap type to restrict usage flags at all
+    // allow_uav might have been a poor API decision, we might need something more finegrained instead, and have the default be allowing everything
+    // problem is, in d3d12 ALLOW_UNORDERED_ACCESS is exclusive with ALLOW_DEPTH_STENCIL, so defaulting right away is not possible
+    (void)allow_uav;
+    // if (allow_uav || heap == resource_heap::upload) { ... }
 
     VmaAllocationCreateInfo alloc_info = {};
     alloc_info.usage = vk_heap_to_vma(heap);
@@ -158,7 +178,7 @@ phi::handle::resource phi::vk::ResourcePool::createBuffer(uint64_t size_bytes, u
     VmaAllocation res_alloc;
     VkBuffer res_buffer;
     PHI_VK_VERIFY_SUCCESS(vmaCreateBuffer(mAllocator, &buffer_info, &alloc_info, &res_buffer, &res_alloc, nullptr));
-    util::set_object_name(mDevice, res_buffer, "respool buffer");
+    util::set_object_name(mDevice, res_buffer, "respool buffer (%uB, %uB stride, %s heap)", unsigned(size_bytes), stride_bytes, vk_get_heap_type_literal(heap));
     return acquireBuffer(res_alloc, res_buffer, buffer_info.usage, size_bytes, stride_bytes, heap);
 }
 

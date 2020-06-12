@@ -1,52 +1,11 @@
 #pragma once
 
-#include <cstdint>
-
 #include <clean-core/flags.hh>
+
+#include <phantasm-hardware-interface/handles.hh>
 
 namespace phi
 {
-namespace handle
-{
-using index_t = int32_t;
-inline constexpr index_t null_handle_index = index_t(-1);
-
-#define PHI_DEFINE_HANDLE(_type_)                                                                         \
-    struct _type_                                                                                         \
-    {                                                                                                     \
-        index_t index;                                                                                    \
-        [[nodiscard]] constexpr bool is_valid() const noexcept { return index != null_handle_index; }     \
-        [[nodiscard]] constexpr bool operator==(_type_ rhs) const noexcept { return index == rhs.index; } \
-        [[nodiscard]] constexpr bool operator!=(_type_ rhs) const noexcept { return index != rhs.index; } \
-    };                                                                                                    \
-    inline constexpr _type_ null_##_type_ = {null_handle_index}
-
-
-/// generic resource (buffer, texture, render target)
-PHI_DEFINE_HANDLE(resource);
-
-/// pipeline state (vertex layout, primitive config, shaders, framebuffer formats, ...)
-PHI_DEFINE_HANDLE(pipeline_state);
-
-/// shader_view := (SRVs + UAVs + Samplers)
-/// shader argument := handle::shader_view + handle::resource (CBV) + uint (CBV offset)
-PHI_DEFINE_HANDLE(shader_view);
-
-/// recorded command list, ready to submit or discard
-PHI_DEFINE_HANDLE(command_list);
-
-/// synchronization primitive storing a uint64, can be signalled and waited on from both CPU and GPU
-PHI_DEFINE_HANDLE(fence);
-
-/// multiple contiguous queries for timestamps, occlusion or pipeline statistics
-PHI_DEFINE_HANDLE(query_range);
-
-/// raytracing acceleration structure handle
-PHI_DEFINE_HANDLE(accel_struct);
-
-#undef PHI_DEFINE_HANDLE
-}
-
 /// resources bound to a shader, up to 4 per draw or dispatch command
 struct shader_argument
 {
@@ -303,12 +262,12 @@ public:
         texture_info.array_size = 1;
     }
 
-    void init_as_structured_buffer(handle::resource res, unsigned num_elements, unsigned stride_bytes)
+    void init_as_structured_buffer(handle::resource res, unsigned num_elements, unsigned stride_bytes, unsigned element_start = 0)
     {
         resource = res;
         dimension = resource_view_dimension::buffer;
         buffer_info.num_elements = num_elements;
-        buffer_info.element_start = 0;
+        buffer_info.element_start = element_start;
         buffer_info.element_stride_bytes = stride_bytes;
     }
 
@@ -640,6 +599,25 @@ enum class query_type : uint8_t
     timestamp,
     occlusion,
     pipeline_stats
+};
+
+/// indirect draw command, as it is laid out in a GPU buffer
+struct gpu_indirect_command_draw
+{
+    uint32_t num_vertices;
+    uint32_t num_instances;
+    uint32_t vertex_offset;
+    uint32_t instance_offset;
+};
+
+/// indirect indexed draw command, as it is laid out in a GPU buffer
+struct gpu_indirect_command_draw_indexed
+{
+    uint32_t num_indices;
+    uint32_t num_instances;
+    uint32_t index_offset;
+    int32_t vertex_offset;
+    uint32_t instance_offset;
 };
 
 /// flags to configure the building process of a raytracing acceleration structure

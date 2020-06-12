@@ -7,10 +7,13 @@
 #include <phantasm-hardware-interface/detail/log.hh>
 
 #include "Swapchain.hh"
+
 #include "common/diagnostic_util.hh"
 #include "common/dxgi_format.hh"
 #include "common/native_enum.hh"
+#include "common/shared_com_ptr.hh"
 #include "common/util.hh"
+
 #include "pools/accel_struct_pool.hh"
 #include "pools/cmd_list_pool.hh"
 #include "pools/pso_pool.hh"
@@ -19,12 +22,8 @@
 #include "pools/root_sig_cache.hh"
 #include "pools/shader_view_pool.hh"
 
-void phi::d3d12::command_list_translator::initialize(ID3D12Device* device,
-                                                     phi::d3d12::ShaderViewPool* sv_pool,
-                                                     phi::d3d12::ResourcePool* resource_pool,
-                                                     phi::d3d12::PipelineStateObjectPool* pso_pool,
-                                                     AccelStructPool* as_pool,
-                                                     QueryPool* query_pool)
+void phi::d3d12::command_list_translator::initialize(
+    ID3D12Device* device, ShaderViewPool* sv_pool, ResourcePool* resource_pool, PipelineStateObjectPool* pso_pool, AccelStructPool* as_pool, QueryPool* query_pool)
 {
     _globals.initialize(device, sv_pool, resource_pool, pso_pool, as_pool, query_pool);
     _thread_local.initialize(*_globals.device);
@@ -228,6 +227,105 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::draw& draw)
     {
         _cmd_list->DrawInstanced(draw.num_indices, 1, draw.vertex_offset, 0);
     }
+}
+
+void phi::d3d12::command_list_translator::execute(const phi::cmd::draw_indirect& draw_indirect)
+{
+    CC_ASSERT(_current_queue_type == queue_type::direct && "graphics commands are only valid on queue_type::direct");
+    auto const& pso_node = _globals.pool_pipeline_states->get(draw_indirect.pipeline_state);
+
+    // PSO
+    if (_bound.update_pso(draw_indirect.pipeline_state))
+    {
+        _cmd_list->SetPipelineState(pso_node.raw_pso);
+    }
+
+    // Root signature
+    if (_bound.update_root_sig(pso_node.associated_root_sig->raw_root_sig))
+    {
+        _cmd_list->SetGraphicsRootSignature(_bound.raw_root_sig);
+        _cmd_list->IASetPrimitiveTopology(pso_node.primitive_topology);
+    }
+
+    // Index buffer (optional)
+    if (draw_indirect.index_buffer != _bound.index_buffer)
+    {
+        _bound.index_buffer = draw_indirect.index_buffer;
+        if (draw_indirect.index_buffer.is_valid())
+        {
+            auto const ibv = _globals.pool_resources->getIndexBufferView(draw_indirect.index_buffer);
+            _cmd_list->IASetIndexBuffer(&ibv);
+        }
+    }
+
+    // Vertex buffer
+    if (draw_indirect.vertex_buffer != _bound.vertex_buffer)
+    {
+        _bound.vertex_buffer = draw_indirect.vertex_buffer;
+        if (draw_indirect.vertex_buffer.is_valid())
+        {
+            auto const vbv = _globals.pool_resources->getVertexBufferView(draw_indirect.vertex_buffer);
+            _cmd_list->IASetVertexBuffers(0, 1, &vbv);
+        }
+    }
+
+    // Shader arguments
+    {
+        auto const& root_sig = *pso_node.associated_root_sig;
+
+        // root constants
+        if (!root_sig.argument_maps.empty() && root_sig.argument_maps[0].root_const_param != unsigned(-1))
+        {
+            static_assert(sizeof(draw_indirect.root_constants) % sizeof(DWORD32) == 0, "root constant size not divisible by dword32 size");
+            _cmd_list->SetGraphicsRoot32BitConstants(root_sig.argument_maps[0].root_const_param,
+                                                     sizeof(draw_indirect.root_constants) / sizeof(DWORD32), draw_indirect.root_constants, 0);
+        }
+
+        for (uint8_t i = 0; i < draw_indirect.shader_arguments.size(); ++i)
+        {
+            auto& bound_arg = _bound.shader_args[i];
+            auto const& arg = draw_indirect.shader_arguments[i];
+            auto const& map = root_sig.argument_maps[i];
+
+            if (map.cbv_param != uint32_t(-1))
+            {
+                // Set the CBV / offset if it has changed
+                if (bound_arg.update_cbv(arg.constant_buffer, arg.constant_buffer_offset))
+                {
+                    auto const cbv = _globals.pool_resources->getConstantBufferView(arg.constant_buffer);
+                    _cmd_list->SetGraphicsRootConstantBufferView(map.cbv_param, cbv.BufferLocation + arg.constant_buffer_offset);
+                }
+            }
+
+            // Set the shader view if it has changed
+            if (bound_arg.update_shader_view(arg.shader_view))
+            {
+                if (map.srv_uav_table_param != uint32_t(-1))
+                {
+                    auto const sv_desc_table = _globals.pool_shader_views->getSRVUAVGPUHandle(arg.shader_view);
+                    _cmd_list->SetGraphicsRootDescriptorTable(map.srv_uav_table_param, sv_desc_table);
+                }
+
+                if (map.sampler_table_param != uint32_t(-1))
+                {
+                    auto const sampler_desc_table = _globals.pool_shader_views->getSamplerGPUHandle(arg.shader_view);
+                    _cmd_list->SetGraphicsRootDescriptorTable(map.sampler_table_param, sampler_desc_table);
+                }
+            }
+        }
+    }
+
+
+    ID3D12Resource* const raw_arg_buffer = _globals.pool_resources->getRawResource(draw_indirect.indirect_argument_buffer);
+    ID3D12CommandSignature* const comsig = draw_indirect.index_buffer.is_valid() ? _globals.pool_pipeline_states->getGlobalComSigDrawIndexed()
+                                                                                 : _globals.pool_pipeline_states->getGlobalComSigDraw();
+
+    // NOTE: We use no count buffer, which makes the second argument determine the actual amount of args, not the max
+    // NOTE: One of two global command sigs are used, containing 256 draw / draw_indexed argument types each
+    // as only those two arg types are used, they require no association with a rootsig making things a lot simpler
+    // the amount of arguments configured in those rootsigs is more or less arbitrary, could be increased possibly by a lot without cost
+    CC_ASSERT(draw_indirect.num_arguments <= 256 && "Too many indirect arguments, contact maintainers");
+    _cmd_list->ExecuteIndirect(comsig, draw_indirect.num_arguments, raw_arg_buffer, draw_indirect.argument_buffer_offset, nullptr, 0);
 }
 
 void phi::d3d12::command_list_translator::execute(const phi::cmd::dispatch& dispatch)

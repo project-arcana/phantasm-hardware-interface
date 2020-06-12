@@ -58,6 +58,8 @@ struct unique_buffer
 
     [[nodiscard]] static unique_buffer create_from_binary_file(char const* filename);
 
+    bool write_to_binary_file(char const* filename);
+
 private:
     std::byte* _ptr = nullptr;
     size_t _size = 0;

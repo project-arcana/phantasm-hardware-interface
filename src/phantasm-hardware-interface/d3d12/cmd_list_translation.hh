@@ -46,6 +46,8 @@ struct command_list_translator
 
     void execute(cmd::draw const& draw);
 
+    void execute(cmd::draw_indirect const& draw_indirect);
+
     void execute(cmd::dispatch const& dispatch);
 
     void execute(cmd::end_render_pass const& end_rp);

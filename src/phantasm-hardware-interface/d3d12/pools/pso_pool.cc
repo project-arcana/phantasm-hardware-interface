@@ -302,12 +302,32 @@ void phi::d3d12::PipelineStateObjectPool::initialize(ID3D12Device5* device_rt, u
     CC_ASSERT(max_num_psos < gc_raytracing_handle_offset && "unsupported amount of PSOs");
     CC_ASSERT(max_num_psos_raytracing < gc_raytracing_handle_offset && "unsupported amount of raytracing PSOs");
 
+    // Component init
     mDevice = device_rt;
     mPool.initialize(max_num_psos);
     mPoolRaytracing.initialize(max_num_psos_raytracing);
     mRootSigCache.initialize((max_num_psos / 2) + max_num_psos_raytracing); // almost arbitrary, revisit if this blows up
 
+    // Create empty raytracing rootsig
     mEmptyRaytraceRootSignature = mRootSigCache.getOrCreate(*mDevice, {}, false, root_signature_type::raytrace_global)->raw_root_sig;
+
+    // Create global (indirect drawing) command signatures for draw and indexed draw
+    static_assert(sizeof(D3D12_DRAW_ARGUMENTS) == sizeof(gpu_indirect_command_draw), "gpu argument type compiles to incorrect size");
+    static_assert(sizeof(D3D12_DRAW_INDEXED_ARGUMENTS) == sizeof(gpu_indirect_command_draw_indexed), "gpu argument type compiles to incorrect size");
+
+    D3D12_INDIRECT_ARGUMENT_DESC indirect_arg;
+    indirect_arg.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW;
+
+    D3D12_COMMAND_SIGNATURE_DESC desc = {};
+    desc.NumArgumentDescs = 1;
+    desc.pArgumentDescs = &indirect_arg;
+    desc.ByteStride = sizeof(gpu_indirect_command_draw);
+    desc.NodeMask = 0;
+    mDevice->CreateCommandSignature(&desc, nullptr, IID_PPV_ARGS(&mGlobalComSigDraw));
+
+    indirect_arg.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW_INDEXED;
+    desc.ByteStride = sizeof(gpu_indirect_command_draw_indexed);
+    mDevice->CreateCommandSignature(&desc, nullptr, IID_PPV_ARGS(&mGlobalComSigDrawIndexed));
 }
 
 void phi::d3d12::PipelineStateObjectPool::destroy()
@@ -330,6 +350,9 @@ void phi::d3d12::PipelineStateObjectPool::destroy()
     }
 
     mRootSigCache.destroy();
+
+    mGlobalComSigDraw->Release();
+    mGlobalComSigDrawIndexed->Release();
 }
 
 const phi::d3d12::PipelineStateObjectPool::rt_pso_node& phi::d3d12::PipelineStateObjectPool::getRaytrace(phi::handle::pipeline_state ps) const

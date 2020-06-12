@@ -20,8 +20,8 @@ inline constexpr unsigned max_shader_arguments = 4u;
 inline constexpr unsigned max_shader_samplers = 16u;
 
 /// the maximum size for root constants
-/// configurable in increments of sizeof(DWORD32)
-inline constexpr unsigned max_root_constant_bytes = 8u;
+/// configurable in increments of 4, also concerns CPU memory (cmd::draw, cmd::dispatch)
+inline constexpr unsigned max_root_constant_bytes = 16u;
 
 /// the maximum amount of argument associations
 /// configurable
