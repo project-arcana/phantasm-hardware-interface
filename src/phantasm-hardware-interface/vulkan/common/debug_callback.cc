@@ -41,7 +41,7 @@ VkBool32 phi::vk::detail::debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT 
                                          const VkDebugUtilsMessengerCallbackDataEXT* callback_data,
                                          void* /*user_data*/)
 {
-    // if (severity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
+    if (severity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT)
     {
         RICH_LOG_IMPL(phi::detail::vulkan_log)("{}", callback_data->pMessage);
     }

@@ -254,6 +254,15 @@ phi::vk::lay_ext_array phi::vk::get_used_device_lay_ext(const phi::vk::lay_ext_s
         PHI_LOG_ERROR << "missing timeline semaphore extension, try updating GPU drivers";
     }
 
+    // VK_KHR_relaxed_block_layout
+    // prevents debug layers from warning about non-std430 layouts,
+    // which occur ie. with the -fvk-use-dx-layout DXC flag
+    // spec: https://www.khronos.org/registry/vulkan/specs/1.2-extensions/man/html/VK_KHR_relaxed_block_layout.html
+    if (!add_ext(VK_KHR_RELAXED_BLOCK_LAYOUT_EXTENSION_NAME))
+    {
+        PHI_LOG_WARN("missing relaxed block layout extension");
+    }
+
     // additional extensions
     has_conservative_raster = false;
     if (add_ext(VK_EXT_CONSERVATIVE_RASTERIZATION_EXTENSION_NAME))
