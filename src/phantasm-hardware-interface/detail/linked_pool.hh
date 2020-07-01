@@ -104,36 +104,45 @@ struct linked_pool
 
     /// pass a lambda that is called with a T& of each allocated node
     /// acquire and release CAN be called from within the lambda
-    /// This operation is slow (n squared) and should not occur in normal operation
+    /// This operation is slow and should not occur in normal operation
     template <class F>
-    void iterate_allocated_nodes(F&& func)
+    unsigned iterate_allocated_nodes(F&& func)
     {
-        auto const free_indices = get_free_node_indices();
+        auto free_indices = get_free_node_indices();
+        // sort ascending
+        std::qsort(
+            free_indices.data(), free_indices.size(), sizeof(free_indices[0]),
+            +[](void const* a, void const* b) -> int { return int(*(index_t*)a) - int(*(index_t*)b); });
 
-        // NOTE: this could be sped up with a sort
-
+        unsigned num_iterated_nodes = 0;
+        unsigned free_list_index = 0;
         for (index_t i = 0u; i < _pool_size; ++i)
         {
-            bool is_index_free = false;
-
-            for (auto const free_i : free_indices)
+            if (free_list_index >= free_indices.size() || i < free_indices[free_list_index])
             {
-                if (free_i == i)
-                {
-                    is_index_free = true;
-                    break;
-                }
-            }
-
-            if (!is_index_free)
-            {
+                // no free indices left, or before the next free index
                 func(_pool[i], i);
+                ++num_iterated_nodes;
+            }
+            else
+            {
+                // on a free index
+                CC_ASSERT(i == free_indices[free_list_index]);
+                ++free_list_index;
             }
         }
+
+        return num_iterated_nodes;
+    }
+
+    /// This operation is slow and should not occur in normal operation
+    unsigned release_all()
+    {
+        return iterate_allocated_nodes([this](T&, index_t i) { release(i); });
     }
 
 private:
-    [[nodiscard]] cc::vector<index_t> get_free_node_indices() const
+    cc::vector<index_t> get_free_node_indices() const
     {
         cc::vector<index_t> free_indices;
         free_indices.reserve(_pool_size);
