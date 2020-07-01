@@ -3,6 +3,8 @@
 #include <clean-core/capped_vector.hh>
 #include <clean-core/span.hh>
 
+#include <typed-geometry/types/size.hh>
+
 #include <phantasm-hardware-interface/detail/trivial_capped_vector.hh>
 
 #include "limits.hh"
@@ -151,9 +153,10 @@ struct create_render_target_info
     rt_clear_value clear_value;
 
 public:
-    static create_render_target_info create(phi::format fmt, int w, int h, unsigned num_samples = 1, unsigned array_size = 1, rt_clear_value clear_val = {0.f, 0.f, 0.f, 1.f})
+    static create_render_target_info create(
+        phi::format fmt, tg::isize2 size, unsigned num_samples = 1, unsigned array_size = 1, rt_clear_value clear_val = {0.f, 0.f, 0.f, 1.f})
     {
-        return create_render_target_info{fmt, w, h, num_samples, array_size, clear_val};
+        return create_render_target_info{fmt, size.width, size.height, num_samples, array_size, clear_val};
     }
     constexpr bool operator==(create_render_target_info const& rhs) const noexcept
     {
@@ -172,10 +175,14 @@ struct create_texture_info
     unsigned num_mips;
 
 public:
-    static create_texture_info create(
-        phi::format fmt, int w, int h, unsigned num_mips = 1, phi::texture_dimension dim = phi::texture_dimension::t2d, unsigned depth_or_array_size = 1, bool allow_uav = false)
+    static create_texture_info create(phi::format fmt,
+                                      tg::isize2 size,
+                                      unsigned num_mips = 1,
+                                      phi::texture_dimension dim = phi::texture_dimension::t2d,
+                                      unsigned depth_or_array_size = 1,
+                                      bool allow_uav = false)
     {
-        return create_texture_info{fmt, dim, allow_uav, w, h, depth_or_array_size, num_mips};
+        return create_texture_info{fmt, dim, allow_uav, size.width, size.height, depth_or_array_size, num_mips};
     }
 
     constexpr bool operator==(create_texture_info const& rhs) const noexcept
@@ -246,15 +253,20 @@ public:
         return res;
     }
 
-    static create_resource_info render_target(phi::format fmt, int w, int h, unsigned num_samples = 1, unsigned array_size = 1, rt_clear_value clear_val = {0, 0, 0, 255})
+    static create_resource_info render_target(
+        phi::format fmt, tg::isize2 size, unsigned num_samples = 1, unsigned array_size = 1, rt_clear_value clear_val = {0, 0, 0, 255})
     {
-        return create(create_render_target_info::create(fmt, w, h, num_samples, array_size, clear_val));
+        return create(create_render_target_info::create(fmt, size, num_samples, array_size, clear_val));
     }
 
-    static create_resource_info texture(
-        phi::format fmt, int w, int h, unsigned num_mips = 1, phi::texture_dimension dim = phi::texture_dimension::t2d, unsigned depth_or_array_size = 1, bool allow_uav = false)
+    static create_resource_info texture(phi::format fmt,
+                                        tg::isize2 size,
+                                        unsigned num_mips = 1,
+                                        phi::texture_dimension dim = phi::texture_dimension::t2d,
+                                        unsigned depth_or_array_size = 1,
+                                        bool allow_uav = false)
     {
-        return create(create_texture_info::create(fmt, w, h, num_mips, dim, depth_or_array_size, allow_uav));
+        return create(create_texture_info::create(fmt, size, num_mips, dim, depth_or_array_size, allow_uav));
     }
 
     static create_resource_info buffer(unsigned size_bytes, unsigned stride_bytes, phi::resource_heap heap = phi::resource_heap::gpu, bool allow_uav = false)
