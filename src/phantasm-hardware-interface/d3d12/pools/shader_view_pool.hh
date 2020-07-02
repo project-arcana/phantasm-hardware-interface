@@ -156,7 +156,7 @@ private:
     ID3D12Device* mDevice;
     ResourcePool* mResourcePool;
 
-    phi::detail::linked_pool<shader_view_data, unsigned> mPool;
+    phi::detail::linked_pool<shader_view_data> mPool;
     DescriptorPageAllocator mSRVUAVAllocator;
     DescriptorPageAllocator mSamplerAllocator;
     std::mutex mMutex;

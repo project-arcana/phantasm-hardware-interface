@@ -56,7 +56,7 @@ private:
 private:
     ID3D12Device* mDevice = nullptr;
 
-    phi::detail::linked_pool<node, unsigned> mPool;
+    phi::detail::linked_pool<node> mPool;
     std::mutex mMutex;
 };
 

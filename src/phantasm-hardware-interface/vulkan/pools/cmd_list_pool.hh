@@ -246,7 +246,7 @@ public:
         VkCommandBuffer raw_buffer;
     };
 
-    using cmdlist_linked_pool_t = phi::detail::linked_pool<cmd_list_node, unsigned>;
+    using cmdlist_linked_pool_t = phi::detail::linked_pool<cmd_list_node>;
 
     static constexpr int mcIndexOffsetStep = 1'000'000;
 

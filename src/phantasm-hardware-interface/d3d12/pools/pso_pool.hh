@@ -77,8 +77,8 @@ private:
     ID3D12CommandSignature* mGlobalComSigDraw = nullptr;
     ID3D12CommandSignature* mGlobalComSigDrawIndexed = nullptr;
 
-    phi::detail::linked_pool<pso_node, unsigned> mPool;
-    phi::detail::linked_pool<rt_pso_node, unsigned> mPoolRaytracing;
+    phi::detail::linked_pool<pso_node> mPool;
+    phi::detail::linked_pool<rt_pso_node> mPoolRaytracing;
     std::mutex mMutex;
 };
 

@@ -67,7 +67,7 @@ private:
     ResourcePool* mResourcePool;
 
     /// The main pool data
-    phi::detail::linked_pool<shader_view_node, unsigned> mPool;
+    phi::detail::linked_pool<shader_view_node> mPool;
 
     /// "Backing" allocator
     DescriptorAllocator mAllocator;

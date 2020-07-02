@@ -51,7 +51,7 @@ public:
     void initialize(VkDevice device, unsigned max_num_psos);
     void destroy();
 
-    [[nodiscard]] pso_node const& get(handle::pipeline_state ps) const { return mPool.get(static_cast<unsigned>(ps.index)); }
+    [[nodiscard]] pso_node const& get(handle::pipeline_state ps) const { return mPool.get(unsigned(ps.index)); }
 
     [[nodiscard]] VkRenderPass getOrCreateRenderPass(cmd::begin_render_pass const& brp_cmd, int num_samples, cc::span<format const> rt_formats);
 
@@ -60,7 +60,7 @@ private:
     PipelineLayoutCache mLayoutCache;
     RenderPassCache mRenderPassCache;
     DescriptorAllocator mDescriptorAllocator;
-    phi::detail::linked_pool<pso_node, unsigned> mPool;
+    phi::detail::linked_pool<pso_node> mPool;
     std::mutex mMutex;
 };
 

@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <mutex>
 
+#include <clean-core/array.hh>
 #include <clean-core/capped_array.hh>
 
 #include <phantasm-hardware-interface/arguments.hh>
@@ -154,7 +155,7 @@ private:
         d3d12_incomplete_state_cache state_cache;
     };
 
-    using cmdlist_linked_pool_t = phi::detail::linked_pool<cmd_list_node, unsigned>;
+    using cmdlist_linked_pool_t = phi::detail::linked_pool<cmd_list_node>;
 
     static constexpr int mcIndexOffsetStep = 1'000'000;
 

@@ -60,7 +60,7 @@ private:
     VkDevice mDevice = nullptr;
     ResourcePool* mResourcePool = nullptr;
 
-    phi::detail::linked_pool<accel_struct_node, unsigned> mPool;
+    phi::detail::linked_pool<accel_struct_node> mPool;
 
     std::mutex mMutex;
 };

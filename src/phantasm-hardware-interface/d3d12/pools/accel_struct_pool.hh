@@ -68,7 +68,7 @@ private:
     ID3D12Device5* mDevice = nullptr;
     ResourcePool* mResourcePool = nullptr;
 
-    phi::detail::linked_pool<accel_struct_node, unsigned> mPool;
+    phi::detail::linked_pool<accel_struct_node> mPool;
 
     std::mutex mMutex;
 };

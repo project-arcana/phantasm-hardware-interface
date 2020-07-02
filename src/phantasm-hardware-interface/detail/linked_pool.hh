@@ -1,8 +1,8 @@
 #pragma once
 
+#include <cstdint>
 #include <cstdlib>
 
-#include <clean-core/array.hh>
 #include <clean-core/new.hh>
 #include <clean-core/vector.hh>
 
@@ -10,11 +10,11 @@ namespace phi::detail
 {
 /// Fixed-size object pool
 /// Uses an in-place linked list in free nodes, for O(1) acquire, release and size overhead
-template <class T, class IdxT = size_t>
+template <class T>
 struct linked_pool
 {
     static_assert(sizeof(T) >= sizeof(T*), "linked_pool element type must be large enough to accomodate a pointer");
-    using index_t = IdxT;
+    using index_t = uint32_t;
 
     linked_pool() = default;
     linked_pool(linked_pool const&) = delete;
@@ -89,18 +89,20 @@ struct linked_pool
         _first_free_node = node;
     }
 
-    [[nodiscard]] T& get(index_t index)
+    T& get(index_t index)
     {
-        CC_ASSERT(index < _pool_size);
+        CC_CONTRACT(index < _pool_size);
         return _pool[static_cast<size_t>(index)];
     }
-    [[nodiscard]] T const& get(index_t index) const
+    T const& get(index_t index) const
     {
-        CC_ASSERT(index < _pool_size);
+        CC_CONTRACT(index < _pool_size);
         return _pool[static_cast<size_t>(index)];
     }
 
-    [[nodiscard]] bool is_full() const { return _first_free_node == nullptr; }
+    bool is_full() const { return _first_free_node == nullptr; }
+
+    size_t max_size() const { return _pool_size; }
 
     /// pass a lambda that is called with a T& of each allocated node
     /// acquire and release CAN be called from within the lambda

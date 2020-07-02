@@ -166,7 +166,7 @@ private:
 
 private:
     /// The main pool data
-    phi::detail::linked_pool<resource_node, unsigned> mPool;
+    phi::detail::linked_pool<resource_node> mPool;
 
     /// The handle of the injected backbuffer resource
     handle::resource mInjectedBackbufferResource = handle::null_resource;

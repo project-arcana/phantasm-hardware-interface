@@ -44,7 +44,7 @@ public:
 private:
     VkDevice mDevice = nullptr;
 
-    phi::detail::linked_pool<VkSemaphore, unsigned> mPool;
+    phi::detail::linked_pool<VkSemaphore> mPool;
 
     std::mutex mMutex;
 };
