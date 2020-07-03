@@ -60,7 +60,7 @@ public:
     void initialize(ID3D12Device5* device_rt, unsigned max_num_psos, unsigned max_num_psos_raytracing);
     void destroy();
 
-    [[nodiscard]] pso_node const& get(handle::pipeline_state ps) const { return mPool.get(static_cast<unsigned>(ps.index)); }
+    [[nodiscard]] pso_node const& get(handle::pipeline_state ps) const { return mPool.get(ps._value); }
 
     [[nodiscard]] rt_pso_node const& getRaytrace(handle::pipeline_state ps) const;
 

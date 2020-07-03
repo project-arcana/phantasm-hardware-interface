@@ -43,12 +43,12 @@ void phi::vk::FencePool::free(phi::handle::fence fence)
     if (!fence.is_valid())
         return;
 
-    VkSemaphore freed_fence = mPool.get(static_cast<unsigned>(fence.index));
+    VkSemaphore freed_fence = mPool.get(fence._value);
     vkDestroySemaphore(mDevice, freed_fence, nullptr);
 
     {
         auto lg = std::lock_guard(mMutex);
-        mPool.release(static_cast<unsigned>(fence.index));
+        mPool.release(fence._value);
     }
 }
 
@@ -60,9 +60,9 @@ void phi::vk::FencePool::free(cc::span<const phi::handle::fence> fence_span)
     {
         if (as.is_valid())
         {
-            VkSemaphore freed_fence = mPool.get(static_cast<unsigned>(as.index));
+            VkSemaphore freed_fence = mPool.get(as._value);
             vkDestroySemaphore(mDevice, freed_fence, nullptr);
-            mPool.release(static_cast<unsigned>(as.index));
+            mPool.release(as._value);
         }
     }
 }
@@ -79,7 +79,7 @@ void phi::vk::FencePool::destroy()
     if (mDevice != nullptr)
     {
         auto num_leaks = 0;
-        mPool.iterate_allocated_nodes([&](VkSemaphore leaked_fence, unsigned) {
+        mPool.iterate_allocated_nodes([&](VkSemaphore leaked_fence) {
             ++num_leaks;
             vkDestroySemaphore(mDevice, leaked_fence, nullptr);
         });

@@ -150,12 +150,12 @@ private:
     [[nodiscard]] resource_node const& internalGet(handle::resource res) const
     {
         CC_ASSERT(res.is_valid() && "invalid resource handle");
-        return mPool.get(static_cast<unsigned>(res.index));
+        return mPool.get(res._value);
     }
     [[nodiscard]] resource_node& internalGet(handle::resource res)
     {
         CC_ASSERT(res.is_valid() && "invalid resource handle");
-        return mPool.get(static_cast<unsigned>(res.index));
+        return mPool.get(res._value);
     }
 
 private:

@@ -119,12 +119,12 @@ void phi::d3d12::AccelStructPool::free(phi::handle::accel_struct as)
     if (!as.is_valid())
         return;
 
-    accel_struct_node& freed_node = mPool.get(static_cast<unsigned>(as.index));
+    accel_struct_node& freed_node = mPool.get(as._value);
     internalFree(freed_node);
 
     {
         auto lg = std::lock_guard(mMutex);
-        mPool.release(static_cast<unsigned>(as.index));
+        mPool.release(as._value);
     }
 }
 
@@ -136,9 +136,9 @@ void phi::d3d12::AccelStructPool::free(cc::span<const phi::handle::accel_struct>
     {
         if (as.is_valid())
         {
-            accel_struct_node& freed_node = mPool.get(static_cast<unsigned>(as.index));
+            accel_struct_node& freed_node = mPool.get(as._value);
             internalFree(freed_node);
-            mPool.release(static_cast<unsigned>(as.index));
+            mPool.release(as._value);
         }
     }
 }
@@ -156,7 +156,7 @@ void phi::d3d12::AccelStructPool::destroy()
     if (mDevice != nullptr)
     {
         auto num_leaks = 0;
-        mPool.iterate_allocated_nodes([&](accel_struct_node& leaked_node, unsigned) {
+        mPool.iterate_allocated_nodes([&](accel_struct_node& leaked_node) {
             ++num_leaks;
             internalFree(leaked_node);
         });
@@ -171,7 +171,7 @@ void phi::d3d12::AccelStructPool::destroy()
 phi::d3d12::AccelStructPool::accel_struct_node& phi::d3d12::AccelStructPool::getNode(phi::handle::accel_struct as)
 {
     CC_ASSERT(as.is_valid());
-    return mPool.get(static_cast<unsigned>(as.index));
+    return mPool.get(as._value);
 }
 
 phi::d3d12::AccelStructPool::accel_struct_node& phi::d3d12::AccelStructPool::acquireAccelStruct(handle::accel_struct& out_handle)

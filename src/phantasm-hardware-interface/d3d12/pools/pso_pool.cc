@@ -15,7 +15,7 @@
 
 namespace
 {
-constexpr phi::handle::index_t gc_raytracing_handle_offset = 1073741824;
+constexpr uint32_t gc_d3d12_is_raytracing_pso_bit = (uint32_t(1) << 31);
 }
 
 phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createPipelineState(phi::arg::vertex_format vertex_format,
@@ -55,7 +55,7 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createComputePi
                                                                                             bool has_root_constants)
 {
     root_signature* root_sig;
-    unsigned pool_index;
+    uint32_t pool_index;
     // Do things requiring synchronization first
     {
         auto lg = std::lock_guard(mMutex);
@@ -72,7 +72,9 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createComputePi
     new_node.raw_pso = create_compute_pipeline_state(*mDevice, root_sig->raw_root_sig, compute_shader.data, compute_shader.size);
     util::set_object_name(new_node.raw_pso, "pool compute pso #%d", int(pool_index));
 
-    return {static_cast<handle::index_t>(pool_index)};
+    auto const res = handle::pipeline_state{pool_index};
+    CC_ASSERT(!isRaytracingPipeline(res));
+    return res;
 }
 
 phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracingPipelineState(arg::raytracing_shader_libraries libraries,
@@ -261,47 +263,41 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracin
     // QI the properties for access to shader identifiers
     PHI_D3D12_VERIFY(new_node.raw_state_object->QueryInterface(IID_PPV_ARGS(&new_node.raw_state_object_props)));
 
-    return {static_cast<handle::index_t>(pool_index + gc_raytracing_handle_offset)};
+    return {pool_index | gc_d3d12_is_raytracing_pso_bit};
 }
 
 void phi::d3d12::PipelineStateObjectPool::free(phi::handle::pipeline_state ps)
 {
-    // TODO: dangle check
     if (!ps.is_valid())
         return;
 
     if (isRaytracingPipeline(ps))
     {
-        unsigned const pool_idx = static_cast<unsigned>(ps.index - gc_raytracing_handle_offset);
-        rt_pso_node& freed_node = mPoolRaytracing.get(pool_idx);
+        rt_pso_node& freed_node = mPoolRaytracing.get(ps._value);
         freed_node.raw_state_object->Release();
         freed_node.raw_state_object_props->Release();
 
         {
             auto lg = std::lock_guard(mMutex);
-            mPoolRaytracing.release(pool_idx);
+            mPoolRaytracing.release(ps._value);
         }
     }
     else
     {
         // This requires no synchronization, as D3D12MA internally syncs
-        unsigned const pool_idx = static_cast<unsigned>(ps.index);
-        pso_node& freed_node = mPool.get(pool_idx);
+        pso_node& freed_node = mPool.get(ps._value);
         freed_node.raw_pso->Release();
 
         {
             // This is a write access to the pool and must be synced
             auto lg = std::lock_guard(mMutex);
-            mPool.release(pool_idx);
+            mPool.release(ps._value);
         }
     }
 }
 
 void phi::d3d12::PipelineStateObjectPool::initialize(ID3D12Device5* device_rt, unsigned max_num_psos, unsigned max_num_psos_raytracing)
 {
-    CC_ASSERT(max_num_psos < gc_raytracing_handle_offset && "unsupported amount of PSOs");
-    CC_ASSERT(max_num_psos_raytracing < gc_raytracing_handle_offset && "unsupported amount of raytracing PSOs");
-
     // Component init
     mDevice = device_rt;
     mPool.initialize(max_num_psos);
@@ -333,12 +329,12 @@ void phi::d3d12::PipelineStateObjectPool::initialize(ID3D12Device5* device_rt, u
 void phi::d3d12::PipelineStateObjectPool::destroy()
 {
     auto num_leaks = 0;
-    mPool.iterate_allocated_nodes([&](pso_node& leaked_node, unsigned) {
+    mPool.iterate_allocated_nodes([&](pso_node& leaked_node) {
         ++num_leaks;
         leaked_node.raw_pso->Release();
     });
 
-    mPoolRaytracing.iterate_allocated_nodes([&](rt_pso_node& leaked_node, unsigned) {
+    mPoolRaytracing.iterate_allocated_nodes([&](rt_pso_node& leaked_node) {
         ++num_leaks;
         leaked_node.raw_state_object->Release();
         leaked_node.raw_state_object_props->Release();
@@ -357,10 +353,10 @@ void phi::d3d12::PipelineStateObjectPool::destroy()
 
 const phi::d3d12::PipelineStateObjectPool::rt_pso_node& phi::d3d12::PipelineStateObjectPool::getRaytrace(phi::handle::pipeline_state ps) const
 {
-    return mPoolRaytracing.get(static_cast<unsigned>(ps.index - gc_raytracing_handle_offset));
+    return mPoolRaytracing.get(ps._value);
 }
 
 bool phi::d3d12::PipelineStateObjectPool::isRaytracingPipeline(phi::handle::pipeline_state ps) const
 {
-    return ps.index >= gc_raytracing_handle_offset;
+    return (ps._value & gc_d3d12_is_raytracing_pso_bit) != 0;
 }

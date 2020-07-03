@@ -159,8 +159,8 @@ private:
     [[nodiscard]] handle::resource acquireImage(
         VmaAllocation alloc, VkImage buffer, format pixel_format, unsigned num_mips, unsigned num_array_layers, unsigned num_samples, int width, int height);
 
-    [[nodiscard]] resource_node const& internalGet(handle::resource res) const { return mPool.get(static_cast<unsigned>(res.index)); }
-    [[nodiscard]] resource_node& internalGet(handle::resource res) { return mPool.get(static_cast<unsigned>(res.index)); }
+    [[nodiscard]] resource_node const& internalGet(handle::resource res) const { return mPool.get(res._value); }
+    [[nodiscard]] resource_node& internalGet(handle::resource res) { return mPool.get(res._value); }
 
     void internalFree(resource_node& node);
 

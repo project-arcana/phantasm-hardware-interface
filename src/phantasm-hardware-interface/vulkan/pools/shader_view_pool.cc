@@ -177,14 +177,14 @@ void phi::vk::ShaderViewPool::free(phi::handle::shader_view sv)
 {
     // TODO: dangle check
 
-    shader_view_node& freed_node = mPool.get(static_cast<unsigned>(sv.index));
+    shader_view_node& freed_node = mPool.get(sv._value);
     internalFree(freed_node);
 
     {
         // This is a write access to the pool and allocator, and must be synced
         auto lg = std::lock_guard(mMutex);
         mAllocator.free(freed_node.raw_desc_set);
-        mPool.release(static_cast<unsigned>(sv.index));
+        mPool.release(sv._value);
     }
 }
 
@@ -194,10 +194,10 @@ void phi::vk::ShaderViewPool::free(cc::span<const phi::handle::shader_view> svs)
     auto lg = std::lock_guard(mMutex);
     for (auto sv : svs)
     {
-        shader_view_node& freed_node = mPool.get(static_cast<unsigned>(sv.index));
+        shader_view_node& freed_node = mPool.get(sv._value);
         internalFree(freed_node);
         mAllocator.free(freed_node.raw_desc_set);
-        mPool.release(static_cast<unsigned>(sv.index));
+        mPool.release(sv._value);
     }
 }
 
@@ -214,7 +214,7 @@ void phi::vk::ShaderViewPool::initialize(VkDevice device, ResourcePool* res_pool
 void phi::vk::ShaderViewPool::destroy()
 {
     auto num_leaks = 0;
-    mPool.iterate_allocated_nodes([&](shader_view_node& leaked_node, unsigned) {
+    mPool.iterate_allocated_nodes([&](shader_view_node& leaked_node) {
         ++num_leaks;
 
         internalFree(leaked_node);

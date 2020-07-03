@@ -70,7 +70,7 @@ void phi::d3d12::ResourcePool::initialize(ID3D12Device& device, unsigned max_num
 void phi::d3d12::ResourcePool::destroy()
 {
     auto num_leaks = 0;
-    mPool.iterate_allocated_nodes([&](resource_node& leaked_node, unsigned) {
+    mPool.iterate_allocated_nodes([&](resource_node& leaked_node) {
         if (leaked_node.allocation != nullptr)
         {
             ++num_leaks;
@@ -88,7 +88,7 @@ void phi::d3d12::ResourcePool::destroy()
 
 phi::handle::resource phi::d3d12::ResourcePool::injectBackbufferResource(ID3D12Resource* raw_resource, D3D12_RESOURCE_STATES state)
 {
-    resource_node& backbuffer_node = mPool.get(unsigned(mInjectedBackbufferResource.index));
+    resource_node& backbuffer_node = mPool.get(unsigned(mInjectedBackbufferResource._value));
     backbuffer_node.type = resource_node::resource_type::image;
     backbuffer_node.resource = raw_resource;
     backbuffer_node.master_state = state;
@@ -200,7 +200,7 @@ std::byte* phi::d3d12::ResourcePool::mapBuffer(phi::handle::resource res)
 {
     CC_ASSERT(res.is_valid() && "attempted to map invalid handle");
 
-    resource_node const& node = mPool.get(unsigned(res.index));
+    resource_node const& node = mPool.get(unsigned(res._value));
 
     CC_ASSERT(node.type == resource_node::resource_type::buffer && node.heap != resource_heap::gpu && //
               "attempted to map non-buffer or buffer on GPU heap");
@@ -216,7 +216,7 @@ void phi::d3d12::ResourcePool::unmapBuffer(phi::handle::resource res)
 {
     CC_ASSERT(res.is_valid() && "attempted to unmap invalid handle");
 
-    resource_node const& node = mPool.get(unsigned(res.index));
+    resource_node const& node = mPool.get(unsigned(res._value));
 
     CC_ASSERT(node.type == resource_node::resource_type::buffer && node.heap != resource_heap::gpu && //
               "attempted to unmap non-buffer or buffer on GPU heap");
@@ -246,13 +246,13 @@ void phi::d3d12::ResourcePool::free(phi::handle::resource res)
     // TODO: dangle check
 
     // This requires no synchronization, as D3D12MA internally syncs
-    resource_node& freed_node = mPool.get(unsigned(res.index));
+    resource_node& freed_node = mPool.get(unsigned(res._value));
     freed_node.allocation->Release();
 
     {
         // This is a write access to the pool and must be synced
         auto lg = std::lock_guard(mMutex);
-        mPool.release(unsigned(res.index));
+        mPool.release(unsigned(res._value));
     }
 }
 
@@ -265,11 +265,11 @@ void phi::d3d12::ResourcePool::free(cc::span<const phi::handle::resource> resour
         CC_ASSERT(res != mInjectedBackbufferResource && "the backbuffer resource must not be freed");
         if (res.is_valid())
         {
-            resource_node& freed_node = mPool.get(unsigned(res.index));
+            resource_node& freed_node = mPool.get(unsigned(res._value));
             // This is a write access to mAllocatorDescriptors
             freed_node.allocation->Release();
             // This is a write access to the pool and must be synced
-            mPool.release(unsigned(res.index));
+            mPool.release(unsigned(res._value));
         }
     }
 }

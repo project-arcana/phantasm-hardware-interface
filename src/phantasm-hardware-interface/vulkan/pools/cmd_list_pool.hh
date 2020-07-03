@@ -248,79 +248,16 @@ public:
 
     using cmdlist_linked_pool_t = phi::detail::linked_pool<cmd_list_node>;
 
-    static constexpr int mcIndexOffsetStep = 1'000'000;
-
-    static constexpr int mcIndexOffsetDirect = mcIndexOffsetStep * 0;
-    static constexpr int mcIndexOffsetCompute = mcIndexOffsetStep * 1;
-    static constexpr int mcIndexOffsetCopy = mcIndexOffsetStep * 2;
-
-    static constexpr queue_type HandleToQueueType(handle::command_list cl)
-    {
-        if (cl.index >= mcIndexOffsetCopy)
-            return queue_type::copy;
-        else if (cl.index >= mcIndexOffsetCompute)
-            return queue_type::compute;
-        else
-            return queue_type::direct;
-    }
-
-    static constexpr handle::command_list IndexToHandle(unsigned pool_index, queue_type type)
-    {
-        // we rely on underlying values here
-        static_assert(int(queue_type::direct) == 0, "unexpected enum ordering");
-        static_assert(int(queue_type::compute) == 1, "unexpected enum ordering");
-        static_assert(int(queue_type::copy) == 2, "unexpected enum ordering");
-        return {int(pool_index) + mcIndexOffsetStep * int(type)};
-    }
-
-    static constexpr unsigned HandleToIndex(handle::command_list cl, queue_type type)
-    {
-        //
-        return unsigned(cl.index - mcIndexOffsetStep * int(type));
-    }
-
-    cmdlist_linked_pool_t& getPool(queue_type type)
-    {
-        switch (type)
-        {
-        case queue_type::direct:
-            return mPoolDirect;
-        case queue_type::compute:
-            return mPoolCompute;
-        case queue_type::copy:
-            return mPoolCopy;
-        }
-
-        CC_UNREACHABLE("invalid queue_type");
-    }
-
-    cmdlist_linked_pool_t const& getPool(queue_type type) const
-    {
-        switch (type)
-        {
-        case queue_type::direct:
-            return mPoolDirect;
-        case queue_type::compute:
-            return mPoolCompute;
-        case queue_type::copy:
-            return mPoolCopy;
-        }
-
-        CC_UNREACHABLE("invalid queue_type");
-    }
-
 public:
     // internal API
 
     [[nodiscard]] cmd_list_node& getCommandListNode(handle::command_list cl)
     {
-        queue_type const type = HandleToQueueType(cl);
-        return getPool(type).get(HandleToIndex(cl, type));
+        return mPool.get(cl._value);
     }
     [[nodiscard]] cmd_list_node const& getCommandListNode(handle::command_list cl) const
     {
-        queue_type const type = HandleToQueueType(cl);
-        return getPool(type).get(HandleToIndex(cl, type));
+        return mPool.get(cl._value);
     }
 
     [[nodiscard]] VkCommandBuffer getRawBuffer(handle::command_list cl) const { return getCommandListNode(cl).raw_buffer; }
@@ -355,6 +292,7 @@ private:
     cmdlist_linked_pool_t mPoolDirect;
     cmdlist_linked_pool_t mPoolCompute;
     cmdlist_linked_pool_t mPoolCopy;
+    cmdlist_linked_pool_t mPool;
 
     std::mutex mMutex;
 };

@@ -318,30 +318,25 @@ void phi::vk::CommandAllocatorBundle::updateActiveIndex(VkDevice device)
 phi::handle::command_list phi::vk::CommandListPool::create(VkCommandBuffer& out_cmdlist, phi::vk::CommandAllocatorsPerThread& thread_allocator, queue_type type)
 {
     unsigned res_index;
-    auto& pool = getPool(type);
     {
         auto lg = std::lock_guard(mMutex);
-        res_index = pool.acquire();
+        res_index = mPool.acquire();
     }
 
-    cmd_list_node& new_node = pool.get(res_index);
+    cmd_list_node& new_node = mPool.get(res_index);
     new_node.responsible_allocator = thread_allocator.get(type).acquireMemory(mDevice, new_node.raw_buffer);
 
     out_cmdlist = new_node.raw_buffer;
-    return IndexToHandle(res_index, type);
+    return {res_index};
 }
 
 void phi::vk::CommandListPool::freeOnSubmit(phi::handle::command_list cl, unsigned fence_index)
 {
-    queue_type const type = HandleToQueueType(cl);
-    unsigned const index = HandleToIndex(cl, type);
-    auto& pool = getPool(type);
-
-    cmd_list_node& freed_node = pool.get(index);
+    cmd_list_node& freed_node = mPool.get(cl._value);
     {
         auto lg = std::lock_guard(mMutex);
         freed_node.responsible_allocator->on_submit(1, fence_index);
-        pool.release(index);
+        mPool.release(cl._value);
     }
 }
 
@@ -357,13 +352,9 @@ void phi::vk::CommandListPool::freeOnSubmit(cc::span<const phi::handle::command_
             if (!cl.is_valid())
                 continue;
 
-            queue_type const type = HandleToQueueType(cl);
-            unsigned const index = HandleToIndex(cl, type);
-            auto& pool = getPool(type);
-
-            cmd_list_node& freed_node = pool.get(index);
+            cmd_list_node& freed_node = mPool.get(cl._value);
             unique_allocators.get_value(freed_node.responsible_allocator, 0u) += 1;
-            pool.release(index);
+            mPool.release(cl._value);
         }
     }
 
@@ -394,13 +385,9 @@ void phi::vk::CommandListPool::freeOnSubmit(cc::span<const cc::span<const phi::h
                 if (!cl.is_valid())
                     continue;
 
-                queue_type const type = HandleToQueueType(cl);
-                unsigned const index = HandleToIndex(cl, type);
-                auto& pool = getPool(type);
-
-                cmd_list_node& freed_node = pool.get(index);
+                cmd_list_node& freed_node = mPool.get(cl._value);
                 unique_allocators.get_value(freed_node.responsible_allocator, 0u) += 1;
-                pool.release(index);
+                mPool.release(cl._value);
             }
     }
 
@@ -426,12 +413,8 @@ void phi::vk::CommandListPool::freeAndDiscard(cc::span<const handle::command_lis
     {
         if (cl.is_valid())
         {
-            queue_type const type = HandleToQueueType(cl);
-            unsigned const index = HandleToIndex(cl, type);
-            auto& pool = getPool(type);
-
-            pool.get(index).responsible_allocator->on_discard();
-            pool.release(index);
+            mPool.get(cl._value).responsible_allocator->on_discard();
+            mPool.release(cl._value);
         }
     }
 }
@@ -441,20 +424,10 @@ unsigned phi::vk::CommandListPool::discardAndFreeAll()
     auto lg = std::lock_guard(mMutex);
 
     auto num_freed = 0u;
-    mPoolDirect.iterate_allocated_nodes([&](cmd_list_node& leaked_node, unsigned index) {
+    mPool.iterate_allocated_nodes([&](cmd_list_node& leaked_node) {
         ++num_freed;
         leaked_node.responsible_allocator->on_discard();
-        mPoolDirect.release(index);
-    });
-    mPoolCompute.iterate_allocated_nodes([&](cmd_list_node& leaked_node, unsigned index) {
-        ++num_freed;
-        leaked_node.responsible_allocator->on_discard();
-        mPoolCompute.release(index);
-    });
-    mPoolCopy.iterate_allocated_nodes([&](cmd_list_node& leaked_node, unsigned index) {
-        ++num_freed;
-        leaked_node.responsible_allocator->on_discard();
-        mPoolCopy.release(index);
+        mPool.release_node(&leaked_node);
     });
 
     return num_freed;
@@ -482,6 +455,7 @@ void phi::vk::CommandListPool::initialize(phi::vk::BackendVulkan& backend,
     mPoolDirect.initialize(num_direct_lists_total);
     mPoolCompute.initialize(num_compute_lists_total);
     mPoolCopy.initialize(num_copy_lists_total);
+    mPool.initialize(num_direct_lists_total + num_compute_lists_total + num_copy_lists_total);
 
     mFenceRing.initialize(mDevice, thread_allocators.size() * (num_direct_allocs + num_compute_allocs + num_copy_allocs) + 5); // arbitrary safety buffer, should never be required
 

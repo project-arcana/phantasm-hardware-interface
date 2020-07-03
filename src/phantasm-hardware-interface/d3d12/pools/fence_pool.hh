@@ -44,13 +44,13 @@ private:
     [[nodiscard]] node& internalGet(handle::fence fence)
     {
         CC_ASSERT(fence.is_valid() && "invalid handle::fence");
-        return mPool.get(static_cast<unsigned>(fence.index));
+        return mPool.get(fence._value);
     }
 
     [[nodiscard]] node const& internalGet(handle::fence fence) const
     {
         CC_ASSERT(fence.is_valid() && "invalid handle::fence");
-        return mPool.get(static_cast<unsigned>(fence.index));
+        return mPool.get(fence._value);
     }
 
 private:
