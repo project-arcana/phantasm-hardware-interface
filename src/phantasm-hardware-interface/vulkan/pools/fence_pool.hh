@@ -24,7 +24,7 @@ public:
     VkSemaphore get(handle::fence fence) const
     {
         CC_ASSERT(fence.is_valid() && "invalid handle::fence");
-        return mPool.get(static_cast<unsigned>(fence.index));
+        return mPool.get(fence._value);
     }
 
     void signalCPU(handle::fence fence, uint64_t val) const;
@@ -44,7 +44,7 @@ public:
 private:
     VkDevice mDevice = nullptr;
 
-    phi::detail::linked_pool<VkSemaphore, unsigned> mPool;
+    phi::detail::linked_pool<VkSemaphore> mPool;
 
     std::mutex mMutex;
 };

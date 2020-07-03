@@ -44,19 +44,19 @@ private:
     [[nodiscard]] node& internalGet(handle::fence fence)
     {
         CC_ASSERT(fence.is_valid() && "invalid handle::fence");
-        return mPool.get(static_cast<unsigned>(fence.index));
+        return mPool.get(fence._value);
     }
 
     [[nodiscard]] node const& internalGet(handle::fence fence) const
     {
         CC_ASSERT(fence.is_valid() && "invalid handle::fence");
-        return mPool.get(static_cast<unsigned>(fence.index));
+        return mPool.get(fence._value);
     }
 
 private:
     ID3D12Device* mDevice = nullptr;
 
-    phi::detail::linked_pool<node, unsigned> mPool;
+    phi::detail::linked_pool<node> mPool;
     std::mutex mMutex;
 };
 

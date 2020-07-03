@@ -400,7 +400,7 @@ void phi::vk::BackendVulkan::freeRange(cc::span<const phi::handle::accel_struct>
 
 void phi::vk::BackendVulkan::printInformation(phi::handle::resource res) const
 {
-    PHI_LOG << "Inspecting resource " << res.index;
+    PHI_LOG << "Inspecting resource " << res._value;
     if (!res.is_valid())
         PHI_LOG << "  invalid (== handle::null_resource)";
     else

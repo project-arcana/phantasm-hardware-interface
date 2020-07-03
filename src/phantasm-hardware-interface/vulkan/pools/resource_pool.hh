@@ -159,14 +159,14 @@ private:
     [[nodiscard]] handle::resource acquireImage(
         VmaAllocation alloc, VkImage buffer, format pixel_format, unsigned num_mips, unsigned num_array_layers, unsigned num_samples, int width, int height);
 
-    [[nodiscard]] resource_node const& internalGet(handle::resource res) const { return mPool.get(static_cast<unsigned>(res.index)); }
-    [[nodiscard]] resource_node& internalGet(handle::resource res) { return mPool.get(static_cast<unsigned>(res.index)); }
+    [[nodiscard]] resource_node const& internalGet(handle::resource res) const { return mPool.get(res._value); }
+    [[nodiscard]] resource_node& internalGet(handle::resource res) { return mPool.get(res._value); }
 
     void internalFree(resource_node& node);
 
 private:
     /// The main pool data
-    phi::detail::linked_pool<resource_node, unsigned> mPool;
+    phi::detail::linked_pool<resource_node> mPool;
 
     /// The handle of the injected backbuffer resource
     handle::resource mInjectedBackbufferResource = handle::null_resource;

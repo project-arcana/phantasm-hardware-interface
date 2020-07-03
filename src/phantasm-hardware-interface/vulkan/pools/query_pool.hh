@@ -77,9 +77,9 @@ public:
 
     static constexpr query_type HandleToQueryType(handle::query_range qr)
     {
-        if (qr.index >= mcIndexOffsetPipelineStats)
+        if (qr._value >= mcIndexOffsetPipelineStats)
             return query_type::pipeline_stats;
-        else if (qr.index >= mcIndexOffsetOcclusion)
+        else if (qr._value >= mcIndexOffsetOcclusion)
             return query_type::occlusion;
         else
             return query_type::timestamp;
@@ -91,13 +91,13 @@ public:
         static_assert(int(query_type::timestamp) == 0, "unexpected enum ordering");
         static_assert(int(query_type::occlusion) == 1, "unexpected enum ordering");
         static_assert(int(query_type::pipeline_stats) == 2, "unexpected enum ordering");
-        return {index + mcIndexOffsetStep * int(type)};
+        return {unsigned(index + mcIndexOffsetStep * int(type))};
     }
 
     static constexpr int HandleToIndex(handle::query_range qr, query_type type)
     {
         //
-        return qr.index - mcIndexOffsetStep * int(type);
+        return qr._value - mcIndexOffsetStep * int(type);
     }
 
     QueryPageAllocator& getHeap(query_type type)

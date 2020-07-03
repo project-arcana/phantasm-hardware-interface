@@ -143,12 +143,12 @@ private:
     [[nodiscard]] shader_view_data const& internalGet(handle::shader_view res) const
     {
         CC_ASSERT(res.is_valid() && "invalid shader_view handle");
-        return mPool.get(static_cast<unsigned>(res.index));
+        return mPool.get(res._value);
     }
     [[nodiscard]] shader_view_data& internalGet(handle::shader_view res)
     {
         CC_ASSERT(res.is_valid() && "invalid shader_view handle");
-        return mPool.get(static_cast<unsigned>(res.index));
+        return mPool.get(res._value);
     }
 
 private:
@@ -156,7 +156,7 @@ private:
     ID3D12Device* mDevice;
     ResourcePool* mResourcePool;
 
-    phi::detail::linked_pool<shader_view_data, unsigned> mPool;
+    phi::detail::linked_pool<shader_view_data> mPool;
     DescriptorPageAllocator mSRVUAVAllocator;
     DescriptorPageAllocator mSamplerAllocator;
     std::mutex mMutex;

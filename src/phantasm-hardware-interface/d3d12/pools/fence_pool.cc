@@ -24,11 +24,11 @@ void phi::d3d12::FencePool::free(phi::handle::fence fence)
     if (!fence.is_valid())
         return;
 
-    mPool.get(static_cast<unsigned>(fence.index)).free();
+    mPool.get(fence._value).free();
 
     {
         auto lg = std::lock_guard(mMutex);
-        mPool.release(static_cast<unsigned>(fence.index));
+        mPool.release(fence._value);
     }
 }
 
@@ -40,8 +40,8 @@ void phi::d3d12::FencePool::free(cc::span<const phi::handle::fence> fence_span)
     {
         if (as.is_valid())
         {
-            mPool.get(static_cast<unsigned>(as.index)).free();
-            mPool.release(static_cast<unsigned>(as.index));
+            mPool.get(as._value).free();
+            mPool.release(as._value);
         }
     }
 }
@@ -58,7 +58,7 @@ void phi::d3d12::FencePool::destroy()
     if (mDevice != nullptr)
     {
         auto num_leaks = 0;
-        mPool.iterate_allocated_nodes([&](node& leaked_fence, unsigned) {
+        mPool.iterate_allocated_nodes([&](node& leaked_fence) {
             ++num_leaks;
             leaked_fence.free();
         });

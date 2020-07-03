@@ -186,7 +186,7 @@ std::byte* phi::vk::ResourcePool::mapBuffer(phi::handle::resource res)
 {
     CC_ASSERT(res.is_valid() && "attempted to map invalid handle");
 
-    resource_node& node = mPool.get(unsigned(res.index));
+    resource_node& node = mPool.get(unsigned(res._value));
 
     CC_ASSERT(node.type == resource_node::resource_type::buffer && node.heap != resource_heap::gpu && //
               "attempted to map non-buffer or buffer on GPU heap");
@@ -220,7 +220,7 @@ void phi::vk::ResourcePool::unmapBuffer(phi::handle::resource res)
 {
     CC_ASSERT(res.is_valid() && "attempted to unmap invalid handle");
 
-    resource_node& node = mPool.get(unsigned(res.index));
+    resource_node& node = mPool.get(unsigned(res._value));
 
     CC_ASSERT(node.type == resource_node::resource_type::buffer && node.heap != resource_heap::gpu && //
               "attempted to unmap non-buffer or buffer on GPU heap");
@@ -260,14 +260,14 @@ void phi::vk::ResourcePool::free(phi::handle::resource res)
     if (!res.is_valid())
         return;
 
-    resource_node& freed_node = mPool.get(static_cast<unsigned>(res.index));
+    resource_node& freed_node = mPool.get(res._value);
 
     {
         auto lg = std::lock_guard(mMutex);
         // This is a write access to mAllocatorDescriptors
         internalFree(freed_node);
         // This is a write access to the pool and must be synced
-        mPool.release(static_cast<unsigned>(res.index));
+        mPool.release(res._value);
     }
 }
 
@@ -280,11 +280,11 @@ void phi::vk::ResourcePool::free(cc::span<const phi::handle::resource> resources
         CC_ASSERT(res != mInjectedBackbufferResource && "the backbuffer resource must not be freed");
         if (res.is_valid())
         {
-            resource_node& freed_node = mPool.get(static_cast<unsigned>(res.index));
+            resource_node& freed_node = mPool.get(res._value);
             // This is a write access to mAllocatorDescriptors
             internalFree(freed_node);
             // This is a write access to the pool and must be synced
-            mPool.release(static_cast<unsigned>(res.index));
+            mPool.release(res._value);
         }
     }
 }
@@ -303,8 +303,8 @@ void phi::vk::ResourcePool::initialize(VkPhysicalDevice physical, VkDevice devic
     mPool.initialize(max_num_resources + 1); // 1 additional resource for the backbuffer
 
     {
-        mInjectedBackbufferResource = {static_cast<handle::index_t>(mPool.acquire())};
-        resource_node& backbuffer_node = mPool.get(static_cast<unsigned>(mInjectedBackbufferResource.index));
+        mInjectedBackbufferResource = {mPool.acquire()};
+        resource_node& backbuffer_node = mPool.get(mInjectedBackbufferResource._value);
         backbuffer_node.type = resource_node::resource_type::image;
         backbuffer_node.master_state = resource_state::undefined;
         backbuffer_node.heap = resource_heap::gpu;
@@ -324,7 +324,7 @@ void phi::vk::ResourcePool::initialize(VkPhysicalDevice physical, VkDevice devic
 void phi::vk::ResourcePool::destroy()
 {
     auto num_leaks = 0;
-    mPool.iterate_allocated_nodes([&](resource_node& leaked_node, unsigned) {
+    mPool.iterate_allocated_nodes([&](resource_node& leaked_node) {
         if (leaked_node.allocation != nullptr)
         {
             ++num_leaks;
@@ -356,7 +356,7 @@ VkDeviceMemory phi::vk::ResourcePool::getRawDeviceMemory(phi::handle::resource r
 phi::handle::resource phi::vk::ResourcePool::injectBackbufferResource(
     VkImage raw_image, phi::resource_state state, VkImageView backbuffer_view, unsigned width, unsigned height, phi::resource_state& out_prev_state)
 {
-    resource_node& backbuffer_node = mPool.get(static_cast<unsigned>(mInjectedBackbufferResource.index));
+    resource_node& backbuffer_node = mPool.get(mInjectedBackbufferResource._value);
     backbuffer_node.image.raw_image = raw_image;
     backbuffer_node.image.width = width;
     backbuffer_node.image.height = height;

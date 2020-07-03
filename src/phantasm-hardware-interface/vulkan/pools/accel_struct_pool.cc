@@ -175,12 +175,12 @@ void phi::vk::AccelStructPool::free(phi::handle::accel_struct as)
     if (!as.is_valid())
         return;
 
-    accel_struct_node& freed_node = mPool.get(static_cast<unsigned>(as.index));
+    accel_struct_node& freed_node = mPool.get(as._value);
     internalFree(freed_node);
 
     {
         auto lg = std::lock_guard(mMutex);
-        mPool.release(static_cast<unsigned>(as.index));
+        mPool.release(as._value);
     }
 }
 
@@ -192,9 +192,9 @@ void phi::vk::AccelStructPool::free(cc::span<const phi::handle::accel_struct> as
     {
         if (as.is_valid())
         {
-            accel_struct_node& freed_node = mPool.get(static_cast<unsigned>(as.index));
+            accel_struct_node& freed_node = mPool.get(as._value);
             internalFree(freed_node);
-            mPool.release(static_cast<unsigned>(as.index));
+            mPool.release(as._value);
         }
     }
 }
@@ -212,7 +212,7 @@ void phi::vk::AccelStructPool::destroy()
     if (mDevice != nullptr)
     {
         auto num_leaks = 0;
-        mPool.iterate_allocated_nodes([&](accel_struct_node& leaked_node, unsigned) {
+        mPool.iterate_allocated_nodes([&](accel_struct_node& leaked_node) {
             ++num_leaks;
             internalFree(leaked_node);
         });
@@ -227,7 +227,7 @@ void phi::vk::AccelStructPool::destroy()
 phi::vk::AccelStructPool::accel_struct_node& phi::vk::AccelStructPool::getNode(phi::handle::accel_struct as)
 {
     CC_ASSERT(as.is_valid());
-    return mPool.get(static_cast<unsigned>(as.index));
+    return mPool.get(as._value);
 }
 
 phi::handle::accel_struct phi::vk::AccelStructPool::acquireAccelStruct(VkAccelerationStructureNV raw_as,
@@ -259,7 +259,7 @@ phi::handle::accel_struct phi::vk::AccelStructPool::acquireAccelStruct(VkAcceler
 void phi::vk::AccelStructPool::moveGeometriesToAS(phi::handle::accel_struct as, cc::vector<VkGeometryNV>&& geometries)
 {
     CC_ASSERT(as.is_valid());
-    mPool.get(static_cast<unsigned>(as.index)).geometries = cc::move(geometries);
+    mPool.get(as._value).geometries = cc::move(geometries);
 }
 
 void phi::vk::AccelStructPool::internalFree(phi::vk::AccelStructPool::accel_struct_node& node)

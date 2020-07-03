@@ -129,13 +129,13 @@ void phi::vk::PipelinePool::free(phi::handle::pipeline_state ps)
     // TODO: dangle check
 
     // This requires no synchronization, as VMA internally syncs
-    pso_node& freed_node = mPool.get(static_cast<unsigned>(ps.index));
+    pso_node& freed_node = mPool.get(ps._value);
     vkDestroyPipeline(mDevice, freed_node.raw_pipeline, nullptr);
 
     {
         // This is a write access to the pool and must be synced
         auto lg = std::lock_guard(mMutex);
-        mPool.release(static_cast<unsigned>(ps.index));
+        mPool.release(ps._value);
     }
 }
 
@@ -156,7 +156,7 @@ void phi::vk::PipelinePool::destroy()
 {
     auto num_leaks = 0;
 
-    mPool.iterate_allocated_nodes([&](pso_node& leaked_node, unsigned) {
+    mPool.iterate_allocated_nodes([&](pso_node& leaked_node) {
         ++num_leaks;
         vkDestroyPipeline(mDevice, leaked_node.raw_pipeline, nullptr);
     });

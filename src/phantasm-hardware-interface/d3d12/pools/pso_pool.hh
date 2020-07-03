@@ -60,7 +60,7 @@ public:
     void initialize(ID3D12Device5* device_rt, unsigned max_num_psos, unsigned max_num_psos_raytracing);
     void destroy();
 
-    [[nodiscard]] pso_node const& get(handle::pipeline_state ps) const { return mPool.get(static_cast<unsigned>(ps.index)); }
+    [[nodiscard]] pso_node const& get(handle::pipeline_state ps) const { return mPool.get(ps._value); }
 
     [[nodiscard]] rt_pso_node const& getRaytrace(handle::pipeline_state ps) const;
 
@@ -77,8 +77,8 @@ private:
     ID3D12CommandSignature* mGlobalComSigDraw = nullptr;
     ID3D12CommandSignature* mGlobalComSigDrawIndexed = nullptr;
 
-    phi::detail::linked_pool<pso_node, unsigned> mPool;
-    phi::detail::linked_pool<rt_pso_node, unsigned> mPoolRaytracing;
+    phi::detail::linked_pool<pso_node> mPool;
+    phi::detail::linked_pool<rt_pso_node> mPoolRaytracing;
     std::mutex mMutex;
 };
 

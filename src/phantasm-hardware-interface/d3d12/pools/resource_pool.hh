@@ -150,17 +150,17 @@ private:
     [[nodiscard]] resource_node const& internalGet(handle::resource res) const
     {
         CC_ASSERT(res.is_valid() && "invalid resource handle");
-        return mPool.get(static_cast<unsigned>(res.index));
+        return mPool.get(res._value);
     }
     [[nodiscard]] resource_node& internalGet(handle::resource res)
     {
         CC_ASSERT(res.is_valid() && "invalid resource handle");
-        return mPool.get(static_cast<unsigned>(res.index));
+        return mPool.get(res._value);
     }
 
 private:
     /// The main pool data
-    phi::detail::linked_pool<resource_node, unsigned> mPool;
+    phi::detail::linked_pool<resource_node> mPool;
 
     handle::resource mInjectedBackbufferResource = handle::null_resource;
 

@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <mutex>
 
+#include <clean-core/array.hh>
+#include <clean-core/bits.hh>
 #include <clean-core/capped_array.hh>
 
 #include <phantasm-hardware-interface/arguments.hh>
@@ -154,37 +156,22 @@ private:
         d3d12_incomplete_state_cache state_cache;
     };
 
-    using cmdlist_linked_pool_t = phi::detail::linked_pool<cmd_list_node, unsigned>;
+    using cmdlist_linked_pool_t = phi::detail::linked_pool<cmd_list_node>;
 
-    static constexpr int mcIndexOffsetStep = 1'000'000;
-
-    static constexpr int mcIndexOffsetDirect = mcIndexOffsetStep * 0;
-    static constexpr int mcIndexOffsetCompute = mcIndexOffsetStep * 1;
-    static constexpr int mcIndexOffsetCopy = mcIndexOffsetStep * 2;
-
-    static constexpr queue_type HandleToQueueType(handle::command_list cl)
+    static queue_type HandleToQueueType(handle::command_list cl)
     {
-        if (cl.index >= mcIndexOffsetCopy)
-            return queue_type::copy;
-        else if (cl.index >= mcIndexOffsetCompute)
-            return queue_type::compute;
-        else
-            return queue_type::direct;
+        int const num_leading_zeroes = cc::count_leading_zeros(cl._value);
+        CC_ASSERT(num_leading_zeroes <= 2 && "invalid commandlist handle"); // one of the three MSBs must be set
+        return queue_type(num_leading_zeroes);
     }
 
-    static constexpr handle::command_list IndexToHandle(unsigned pool_index, queue_type type)
+    static constexpr handle::command_list IndexToHandle(uint32_t pool_handle, queue_type type)
     {
         // we rely on underlying values here
         static_assert(int(queue_type::direct) == 0, "unexpected enum ordering");
         static_assert(int(queue_type::compute) == 1, "unexpected enum ordering");
         static_assert(int(queue_type::copy) == 2, "unexpected enum ordering");
-        return {int(pool_index) + mcIndexOffsetStep * int(type)};
-    }
-
-    static constexpr unsigned HandleToIndex(handle::command_list cl, queue_type type)
-    {
-        //
-        return unsigned(cl.index - mcIndexOffsetStep * int(type));
+        return {pool_handle | uint32_t(1) << (31 - int(type))};
     }
 
     cmdlist_linked_pool_t& getPool(queue_type type)
@@ -217,16 +204,16 @@ private:
         CC_UNREACHABLE("invalid queue_type");
     }
 
-    ID3D12GraphicsCommandList5* getList(unsigned index, queue_type type) const
+    ID3D12GraphicsCommandList5* getList(handle::command_list cl, queue_type type) const
     {
         switch (type)
         {
         case queue_type::direct:
-            return mRawListsDirect[index];
+            return mRawListsDirect[mPoolDirect.get_handle_index(cl._value)];
         case queue_type::compute:
-            return mRawListsCompute[index];
+            return mRawListsCompute[mPoolCompute.get_handle_index(cl._value)];
         case queue_type::copy:
-            return mRawListsCopy[index];
+            return mRawListsCopy[mPoolCopy.get_handle_index(cl._value)];
         }
 
         CC_UNREACHABLE("invalid queue_type");
@@ -287,7 +274,7 @@ public:
     ID3D12GraphicsCommandList5* getRawList(handle::command_list cl)
     {
         auto const type = HandleToQueueType(cl);
-        return getList(HandleToIndex(cl, type), type);
+        return getList(cl, type);
     }
 
     d3d12_incomplete_state_cache* getStateCache(handle::command_list cl) { return &getNodeInternal(cl)->state_cache; }
@@ -310,16 +297,15 @@ private:
     [[nodiscard]] cmd_list_node* getNodeInternal(handle::command_list cl)
     {
         queue_type const type = HandleToQueueType(cl);
-        return &getPool(type).get(HandleToIndex(cl, type));
+        return &getPool(type).get(cl._value);
     }
 
     cmd_list_node* getNodeInternal(handle::command_list cl, cmdlist_linked_pool_t*& out_pool, ID3D12GraphicsCommandList5*& out_cmdlist)
     {
         queue_type const type = HandleToQueueType(cl);
-        auto const index = HandleToIndex(cl, type);
         out_pool = &getPool(type);
-        out_cmdlist = getList(index, type);
-        return &out_pool->get(index);
+        out_cmdlist = getList(cl, type);
+        return &out_pool->get(cl._value);
     }
 
 private:

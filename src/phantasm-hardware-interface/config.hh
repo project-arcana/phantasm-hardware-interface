@@ -103,8 +103,8 @@ struct backend_config
     unsigned num_copy_cmdlists_per_allocator = 3;
 
     /// query heap sizes
-    unsigned num_timestamp_queries = 128;
-    unsigned num_occlusion_queries = 128;
-    unsigned num_pipeline_stat_queries = 32;
+    unsigned num_timestamp_queries = 512;
+    unsigned num_occlusion_queries = 512;
+    unsigned num_pipeline_stat_queries = 128;
 };
 }

@@ -191,8 +191,9 @@ phi::handle::command_list phi::d3d12::CommandListPool::acquireNodeInternal(phi::
     }
 
     out_node = &pool.get(res_index);
-    out_cmdlist = getList(res_index, type);
-    return IndexToHandle(res_index, type);
+    auto const res_handle = IndexToHandle(res_index, type);
+    out_cmdlist = getList(res_handle, type);
+    return res_handle;
 }
 
 void phi::d3d12::CommandAllocatorBundle::initialize(

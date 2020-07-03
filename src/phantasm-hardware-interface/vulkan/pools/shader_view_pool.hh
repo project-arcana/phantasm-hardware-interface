@@ -34,7 +34,7 @@ public:
     void initialize(VkDevice device, ResourcePool* res_pool, unsigned num_cbvs, unsigned num_srvs, unsigned num_uavs, unsigned num_samplers);
     void destroy();
 
-    [[nodiscard]] VkDescriptorSet get(handle::shader_view sv) const { return mPool.get(static_cast<unsigned>(sv.index)).raw_desc_set; }
+    [[nodiscard]] VkDescriptorSet get(handle::shader_view sv) const { return mPool.get(sv._value).raw_desc_set; }
 
     [[nodiscard]] VkImageView makeImageView(resource_view const& sve, bool is_uav = false) const;
 
@@ -67,7 +67,7 @@ private:
     ResourcePool* mResourcePool;
 
     /// The main pool data
-    phi::detail::linked_pool<shader_view_node, unsigned> mPool;
+    phi::detail::linked_pool<shader_view_node> mPool;
 
     /// "Backing" allocator
     DescriptorAllocator mAllocator;

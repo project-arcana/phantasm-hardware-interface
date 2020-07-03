@@ -105,12 +105,12 @@ phi::handle::shader_view phi::d3d12::ShaderViewPool::create(cc::span<resource_vi
 
 void phi::d3d12::ShaderViewPool::free(phi::handle::shader_view sv)
 {
-    auto& data = mPool.get(unsigned(sv.index));
+    auto& data = mPool.get(unsigned(sv._value));
     {
         auto lg = std::lock_guard(mMutex);
         mSRVUAVAllocator.free(data.srv_uav_alloc_handle);
         mSamplerAllocator.free(data.sampler_alloc_handle);
-        mPool.release(unsigned(sv.index));
+        mPool.release(unsigned(sv._value));
     }
 }
 
@@ -119,10 +119,10 @@ void phi::d3d12::ShaderViewPool::free(cc::span<const phi::handle::shader_view> s
     auto lg = std::lock_guard(mMutex);
     for (auto sv : svs)
     {
-        auto& data = mPool.get(unsigned(sv.index));
+        auto& data = mPool.get(unsigned(sv._value));
         mSRVUAVAllocator.free(data.srv_uav_alloc_handle);
         mSamplerAllocator.free(data.sampler_alloc_handle);
-        mPool.release(unsigned(sv.index));
+        mPool.release(unsigned(sv._value));
     }
 }
 
