@@ -200,6 +200,10 @@ phi::vk::lay_ext_array phi::vk::get_used_instance_lay_ext(const phi::vk::lay_ext
         {
             PHI_LOG_ERROR << "missing API dump layer";
         }
+        else
+        {
+            PHI_LOG("vk_api_dump enabled");
+        }
     }
 
     // VK_EXT_debug_utils

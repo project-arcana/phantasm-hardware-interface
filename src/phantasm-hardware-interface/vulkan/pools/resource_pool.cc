@@ -323,6 +323,8 @@ void phi::vk::ResourcePool::initialize(VkPhysicalDevice physical, VkDevice devic
 
 void phi::vk::ResourcePool::destroy()
 {
+    mPool.release(mInjectedBackbufferResource._value);
+
     auto num_leaks = 0;
     mPool.iterate_allocated_nodes([&](resource_node& leaked_node) {
         if (leaked_node.allocation != nullptr)
