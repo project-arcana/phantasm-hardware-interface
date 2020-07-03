@@ -6,7 +6,11 @@
 #include <clean-core/new.hh>
 #include <clean-core/vector.hh>
 
+#ifdef CC_ENABLE_ASSERTIONS
 #define PHI_ENABLE_HANDLE_GEN_CHECK 1
+#else
+#define PHI_ENABLE_HANDLE_GEN_CHECK 0
+#endif
 
 #if PHI_ENABLE_HANDLE_GEN_CHECK
 #include <clean-core/bit_cast.hh>
