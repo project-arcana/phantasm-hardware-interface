@@ -50,4 +50,19 @@ void phi::d3d12::Device::initialize(IDXGIAdapter& adapter, const backend_config&
         // this is likely redundant, but just to make sure
         mDevice5 = nullptr;
     }
+
+    if ((config.native_features & backend_config::native_feature_d3d12_break_on_warn) != 0)
+    {
+        if (config.validation < validation_level::on)
+        {
+            PHI_LOG_ERROR("cannot enable d3d12_break_on_warn with disabled validation");
+        }
+        else
+        {
+            shared_com_ptr<ID3D12InfoQueue> info_queue;
+            PHI_D3D12_VERIFY(mDevice5.get_interface(info_queue));
+            PHI_D3D12_VERIFY(info_queue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, TRUE));
+            PHI_LOG("d3d12_break_on_warn enabled");
+        }
+    }
 }

@@ -1,6 +1,7 @@
 #include "resource_pool.hh"
 
 #include <clean-core/bit_cast.hh>
+#include <clean-core/utility.hh>
 
 #include <phantasm-hardware-interface/detail/log.hh>
 
@@ -64,16 +65,27 @@ void phi::d3d12::ResourcePool::initialize(ID3D12Device& device, unsigned max_num
     mAllocator.initialize(device);
     // TODO: think about reserved bits for dangle check, assert max_num < 2^free bits
     mPool.initialize(max_num_resources + 1); // 1 additional resource for the backbuffer
-    mInjectedBackbufferResource = {static_cast<handle::index_t>(mPool.acquire())};
+    mInjectedBackbufferResource = {mPool.acquire()};
 }
 
 void phi::d3d12::ResourcePool::destroy()
 {
+    mPool.release(mInjectedBackbufferResource._value);
+
     auto num_leaks = 0;
+
+    char debugname_buffer[256];
     mPool.iterate_allocated_nodes([&](resource_node& leaked_node) {
         if (leaked_node.allocation != nullptr)
         {
+            if (num_leaks == 0)
+                PHI_LOG("handle::resource leaks:");
+
             ++num_leaks;
+
+            auto const strlen = util::get_object_name(leaked_node.resource, debugname_buffer);
+            PHI_LOG("  leaked handle::resource - {}", cc::string_view(debugname_buffer, cc::min<UINT>(strlen, sizeof(debugname_buffer))));
+
             leaked_node.allocation->Release();
         }
     });
@@ -88,7 +100,7 @@ void phi::d3d12::ResourcePool::destroy()
 
 phi::handle::resource phi::d3d12::ResourcePool::injectBackbufferResource(ID3D12Resource* raw_resource, D3D12_RESOURCE_STATES state)
 {
-    resource_node& backbuffer_node = mPool.get(unsigned(mInjectedBackbufferResource._value));
+    resource_node& backbuffer_node = mPool.get(mInjectedBackbufferResource._value);
     backbuffer_node.type = resource_node::resource_type::image;
     backbuffer_node.resource = raw_resource;
     backbuffer_node.master_state = state;
@@ -242,8 +254,6 @@ void phi::d3d12::ResourcePool::free(phi::handle::resource res)
     CC_ASSERT(res != mInjectedBackbufferResource && "the backbuffer resource must not be freed");
     if (!res.is_valid())
         return;
-
-    // TODO: dangle check
 
     // This requires no synchronization, as D3D12MA internally syncs
     resource_node& freed_node = mPool.get(unsigned(res._value));

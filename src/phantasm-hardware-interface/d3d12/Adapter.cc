@@ -10,38 +10,38 @@
 
 void phi::d3d12::Adapter::initialize(const backend_config& config)
 {
-    if (config.validation != validation_level::off)
-    {
-        // Suppress GBV startup message
-        // shared_com_ptr<IDXGIInfoQueue> dxgi_info_queue;
+//    if (config.validation != validation_level::off)
+//    {
+//        // Suppress GBV startup message
+//        // shared_com_ptr<IDXGIInfoQueue> dxgi_info_queue;
 
-        bool const dxgi_queue_success = detail::hr_succeeded(::DXGIGetDebugInterface1(0, PHI_COM_WRITE(mInfoQueue)));
-        if (dxgi_queue_success && mInfoQueue.is_valid())
-        {
-            DXGI_INFO_QUEUE_FILTER filter = {};
+//        bool const dxgi_queue_success = detail::hr_succeeded(::DXGIGetDebugInterface1(0, PHI_COM_WRITE(mInfoQueue)));
+//        if (dxgi_queue_success && mInfoQueue.is_valid())
+//        {
+//            DXGI_INFO_QUEUE_FILTER filter = {};
 
-            DXGI_INFO_QUEUE_MESSAGE_SEVERITY denied_severities[] = {DXGI_INFO_QUEUE_MESSAGE_SEVERITY_MESSAGE};
-            filter.DenyList.NumSeverities = 1;
-            filter.DenyList.pSeverityList = denied_severities;
+//            DXGI_INFO_QUEUE_MESSAGE_SEVERITY denied_severities[] = {DXGI_INFO_QUEUE_MESSAGE_SEVERITY_MESSAGE};
+//            filter.DenyList.NumSeverities = 1;
+//            filter.DenyList.pSeverityList = denied_severities;
 
-            DXGI_INFO_QUEUE_MESSAGE_ID denied_message_ids[] = {1016};
-            filter.DenyList.NumIDs = 1;
-            filter.DenyList.pIDList = denied_message_ids;
+//            DXGI_INFO_QUEUE_MESSAGE_ID denied_message_ids[] = {1016};
+//            filter.DenyList.NumIDs = 1;
+//            filter.DenyList.pIDList = denied_message_ids;
 
-            // TODO: This has no effect due to a bug
-            // Jesse Natalie:
-            // "[...] Apparently, the "most up-to-date" filter among all the ones that could possibly match are chosen.
-            // The D3D12 device produces a filter during creation, which makes it more up-to-date than any that'd be
-            // created before device creation is begun. [...]"
-            // will revisit once that is fixed
-            PHI_D3D12_VERIFY(mInfoQueue->PushStorageFilter(DXGI_DEBUG_ALL, &filter));
+//            // TODO: This has no effect due to a bug
+//            // Jesse Natalie:
+//            // "[...] Apparently, the "most up-to-date" filter among all the ones that could possibly match are chosen.
+//            // The D3D12 device produces a filter during creation, which makes it more up-to-date than any that'd be
+//            // created before device creation is begun. [...]"
+//            // will revisit once that is fixed
+//            PHI_D3D12_VERIFY(mInfoQueue->PushStorageFilter(DXGI_DEBUG_ALL, &filter));
 
-            // (none of these have either)
-            //            PHI_D3D12_VERIFY(mInfoQueue->PushDenyAllStorageFilter(DXGI_DEBUG_D3D12));
-            //            PHI_D3D12_VERIFY(mInfoQueue->PushDenyAllRetrievalFilter(DXGI_DEBUG_D3D12));
-            //            mInfoQueue->SetMuteDebugOutput(DXGI_DEBUG_D3D12, TRUE);
-        }
-    }
+//            // (none of these have either)
+//            //            PHI_D3D12_VERIFY(mInfoQueue->PushDenyAllStorageFilter(DXGI_DEBUG_D3D12));
+//            //            PHI_D3D12_VERIFY(mInfoQueue->PushDenyAllRetrievalFilter(DXGI_DEBUG_D3D12));
+//            //            mInfoQueue->SetMuteDebugOutput(DXGI_DEBUG_D3D12, TRUE);
+//        }
+//    }
 
     // Factory init
     {
