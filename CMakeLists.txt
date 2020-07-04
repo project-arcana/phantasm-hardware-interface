@@ -91,7 +91,7 @@ if (NOT MSVC)
     set(THREADS_PREFER_PTHREAD_FLAG ON)
     find_package(Threads REQUIRED)
 
-    target_link_libraries(phantasm-hardware-interface PRIVATE -lX11 Threads::Threads)
+    target_link_libraries(phantasm-hardware-interface PRIVATE -lX11 Threads::Threads -ldl)
 endif()
 
 # =========================================
@@ -102,11 +102,6 @@ if (PHI_BACKEND_VULKAN)
     target_compile_definitions(phantasm-hardware-interface PUBLIC PHI_BACKEND_VULKAN)
     target_link_libraries(phantasm-hardware-interface PUBLIC ${Vulkan_LIBRARY})
     target_include_directories(phantasm-hardware-interface PUBLIC ${Vulkan_INCLUDE_DIRS})
-
-    if (NOT MSVC)
-        # Non-windows targets require libdl to load Vulkan
-        target_link_libraries(phantasm-hardware-interface PRIVATE -ldl)
-    endif()
 else()
     message(STATUS "[phantasm hardware interface] Vulkan backend disabled")
 endif()
