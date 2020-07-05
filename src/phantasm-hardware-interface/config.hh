@@ -61,7 +61,8 @@ struct backend_config
     enum native_feature_flags : uint8_t
     {
         native_feature_none = 0,
-        native_feature_vk_api_dump = 1 << 0
+        native_feature_vk_api_dump = 1 << 0,
+        native_feature_d3d12_break_on_warn = 1 << 1,
     };
 
     /// native features to enable

@@ -42,19 +42,20 @@ struct unique_buffer
 
     ~unique_buffer() { std::free(_ptr); }
 
-    [[nodiscard]] std::byte* get() const { return _ptr; }
-    [[nodiscard]] char* get_as_char() const { return cc::bit_cast<char*>(_ptr); }
-    [[nodiscard]] size_t size() const { return _size; }
+    std::byte* data() const { return _ptr; }
+    std::byte* get() const { return _ptr; }
+    char* get_as_char() const { return cc::bit_cast<char*>(_ptr); }
+    size_t size() const { return _size; }
 
-    [[nodiscard]] bool is_valid() const { return _ptr != nullptr; }
+    bool is_valid() const { return _ptr != nullptr; }
 
     operator std::byte*() const& { return _ptr; }
     operator std::byte*() const&& = delete;
 
-    [[nodiscard]] bool operator==(unique_buffer const& rhs) const { return _ptr == rhs._ptr; }
-    [[nodiscard]] bool operator!=(unique_buffer const& rhs) const { return _ptr != rhs._ptr; }
-    [[nodiscard]] bool operator==(void const* rhs) const { return _ptr == rhs; }
-    [[nodiscard]] bool operator!=(void const* rhs) const { return _ptr != rhs; }
+    bool operator==(unique_buffer const& rhs) const { return _ptr == rhs._ptr; }
+    bool operator!=(unique_buffer const& rhs) const { return _ptr != rhs._ptr; }
+    bool operator==(void const* rhs) const { return _ptr == rhs; }
+    bool operator!=(void const* rhs) const { return _ptr != rhs; }
 
     [[nodiscard]] static unique_buffer create_from_binary_file(char const* filename);
 

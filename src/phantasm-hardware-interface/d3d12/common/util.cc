@@ -29,21 +29,32 @@ cc::capped_vector<D3D12_INPUT_ELEMENT_DESC, 16> phi::d3d12::util::get_native_ver
 
 void phi::d3d12::util::set_object_name(ID3D12Object* object, const char* name, ...)
 {
-    if (name != nullptr)
-    {
-        char name_formatted[1024];
-        {
-            va_list args;
-            va_start(args, name);
-            ::vsprintf_s(name_formatted, 1024, name, args);
-            va_end(args);
-        }
+    CC_ASSERT(name != nullptr);
+    CC_ASSERT(object != nullptr);
 
-        // Since recently, d3d12 object names can be set using non-wide strings
-        // even though it doesn't look like it, this works perfectly with validation layers, PIX, Renderdoc, NSight and DRED
-        object->SetPrivateData(WKPDID_D3DDebugObjectName, static_cast<UINT>(strlen(name_formatted)), name_formatted);
+    char name_formatted[1024];
+    {
+        va_list args;
+        va_start(args, name);
+        ::vsprintf_s(name_formatted, 1024, name, args);
+        va_end(args);
     }
+
+    // Since recently, d3d12 object names can be set using non-wide strings
+    // even though it doesn't look like it, this works perfectly with validation layers, PIX, Renderdoc, NSight and DRED
+    object->SetPrivateData(WKPDID_D3DDebugObjectName, static_cast<UINT>(strlen(name_formatted)), name_formatted);
 }
+
+unsigned phi::d3d12::util::get_object_name(ID3D12Object* object, cc::span<char> out_name)
+{
+    CC_ASSERT(object != nullptr);
+    CC_ASSERT(out_name.data() != nullptr);
+
+    UINT size = UINT(out_name.size());
+    object->GetPrivateData(WKPDID_D3DDebugObjectName, &size, out_name.data());
+    return size;
+}
+
 
 D3D12_SHADER_RESOURCE_VIEW_DESC phi::d3d12::util::create_srv_desc(const phi::resource_view& sve, ID3D12Resource* raw_resource)
 {

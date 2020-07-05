@@ -37,21 +37,15 @@ struct linked_pool
     static_assert(sizeof(internal_handle_t) == sizeof(handle_t));
 
     linked_pool() = default;
+    explicit linked_pool(size_t size) { initialize(size); }
+
+    // NOTE: Adding these isn't trivial because pointers in the linked list would have to be readjusted
     linked_pool(linked_pool const&) = delete;
     linked_pool(linked_pool&&) noexcept = delete;
     linked_pool& operator=(linked_pool const&) = delete;
     linked_pool& operator=(linked_pool&&) noexcept = delete;
 
-    ~linked_pool()
-    {
-        if (_pool)
-        {
-            std::free(_pool);
-#if PHI_ENABLE_HANDLE_GEN_CHECK
-            std::free(_generation);
-#endif
-        }
-    }
+    ~linked_pool() { _destroy(); }
 
     void initialize(size_t size)
     {
@@ -86,6 +80,8 @@ struct linked_pool
         _first_free_node = &_pool[0];
     }
 
+    void destroy() { _destroy(); }
+
     [[nodiscard]] handle_t acquire()
     {
         CC_ASSERT(!is_full() && "linked_pool full");
@@ -94,19 +90,21 @@ struct linked_pool
         // read the in-place next pointer of this node
         _first_free_node = *reinterpret_cast<T**>(acquired_node);
         // call the constructor
-        new (cc::placement_new, acquired_node) T();
+        if constexpr (!std::is_trivially_constructible_v<T>)
+            new (cc::placement_new, acquired_node) T();
 
         uint32_t const res_index = uint32_t(acquired_node - _pool);
-        return acquire_handle(res_index);
+        return _acquire_handle(res_index);
     }
 
     void release(handle_t handle)
     {
-        uint32_t real_index = read_index_on_release(handle);
+        uint32_t real_index = _read_index_on_release(handle);
 
         T* const released_node = &_pool[real_index];
         // call the destructor
-        released_node->~T();
+        if constexpr (!std::is_trivially_destructible_v<T>)
+            released_node->~T();
         // write the in-place next pointer of this node
         new (cc::placement_new, released_node) T*(_first_free_node);
         _first_free_node = released_node;
@@ -121,7 +119,8 @@ struct linked_pool
 #endif
 
         // call the destructor
-        node->~T();
+        if constexpr (!std::is_trivially_destructible_v<T>)
+            node->~T();
         // write the in-place next pointer of this node
         new (cc::placement_new, node) T*(_first_free_node);
 
@@ -130,14 +129,14 @@ struct linked_pool
 
     T& get(handle_t handle)
     {
-        uint32_t index = read_index(handle);
+        uint32_t index = _read_index(handle);
         CC_CONTRACT(index < _pool_size);
         return _pool[index];
     }
 
     T const& get(handle_t handle) const
     {
-        uint32_t index = read_index(handle);
+        uint32_t index = _read_index(handle);
         CC_CONTRACT(index < _pool_size);
         return _pool[index];
     }
@@ -148,7 +147,7 @@ struct linked_pool
         return node - _pool;
     }
 
-    uint32_t get_handle_index(handle_t handle) const { return read_index(handle); }
+    uint32_t get_handle_index(handle_t handle) const { return _read_index(handle); }
 
     bool is_full() const { return _first_free_node == nullptr; }
 
@@ -160,7 +159,10 @@ struct linked_pool
     template <class F>
     unsigned iterate_allocated_nodes(F&& func)
     {
-        auto free_indices = get_free_node_indices();
+        if (_pool == nullptr)
+            return 0;
+
+        auto free_indices = _get_free_node_indices();
         // sort ascending
         std::qsort(
             free_indices.data(), free_indices.size(), sizeof(free_indices[0]),
@@ -194,7 +196,7 @@ struct linked_pool
     }
 
 private:
-    cc::vector<handle_t> get_free_node_indices() const
+    cc::vector<handle_t> _get_free_node_indices() const
     {
         cc::vector<handle_t> free_indices;
         free_indices.reserve(_pool_size);
@@ -209,7 +211,7 @@ private:
         return free_indices;
     }
 
-    handle_t acquire_handle(uint32_t real_index)
+    handle_t _acquire_handle(uint32_t real_index)
     {
 #if PHI_ENABLE_HANDLE_GEN_CHECK
         internal_handle_t res;
@@ -222,7 +224,7 @@ private:
 #endif
     }
 
-    handle_t read_index(uint32_t handle) const
+    handle_t _read_index(uint32_t handle) const
     {
 #if PHI_ENABLE_HANDLE_GEN_CHECK
         CC_ASSERT(handle != uint32_t(-1) && "accessed null handle");
@@ -239,15 +241,29 @@ private:
 #endif
     }
 
-    handle_t read_index_on_release(uint32_t handle) const
+    handle_t _read_index_on_release(uint32_t handle) const
     {
 #if PHI_ENABLE_HANDLE_GEN_CHECK
-        uint32_t const real_index = read_index(handle);
+        uint32_t const real_index = _read_index(handle);
         ++_generation[real_index].generation; // increment generation on release
         return real_index;
 #else
         return read_index(handle);
 #endif
+    }
+
+    void _destroy()
+    {
+        if (_pool)
+        {
+            std::free(_pool);
+            _pool = nullptr;
+            _pool_size = 0;
+#if PHI_ENABLE_HANDLE_GEN_CHECK
+            std::free(_generation);
+            _generation = nullptr;
+#endif
+        }
     }
 
 private:

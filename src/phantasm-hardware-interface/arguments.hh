@@ -254,7 +254,7 @@ public:
     }
 
     static create_resource_info render_target(
-        phi::format fmt, tg::isize2 size, unsigned num_samples = 1, unsigned array_size = 1, rt_clear_value clear_val = {0, 0, 0, 255})
+        phi::format fmt, tg::isize2 size, unsigned num_samples = 1, unsigned array_size = 1, rt_clear_value clear_val = {0.f, 0.f, 0.f, 1.f})
     {
         return create(create_render_target_info::create(fmt, size, num_samples, array_size, clear_val));
     }
