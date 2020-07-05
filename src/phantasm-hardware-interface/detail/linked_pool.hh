@@ -23,7 +23,6 @@ namespace phi::detail
 template <class T>
 struct linked_pool
 {
-    static_assert(sizeof(T) >= sizeof(T*), "linked_pool element type must be large enough to accomodate a pointer");
     using handle_t = uint32_t;
 
     static constexpr size_t sc_num_padding_bits = 3;
@@ -49,6 +48,8 @@ struct linked_pool
 
     void initialize(size_t size)
     {
+        static_assert(sizeof(T) >= sizeof(T*), "linked_pool element type must be large enough to accomodate a pointer");
+
         if (size == 0)
             return;
 
