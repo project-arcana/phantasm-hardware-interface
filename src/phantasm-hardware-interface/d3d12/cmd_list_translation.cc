@@ -178,7 +178,7 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::draw& draw)
                                                      draw.root_constants, 0);
         }
 
-        for (uint8_t i = 0; i < draw.shader_arguments.size(); ++i)
+        for (uint8_t i = 0; i < root_sig.argument_maps.size(); ++i)
         {
             auto& bound_arg = _bound.shader_args[i];
             auto const& arg = draw.shader_arguments[i];
