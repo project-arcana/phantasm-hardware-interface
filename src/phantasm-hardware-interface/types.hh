@@ -469,6 +469,16 @@ struct rt_clear_value
     {
     }
     rt_clear_value(float depth, uint8_t stencil) : red_or_depth(uint8_t(depth * 255)), green_or_stencil(stencil) {}
+
+    static rt_clear_value from_uint(uint32_t value)
+    {
+        rt_clear_value res;
+        res.red_or_depth = uint8_t(value >> 24);
+        res.green_or_stencil = uint8_t(value >> 16);
+        res.blue = uint8_t(value >> 8);
+        res.alpha = uint8_t(value);
+        return res;
+    };
 };
 
 /// blending logic operation a (graphics) handle::pipeline_state performs on its render targets

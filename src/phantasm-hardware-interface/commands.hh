@@ -24,6 +24,7 @@ namespace detail
     PHI_X(copy_buffer)             \
     PHI_X(copy_texture)            \
     PHI_X(copy_buffer_to_texture)  \
+    PHI_X(copy_texture_to_buffer)  \
     PHI_X(resolve_texture)         \
     PHI_X(begin_render_pass)       \
     PHI_X(end_render_pass)         \
@@ -348,8 +349,8 @@ PHI_DEFINE_CMD(copy_buffer_to_texture)
     handle::resource source;
     handle::resource destination;
     size_t source_offset;
-    unsigned dest_width;       ///< width of the destination texture (in the specified MIP map and array element)
-    unsigned dest_height;      ///< height of the destination texture (in the specified MIP map and array element)
+    unsigned dest_width;       ///< width of the destination texture (in the specified MIP level and array element)
+    unsigned dest_height;      ///< height of the destination texture (in the specified MIP level and array element)
     unsigned dest_mip_index;   ///< index of the MIP level to copy
     unsigned dest_array_index; ///< index of the array element to copy (usually: 0)
 
@@ -363,6 +364,29 @@ public:
         dest_height = dest_h;
         dest_mip_index = dest_mip_i;
         dest_array_index = dest_arr_i;
+    }
+};
+
+PHI_DEFINE_CMD(copy_texture_to_buffer)
+{
+    handle::resource source;
+    handle::resource destination;
+    size_t dest_offset;
+    unsigned src_width;       ///< width of the source texture (in the specified MIP level and array element)
+    unsigned src_height;      ///< height of the destination texture (in the specified MIP level and array element)
+    unsigned src_mip_index;   ///< index of the MIP level to copy
+    unsigned src_array_index; ///< index of the array element to copy (usually: 0)
+
+public:
+    void init(handle::resource src, handle::resource dest, unsigned src_w, unsigned src_h, size_t dest_off = 0, unsigned src_mip_i = 0, unsigned src_arr_i = 0)
+    {
+        source = src;
+        destination = dest;
+        dest_offset = dest_off;
+        src_width = src_w;
+        src_height = src_h;
+        src_mip_index = src_mip_i;
+        src_array_index = src_arr_i;
     }
 };
 

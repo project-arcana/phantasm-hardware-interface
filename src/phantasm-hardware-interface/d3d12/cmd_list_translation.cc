@@ -135,13 +135,13 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::draw& draw)
     if (_bound.update_pso(draw.pipeline_state))
     {
         _cmd_list->SetPipelineState(pso_node.raw_pso);
+        _cmd_list->IASetPrimitiveTopology(pso_node.primitive_topology);
     }
 
     // Root signature
     if (_bound.update_root_sig(pso_node.associated_root_sig->raw_root_sig))
     {
         _cmd_list->SetGraphicsRootSignature(_bound.raw_root_sig);
-        _cmd_list->IASetPrimitiveTopology(pso_node.primitive_topology);
     }
 
     // Index buffer (optional)
@@ -489,6 +489,28 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::copy_buffer_to
 
     CD3DX12_TEXTURE_COPY_LOCATION const source(_globals.pool_resources->getRawResource(copy_text.source), placed_footprint);
     CD3DX12_TEXTURE_COPY_LOCATION const dest(_globals.pool_resources->getRawResource(copy_text.destination), subres_index);
+    _cmd_list->CopyTextureRegion(&dest, 0, 0, 0, &source, nullptr);
+}
+
+void phi::d3d12::command_list_translator::execute(const phi::cmd::copy_texture_to_buffer& copy_text)
+{
+    auto const& src_info = _globals.pool_resources->getImageInfo(copy_text.source);
+
+    D3D12_SUBRESOURCE_FOOTPRINT footprint;
+    footprint.Format = util::to_dxgi_format(src_info.pixel_format);
+    footprint.Width = copy_text.src_width;
+    footprint.Height = copy_text.src_height;
+    footprint.Depth = 1;
+    footprint.RowPitch = mem::align_up(phi::detail::format_size_bytes(src_info.pixel_format) * copy_text.src_width, 256);
+
+    D3D12_PLACED_SUBRESOURCE_FOOTPRINT dest_placed_footprint;
+    dest_placed_footprint.Offset = copy_text.dest_offset;
+    dest_placed_footprint.Footprint = footprint;
+
+    auto const source_subres_index = copy_text.src_mip_index + copy_text.src_array_index * src_info.num_mips;
+
+    CD3DX12_TEXTURE_COPY_LOCATION const source(_globals.pool_resources->getRawResource(copy_text.source), source_subres_index);
+    CD3DX12_TEXTURE_COPY_LOCATION const dest(_globals.pool_resources->getRawResource(copy_text.destination), dest_placed_footprint);
     _cmd_list->CopyTextureRegion(&dest, 0, 0, 0, &source, nullptr);
 }
 
