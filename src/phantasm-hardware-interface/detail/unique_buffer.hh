@@ -44,7 +44,7 @@ struct unique_buffer
 
     std::byte* data() const { return _ptr; }
     std::byte* get() const { return _ptr; }
-    char* get_as_char() const { return cc::bit_cast<char*>(_ptr); }
+    char* get_as_char() const { return reinterpret_cast<char*>(_ptr); }
     size_t size() const { return _size; }
 
     bool is_valid() const { return _ptr != nullptr; }
