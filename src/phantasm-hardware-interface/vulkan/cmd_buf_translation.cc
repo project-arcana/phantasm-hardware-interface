@@ -454,6 +454,25 @@ void phi::vk::command_list_translator::execute(const phi::cmd::copy_buffer_to_te
     vkCmdCopyBufferToImage(_cmd_list, src_buffer, dest_image_info.raw_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 }
 
+void phi::vk::command_list_translator::execute(const phi::cmd::copy_texture_to_buffer& copy_text)
+{
+    auto const src_image = _globals.pool_resources->getRawImage(copy_text.source);
+    auto const& src_image_info = _globals.pool_resources->getImageInfo(copy_text.destination);
+    auto const dest_buffer = _globals.pool_resources->getRawBuffer(copy_text.destination);
+
+    VkBufferImageCopy region = {};
+    region.bufferOffset = uint32_t(copy_text.dest_offset);
+    region.imageSubresource.aspectMask = util::to_native_image_aspect(src_image_info.pixel_format);
+    region.imageSubresource.baseArrayLayer = copy_text.src_array_index;
+    region.imageSubresource.layerCount = 1;
+    region.imageSubresource.mipLevel = copy_text.src_mip_index;
+    region.imageExtent.width = copy_text.src_width;
+    region.imageExtent.height = copy_text.src_height;
+    region.imageExtent.depth = 1;
+
+    vkCmdCopyImageToBuffer(_cmd_list, src_image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dest_buffer, 1, &region);
+}
+
 void phi::vk::command_list_translator::execute(const phi::cmd::resolve_texture& resolve)
 {
     constexpr auto src_layout = util::to_image_layout(resource_state::resolve_src);

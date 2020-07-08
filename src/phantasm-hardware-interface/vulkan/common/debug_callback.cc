@@ -2,6 +2,8 @@
 
 #include <phantasm-hardware-interface/detail/log.hh>
 
+#include <clean-core/breakpoint.hh>
+
 namespace
 {
 constexpr char const* to_literal(VkDebugUtilsMessageSeverityFlagBitsEXT severity)
@@ -37,12 +39,13 @@ constexpr char const* to_literal(VkDebugUtilsMessageTypeFlagsEXT type)
 }
 
 VkBool32 phi::vk::detail::debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT severity,
-                                         VkDebugUtilsMessageTypeFlagsEXT type,
+                                         VkDebugUtilsMessageTypeFlagsEXT /*type*/,
                                          const VkDebugUtilsMessengerCallbackDataEXT* callback_data,
                                          void* /*user_data*/)
 {
     if (severity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT)
     {
+        // cc::breakpoint(); // NOTE: setting a breakpoint here sometimes doesn't suffice
         RICH_LOG_IMPL(phi::detail::vulkan_log)("{}", callback_data->pMessage);
     }
     return VK_FALSE;
