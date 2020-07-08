@@ -251,14 +251,8 @@ public:
 public:
     // internal API
 
-    [[nodiscard]] cmd_list_node& getCommandListNode(handle::command_list cl)
-    {
-        return mPool.get(cl._value);
-    }
-    [[nodiscard]] cmd_list_node const& getCommandListNode(handle::command_list cl) const
-    {
-        return mPool.get(cl._value);
-    }
+    [[nodiscard]] cmd_list_node& getCommandListNode(handle::command_list cl) { return mPool.get(cl._value); }
+    [[nodiscard]] cmd_list_node const& getCommandListNode(handle::command_list cl) const { return mPool.get(cl._value); }
 
     [[nodiscard]] VkCommandBuffer getRawBuffer(handle::command_list cl) const { return getCommandListNode(cl).raw_buffer; }
 
