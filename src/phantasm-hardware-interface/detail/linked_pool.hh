@@ -249,7 +249,7 @@ private:
         ++_generation[real_index].generation; // increment generation on release
         return real_index;
 #else
-        return read_index(handle);
+        return _read_index(handle);
 #endif
     }
 
