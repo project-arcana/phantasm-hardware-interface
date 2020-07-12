@@ -126,6 +126,7 @@ void phi::d3d12::BackendD3D12::destroy()
         mDiagnostics.free();
 
         //        mSwapchain.setFullscreen(false);
+        mPoolSwapchains.free(mDefaultSwapchain);
         mPoolSwapchains.destroy();
 
         mPoolCmdLists.destroy();

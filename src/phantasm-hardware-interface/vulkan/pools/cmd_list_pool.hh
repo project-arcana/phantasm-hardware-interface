@@ -14,6 +14,8 @@
 
 namespace phi::vk
 {
+class Device;
+
 /// Ringbuffer for fences used for internal submit sync
 /// Unsynchronized - 1 per CommandListPool
 class FenceRingbuffer
@@ -251,14 +253,8 @@ public:
 public:
     // internal API
 
-    [[nodiscard]] cmd_list_node& getCommandListNode(handle::command_list cl)
-    {
-        return mPool.get(cl._value);
-    }
-    [[nodiscard]] cmd_list_node const& getCommandListNode(handle::command_list cl) const
-    {
-        return mPool.get(cl._value);
-    }
+    [[nodiscard]] cmd_list_node& getCommandListNode(handle::command_list cl) { return mPool.get(cl._value); }
+    [[nodiscard]] cmd_list_node const& getCommandListNode(handle::command_list cl) const { return mPool.get(cl._value); }
 
     [[nodiscard]] VkCommandBuffer getRawBuffer(handle::command_list cl) const { return getCommandListNode(cl).raw_buffer; }
 
@@ -270,7 +266,7 @@ public:
     }
 
 public:
-    void initialize(BackendVulkan& backend,
+    void initialize(Device& device,
                     int num_direct_allocs,
                     int num_direct_lists_per_alloc,
                     int num_compute_allocs,

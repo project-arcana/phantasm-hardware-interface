@@ -47,8 +47,6 @@ public:
     [[nodiscard]] tg::isize2 getBackbufferSize() const { return mBackbufferSize; }
     [[nodiscard]] unsigned getNumBackbuffers() const { return unsigned(mBackbuffers.size()); }
 
-    [[nodiscard]] VkRenderPass getRenderPass() const { return mRenderPass; }
-
     [[nodiscard]] unsigned getCurrentBackbufferIndex() const { return mActiveImageIndex; }
     [[nodiscard]] VkImage getCurrentBackbuffer() const { return mBackbuffers[mActiveImageIndex].image; }
     [[nodiscard]] resource_state getCurrentBackbufferState() const { return mBackbuffers[mActiveImageIndex].state; }

@@ -113,8 +113,6 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg, const 
         // Load device-based Vulkan entrypoints
         volkLoadDevice(mDevice.getDevice());
 
-        mSwapchain.initialize(mDevice, mSurface, config.num_backbuffers, 250, 250, config);
-
         print_startup_message(gpu_infos, chosen_index, config, false, true);
     }
 
@@ -129,6 +127,9 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg, const 
     {
         mPoolAccelStructs.initialize(mDevice.getDevice(), &mPoolResources, config.max_num_accel_structs);
     }
+
+    mPoolSwapchains.initialize(mDevice, config);
+    mDefaultSwapchain = mPoolSwapchains.createSwapchain(mSurface, 250, 250, config.num_backbuffers, config.present);
 
     // Per-thread components and command list pool
     {
@@ -145,7 +146,7 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg, const 
             thread_allocator_ptrs.push_back(&thread_comp.cmd_list_allocator);
         }
 
-        mPoolCmdLists.initialize(*this,                                                                                                 //
+        mPoolCmdLists.initialize(mDevice,                                                                                               //
                                  int(config.num_direct_cmdlist_allocators_per_thread), int(config.num_direct_cmdlists_per_allocator),   //
                                  int(config.num_compute_cmdlist_allocators_per_thread), int(config.num_compute_cmdlists_per_allocator), //
                                  int(config.num_copy_cmdlist_allocators_per_thread), int(config.num_copy_cmdlists_per_allocator),       //
@@ -161,7 +162,8 @@ void phi::vk::BackendVulkan::destroy()
 
         mDiagnostics.free();
 
-        mSwapchain.destroy();
+        mPoolSwapchains.free(mDefaultSwapchain);
+        mPoolSwapchains.destroy();
 
         mPoolAccelStructs.destroy();
         mPoolQueries.destroy(mDevice.getDevice());
@@ -191,8 +193,9 @@ phi::vk::BackendVulkan::~BackendVulkan() { destroy(); }
 
 phi::handle::resource phi::vk::BackendVulkan::acquireBackbuffer()
 {
-    auto const prev_backbuffer_index = mSwapchain.getCurrentBackbufferIndex();
-    bool const acquire_success = mSwapchain.waitForBackbuffer();
+    auto const& swapchain = mPoolSwapchains.get(mDefaultSwapchain);
+    auto const prev_backbuffer_index = swapchain.active_image_index;
+    bool const acquire_success = mPoolSwapchains.waitForBackbuffer(mDefaultSwapchain);
 
     if (!acquire_success)
     {
@@ -202,32 +205,32 @@ phi::handle::resource phi::vk::BackendVulkan::acquireBackbuffer()
     else
     {
         resource_state prev_state;
-        auto const backbuf_size = mSwapchain.getBackbufferSize();
-        auto const res = mPoolResources.injectBackbufferResource(mSwapchain.getCurrentBackbuffer(), mSwapchain.getCurrentBackbufferState(),
-                                                                 mSwapchain.getCurrentBackbufferView(), backbuf_size.width, backbuf_size.height, prev_state);
+        auto const& current_backbuffer = swapchain.backbuffers[swapchain.active_image_index];
+        auto const res = mPoolResources.injectBackbufferResource(current_backbuffer.image, current_backbuffer.state, current_backbuffer.view,
+                                                                 swapchain.backbuf_width, swapchain.backbuf_height, prev_state);
 
-        mSwapchain.setBackbufferState(prev_backbuffer_index, prev_state);
+        mPoolSwapchains.setBackbufferState(mDefaultSwapchain, prev_backbuffer_index, prev_state);
         return res;
     }
 }
 
 void phi::vk::BackendVulkan::present()
 {
-    mSwapchain.performPresentSubmit();
-    if (!mSwapchain.present())
-    {
+    if (!mPoolSwapchains.present(mDefaultSwapchain))
         onInternalResize();
-    }
 }
 
 void phi::vk::BackendVulkan::onResize(tg::isize2 size)
 {
     flushGPU();
     onInternalResize();
-    mSwapchain.onResize(size.width, size.height);
+    mPoolSwapchains.onResize(mDefaultSwapchain, size.width, size.height);
 }
 
-phi::format phi::vk::BackendVulkan::getBackbufferFormat() const { return util::to_pr_format(mSwapchain.getBackbufferFormat()); }
+phi::format phi::vk::BackendVulkan::getBackbufferFormat() const
+{
+    return util::to_pr_format(mPoolSwapchains.get(mDefaultSwapchain).backbuf_format.format);
+}
 
 phi::handle::command_list phi::vk::BackendVulkan::recordCommandList(std::byte* buffer, size_t size, queue_type queue)
 {

@@ -30,6 +30,7 @@ public:
         int backbuf_width;
         int backbuf_height;
         present_mode mode;
+        bool has_resized;
         cc::capped_array<backbuffer, 6> backbuffers; ///< all backbuffers
     };
 
@@ -39,6 +40,16 @@ public:
     void free(handle::swapchain handle);
 
     void onResize(handle::swapchain handle, int w, int h);
+
+    bool clearResizeFlag(handle::swapchain handle)
+    {
+        auto& node = mPool.get(handle._value);
+        if (!node.has_resized)
+            return false;
+
+        node.has_resized = false;
+        return true;
+    }
 
     void setFullscreen(handle::swapchain handle, bool fullscreen);
 

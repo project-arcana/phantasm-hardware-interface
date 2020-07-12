@@ -17,6 +17,7 @@
 #include "pools/query_pool.hh"
 #include "pools/resource_pool.hh"
 #include "pools/shader_view_pool.hh"
+#include "pools/swapchain_pool.hh"
 
 namespace phi::device
 {
@@ -42,9 +43,13 @@ public:
     [[nodiscard]] handle::resource acquireBackbuffer() override;
     void present() override;
     void onResize(tg::isize2 size) override;
-    tg::isize2 getBackbufferSize() const override { return mSwapchain.getBackbufferSize(); }
+    tg::isize2 getBackbufferSize() const override
+    {
+        auto const& node = mPoolSwapchains.get(mDefaultSwapchain);
+        return {node.backbuf_width, node.backbuf_height};
+    }
     format getBackbufferFormat() const override;
-    unsigned int getNumBackbuffers() const override { return mSwapchain.getNumBackbuffers(); }
+    unsigned getNumBackbuffers() const override { return unsigned(mPoolSwapchains.get(mDefaultSwapchain).backbuffers.size()); }
 
 
     //
@@ -227,14 +232,14 @@ private:
         return (type == queue_type::direct ? mDevice.getQueueDirect() : (type == queue_type::compute ? mDevice.getQueueCompute() : mDevice.getQueueCopy()));
     }
 
-public:
+private:
     VkInstance mInstance = nullptr;
     VkDebugUtilsMessengerEXT mDebugMessenger = nullptr;
     VkSurfaceKHR mSurface = nullptr;
     Device mDevice;
-    Swapchain mSwapchain;
+    //    Swapchain mSwapchain;
+    handle::swapchain mDefaultSwapchain;
 
-public:
     // Pools
     ResourcePool mPoolResources;
     CommandListPool mPoolCmdLists;
@@ -243,6 +248,7 @@ public:
     FencePool mPoolFences;
     QueryPool mPoolQueries;
     AccelStructPool mPoolAccelStructs;
+    SwapchainPool mPoolSwapchains;
 
     // Logic
     struct per_thread_component;

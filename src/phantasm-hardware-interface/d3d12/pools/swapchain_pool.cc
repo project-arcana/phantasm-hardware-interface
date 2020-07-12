@@ -73,6 +73,7 @@ phi::handle::swapchain phi::d3d12::SwapchainPool::createSwapchain(HWND window_ha
     new_node.backbuf_width = initial_w;
     new_node.backbuf_height = initial_h;
     new_node.mode = mode;
+    new_node.has_resized = false;
     CC_ASSERT(num_backbuffers < 6 && "too many backbuffers configured");
     new_node.backbuffers.emplace(num_backbuffers);
 
@@ -129,6 +130,7 @@ void phi::d3d12::SwapchainPool::onResize(phi::handle::swapchain handle, int w, i
     swapchain& node = mPool.get(handle._value);
     node.backbuf_width = w;
     node.backbuf_height = h;
+    node.has_resized = true;
     releaseBackbuffers(node);
     PHI_D3D12_VERIFY(node.swapchain_com->ResizeBuffers(unsigned(node.backbuffers.size()), UINT(w), UINT(h), gc_pool_backbuffer_format,
                                                        get_pool_swapchain_flags(node.mode)));
