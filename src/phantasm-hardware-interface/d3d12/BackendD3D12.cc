@@ -43,40 +43,13 @@ void phi::d3d12::BackendD3D12::initialize(const phi::backend_config& config, con
         mDirectQueue.initialize(mDevice.getDevice(), queue_type::direct);
         mComputeQueue.initialize(mDevice.getDevice(), queue_type::compute);
         mCopyQueue.initialize(mDevice.getDevice(), queue_type::copy);
-
-        ::HWND native_hwnd = nullptr;
-        {
-            if (window_handle.type == window_handle::wh_win32_hwnd)
-            {
-                native_hwnd = window_handle.value.win32_hwnd;
-            }
-            else if (window_handle.type == window_handle::wh_sdl)
-            {
-#ifdef PHI_HAS_SDL2
-                SDL_SysWMinfo wmInfo;
-                SDL_VERSION(&wmInfo.version)
-                SDL_GetWindowWMInfo(cc::bit_cast<::SDL_Window*>(window_handle.value.sdl_handle), &wmInfo);
-                native_hwnd = wmInfo.info.win.window;
-#else
-                CC_RUNTIME_ASSERT(false && "SDL handle given, but compiled without SDL present");
-#endif
-            }
-            else
-            {
-                CC_RUNTIME_ASSERT(false && "unimplemented window handle type");
-            }
-        }
-
-        mSwapchain.initialize(mAdapter.getFactory(), mDevice.getDeviceShared(),
-                              config.present_from_compute_queue ? mComputeQueue.getQueueShared() : mDirectQueue.getQueueShared(), native_hwnd,
-                              config.num_backbuffers, config.present);
     }
 
     auto& device = mDevice.getDevice();
 
     // Global pools
     {
-        mPoolResources.initialize(device, config.max_num_resources);
+        mPoolResources.initialize(device, config.max_num_resources, config.max_num_swapchains);
         mPoolShaderViews.initialize(&device, &mPoolResources, config.max_num_cbvs, config.max_num_srvs + config.max_num_uavs, config.max_num_samplers);
         mPoolPSOs.initialize(mDevice.getDevice5(), config.max_num_pipeline_states, config.max_num_raytrace_pipeline_states);
         mPoolFences.initialize(&device, config.max_num_fences);
@@ -87,6 +60,9 @@ void phi::d3d12::BackendD3D12::initialize(const phi::backend_config& config, con
             mPoolAccelStructs.initialize(mDevice.getDevice5(), &mPoolResources, config.max_num_accel_structs);
             mShaderTableCtor.initialize(mDevice.getDevice5(), &mPoolShaderViews, &mPoolResources, &mPoolPSOs, &mPoolAccelStructs);
         }
+
+        mPoolSwapchains.initialize(&mAdapter.getFactory(), &mDevice.getDevice(),
+                                   config.present_from_compute_queue ? &mComputeQueue.getQueue() : &mDirectQueue.getQueue(), config.max_num_swapchains);
     }
 
     // Per-thread components and command list pool
@@ -110,6 +86,34 @@ void phi::d3d12::BackendD3D12::initialize(const phi::backend_config& config, con
                                  thread_allocator_ptrs);
     }
 
+    // Default Swapchain
+    {
+        ::HWND native_hwnd = nullptr;
+        {
+            if (window_handle.type == window_handle::wh_win32_hwnd)
+            {
+                native_hwnd = window_handle.value.win32_hwnd;
+            }
+            else if (window_handle.type == window_handle::wh_sdl)
+            {
+#ifdef PHI_HAS_SDL2
+                SDL_SysWMinfo wmInfo;
+                SDL_VERSION(&wmInfo.version)
+                SDL_GetWindowWMInfo(cc::bit_cast<::SDL_Window*>(window_handle.value.sdl_handle), &wmInfo);
+                native_hwnd = wmInfo.info.win.window;
+#else
+                CC_RUNTIME_ASSERT(false && "SDL handle given, but compiled without SDL present");
+#endif
+            }
+            else
+            {
+                CC_RUNTIME_ASSERT(false && "unimplemented window handle type");
+            }
+        }
+
+        mDefaultSwapchain = mPoolSwapchains.createSwapchain(native_hwnd, 250, 250, config.num_backbuffers, config.present);
+    }
+
     mDiagnostics.init();
 }
 
@@ -121,7 +125,8 @@ void phi::d3d12::BackendD3D12::destroy()
 
         mDiagnostics.free();
 
-        mSwapchain.setFullscreen(false);
+        //        mSwapchain.setFullscreen(false);
+        mPoolSwapchains.destroy();
 
         mPoolCmdLists.destroy();
         mPoolAccelStructs.destroy();
@@ -168,19 +173,22 @@ void phi::d3d12::BackendD3D12::flushGPU()
 
 phi::handle::resource phi::d3d12::BackendD3D12::acquireBackbuffer()
 {
-    auto const backbuffer_i = mSwapchain.waitForBackbuffer();
-    auto const& backbuffer = mSwapchain.getBackbuffer(backbuffer_i);
-    return mPoolResources.injectBackbufferResource(backbuffer.resource, backbuffer.state);
+    auto const swapchain_handle = mDefaultSwapchain;
+
+    auto const swapchain_index = mPoolSwapchains.getSwapchainIndex(swapchain_handle);
+    auto const backbuffer_i = mPoolSwapchains.waitForBackbuffer(swapchain_handle);
+    auto const& backbuffer = mPoolSwapchains.get(swapchain_handle).backbuffers[backbuffer_i];
+    return mPoolResources.injectBackbufferResource(swapchain_index, backbuffer.resource, backbuffer.state);
 }
 
 void phi::d3d12::BackendD3D12::onResize(tg::isize2 size)
 {
     flushGPU();
     onInternalResize();
-    mSwapchain.onResize(size);
+    mPoolSwapchains.onResize(mDefaultSwapchain, size.width, size.height);
 }
 
-phi::format phi::d3d12::BackendD3D12::getBackbufferFormat() const { return util::to_pr_format(mSwapchain.getBackbufferFormat()); }
+phi::format phi::d3d12::BackendD3D12::getBackbufferFormat() const { return util::to_pr_format(mPoolSwapchains.getBackbufferFormat()); }
 
 phi::handle::command_list phi::d3d12::BackendD3D12::recordCommandList(std::byte* buffer, size_t size, queue_type queue)
 {

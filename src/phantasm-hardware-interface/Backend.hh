@@ -32,9 +32,12 @@ public:
     // Swapchain interface
     //
 
+    /// creates a swapchain
+    //    [[nodiscard]] virtual handle::swapchain createSwapchain(window_handle const& window_handle, tg::isize2 initial_size, unsigned num_backbuffers = 3) = 0;
+
     /// acquires a resource handle for use as a render target
     /// if the returned handle is handle::null_resource, the current frame must be discarded
-    /// can cause an internal resize
+    /// can cause an internal resize on the swapchain
     [[nodiscard]] virtual handle::resource acquireBackbuffer() = 0;
 
     /// attempts to present,

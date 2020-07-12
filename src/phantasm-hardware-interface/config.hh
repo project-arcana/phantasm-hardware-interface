@@ -85,6 +85,7 @@ struct backend_config
     unsigned num_threads = 1;
 
     /// resource limits
+    unsigned max_num_swapchains = 32;
     unsigned max_num_resources = 2048;
     unsigned max_num_pipeline_states = 1024;
     unsigned max_num_cbvs = 2048;

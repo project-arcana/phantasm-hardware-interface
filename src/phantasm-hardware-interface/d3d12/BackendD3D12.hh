@@ -12,7 +12,6 @@
 #include "Adapter.hh"
 #include "Device.hh"
 #include "Queue.hh"
-#include "Swapchain.hh"
 
 #include "common/diagnostic_util.hh"
 #include "pools/accel_struct_pool.hh"
@@ -22,6 +21,7 @@
 #include "pools/query_pool.hh"
 #include "pools/resource_pool.hh"
 #include "pools/shader_view_pool.hh"
+#include "pools/swapchain_pool.hh"
 #include "shader_table_construction.hh"
 
 namespace phi::device
@@ -48,12 +48,16 @@ public:
     //
 
     [[nodiscard]] handle::resource acquireBackbuffer() override;
-    void present() override { mSwapchain.present(); }
+    void present() override { mPoolSwapchains.present(mDefaultSwapchain); }
     void onResize(tg::isize2 size) override;
 
-    tg::isize2 getBackbufferSize() const override { return mSwapchain.getBackbufferSize(); }
+    tg::isize2 getBackbufferSize() const override
+    {
+        auto const& node = mPoolSwapchains.get(mDefaultSwapchain);
+        return {node.backbuf_width, node.backbuf_height};
+    }
     format getBackbufferFormat() const override;
-    unsigned getNumBackbuffers() const override { return mSwapchain.getNumBackbuffers(); }
+    unsigned getNumBackbuffers() const override { return unsigned(mPoolSwapchains.get(mDefaultSwapchain).backbuffers.size()); }
 
     //
     // Resource interface
@@ -250,9 +254,10 @@ private:
     UINT64 mFlushSignalVal = 0;
     std::mutex mFlushMutex;
 
-    Swapchain mSwapchain;
+    handle::swapchain mDefaultSwapchain;
 
     // Pools
+    SwapchainPool mPoolSwapchains;
     ResourcePool mPoolResources;
     CommandListPool mPoolCmdLists;
     PipelineStateObjectPool mPoolPSOs;

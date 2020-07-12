@@ -196,6 +196,10 @@ struct linked_pool
         return iterate_allocated_nodes([this](T& node) { release_node(&node); });
     }
 
+    /// NOTE: advanced feature, returns a valid handle for the index
+    /// without checking if it is allocated, bypassing future checks
+    handle_t unsafe_construct_handle_for_index(uint32_t index) const { return _acquire_handle(index); }
+
 private:
     cc::vector<handle_t> _get_free_node_indices() const
     {
@@ -212,7 +216,7 @@ private:
         return free_indices;
     }
 
-    handle_t _acquire_handle(uint32_t real_index)
+    handle_t _acquire_handle(uint32_t real_index) const
     {
 #if PHI_ENABLE_HANDLE_GEN_CHECK
         internal_handle_t res;
