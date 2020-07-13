@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 namespace phi
 {
 struct shader_argument;
@@ -17,6 +19,8 @@ struct command_stream_parser;
 struct command_stream_writer;
 
 class Backend;
+
+enum class format : uint8_t;
 }
 
 namespace phi::arg

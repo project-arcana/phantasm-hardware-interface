@@ -263,8 +263,6 @@ private:
     UINT64 mFlushSignalVal = 0;
     std::mutex mFlushMutex;
 
-    handle::swapchain mDefaultSwapchain;
-
     // Pools
     SwapchainPool mPoolSwapchains;
     ResourcePool mPoolResources;

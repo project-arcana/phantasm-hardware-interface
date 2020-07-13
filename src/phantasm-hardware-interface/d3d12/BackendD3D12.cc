@@ -98,7 +98,6 @@ void phi::d3d12::BackendD3D12::destroy()
         mDiagnostics.free();
 
         //        mSwapchain.setFullscreen(false);
-        mPoolSwapchains.free(mDefaultSwapchain);
         mPoolSwapchains.destroy();
 
         mPoolCmdLists.destroy();
@@ -157,7 +156,7 @@ phi::handle::swapchain phi::d3d12::BackendD3D12::createSwapchain(const phi::wind
 #ifdef PHI_HAS_SDL2
             SDL_SysWMinfo wmInfo;
             SDL_VERSION(&wmInfo.version)
-            SDL_GetWindowWMInfo(cc::bit_cast<::SDL_Window*>(window_handle.value.sdl_handle), &wmInfo);
+            SDL_GetWindowWMInfo(window_handle.value.sdl_handle, &wmInfo);
             native_hwnd = wmInfo.info.win.window;
 #else
             CC_RUNTIME_ASSERT(false && "SDL handle given, but compiled without SDL present");
