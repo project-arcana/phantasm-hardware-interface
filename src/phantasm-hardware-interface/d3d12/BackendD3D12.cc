@@ -27,7 +27,7 @@ struct BackendD3D12::per_thread_component
 
 }
 
-void phi::d3d12::BackendD3D12::initialize(const phi::backend_config& config, const window_handle& window_handle)
+void phi::d3d12::BackendD3D12::initialize(const phi::backend_config& config)
 {
     // just making sure
     rlog::enable_win32_colors();
@@ -84,34 +84,6 @@ void phi::d3d12::BackendD3D12::initialize(const phi::backend_config& config, con
                                  int(config.num_compute_cmdlist_allocators_per_thread), int(config.num_compute_cmdlists_per_allocator), //
                                  int(config.num_copy_cmdlist_allocators_per_thread), int(config.num_copy_cmdlists_per_allocator),       //
                                  thread_allocator_ptrs);
-    }
-
-    // Default Swapchain
-    {
-        ::HWND native_hwnd = nullptr;
-        {
-            if (window_handle.type == window_handle::wh_win32_hwnd)
-            {
-                native_hwnd = window_handle.value.win32_hwnd;
-            }
-            else if (window_handle.type == window_handle::wh_sdl)
-            {
-#ifdef PHI_HAS_SDL2
-                SDL_SysWMinfo wmInfo;
-                SDL_VERSION(&wmInfo.version)
-                SDL_GetWindowWMInfo(cc::bit_cast<::SDL_Window*>(window_handle.value.sdl_handle), &wmInfo);
-                native_hwnd = wmInfo.info.win.window;
-#else
-                CC_RUNTIME_ASSERT(false && "SDL handle given, but compiled without SDL present");
-#endif
-            }
-            else
-            {
-                CC_RUNTIME_ASSERT(false && "unimplemented window handle type");
-            }
-        }
-
-        mDefaultSwapchain = mPoolSwapchains.createSwapchain(native_hwnd, 250, 250, config.num_backbuffers, config.present);
     }
 
     mDiagnostics.init();
@@ -172,24 +144,52 @@ void phi::d3d12::BackendD3D12::flushGPU()
     ::WaitForSingleObject(mFlushEvent, INFINITE);
 }
 
-phi::handle::resource phi::d3d12::BackendD3D12::acquireBackbuffer()
+phi::handle::swapchain phi::d3d12::BackendD3D12::createSwapchain(const phi::window_handle& window_handle, tg::isize2 initial_size, phi::present_mode mode, unsigned num_backbuffers)
 {
-    auto const swapchain_handle = mDefaultSwapchain;
+    ::HWND native_hwnd = nullptr;
+    {
+        if (window_handle.type == window_handle::wh_win32_hwnd)
+        {
+            native_hwnd = window_handle.value.win32_hwnd;
+        }
+        else if (window_handle.type == window_handle::wh_sdl)
+        {
+#ifdef PHI_HAS_SDL2
+            SDL_SysWMinfo wmInfo;
+            SDL_VERSION(&wmInfo.version)
+            SDL_GetWindowWMInfo(cc::bit_cast<::SDL_Window*>(window_handle.value.sdl_handle), &wmInfo);
+            native_hwnd = wmInfo.info.win.window;
+#else
+            CC_RUNTIME_ASSERT(false && "SDL handle given, but compiled without SDL present");
+#endif
+        }
+        else
+        {
+            CC_RUNTIME_ASSERT(false && "unimplemented window handle type");
+        }
+    }
 
-    auto const swapchain_index = mPoolSwapchains.getSwapchainIndex(swapchain_handle);
-    auto const backbuffer_i = mPoolSwapchains.waitForBackbuffer(swapchain_handle);
-    auto const& backbuffer = mPoolSwapchains.get(swapchain_handle).backbuffers[backbuffer_i];
+    return mPoolSwapchains.createSwapchain(native_hwnd, initial_size.width, initial_size.height, num_backbuffers, mode);
+}
+
+phi::handle::resource phi::d3d12::BackendD3D12::acquireBackbuffer(handle::swapchain sc)
+{
+    auto const swapchain_index = mPoolSwapchains.getSwapchainIndex(sc);
+    auto const backbuffer_i = mPoolSwapchains.waitForBackbuffer(sc);
+    auto const& backbuffer = mPoolSwapchains.get(sc).backbuffers[backbuffer_i];
     return mPoolResources.injectBackbufferResource(swapchain_index, backbuffer.resource, backbuffer.state);
 }
 
-void phi::d3d12::BackendD3D12::onResize(tg::isize2 size)
+void phi::d3d12::BackendD3D12::onResize(handle::swapchain sc, tg::isize2 size)
 {
     flushGPU();
-    onInternalResize();
-    mPoolSwapchains.onResize(mDefaultSwapchain, size.width, size.height);
+    mPoolSwapchains.onResize(sc, size.width, size.height);
 }
 
-phi::format phi::d3d12::BackendD3D12::getBackbufferFormat() const { return util::to_pr_format(mPoolSwapchains.getBackbufferFormat()); }
+phi::format phi::d3d12::BackendD3D12::getBackbufferFormat(handle::swapchain /*sc*/) const
+{
+    return util::to_pr_format(mPoolSwapchains.getBackbufferFormat());
+}
 
 phi::handle::command_list phi::d3d12::BackendD3D12::recordCommandList(std::byte* buffer, size_t size, queue_type queue)
 {

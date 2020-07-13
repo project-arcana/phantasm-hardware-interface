@@ -28,7 +28,7 @@ namespace phi::vk
 class BackendVulkan final : public Backend
 {
 public:
-    void initialize(backend_config const& config_arg, window_handle const& window_handle) override;
+    void initialize(backend_config const& config_arg) override;
     void destroy() override;
     ~BackendVulkan() override;
 
@@ -39,16 +39,26 @@ public:
     // Swapchain interface
     //
 
-    [[nodiscard]] handle::resource acquireBackbuffer() override;
-    void present() override;
-    void onResize(tg::isize2 size) override;
-    tg::isize2 getBackbufferSize() const override
+    [[nodiscard]] handle::swapchain createSwapchain(window_handle const& window_handle,
+                                                    tg::isize2 initial_size,
+                                                    present_mode mode = present_mode::synced,
+                                                    unsigned num_backbuffers = 3) override;
+
+    void free(handle::swapchain sc) override { mPoolSwapchains.free(sc); }
+
+    [[nodiscard]] handle::resource acquireBackbuffer(handle::swapchain sc) override;
+    void present(handle::swapchain sc) override { mPoolSwapchains.present(sc); }
+    void onResize(handle::swapchain sc, tg::isize2 size) override;
+
+    tg::isize2 getBackbufferSize(handle::swapchain sc) const override
     {
-        auto const& node = mPoolSwapchains.get(mDefaultSwapchain);
+        auto const& node = mPoolSwapchains.get(sc);
         return {node.backbuf_width, node.backbuf_height};
     }
-    format getBackbufferFormat() const override;
-    unsigned getNumBackbuffers() const override { return unsigned(mPoolSwapchains.get(mDefaultSwapchain).backbuffers.size()); }
+    format getBackbufferFormat(handle::swapchain sc) const override;
+    unsigned getNumBackbuffers(handle::swapchain sc) const override { return unsigned(mPoolSwapchains.get(sc).backbuffers.size()); }
+
+    [[nodiscard]] bool clearPendingResize(handle::swapchain sc) override { return mPoolSwapchains.clearResizeFlag(sc); }
 
 
     //
@@ -235,7 +245,6 @@ private:
     VkInstance mInstance = nullptr;
     VkDebugUtilsMessengerEXT mDebugMessenger = nullptr;
     Device mDevice;
-    handle::swapchain mDefaultSwapchain;
 
     // Pools
     ResourcePool mPoolResources;

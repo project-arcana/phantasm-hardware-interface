@@ -4,7 +4,7 @@
 
 #include <clean-core/capped_array.hh>
 
-#include <phantasm-hardware-interface/config.hh>
+#include <phantasm-hardware-interface/types.hh>
 #include <phantasm-hardware-interface/detail/linked_pool.hh>
 #include <phantasm-hardware-interface/types.hh>
 

@@ -4,9 +4,9 @@
 
 #include <clean-core/capped_array.hh>
 
-#include <phantasm-hardware-interface/config.hh>
 #include <phantasm-hardware-interface/detail/linked_pool.hh>
 #include <phantasm-hardware-interface/handles.hh>
+#include <phantasm-hardware-interface/types.hh>
 
 #include <phantasm-hardware-interface/d3d12/Fence.hh>
 #include <phantasm-hardware-interface/d3d12/fwd.hh>

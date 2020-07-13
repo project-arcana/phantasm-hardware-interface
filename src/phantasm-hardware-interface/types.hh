@@ -52,6 +52,14 @@ enum class queue_type : uint8_t
     copy
 };
 
+/// the swapchain presentation mode (note: synced does not mean refreshrate-limited)
+/// Also note: under some circumstances, synced might force a refreshrate limit (Nvidia optimus + windowed on d3d12, etc.)
+enum class present_mode : uint8_t
+{
+    allow_tearing,
+    synced
+};
+
 /// state of a handle::resource, determining legal operations
 /// (D3D12: resource states, Vulkan: access masks, image layouts and pipeline stage dependencies)
 enum class resource_state : uint8_t

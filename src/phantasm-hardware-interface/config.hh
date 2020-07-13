@@ -4,12 +4,6 @@
 
 namespace phi
 {
-enum class present_mode : uint8_t
-{
-    allow_tearing,
-    synced
-};
-
 enum class adapter_preference : uint8_t
 {
     highest_vram,
@@ -50,10 +44,6 @@ struct backend_config
     /// whether to enable API-level validations
     validation_level validation = validation_level::off;
 
-    /// the swapchain presentation mode (note: synced does not mean refreshrate-limited)
-    /// Also note: under some circumstances, synced might force a refreshrate limit (Nvidia optimus + windowed on d3d12, etc.)
-    present_mode present = present_mode::synced;
-
     /// the strategy for choosing a physical GPU
     adapter_preference adapter = adapter_preference::highest_vram;
     unsigned explicit_adapter_index = unsigned(-1);
@@ -76,9 +66,6 @@ struct backend_config
 
     /// whether to present from the discrete compute queue (instead of the default direct queue)
     bool present_from_compute_queue = false;
-
-    /// amount of backbuffers to create
-    unsigned num_backbuffers = 3;
 
     /// amount of threads to accomodate
     /// backend calls must only be made from <= [num_threads] unique OS threads
@@ -105,8 +92,8 @@ struct backend_config
     unsigned num_copy_cmdlists_per_allocator = 3;
 
     /// query heap sizes
-    unsigned num_timestamp_queries = 512;
-    unsigned num_occlusion_queries = 512;
-    unsigned num_pipeline_stat_queries = 128;
+    unsigned num_timestamp_queries = 1024;
+    unsigned num_occlusion_queries = 1024;
+    unsigned num_pipeline_stat_queries = 256;
 };
 }

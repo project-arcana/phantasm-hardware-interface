@@ -15,15 +15,8 @@ enum class backend_type : uint8_t
 
 class Backend
 {
-    // reference type
 public:
-    Backend(Backend const&) = delete;
-    Backend(Backend&&) = delete;
-    Backend& operator=(Backend const&) = delete;
-    Backend& operator=(Backend&&) = delete;
-    virtual ~Backend() = default;
-
-    virtual void initialize(backend_config const& config, window_handle const& window_handle) = 0;
+    virtual void initialize(backend_config const& config) = 0;
     virtual void destroy() = 0;
 
     virtual void flushGPU() = 0;
@@ -32,44 +25,41 @@ public:
     // Swapchain interface
     //
 
-    /// creates a swapchain
-    //    [[nodiscard]] virtual handle::swapchain createSwapchain(window_handle const& window_handle, tg::isize2 initial_size, unsigned num_backbuffers = 3) = 0;
+    /// create a swapchain on a given window
+    [[nodiscard]] virtual handle::swapchain createSwapchain(window_handle const& window_handle,
+                                                            tg::isize2 initial_size,
+                                                            present_mode mode = present_mode::synced,
+                                                            unsigned num_backbuffers = 3)
+        = 0;
 
-    /// acquires a resource handle for use as a render target
+    /// destroy a swapchain
+    virtual void free(handle::swapchain sc) = 0;
+
+    /// acquire the next available backbuffer on the given swapchain
+    /// blocks on CPU until a backbuffer is available
     /// if the returned handle is handle::null_resource, the current frame must be discarded
     /// can cause an internal resize on the swapchain
-    [[nodiscard]] virtual handle::resource acquireBackbuffer() = 0;
+    [[nodiscard]] virtual handle::resource acquireBackbuffer(handle::swapchain sc) = 0;
 
-    /// attempts to present,
+    /// attempts to present on the swapchain
     /// can fail and cause an internal resize
-    virtual void present() = 0;
+    virtual void present(handle::swapchain sc) = 0;
 
-    /// causes an internal resize
-    virtual void onResize(tg::isize2 size) = 0;
+    /// causes an internal resize on the swapchain
+    virtual void onResize(handle::swapchain sc, tg::isize2 size) = 0;
 
-    /// returns the current backbuffer size
-    virtual tg::isize2 getBackbufferSize() const = 0;
+    /// returns the current backbuffer size on the swapchain
+    virtual tg::isize2 getBackbufferSize(handle::swapchain sc) const = 0;
 
     /// returns the backbuffer pixel format
-    virtual format getBackbufferFormat() const = 0;
+    virtual format getBackbufferFormat(handle::swapchain sc) const = 0;
 
     /// returns the amount of backbuffers
-    virtual unsigned getNumBackbuffers() const = 0;
+    virtual unsigned getNumBackbuffers(handle::swapchain sc) const = 0;
 
     /// Clears pending internal resize events, returns true if the
     /// backbuffer has resized since the last call
-    [[nodiscard]] bool clearPendingResize()
-    {
-        if (mHasResized)
-        {
-            mHasResized = false;
-            return true;
-        }
-        else
-        {
-            return false;
-        }
-    }
+    [[nodiscard]] virtual bool clearPendingResize(handle::swapchain sc) = 0;
 
     //
     // Resource interface
@@ -289,12 +279,13 @@ public:
         CC_UNREACHABLE("invalid type");
     }
 
+    Backend(Backend const&) = delete;
+    Backend(Backend&&) = delete;
+    Backend& operator=(Backend const&) = delete;
+    Backend& operator=(Backend&&) = delete;
+    virtual ~Backend() = default;
+
 protected:
     Backend() = default;
-
-    void onInternalResize() { mHasResized = true; }
-
-private:
-    bool mHasResized = true;
 };
 }
