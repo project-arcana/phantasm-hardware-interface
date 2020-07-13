@@ -256,9 +256,9 @@ phi::handle::resource phi::vk::ResourcePool::createBufferInternal(uint64_t size_
 
 void phi::vk::ResourcePool::free(phi::handle::resource res)
 {
-    CC_ASSERT(res != mInjectedBackbufferResource && "the backbuffer resource must not be freed");
     if (!res.is_valid())
         return;
+    CC_ASSERT(!isBackbuffer(res) && "the backbuffer resource must not be freed");
 
     resource_node& freed_node = mPool.get(res._value);
 
@@ -277,9 +277,9 @@ void phi::vk::ResourcePool::free(cc::span<const phi::handle::resource> resources
 
     for (auto res : resources)
     {
-        CC_ASSERT(res != mInjectedBackbufferResource && "the backbuffer resource must not be freed");
         if (res.is_valid())
         {
+            CC_ASSERT(!isBackbuffer(res) && "the backbuffer resource must not be freed");
             resource_node& freed_node = mPool.get(res._value);
             // This is a write access to mAllocatorDescriptors
             internalFree(freed_node);
@@ -289,7 +289,7 @@ void phi::vk::ResourcePool::free(cc::span<const phi::handle::resource> resources
     }
 }
 
-void phi::vk::ResourcePool::initialize(VkPhysicalDevice physical, VkDevice device, unsigned max_num_resources)
+void phi::vk::ResourcePool::initialize(VkPhysicalDevice physical, VkDevice device, unsigned max_num_resources, unsigned max_num_swapchains)
 {
     mDevice = device;
     {
@@ -300,11 +300,14 @@ void phi::vk::ResourcePool::initialize(VkPhysicalDevice physical, VkDevice devic
     }
 
     mAllocatorDescriptors.initialize(device, max_num_resources, 0, 0, 0);
-    mPool.initialize(max_num_resources + 1); // 1 additional resource for the backbuffer
+    mPool.initialize(max_num_resources + max_num_swapchains); // additional resources for swapchain backbuffers
 
+    mNumReservedBackbuffers = max_num_swapchains;
+    mInjectedBackbufferViews = mInjectedBackbufferViews.filled(mNumReservedBackbuffers, nullptr);
+    for (auto i = 0u; i < mNumReservedBackbuffers; ++i)
     {
-        mInjectedBackbufferResource = {mPool.acquire()};
-        resource_node& backbuffer_node = mPool.get(mInjectedBackbufferResource._value);
+        auto backbuffer_reserved = mPool.acquire();
+        resource_node& backbuffer_node = mPool.get(backbuffer_reserved);
         backbuffer_node.type = resource_node::resource_type::image;
         backbuffer_node.master_state = resource_state::undefined;
         backbuffer_node.heap = resource_heap::gpu;
@@ -323,7 +326,10 @@ void phi::vk::ResourcePool::initialize(VkPhysicalDevice physical, VkDevice devic
 
 void phi::vk::ResourcePool::destroy()
 {
-    mPool.release(mInjectedBackbufferResource._value);
+    for (auto i = 0u; i < mNumReservedBackbuffers; ++i)
+    {
+        mPool.release(mPool.unsafe_construct_handle_for_index(i));
+    }
 
     auto num_leaks = 0;
     mPool.iterate_allocated_nodes([&](resource_node& leaked_node) {
@@ -356,14 +362,16 @@ VkDeviceMemory phi::vk::ResourcePool::getRawDeviceMemory(phi::handle::resource r
 }
 
 phi::handle::resource phi::vk::ResourcePool::injectBackbufferResource(
-    VkImage raw_image, phi::resource_state state, VkImageView backbuffer_view, unsigned width, unsigned height, phi::resource_state& out_prev_state)
+    unsigned swapchain_index, VkImage raw_image, phi::resource_state state, VkImageView backbuffer_view, unsigned width, unsigned height, phi::resource_state& out_prev_state)
 {
-    resource_node& backbuffer_node = mPool.get(mInjectedBackbufferResource._value);
+    auto const res_handle = mPool.unsafe_construct_handle_for_index(swapchain_index);
+
+    mInjectedBackbufferViews[swapchain_index] = backbuffer_view;
+
+    resource_node& backbuffer_node = mPool.get(res_handle);
     backbuffer_node.image.raw_image = raw_image;
     backbuffer_node.image.width = width;
     backbuffer_node.image.height = height;
-    mInjectedBackbufferView = backbuffer_view;
-
     out_prev_state = backbuffer_node.master_state;
     backbuffer_node.master_state = state;
     backbuffer_node.master_state_dependency = util::to_pipeline_stage_dependency(state, VK_PIPELINE_STAGE_FLAG_BITS_MAX_ENUM);
@@ -371,7 +379,7 @@ phi::handle::resource phi::vk::ResourcePool::injectBackbufferResource(
     // This enum value would only be returned if the state is a SRV/UAV/CBV, which is not allowed for backbuffers (in our API, not Vulkan)
     CC_ASSERT(backbuffer_node.master_state_dependency != VK_PIPELINE_STAGE_FLAG_BITS_MAX_ENUM && "backbuffer in invalid resource state");
 
-    return mInjectedBackbufferResource;
+    return {res_handle};
 }
 
 phi::handle::resource phi::vk::ResourcePool::acquireBuffer(VmaAllocation alloc, VkBuffer buffer, VkBufferUsageFlags usage, uint64_t buffer_width, unsigned buffer_stride, resource_heap heap)

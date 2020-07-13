@@ -54,7 +54,7 @@ public:
     };
 
 public:
-    handle::swapchain createSwapchain(VkSurfaceKHR surface, int initial_w, int initial_h, unsigned num_backbuffers, present_mode mode);
+    handle::swapchain createSwapchain(window_handle const& window_handle, int initial_w, int initial_h, unsigned num_backbuffers, present_mode mode);
 
     void free(handle::swapchain handle);
 
@@ -81,7 +81,7 @@ public:
     void setBackbufferState(handle::swapchain handle, unsigned i, resource_state state) { mPool.get(handle._value).backbuffers[i].state = state; }
 
 public:
-    void initialize(Device const& device, const backend_config& config);
+    void initialize(VkInstance instance, Device const& device, const backend_config& config);
     void destroy();
 
 
@@ -94,9 +94,11 @@ private:
 
 private:
     // nonowning
+    VkInstance mInstance;
     VkPhysicalDevice mPhysicalDevice;
     VkDevice mDevice;
     VkQueue mPresentQueue;
+    uint32_t mPresentQueueFamilyIndex;
 
     // owning
     std::mutex mMutex;

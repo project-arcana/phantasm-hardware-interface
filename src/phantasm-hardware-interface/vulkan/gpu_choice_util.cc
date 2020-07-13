@@ -36,14 +36,14 @@ cc::array<VkPhysicalDevice> phi::vk::get_physical_devices(VkInstance instance)
     return res;
 }
 
-phi::vk::vulkan_gpu_info phi::vk::get_vulkan_gpu_info(VkPhysicalDevice device, VkSurfaceKHR surface)
+phi::vk::vulkan_gpu_info phi::vk::get_vulkan_gpu_info(VkPhysicalDevice device)
 {
     vulkan_gpu_info res;
     res.physical_device = device;
     res.is_suitable = true;
 
     // queue capability
-    res.queues = get_suitable_queues(device, surface);
+    res.queues = get_suitable_queues(device);
     if (!res.queues.has_direct_queue)
         res.is_suitable = false;
 
@@ -72,41 +72,21 @@ phi::vk::vulkan_gpu_info phi::vk::get_vulkan_gpu_info(VkPhysicalDevice device, V
             res.is_suitable = false;
     }
 
-    // present modes and swapchain formats
-    {
-        uint32_t num_formats;
-        vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &num_formats, nullptr);
-        if (num_formats == 0)
-            res.is_suitable = false;
-
-        res.backbuffer_formats = cc::array<VkSurfaceFormatKHR>::uninitialized(num_formats);
-        vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &num_formats, res.backbuffer_formats.data());
-
-        uint32_t num_present_modes;
-        vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &num_present_modes, nullptr);
-        if (num_present_modes == 0)
-            res.is_suitable = false;
-
-        res.present_modes = cc::array<VkPresentModeKHR>::uninitialized(num_present_modes);
-        vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &num_present_modes, res.present_modes.data());
-    }
-
     // other queries
     {
-        vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &res.surface_capabilities);
         vkGetPhysicalDeviceMemoryProperties(device, &res.mem_props);
     }
 
     return res;
 }
 
-cc::array<phi::vk::vulkan_gpu_info> phi::vk::get_all_vulkan_gpu_infos(VkInstance instance, VkSurfaceKHR surface)
+cc::array<phi::vk::vulkan_gpu_info> phi::vk::get_all_vulkan_gpu_infos(VkInstance instance)
 {
     auto const physical_devices = get_physical_devices(instance);
     cc::array<vulkan_gpu_info> res(physical_devices.size());
     for (auto i = 0u; i < physical_devices.size(); ++i)
     {
-        res[i] = get_vulkan_gpu_info(physical_devices[i], surface);
+        res[i] = get_vulkan_gpu_info(physical_devices[i]);
     }
     return res;
 }
@@ -130,8 +110,13 @@ phi::vk::backbuffer_information phi::vk::get_backbuffer_information(VkPhysicalDe
     return res;
 }
 
-VkSurfaceCapabilitiesKHR phi::vk::get_surface_capabilities(VkPhysicalDevice device, VkSurfaceKHR surface)
+VkSurfaceCapabilitiesKHR phi::vk::get_surface_capabilities(VkPhysicalDevice device, VkSurfaceKHR surface, uint32_t present_queue_family_index)
 {
+    // NOTE: we do not technically care about this call, it's purely a sanity check and validation warns if we omit it
+    // instead we use the vkGetPhysicalDevice<PLATFORM>PresentationSupportKHR call, which is surface-independent
+    VkBool32 can_present = false;
+    PHI_VK_VERIFY_SUCCESS(vkGetPhysicalDeviceSurfaceSupportKHR(device, present_queue_family_index, surface, &can_present));
+    CC_RUNTIME_ASSERT(can_present && "cannot present on this surface with the current direct queue, contact maintainers");
     VkSurfaceCapabilitiesKHR res;
     PHI_VK_VERIFY_NONERROR(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &res));
     return res;

@@ -69,7 +69,6 @@ void phi::d3d12::ResourcePool::initialize(ID3D12Device& device, unsigned max_num
     for (auto i = 0u; i < mNumReservedBackbuffers; ++i)
     {
         auto backbuffer_reserved = mPool.acquire();
-        CC_ASSERT(isBackbuffer({backbuffer_reserved}) && "programmer error");
     }
 }
 

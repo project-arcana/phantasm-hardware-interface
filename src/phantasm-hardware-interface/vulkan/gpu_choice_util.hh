@@ -1,6 +1,7 @@
 #pragma once
 
 #include <clean-core/array.hh>
+#include <clean-core/capped_array.hh>
 #include <clean-core/vector.hh>
 
 #include <phantasm-hardware-interface/gpu_info.hh>
@@ -17,9 +18,6 @@ struct vulkan_gpu_info
     VkPhysicalDevice physical_device;
     VkPhysicalDeviceProperties physical_device_props;
     VkPhysicalDeviceMemoryProperties mem_props;
-    cc::array<VkSurfaceFormatKHR> backbuffer_formats;
-    cc::array<VkPresentModeKHR> present_modes;
-    VkSurfaceCapabilitiesKHR surface_capabilities;
     lay_ext_set available_layers_extensions;
     suitable_queues queues;
 
@@ -53,9 +51,9 @@ bool set_or_test_device_features(VkPhysicalDeviceFeatures2* arg, bool enable_gbv
 [[nodiscard]] cc::array<VkPhysicalDevice> get_physical_devices(VkInstance instance);
 
 /// receive full information about a GPU, relatively slow
-[[nodiscard]] vulkan_gpu_info get_vulkan_gpu_info(VkPhysicalDevice device, VkSurfaceKHR surface);
+[[nodiscard]] vulkan_gpu_info get_vulkan_gpu_info(VkPhysicalDevice device);
 
-[[nodiscard]] cc::array<vulkan_gpu_info> get_all_vulkan_gpu_infos(VkInstance instance, VkSurfaceKHR surface);
+[[nodiscard]] cc::array<vulkan_gpu_info> get_all_vulkan_gpu_infos(VkInstance instance);
 
 [[nodiscard]] cc::vector<gpu_info> get_available_gpus(cc::span<vulkan_gpu_info const> vk_gpu_infos);
 
@@ -64,7 +62,7 @@ bool set_or_test_device_features(VkPhysicalDeviceFeatures2* arg, bool enable_gbv
 [[nodiscard]] backbuffer_information get_backbuffer_information(VkPhysicalDevice device, VkSurfaceKHR surface);
 
 /// receive surface capabilities
-[[nodiscard]] VkSurfaceCapabilitiesKHR get_surface_capabilities(VkPhysicalDevice device, VkSurfaceKHR surface);
+[[nodiscard]] VkSurfaceCapabilitiesKHR get_surface_capabilities(VkPhysicalDevice device, VkSurfaceKHR surface, uint32_t present_queue_family_index);
 
 [[nodiscard]] VkSurfaceFormatKHR choose_backbuffer_format(cc::span<VkSurfaceFormatKHR const> available_formats);
 [[nodiscard]] VkPresentModeKHR choose_present_mode(cc::span<VkPresentModeKHR const> available_modes, present_mode mode);

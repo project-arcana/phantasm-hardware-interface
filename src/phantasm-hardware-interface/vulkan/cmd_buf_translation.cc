@@ -6,7 +6,6 @@
 #include <phantasm-hardware-interface/detail/log.hh>
 #include <phantasm-hardware-interface/util.hh>
 
-#include "Swapchain.hh"
 #include "common/native_enum.hh"
 #include "common/util.hh"
 #include "common/verify.hh"
@@ -73,7 +72,7 @@ void phi::vk::command_list_translator::execute(const phi::cmd::begin_render_pass
         // image view
         if (_globals.pool_resources->isBackbuffer(rt.rv.resource))
         {
-            fb_image_views.push_back(_globals.pool_resources->getBackbufferView());
+            fb_image_views.push_back(_globals.pool_resources->getBackbufferView(rt.rv.resource));
         }
         else
         {

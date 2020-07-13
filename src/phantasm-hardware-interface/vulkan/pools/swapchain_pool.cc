@@ -8,13 +8,14 @@
 #include <phantasm-hardware-interface/vulkan/Device.hh>
 #include <phantasm-hardware-interface/vulkan/common/verify.hh>
 #include <phantasm-hardware-interface/vulkan/gpu_choice_util.hh>
+#include <phantasm-hardware-interface/vulkan/surface_util.hh>
 
 namespace
 {
 constexpr VkFormat gc_assumed_backbuffer_format = VK_FORMAT_B8G8R8A8_UNORM;
 }
 
-phi::handle::swapchain phi::vk::SwapchainPool::createSwapchain(VkSurfaceKHR surface, int initial_w, int initial_h, unsigned num_backbuffers, phi::present_mode mode)
+phi::handle::swapchain phi::vk::SwapchainPool::createSwapchain(const window_handle& window_handle, int initial_w, int initial_h, unsigned num_backbuffers, phi::present_mode mode)
 {
     handle::index_t res;
     {
@@ -26,17 +27,17 @@ phi::handle::swapchain phi::vk::SwapchainPool::createSwapchain(VkSurfaceKHR surf
     new_node.backbuf_width = -1;
     new_node.backbuf_height = -1;
     new_node.mode = mode;
-    new_node.surface = surface;
+    new_node.surface = create_platform_surface(mInstance, window_handle);
     new_node.has_resized = true;
     new_node.active_fence_index = 0;
     new_node.active_image_index = 0;
 
-    auto const surface_capabilities = get_surface_capabilities(mPhysicalDevice, surface);
+    auto const surface_capabilities = get_surface_capabilities(mPhysicalDevice, new_node.surface, mPresentQueueFamilyIndex);
     CC_RUNTIME_ASSERT(num_backbuffers >= surface_capabilities.minImageCount && "Not enough backbuffers specified");
     CC_RUNTIME_ASSERT(num_backbuffers <= 6 && "Too many backbuffers specified");
     CC_RUNTIME_ASSERT((surface_capabilities.maxImageCount == 0 || num_backbuffers <= surface_capabilities.maxImageCount) && "Too many backbuffers specified");
 
-    auto const backbuffer_format_info = get_backbuffer_information(mPhysicalDevice, surface);
+    auto const backbuffer_format_info = get_backbuffer_information(mPhysicalDevice, new_node.surface);
     new_node.backbuf_format = choose_backbuffer_format(backbuffer_format_info.backbuffer_formats);
     CC_RUNTIME_ASSERT(new_node.backbuf_format.format == gc_assumed_backbuffer_format && "Assumed backbuffer format wrong, please contact maintainers");
 
@@ -229,11 +230,13 @@ bool phi::vk::SwapchainPool::waitForBackbuffer(phi::handle::swapchain handle)
     return true;
 }
 
-void phi::vk::SwapchainPool::initialize(const phi::vk::Device& device, const phi::backend_config& config)
+void phi::vk::SwapchainPool::initialize(VkInstance instance, const phi::vk::Device& device, const phi::backend_config& config)
 {
+    mInstance = instance;
     mDevice = device.getDevice();
     mPhysicalDevice = device.getPhysicalDevice();
     mPresentQueue = config.present_from_compute_queue ? device.getQueueCompute() : device.getQueueDirect();
+    mPresentQueueFamilyIndex = config.present_from_compute_queue ? device.getQueueFamilyCompute() : device.getQueueFamilyDirect();
 
     mPool.initialize(config.max_num_swapchains);
 
@@ -308,7 +311,7 @@ void phi::vk::SwapchainPool::setupSwapchain(phi::handle::swapchain handle, int w
 {
     auto& node = mPool.get(handle._value);
 
-    auto const surface_capabilities = get_surface_capabilities(mPhysicalDevice, node.surface);
+    auto const surface_capabilities = get_surface_capabilities(mPhysicalDevice, node.surface, mPresentQueueFamilyIndex);
     auto const present_format_info = get_backbuffer_information(mPhysicalDevice, node.surface);
     auto const new_extent = get_swap_extent(surface_capabilities, VkExtent2D{unsigned(width_hint), unsigned(height_hint)});
 
@@ -428,4 +431,6 @@ void phi::vk::SwapchainPool::internalFree(phi::vk::SwapchainPool::swapchain& nod
         vkDestroySemaphore(mDevice, backbuffer.sem_image_available, nullptr);
         vkDestroySemaphore(mDevice, backbuffer.sem_render_finished, nullptr);
     }
+
+    vkDestroySurfaceKHR(mInstance, node.surface, nullptr);
 }

@@ -14,7 +14,6 @@
 #include "layer_extension_util.hh"
 #include "loader/volk.hh"
 #include "resources/transition_barrier.hh"
-#include "surface_util.hh"
 
 namespace phi::vk
 {
@@ -96,11 +95,9 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg, const 
         createDebugMessenger();
     }
 
-    mSurface = create_platform_surface(mInstance, window_handle);
-
     // GPU choice and device init
     {
-        auto const vk_gpu_infos = get_all_vulkan_gpu_infos(mInstance, mSurface);
+        auto const vk_gpu_infos = get_all_vulkan_gpu_infos(mInstance);
         auto const gpu_infos = get_available_gpus(vk_gpu_infos);
         auto const chosen_index = get_preferred_gpu(gpu_infos, config.adapter);
         CC_RUNTIME_ASSERT(chosen_index < gpu_infos.size());
@@ -118,7 +115,7 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg, const 
 
     // Pool init
     mPoolPipelines.initialize(mDevice.getDevice(), config.max_num_pipeline_states);
-    mPoolResources.initialize(mDevice.getPhysicalDevice(), mDevice.getDevice(), config.max_num_resources);
+    mPoolResources.initialize(mDevice.getPhysicalDevice(), mDevice.getDevice(), config.max_num_resources, config.max_num_swapchains);
     mPoolShaderViews.initialize(mDevice.getDevice(), &mPoolResources, config.max_num_cbvs, config.max_num_srvs, config.max_num_uavs, config.max_num_samplers);
     mPoolFences.initialize(mDevice.getDevice(), config.max_num_fences);
     mPoolQueries.initialize(mDevice.getDevice(), config.num_timestamp_queries, config.num_occlusion_queries, config.num_pipeline_stat_queries);
@@ -128,8 +125,9 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg, const 
         mPoolAccelStructs.initialize(mDevice.getDevice(), &mPoolResources, config.max_num_accel_structs);
     }
 
-    mPoolSwapchains.initialize(mDevice, config);
-    mDefaultSwapchain = mPoolSwapchains.createSwapchain(mSurface, 250, 250, config.num_backbuffers, config.present);
+    mPoolSwapchains.initialize(mInstance, mDevice, config);
+
+    mDefaultSwapchain = mPoolSwapchains.createSwapchain(window_handle, 250, 250, config.num_backbuffers, config.present);
 
     // Per-thread components and command list pool
     {
@@ -178,7 +176,6 @@ void phi::vk::BackendVulkan::destroy()
             thread_cmp.cmd_list_allocator.destroy(mDevice.getDevice());
         }
 
-        vkDestroySurfaceKHR(mInstance, mSurface, nullptr);
         mDevice.destroy();
 
         if (mDebugMessenger != nullptr)
@@ -193,9 +190,12 @@ phi::vk::BackendVulkan::~BackendVulkan() { destroy(); }
 
 phi::handle::resource phi::vk::BackendVulkan::acquireBackbuffer()
 {
-    auto const& swapchain = mPoolSwapchains.get(mDefaultSwapchain);
+    auto const swapchain_handle = mDefaultSwapchain;
+
+    auto const swapchain_index = mPoolSwapchains.getSwapchainIndex(swapchain_handle);
+    auto const& swapchain = mPoolSwapchains.get(swapchain_handle);
     auto const prev_backbuffer_index = swapchain.active_image_index;
-    bool const acquire_success = mPoolSwapchains.waitForBackbuffer(mDefaultSwapchain);
+    bool const acquire_success = mPoolSwapchains.waitForBackbuffer(swapchain_handle);
 
     if (!acquire_success)
     {
@@ -206,10 +206,10 @@ phi::handle::resource phi::vk::BackendVulkan::acquireBackbuffer()
     {
         resource_state prev_state;
         auto const& current_backbuffer = swapchain.backbuffers[swapchain.active_image_index];
-        auto const res = mPoolResources.injectBackbufferResource(current_backbuffer.image, current_backbuffer.state, current_backbuffer.view,
-                                                                 swapchain.backbuf_width, swapchain.backbuf_height, prev_state);
+        auto const res = mPoolResources.injectBackbufferResource(swapchain_index, current_backbuffer.image, current_backbuffer.state,
+                                                                 current_backbuffer.view, swapchain.backbuf_width, swapchain.backbuf_height, prev_state);
 
-        mPoolSwapchains.setBackbufferState(mDefaultSwapchain, prev_backbuffer_index, prev_state);
+        mPoolSwapchains.setBackbufferState(swapchain_handle, prev_backbuffer_index, prev_state);
         return res;
     }
 }

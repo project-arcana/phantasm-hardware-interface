@@ -7,7 +7,6 @@
 #include <phantasm-hardware-interface/types.hh>
 
 #include "Device.hh"
-#include "Swapchain.hh"
 
 #include "common/diagnostic_util.hh"
 #include "pools/accel_struct_pool.hh"
@@ -235,9 +234,7 @@ private:
 private:
     VkInstance mInstance = nullptr;
     VkDebugUtilsMessengerEXT mDebugMessenger = nullptr;
-    VkSurfaceKHR mSurface = nullptr;
     Device mDevice;
-    //    Swapchain mSwapchain;
     handle::swapchain mDefaultSwapchain;
 
     // Pools
