@@ -7,7 +7,6 @@
 #include <phantasm-hardware-interface/types.hh>
 
 #include "Device.hh"
-#include "Swapchain.hh"
 
 #include "common/diagnostic_util.hh"
 #include "pools/accel_struct_pool.hh"
@@ -17,6 +16,7 @@
 #include "pools/query_pool.hh"
 #include "pools/resource_pool.hh"
 #include "pools/shader_view_pool.hh"
+#include "pools/swapchain_pool.hh"
 
 namespace phi::device
 {
@@ -28,7 +28,7 @@ namespace phi::vk
 class BackendVulkan final : public Backend
 {
 public:
-    void initialize(backend_config const& config_arg, window_handle const& window_handle) override;
+    void initialize(backend_config const& config_arg) override;
     void destroy() override;
     ~BackendVulkan() override;
 
@@ -39,12 +39,26 @@ public:
     // Swapchain interface
     //
 
-    [[nodiscard]] handle::resource acquireBackbuffer() override;
-    void present() override;
-    void onResize(tg::isize2 size) override;
-    tg::isize2 getBackbufferSize() const override { return mSwapchain.getBackbufferSize(); }
-    format getBackbufferFormat() const override;
-    unsigned int getNumBackbuffers() const override { return mSwapchain.getNumBackbuffers(); }
+    [[nodiscard]] handle::swapchain createSwapchain(window_handle const& window_handle,
+                                                    tg::isize2 initial_size,
+                                                    present_mode mode = present_mode::synced,
+                                                    unsigned num_backbuffers = 3) override;
+
+    void free(handle::swapchain sc) override { mPoolSwapchains.free(sc); }
+
+    [[nodiscard]] handle::resource acquireBackbuffer(handle::swapchain sc) override;
+    void present(handle::swapchain sc) override { mPoolSwapchains.present(sc); }
+    void onResize(handle::swapchain sc, tg::isize2 size) override;
+
+    tg::isize2 getBackbufferSize(handle::swapchain sc) const override
+    {
+        auto const& node = mPoolSwapchains.get(sc);
+        return {node.backbuf_width, node.backbuf_height};
+    }
+    format getBackbufferFormat(handle::swapchain sc) const override;
+    unsigned getNumBackbuffers(handle::swapchain sc) const override { return unsigned(mPoolSwapchains.get(sc).backbuffers.size()); }
+
+    [[nodiscard]] bool clearPendingResize(handle::swapchain sc) override { return mPoolSwapchains.clearResizeFlag(sc); }
 
 
     //
@@ -227,14 +241,11 @@ private:
         return (type == queue_type::direct ? mDevice.getQueueDirect() : (type == queue_type::compute ? mDevice.getQueueCompute() : mDevice.getQueueCopy()));
     }
 
-public:
+private:
     VkInstance mInstance = nullptr;
     VkDebugUtilsMessengerEXT mDebugMessenger = nullptr;
-    VkSurfaceKHR mSurface = nullptr;
     Device mDevice;
-    Swapchain mSwapchain;
 
-public:
     // Pools
     ResourcePool mPoolResources;
     CommandListPool mPoolCmdLists;
@@ -243,6 +254,7 @@ public:
     FencePool mPoolFences;
     QueryPool mPoolQueries;
     AccelStructPool mPoolAccelStructs;
+    SwapchainPool mPoolSwapchains;
 
     // Logic
     struct per_thread_component;

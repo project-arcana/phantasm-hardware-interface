@@ -533,6 +533,17 @@ public:
         _cursor += sizeof(CMDT);
     }
 
+    template <class CMDT>
+    [[nodiscard]] CMDT& emplace_command()
+    {
+        static_assert(std::is_base_of_v<cmd::detail::cmd_base, CMDT>, "not a command");
+        static_assert(std::is_trivially_copyable_v<CMDT>, "command not trivially copyable");
+        CC_ASSERT(can_accomodate_t<CMDT>() && "command_stream_writer full");
+        CMDT* const res = new (cc::placement_new, _out_buffer + _cursor) CMDT();
+        _cursor += sizeof(CMDT);
+        return *res;
+    }
+
     void advance_cursor(size_t amount) { _cursor += amount; }
 
 #ifndef PHI_ENABLE_DEBUG_MARKERS

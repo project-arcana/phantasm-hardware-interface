@@ -56,7 +56,7 @@ struct chosen_queues
     queue_indices copy;
 };
 
-[[nodiscard]] suitable_queues get_suitable_queues(VkPhysicalDevice physical, VkSurfaceKHR surface);
+[[nodiscard]] suitable_queues get_suitable_queues(VkPhysicalDevice physical);
 
 [[nodiscard]] chosen_queues get_chosen_queues(suitable_queues const& suitable);
 

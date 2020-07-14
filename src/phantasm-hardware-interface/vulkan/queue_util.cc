@@ -3,8 +3,9 @@
 #include <clean-core/capped_array.hh>
 
 #include "common/verify.hh"
+#include "surface_util.hh"
 
-phi::vk::suitable_queues phi::vk::get_suitable_queues(VkPhysicalDevice physical, VkSurfaceKHR surface)
+phi::vk::suitable_queues phi::vk::get_suitable_queues(VkPhysicalDevice physical)
 {
     uint32_t num_families;
     vkGetPhysicalDeviceQueueFamilyProperties(physical, &num_families, nullptr);
@@ -32,11 +33,9 @@ phi::vk::suitable_queues phi::vk::get_suitable_queues(VkPhysicalDevice physical,
         if (vk_family.queueFlags & VK_QUEUE_TRANSFER_BIT)
             family.capabilities |= capbit::vk_transfer;
 
-        // query present support
-        VkBool32 present_support = false;
-        PHI_VK_VERIFY_SUCCESS(vkGetPhysicalDeviceSurfaceSupportKHR(physical, i, surface, &present_support));
-
-        if (present_support)
+        // NOTE: we query purely on a platform basis, not on a surface basis
+        // in some edge cases a specific surface could still not be supported
+        if (can_queue_family_present_on_platform(physical, i))
             family.capabilities |= capbit::present;
 
         if (family.capabilities & capbit::phi_direct)

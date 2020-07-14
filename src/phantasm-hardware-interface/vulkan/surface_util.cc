@@ -80,3 +80,20 @@ VkSurfaceKHR phi::vk::create_platform_surface(VkInstance instance, const phi::wi
 }
 
 cc::span<const char* const> phi::vk::get_platform_instance_extensions() { return gc_required_vulkan_extensions; }
+
+bool phi::vk::can_queue_family_present_on_platform(VkPhysicalDevice physical, uint32_t queue_family_index)
+{
+#ifdef CC_OS_WINDOWS
+    return vkGetPhysicalDeviceWin32PresentationSupportKHR(physical, queue_family_index);
+#elif defined(CC_OS_LINUX)
+    return vkGetPhysicalDeviceXlibPresentationSupportKHR(physical, queue_family_index);
+#error "Unsupported platform"
+#endif
+}
+
+bool phi::vk::can_queue_family_present_on_surface(VkPhysicalDevice physical, uint32_t queue_family_index, VkSurfaceKHR surface)
+{
+    VkBool32 present_support = false;
+    PHI_VK_VERIFY_SUCCESS(vkGetPhysicalDeviceSurfaceSupportKHR(physical, queue_family_index, surface, &present_support));
+    return present_support;
+}

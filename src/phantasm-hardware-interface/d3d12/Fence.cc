@@ -13,10 +13,11 @@ void phi::d3d12::SimpleFence::initialize(ID3D12Device& device)
     PHI_D3D12_VERIFY(device.CreateFence(0, D3D12_FENCE_FLAG_NONE, PHI_COM_WRITE(mFence)));
 }
 
-phi::d3d12::SimpleFence::~SimpleFence()
+void phi::d3d12::SimpleFence::destroy()
 {
-    if (mEvent != INVALID_HANDLE_VALUE)
+    if (mFence.is_valid())
     {
+        mFence = nullptr;
         ::CloseHandle(mEvent);
     }
 }

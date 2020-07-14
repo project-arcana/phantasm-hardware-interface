@@ -40,6 +40,9 @@ PHI_DEFINE_HANDLE(shader_view);
 /// recorded command list, ready to submit or discard
 PHI_DEFINE_HANDLE(command_list);
 
+/// swapchain on a window
+PHI_DEFINE_HANDLE(swapchain);
+
 /// synchronization primitive storing a uint64, can be signalled and waited on from both CPU and GPU
 PHI_DEFINE_HANDLE(fence);
 

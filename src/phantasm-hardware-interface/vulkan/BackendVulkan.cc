@@ -14,7 +14,6 @@
 #include "layer_extension_util.hh"
 #include "loader/volk.hh"
 #include "resources/transition_barrier.hh"
-#include "surface_util.hh"
 
 namespace phi::vk
 {
@@ -25,7 +24,7 @@ struct BackendVulkan::per_thread_component
 };
 }
 
-void phi::vk::BackendVulkan::initialize(const backend_config& config_arg, const window_handle& window_handle)
+void phi::vk::BackendVulkan::initialize(const backend_config& config_arg)
 {
     // just making sure
     rlog::enable_win32_colors();
@@ -96,11 +95,9 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg, const 
         createDebugMessenger();
     }
 
-    mSurface = create_platform_surface(mInstance, window_handle);
-
     // GPU choice and device init
     {
-        auto const vk_gpu_infos = get_all_vulkan_gpu_infos(mInstance, mSurface);
+        auto const vk_gpu_infos = get_all_vulkan_gpu_infos(mInstance);
         auto const gpu_infos = get_available_gpus(vk_gpu_infos);
         auto const chosen_index = get_preferred_gpu(gpu_infos, config.adapter);
         CC_RUNTIME_ASSERT(chosen_index < gpu_infos.size());
@@ -113,14 +110,12 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg, const 
         // Load device-based Vulkan entrypoints
         volkLoadDevice(mDevice.getDevice());
 
-        mSwapchain.initialize(mDevice, mSurface, config.num_backbuffers, 250, 250, config);
-
         print_startup_message(gpu_infos, chosen_index, config, false, true);
     }
 
     // Pool init
     mPoolPipelines.initialize(mDevice.getDevice(), config.max_num_pipeline_states);
-    mPoolResources.initialize(mDevice.getPhysicalDevice(), mDevice.getDevice(), config.max_num_resources);
+    mPoolResources.initialize(mDevice.getPhysicalDevice(), mDevice.getDevice(), config.max_num_resources, config.max_num_swapchains);
     mPoolShaderViews.initialize(mDevice.getDevice(), &mPoolResources, config.max_num_cbvs, config.max_num_srvs, config.max_num_uavs, config.max_num_samplers);
     mPoolFences.initialize(mDevice.getDevice(), config.max_num_fences);
     mPoolQueries.initialize(mDevice.getDevice(), config.num_timestamp_queries, config.num_occlusion_queries, config.num_pipeline_stat_queries);
@@ -129,6 +124,8 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg, const 
     {
         mPoolAccelStructs.initialize(mDevice.getDevice(), &mPoolResources, config.max_num_accel_structs);
     }
+
+    mPoolSwapchains.initialize(mInstance, mDevice, config);
 
     // Per-thread components and command list pool
     {
@@ -145,7 +142,7 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg, const 
             thread_allocator_ptrs.push_back(&thread_comp.cmd_list_allocator);
         }
 
-        mPoolCmdLists.initialize(*this,                                                                                                 //
+        mPoolCmdLists.initialize(mDevice,                                                                                               //
                                  int(config.num_direct_cmdlist_allocators_per_thread), int(config.num_direct_cmdlists_per_allocator),   //
                                  int(config.num_compute_cmdlist_allocators_per_thread), int(config.num_compute_cmdlists_per_allocator), //
                                  int(config.num_copy_cmdlist_allocators_per_thread), int(config.num_copy_cmdlists_per_allocator),       //
@@ -161,7 +158,7 @@ void phi::vk::BackendVulkan::destroy()
 
         mDiagnostics.free();
 
-        mSwapchain.destroy();
+        mPoolSwapchains.destroy();
 
         mPoolAccelStructs.destroy();
         mPoolQueries.destroy(mDevice.getDevice());
@@ -176,7 +173,6 @@ void phi::vk::BackendVulkan::destroy()
             thread_cmp.cmd_list_allocator.destroy(mDevice.getDevice());
         }
 
-        vkDestroySurfaceKHR(mInstance, mSurface, nullptr);
         mDevice.destroy();
 
         if (mDebugMessenger != nullptr)
@@ -189,45 +185,44 @@ void phi::vk::BackendVulkan::destroy()
 
 phi::vk::BackendVulkan::~BackendVulkan() { destroy(); }
 
-phi::handle::resource phi::vk::BackendVulkan::acquireBackbuffer()
+phi::handle::swapchain phi::vk::BackendVulkan::createSwapchain(const phi::window_handle& window_handle, tg::isize2 initial_size, phi::present_mode mode, unsigned num_backbuffers)
 {
-    auto const prev_backbuffer_index = mSwapchain.getCurrentBackbufferIndex();
-    bool const acquire_success = mSwapchain.waitForBackbuffer();
+    return mPoolSwapchains.createSwapchain(window_handle, initial_size.width, initial_size.height, num_backbuffers, mode);
+}
+
+phi::handle::resource phi::vk::BackendVulkan::acquireBackbuffer(handle::swapchain sc)
+{
+    auto const swapchain_index = mPoolSwapchains.getSwapchainIndex(sc);
+    auto const& swapchain = mPoolSwapchains.get(sc);
+    auto const prev_backbuffer_index = swapchain.active_image_index;
+    bool const acquire_success = mPoolSwapchains.waitForBackbuffer(sc);
 
     if (!acquire_success)
     {
-        onInternalResize();
         return handle::null_resource;
     }
     else
     {
         resource_state prev_state;
-        auto const backbuf_size = mSwapchain.getBackbufferSize();
-        auto const res = mPoolResources.injectBackbufferResource(mSwapchain.getCurrentBackbuffer(), mSwapchain.getCurrentBackbufferState(),
-                                                                 mSwapchain.getCurrentBackbufferView(), backbuf_size.width, backbuf_size.height, prev_state);
+        auto const& current_backbuffer = swapchain.backbuffers[swapchain.active_image_index];
+        auto const res = mPoolResources.injectBackbufferResource(swapchain_index, current_backbuffer.image, current_backbuffer.state,
+                                                                 current_backbuffer.view, swapchain.backbuf_width, swapchain.backbuf_height, prev_state);
 
-        mSwapchain.setBackbufferState(prev_backbuffer_index, prev_state);
+        mPoolSwapchains.setBackbufferState(sc, prev_backbuffer_index, prev_state);
         return res;
     }
 }
 
-void phi::vk::BackendVulkan::present()
-{
-    mSwapchain.performPresentSubmit();
-    if (!mSwapchain.present())
-    {
-        onInternalResize();
-    }
-}
-
-void phi::vk::BackendVulkan::onResize(tg::isize2 size)
+void phi::vk::BackendVulkan::onResize(handle::swapchain sc, tg::isize2 size)
 {
     flushGPU();
-    onInternalResize();
-    mSwapchain.onResize(size.width, size.height);
+    mPoolSwapchains.onResize(sc, size.width, size.height);
 }
 
-phi::format phi::vk::BackendVulkan::getBackbufferFormat() const { return util::to_pr_format(mSwapchain.getBackbufferFormat()); }
+phi::format phi::vk::BackendVulkan::getBackbufferFormat(handle::swapchain sc) const
+{
+    return util::to_pr_format(mPoolSwapchains.get(sc).backbuf_format.format);
+}
 
 phi::handle::command_list phi::vk::BackendVulkan::recordCommandList(std::byte* buffer, size_t size, queue_type queue)
 {

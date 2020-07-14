@@ -2,6 +2,8 @@
 
 #include <mutex>
 
+#include <clean-core/array.hh>
+
 #include <phantasm-hardware-interface/detail/linked_pool.hh>
 #include <phantasm-hardware-interface/types.hh>
 
@@ -89,7 +91,7 @@ public:
 public:
     // internal API
 
-    void initialize(VkPhysicalDevice physical, VkDevice device, unsigned max_num_resources);
+    void initialize(VkPhysicalDevice physical, VkDevice device, unsigned max_num_resources, unsigned max_num_swapchains);
     void destroy();
 
     //
@@ -147,11 +149,11 @@ public:
     //
 
     [[nodiscard]] handle::resource injectBackbufferResource(
-        VkImage raw_image, resource_state state, VkImageView backbuffer_view, unsigned width, unsigned height, resource_state& out_prev_state);
+        unsigned swapchain_index, VkImage raw_image, resource_state state, VkImageView backbuffer_view, unsigned width, unsigned height, resource_state& out_prev_state);
 
-    [[nodiscard]] bool isBackbuffer(handle::resource res) const { return res == mInjectedBackbufferResource; }
+    [[nodiscard]] bool isBackbuffer(handle::resource res) const { return mPool.get_handle_index(res._value) < mNumReservedBackbuffers; }
 
-    [[nodiscard]] VkImageView getBackbufferView() const { return mInjectedBackbufferView; }
+    [[nodiscard]] VkImageView getBackbufferView(handle::resource res) const { return mInjectedBackbufferViews[mPool.get_handle_index(res._value)]; }
 
 private:
     [[nodiscard]] handle::resource acquireBuffer(VmaAllocation alloc, VkBuffer buffer, VkBufferUsageFlags usage, uint64_t buffer_width, unsigned buffer_stride, resource_heap heap);
@@ -168,12 +170,11 @@ private:
     /// The main pool data
     phi::detail::linked_pool<resource_node> mPool;
 
-    /// The handle of the injected backbuffer resource
-    handle::resource mInjectedBackbufferResource = handle::null_resource;
-
+    /// Amount of handles (from the start) reserved for backbuffer injection
+    unsigned mNumReservedBackbuffers;
     /// The image view of the currently injected backbuffer, stored separately to
     /// not take up space in resource_node, there is always just a single injected backbuffer
-    VkImageView mInjectedBackbufferView = nullptr;
+    cc::array<VkImageView> mInjectedBackbufferViews;
 
     /// Descriptor set layouts for buffer dynamic UBO descriptor sets
     /// permanently kept alive (a: no recreation required, b: drivers can crash

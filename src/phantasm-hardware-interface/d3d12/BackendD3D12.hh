@@ -12,7 +12,6 @@
 #include "Adapter.hh"
 #include "Device.hh"
 #include "Queue.hh"
-#include "Swapchain.hh"
 
 #include "common/diagnostic_util.hh"
 #include "pools/accel_struct_pool.hh"
@@ -22,6 +21,7 @@
 #include "pools/query_pool.hh"
 #include "pools/resource_pool.hh"
 #include "pools/shader_view_pool.hh"
+#include "pools/swapchain_pool.hh"
 #include "shader_table_construction.hh"
 
 namespace phi::device
@@ -34,7 +34,7 @@ namespace phi::d3d12
 class BackendD3D12 final : public Backend
 {
 public:
-    void initialize(backend_config const& config, window_handle const& window_handle) override;
+    void initialize(backend_config const& config) override;
     void destroy() override;
     ~BackendD3D12() override;
 
@@ -47,13 +47,26 @@ public:
     // Swapchain interface
     //
 
-    [[nodiscard]] handle::resource acquireBackbuffer() override;
-    void present() override { mSwapchain.present(); }
-    void onResize(tg::isize2 size) override;
+    [[nodiscard]] handle::swapchain createSwapchain(window_handle const& window_handle,
+                                                    tg::isize2 initial_size,
+                                                    present_mode mode = present_mode::synced,
+                                                    unsigned num_backbuffers = 3) override;
 
-    tg::isize2 getBackbufferSize() const override { return mSwapchain.getBackbufferSize(); }
-    format getBackbufferFormat() const override;
-    unsigned getNumBackbuffers() const override { return mSwapchain.getNumBackbuffers(); }
+    void free(handle::swapchain sc) override { mPoolSwapchains.free(sc); }
+
+    [[nodiscard]] handle::resource acquireBackbuffer(handle::swapchain sc) override;
+    void present(handle::swapchain sc) override { mPoolSwapchains.present(sc); }
+    void onResize(handle::swapchain sc, tg::isize2 size) override;
+
+    tg::isize2 getBackbufferSize(handle::swapchain sc) const override
+    {
+        auto const& node = mPoolSwapchains.get(sc);
+        return {node.backbuf_width, node.backbuf_height};
+    }
+    format getBackbufferFormat(handle::swapchain sc) const override;
+    unsigned getNumBackbuffers(handle::swapchain sc) const override { return unsigned(mPoolSwapchains.get(sc).backbuffers.size()); }
+
+    [[nodiscard]] bool clearPendingResize(handle::swapchain sc) override { return mPoolSwapchains.clearResizeFlag(sc); }
 
     //
     // Resource interface
@@ -250,9 +263,8 @@ private:
     UINT64 mFlushSignalVal = 0;
     std::mutex mFlushMutex;
 
-    Swapchain mSwapchain;
-
     // Pools
+    SwapchainPool mPoolSwapchains;
     ResourcePool mPoolResources;
     CommandListPool mPoolCmdLists;
     PipelineStateObjectPool mPoolPSOs;

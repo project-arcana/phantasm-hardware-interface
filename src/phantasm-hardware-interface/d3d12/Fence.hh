@@ -12,7 +12,8 @@ class SimpleFence
 {
 public:
     void initialize(ID3D12Device& device);
-    ~SimpleFence();
+    void destroy();
+    ~SimpleFence() { destroy(); }
 
     SimpleFence() = default;
     SimpleFence(SimpleFence const&) = delete;
@@ -47,6 +48,7 @@ class Fence
 {
 public:
     void initialize(ID3D12Device& device) { mFence.initialize(device); }
+    void destroy() { mFence.destroy(); }
 
     void issueFence(ID3D12CommandQueue& queue)
     {

@@ -14,6 +14,8 @@
 
 namespace phi::vk
 {
+class Device;
+
 /// Ringbuffer for fences used for internal submit sync
 /// Unsynchronized - 1 per CommandListPool
 class FenceRingbuffer
@@ -264,7 +266,7 @@ public:
     }
 
 public:
-    void initialize(BackendVulkan& backend,
+    void initialize(Device& device,
                     int num_direct_allocs,
                     int num_direct_lists_per_alloc,
                     int num_compute_allocs,

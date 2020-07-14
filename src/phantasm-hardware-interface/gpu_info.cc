@@ -151,12 +151,12 @@ void phi::print_startup_message(cc::span<const phi::gpu_info> gpu_candidates, si
     if (!config.print_startup_message)
         return;
 
-    LOG(phi_log, "{} backend initialized, validation: {}, present mode: {}", //
-        is_d3d12 ? "d3d12" : "vulkan", get_validation_literal(config.validation), get_present_mode_literal(config.present));
+    LOG(phi_log, "{} backend initialized, validation: {}", //
+        is_d3d12 ? "d3d12" : "vulkan", get_validation_literal(config.validation));
 
     if (verbose)
-        LOG(phi_log, "   {} backbuffers, {} threads, max {} resources, max {} PSOs", //
-            config.num_backbuffers, config.num_threads, config.max_num_resources, config.max_num_pipeline_states);
+        LOG(phi_log, "   {} threads, max {} resources, max {} PSOs", //
+            config.num_threads, config.max_num_resources, config.max_num_pipeline_states);
 
     if (chosen_index < gpu_candidates.size())
     {

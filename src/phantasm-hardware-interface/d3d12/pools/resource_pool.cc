@@ -60,17 +60,24 @@ constexpr D3D12_RESOURCE_STATES d3d12_get_initial_state_by_heap(phi::resource_he
 }
 }
 
-void phi::d3d12::ResourcePool::initialize(ID3D12Device& device, unsigned max_num_resources)
+void phi::d3d12::ResourcePool::initialize(ID3D12Device& device, unsigned max_num_resources, unsigned max_num_swapchains)
 {
     mAllocator.initialize(device);
-    // TODO: think about reserved bits for dangle check, assert max_num < 2^free bits
-    mPool.initialize(max_num_resources + 1); // 1 additional resource for the backbuffer
-    mInjectedBackbufferResource = {mPool.acquire()};
+    mPool.initialize(max_num_resources + max_num_swapchains); // additional resources for swapchain backbuffers
+
+    mNumReservedBackbuffers = max_num_swapchains;
+    for (auto i = 0u; i < mNumReservedBackbuffers; ++i)
+    {
+        auto backbuffer_reserved = mPool.acquire();
+    }
 }
 
 void phi::d3d12::ResourcePool::destroy()
 {
-    mPool.release(mInjectedBackbufferResource._value);
+    for (auto i = 0u; i < mNumReservedBackbuffers; ++i)
+    {
+        mPool.release(mPool.unsafe_construct_handle_for_index(i));
+    }
 
     auto num_leaks = 0;
 
@@ -98,13 +105,15 @@ void phi::d3d12::ResourcePool::destroy()
     mAllocator.destroy();
 }
 
-phi::handle::resource phi::d3d12::ResourcePool::injectBackbufferResource(ID3D12Resource* raw_resource, D3D12_RESOURCE_STATES state)
+phi::handle::resource phi::d3d12::ResourcePool::injectBackbufferResource(unsigned swapchain_index, ID3D12Resource* raw_resource, D3D12_RESOURCE_STATES state)
 {
-    resource_node& backbuffer_node = mPool.get(mInjectedBackbufferResource._value);
+    CC_ASSERT(swapchain_index < mNumReservedBackbuffers && "swapchain index OOB");
+    auto const res_handle = mPool.unsafe_construct_handle_for_index(swapchain_index);
+    resource_node& backbuffer_node = mPool.get(res_handle);
     backbuffer_node.type = resource_node::resource_type::image;
     backbuffer_node.resource = raw_resource;
     backbuffer_node.master_state = state;
-    return mInjectedBackbufferResource;
+    return {res_handle};
 }
 
 phi::handle::resource phi::d3d12::ResourcePool::createTexture(format format, unsigned w, unsigned h, unsigned mips, texture_dimension dim, unsigned depth_or_array_size, bool allow_uav)
@@ -251,9 +260,9 @@ phi::handle::resource phi::d3d12::ResourcePool::createBufferInternal(uint64_t si
 
 void phi::d3d12::ResourcePool::free(phi::handle::resource res)
 {
-    CC_ASSERT(res != mInjectedBackbufferResource && "the backbuffer resource must not be freed");
     if (!res.is_valid())
         return;
+    CC_ASSERT(!isBackbuffer(res) && "the backbuffer resource must not be freed");
 
     // This requires no synchronization, as D3D12MA internally syncs
     resource_node& freed_node = mPool.get(unsigned(res._value));
@@ -272,9 +281,9 @@ void phi::d3d12::ResourcePool::free(cc::span<const phi::handle::resource> resour
 
     for (auto res : resources)
     {
-        CC_ASSERT(res != mInjectedBackbufferResource && "the backbuffer resource must not be freed");
         if (res.is_valid())
         {
+            CC_ASSERT(!isBackbuffer(res) && "the backbuffer resource must not be freed");
             resource_node& freed_node = mPool.get(unsigned(res._value));
             // This is a write access to mAllocatorDescriptors
             freed_node.allocation->Release();

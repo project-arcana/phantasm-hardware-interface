@@ -6,8 +6,6 @@
 #include <phantasm-hardware-interface/detail/incomplete_state_cache.hh>
 #include <phantasm-hardware-interface/detail/log.hh>
 
-#include "Swapchain.hh"
-
 #include "common/diagnostic_util.hh"
 #include "common/dxgi_format.hh"
 #include "common/native_enum.hh"

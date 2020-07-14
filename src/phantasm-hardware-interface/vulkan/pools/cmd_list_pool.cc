@@ -433,7 +433,7 @@ unsigned phi::vk::CommandListPool::discardAndFreeAll()
     return num_freed;
 }
 
-void phi::vk::CommandListPool::initialize(phi::vk::BackendVulkan& backend,
+void phi::vk::CommandListPool::initialize(phi::vk::Device& device,
                                           int num_direct_allocs,
                                           int num_direct_lists_per_alloc,
                                           int num_compute_allocs,
@@ -442,7 +442,7 @@ void phi::vk::CommandListPool::initialize(phi::vk::BackendVulkan& backend,
                                           int num_copy_lists_per_alloc,
                                           cc::span<CommandAllocatorsPerThread*> thread_allocators)
 {
-    mDevice = backend.mDevice.getDevice();
+    mDevice = device.getDevice();
 
     auto const num_direct_lists_per_thread = size_t(num_direct_allocs * num_direct_lists_per_alloc);
     auto const num_compute_lists_per_thread = size_t(num_compute_allocs * num_compute_lists_per_alloc);
@@ -460,9 +460,9 @@ void phi::vk::CommandListPool::initialize(phi::vk::BackendVulkan& backend,
     mFenceRing.initialize(mDevice, thread_allocators.size() * (num_direct_allocs + num_compute_allocs + num_copy_allocs) + 5); // arbitrary safety buffer, should never be required
 
 
-    auto const direct_queue_family = unsigned(backend.mDevice.getQueueFamilyDirect());
-    auto const compute_queue_family = unsigned(backend.mDevice.getQueueFamilyCompute());
-    auto const copy_queue_family = unsigned(backend.mDevice.getQueueFamilyCopy());
+    auto const direct_queue_family = unsigned(device.getQueueFamilyDirect());
+    auto const compute_queue_family = unsigned(device.getQueueFamilyCompute());
+    auto const copy_queue_family = unsigned(device.getQueueFamilyCopy());
 
     for (auto i = 0u; i < thread_allocators.size(); ++i)
     {
@@ -470,9 +470,6 @@ void phi::vk::CommandListPool::initialize(phi::vk::BackendVulkan& backend,
         thread_allocators[i]->bundle_compute.initialize(mDevice, num_compute_allocs, num_compute_lists_per_alloc, compute_queue_family, &mFenceRing);
         thread_allocators[i]->bundle_copy.initialize(mDevice, num_copy_allocs, num_copy_lists_per_alloc, copy_queue_family, &mFenceRing);
     }
-
-    // Flush the backend
-    backend.flushGPU();
 }
 
 void phi::vk::CommandListPool::destroy()

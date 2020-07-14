@@ -77,7 +77,7 @@ public:
 public:
     // internal API
 
-    void initialize(ID3D12Device& device, unsigned max_num_resources);
+    void initialize(ID3D12Device& device, unsigned max_num_resources, unsigned max_num_swapchains);
     void destroy();
 
     //
@@ -138,9 +138,9 @@ public:
     // the first of either phi::present or phi::resize
     //
 
-    [[nodiscard]] handle::resource injectBackbufferResource(ID3D12Resource* raw_resource, D3D12_RESOURCE_STATES state);
+    [[nodiscard]] handle::resource injectBackbufferResource(unsigned swapchain_index, ID3D12Resource* raw_resource, D3D12_RESOURCE_STATES state);
 
-    [[nodiscard]] bool isBackbuffer(handle::resource res) const { return res == mInjectedBackbufferResource; }
+    [[nodiscard]] bool isBackbuffer(handle::resource res) const { return mPool.get_handle_index(res._value) < mNumReservedBackbuffers; }
 
 private:
     [[nodiscard]] handle::resource acquireBuffer(D3D12MA::Allocation* alloc, D3D12_RESOURCE_STATES initial_state, uint64_t buffer_width, unsigned buffer_stride, resource_heap heap);
@@ -161,8 +161,8 @@ private:
 private:
     /// The main pool data
     phi::detail::linked_pool<resource_node> mPool;
-
-    handle::resource mInjectedBackbufferResource = handle::null_resource;
+    /// Amount of handles (from the start) reserved for backbuffer injection
+    unsigned mNumReservedBackbuffers;
 
     /// "Backing" allocator
     ResourceAllocator mAllocator;
