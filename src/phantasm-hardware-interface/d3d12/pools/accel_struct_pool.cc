@@ -105,7 +105,8 @@ phi::handle::accel_struct phi::d3d12::AccelStructPool::createTopLevelAS(unsigned
         = mResourcePool->createBufferInternal(prebuild_info.ResultDataMaxSizeInBytes, 0, true, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE);
     new_node.buffer_scratch = mResourcePool->createBufferInternal(
         cc::max<UINT64>(prebuild_info.ScratchDataSizeInBytes, prebuild_info.UpdateScratchDataSizeInBytes), 0, true, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-    new_node.buffer_instances = mResourcePool->createBuffer(sizeof(accel_struct_geometry_instance) * num_instances, 0, resource_heap::upload, false);
+    new_node.buffer_instances
+        = mResourcePool->createBuffer(sizeof(accel_struct_geometry_instance) * num_instances, 0, resource_heap::upload, false, "phi-toplevel-as");
     new_node.buffer_instances_map = mResourcePool->mapBuffer(new_node.buffer_instances);
 
     // query GPU address (raw native handle)

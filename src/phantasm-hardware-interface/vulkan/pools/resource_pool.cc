@@ -63,7 +63,8 @@ constexpr char const* vk_get_heap_type_literal(phi::resource_heap heap)
 }
 }
 
-phi::handle::resource phi::vk::ResourcePool::createTexture(format format, unsigned w, unsigned h, unsigned mips, texture_dimension dim, unsigned depth_or_array_size, bool allow_uav)
+phi::handle::resource phi::vk::ResourcePool::createTexture(
+    format format, unsigned w, unsigned h, unsigned mips, texture_dimension dim, unsigned depth_or_array_size, bool allow_uav, const char* dbg_name)
 {
     VkImageCreateInfo image_info = {};
     image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -105,12 +106,12 @@ phi::handle::resource phi::vk::ResourcePool::createTexture(format format, unsign
     VmaAllocation res_alloc;
     VkImage res_image;
     PHI_VK_VERIFY_SUCCESS(vmaCreateImage(mAllocator, &image_info, &alloc_info, &res_image, &res_alloc, nullptr));
-    util::set_object_name(mDevice, res_image, "respool texture%s[%u] (%ux%u, %u mips)", vk_get_tex_dim_literal(dim), depth_or_array_size, w, h,
-                          image_info.mipLevels);
+    util::set_object_name(mDevice, res_image, "pool tex%s[%u] %s (%ux%u, %u mips)", vk_get_tex_dim_literal(dim), depth_or_array_size,
+                          dbg_name ? dbg_name : "", w, h, image_info.mipLevels);
     return acquireImage(res_alloc, res_image, format, image_info.mipLevels, image_info.arrayLayers, 1, w, h);
 }
 
-phi::handle::resource phi::vk::ResourcePool::createRenderTarget(phi::format format, unsigned w, unsigned h, unsigned samples, unsigned array_size)
+phi::handle::resource phi::vk::ResourcePool::createRenderTarget(phi::format format, unsigned w, unsigned h, unsigned samples, unsigned array_size, char const* dbg_name)
 {
     VkImageCreateInfo image_info = {};
     image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -146,15 +147,13 @@ phi::handle::resource phi::vk::ResourcePool::createRenderTarget(phi::format form
     VkImage res_image;
     PHI_VK_VERIFY_SUCCESS(vmaCreateImage(mAllocator, &image_info, &alloc_info, &res_image, &res_alloc, nullptr));
 
-    if (phi::is_depth_format(format))
-        util::set_object_name(mDevice, res_image, "respool depth stencil target");
-    else
-        util::set_object_name(mDevice, res_image, "respool render target");
+    util::set_object_name(mDevice, res_image, "pool %s tgt %s (%ux%u, fmt %u)", phi::is_depth_format(format) ? "depth" : "render",
+                          dbg_name ? dbg_name : "", w, h, unsigned(format));
 
     return acquireImage(res_alloc, res_image, format, image_info.mipLevels, image_info.arrayLayers, samples, w, h);
 }
 
-phi::handle::resource phi::vk::ResourcePool::createBuffer(uint64_t size_bytes, unsigned stride_bytes, resource_heap heap, bool allow_uav)
+phi::handle::resource phi::vk::ResourcePool::createBuffer(uint64_t size_bytes, unsigned stride_bytes, resource_heap heap, bool allow_uav, char const* dbg_name)
 {
     VkBufferCreateInfo buffer_info = {};
     buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -178,7 +177,8 @@ phi::handle::resource phi::vk::ResourcePool::createBuffer(uint64_t size_bytes, u
     VmaAllocation res_alloc;
     VkBuffer res_buffer;
     PHI_VK_VERIFY_SUCCESS(vmaCreateBuffer(mAllocator, &buffer_info, &alloc_info, &res_buffer, &res_alloc, nullptr));
-    util::set_object_name(mDevice, res_buffer, "respool buffer (%uB, %uB stride, %s heap)", unsigned(size_bytes), stride_bytes, vk_get_heap_type_literal(heap));
+    util::set_object_name(mDevice, res_buffer, "pool buf %s (%uB, %uB stride, %s heap)", dbg_name ? dbg_name : "", unsigned(size_bytes), stride_bytes,
+                          vk_get_heap_type_literal(heap));
     return acquireBuffer(res_alloc, res_buffer, buffer_info.usage, size_bytes, stride_bytes, heap);
 }
 

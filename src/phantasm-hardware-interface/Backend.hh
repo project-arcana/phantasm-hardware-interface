@@ -68,17 +68,27 @@ public:
     /// create a 1D, 2D or 3D texture, or a 1D/2D array
     /// if mips is 0, the maximum amount will be used
     /// if the texture will be used as a UAV, allow_uav must be true
-    [[nodiscard]] virtual handle::resource createTexture(
-        phi::format format, tg::isize2 size, unsigned mips, texture_dimension dim = texture_dimension::t2d, unsigned depth_or_array_size = 1, bool allow_uav = false)
+    [[nodiscard]] virtual handle::resource createTexture(phi::format format,
+                                                         tg::isize2 size,
+                                                         unsigned mips,
+                                                         texture_dimension dim = texture_dimension::t2d,
+                                                         unsigned depth_or_array_size = 1,
+                                                         bool allow_uav = false,
+                                                         char const* debug_name = nullptr)
         = 0;
 
     /// create a [multisampled] 2D render- or depth-stencil target
-    [[nodiscard]] virtual handle::resource createRenderTarget(
-        phi::format format, tg::isize2 size, unsigned samples = 1, unsigned array_size = 1, rt_clear_value const* optimized_clear_val = nullptr)
+    [[nodiscard]] virtual handle::resource createRenderTarget(phi::format format,
+                                                              tg::isize2 size,
+                                                              unsigned samples = 1,
+                                                              unsigned array_size = 1,
+                                                              rt_clear_value const* optimized_clear_val = nullptr,
+                                                              char const* debug_name = nullptr)
         = 0;
 
     /// create a buffer with optional element stride, allocation on an upload/readback heap, or allowing UAV access
-    [[nodiscard]] virtual handle::resource createBuffer(unsigned size_bytes, unsigned stride_bytes = 0, resource_heap heap = resource_heap::gpu, bool allow_uav = false)
+    [[nodiscard]] virtual handle::resource createBuffer(
+        unsigned size_bytes, unsigned stride_bytes = 0, resource_heap heap = resource_heap::gpu, bool allow_uav = false, char const* debug_name = nullptr)
         = 0;
 
     /// create a buffer with optional element stride on resource_heap::upload (shorthand function)
@@ -247,31 +257,31 @@ public:
         (free(handles), ...);
     }
 
-    [[nodiscard]] handle::resource createBufferFromInfo(arg::create_buffer_info const& info)
+    [[nodiscard]] handle::resource createBufferFromInfo(arg::create_buffer_info const& info, char const* debug_name = nullptr)
     {
-        return createBuffer(info.size_bytes, info.stride_bytes, info.heap, info.allow_uav);
+        return createBuffer(info.size_bytes, info.stride_bytes, info.heap, info.allow_uav, debug_name);
     }
 
-    [[nodiscard]] handle::resource createRenderTargetFromInfo(arg::create_render_target_info const& info)
+    [[nodiscard]] handle::resource createRenderTargetFromInfo(arg::create_render_target_info const& info, char const* debug_name = nullptr)
     {
-        return createRenderTarget(info.format, {info.width, info.height}, info.num_samples, info.array_size, &info.clear_value);
+        return createRenderTarget(info.format, {info.width, info.height}, info.num_samples, info.array_size, &info.clear_value, debug_name);
     }
 
-    [[nodiscard]] handle::resource createTextureFromInfo(arg::create_texture_info const& info)
+    [[nodiscard]] handle::resource createTextureFromInfo(arg::create_texture_info const& info, char const* debug_name = nullptr)
     {
-        return createTexture(info.fmt, {info.width, info.height}, info.num_mips, info.dim, info.depth_or_array_size, info.allow_uav);
+        return createTexture(info.fmt, {info.width, info.height}, info.num_mips, info.dim, info.depth_or_array_size, info.allow_uav, debug_name);
     }
 
-    [[nodiscard]] handle::resource createResourceFromInfo(arg::create_resource_info const& info)
+    [[nodiscard]] handle::resource createResourceFromInfo(arg::create_resource_info const& info, char const* debug_name = nullptr)
     {
         switch (info.type)
         {
         case arg::create_resource_info::e_resource_render_target:
-            return createRenderTargetFromInfo(info.info_render_target);
+            return createRenderTargetFromInfo(info.info_render_target, debug_name);
         case arg::create_resource_info::e_resource_texture:
-            return createTextureFromInfo(info.info_texture);
+            return createTextureFromInfo(info.info_texture, debug_name);
         case arg::create_resource_info::e_resource_buffer:
-            return createBufferFromInfo(info.info_buffer);
+            return createBufferFromInfo(info.info_buffer, debug_name);
         default:
             CC_ASSERT(false && "invalid type");
             return handle::null_resource;

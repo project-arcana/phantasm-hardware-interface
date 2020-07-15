@@ -65,19 +65,21 @@ public:
     // Resource interface
     //
 
-    [[nodiscard]] handle::resource createTexture(phi::format format, tg::isize2 size, unsigned mips, texture_dimension dim, unsigned depth_or_array_size, bool allow_uav) override
+    [[nodiscard]] handle::resource createTexture(
+        phi::format format, tg::isize2 size, unsigned mips, texture_dimension dim, unsigned depth_or_array_size, bool allow_uav, char const* debug_name = nullptr) override
     {
-        return mPoolResources.createTexture(format, static_cast<unsigned>(size.width), static_cast<unsigned>(size.height), mips, dim, depth_or_array_size, allow_uav);
+        return mPoolResources.createTexture(format, unsigned(size.width), unsigned(size.height), mips, dim, depth_or_array_size, allow_uav, debug_name);
     }
 
-    [[nodiscard]] handle::resource createRenderTarget(phi::format format, tg::isize2 size, unsigned samples, unsigned array_size, rt_clear_value const*) override
+    [[nodiscard]] handle::resource createRenderTarget(
+        phi::format format, tg::isize2 size, unsigned samples, unsigned array_size, rt_clear_value const* = nullptr, char const* debug_name = nullptr) override
     {
-        return mPoolResources.createRenderTarget(format, static_cast<unsigned>(size.width), static_cast<unsigned>(size.height), samples, array_size);
+        return mPoolResources.createRenderTarget(format, unsigned(size.width), unsigned(size.height), samples, array_size, debug_name);
     }
 
-    [[nodiscard]] handle::resource createBuffer(unsigned int size_bytes, unsigned int stride_bytes, resource_heap heap, bool allow_uav) override
+    [[nodiscard]] handle::resource createBuffer(unsigned int size_bytes, unsigned int stride_bytes, resource_heap heap, bool allow_uav, char const* debug_name = nullptr) override
     {
-        return mPoolResources.createBuffer(size_bytes, stride_bytes, heap, allow_uav);
+        return mPoolResources.createBuffer(size_bytes, stride_bytes, heap, allow_uav, debug_name);
     }
 
     [[nodiscard]] handle::resource createUploadBuffer(unsigned size_bytes, unsigned stride_bytes = 0) override
