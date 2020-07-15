@@ -40,7 +40,11 @@ struct linked_pool
     static_assert(sizeof(internal_handle_t) == sizeof(handle_t));
 
     linked_pool() = default;
+#if PHI_LINKEDPOOL_USE_CC_ALLOC
     explicit linked_pool(size_t size, cc::allocator* allocator = cc::system_allocator) { initialize(size, allocator); }
+#else
+    explicit linked_pool(size_t size, void* = nullptr) { initialize(size); }
+#endif
 
     // NOTE: Adding these isn't trivial because pointers in the linked list would have to be readjusted
     linked_pool(linked_pool const&) = delete;
