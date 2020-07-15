@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 
 #include <clean-core/allocator.hh>
@@ -46,11 +47,8 @@ struct linked_pool
     ~linked_pool() { _destroy(); }
 
 
-
     void initialize(size_t size, cc::allocator* allocator = cc::system_allocator)
     {
-
-
         static_assert(sizeof(T) >= sizeof(T*), "linked_pool element type must be large enough to accomodate a pointer");
 
         if (size == 0)

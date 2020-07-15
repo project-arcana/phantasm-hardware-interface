@@ -4,6 +4,8 @@
 
 #include <rich-log/log.hh>
 
+#include <phantasm-hardware-interface/types.hh>
+
 namespace
 {
 constexpr char const* get_preference_literal(phi::adapter_preference pref)
@@ -40,18 +42,6 @@ constexpr char const* get_validation_literal(phi::validation_level level)
     CC_UNREACHABLE_SWITCH_WORKAROUND(level);
 }
 
-constexpr char const* get_present_mode_literal(phi::present_mode mode)
-{
-    switch (mode)
-    {
-    case phi::present_mode::allow_tearing:
-        return "allow_tearing";
-    case phi::present_mode::synced:
-        return "synced";
-    }
-    CC_UNREACHABLE_SWITCH_WORKAROUND(mode);
-}
-
 constexpr void phi_log(rlog::MessageBuilder& builder)
 {
     builder.set_domain(rlog::domain("PHI"));
@@ -59,7 +49,7 @@ constexpr void phi_log(rlog::MessageBuilder& builder)
 }
 }
 
-size_t phi::get_preferred_gpu(cc::span<const phi::gpu_info> candidates, phi::adapter_preference preference, bool verbose)
+size_t phi::get_preferred_gpu(cc::span<const phi::gpu_info> candidates, phi::adapter_preference preference)
 {
     auto const get_first_capable = [&]() -> size_t {
         for (auto i = 0u; i < candidates.size(); ++i)
