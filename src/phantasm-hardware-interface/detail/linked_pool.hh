@@ -2,25 +2,29 @@
 
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
 
+#define PHI_LINKEDPOOL_USE_CC_ALLOC false // NOTE: compat only
+
+#if PHI_LINKEDPOOL_USE_CC_ALLOC
+#include <clean-core/allocator.hh>
+#endif
+#include <clean-core/bit_cast.hh>
+#include <clean-core/bits.hh>
 #include <clean-core/new.hh>
 #include <clean-core/vector.hh>
 
 #ifdef CC_ENABLE_ASSERTIONS
-#define PHI_ENABLE_HANDLE_GEN_CHECK 1
+#define PHI_LINKEDPOOL_DEFAULT_GENCHECK true
 #else
-#define PHI_ENABLE_HANDLE_GEN_CHECK 0
-#endif
-
-#if PHI_ENABLE_HANDLE_GEN_CHECK
-#include <clean-core/bit_cast.hh>
+#define PHI_LINKEDPOOL_DEFAULT_GENCHECK false
 #endif
 
 namespace phi::detail
 {
 /// Fixed-size object pool
 /// Uses an in-place linked list in free nodes, for O(1) acquire, release and size overhead
-template <class T>
+template <class T, bool EnableGenCheck = PHI_LINKEDPOOL_DEFAULT_GENCHECK>
 struct linked_pool
 {
     using handle_t = uint32_t;
@@ -36,7 +40,11 @@ struct linked_pool
     static_assert(sizeof(internal_handle_t) == sizeof(handle_t));
 
     linked_pool() = default;
-    explicit linked_pool(size_t size) { initialize(size); }
+#if PHI_LINKEDPOOL_USE_CC_ALLOC
+    explicit linked_pool(size_t size, cc::allocator* allocator = cc::system_allocator) { initialize(size, allocator); }
+#else
+    explicit linked_pool(size_t size, void* = nullptr) { initialize(size); }
+#endif
 
     // NOTE: Adding these isn't trivial because pointers in the linked list would have to be readjusted
     linked_pool(linked_pool const&) = delete;
@@ -46,18 +54,38 @@ struct linked_pool
 
     ~linked_pool() { _destroy(); }
 
-    void initialize(size_t size)
+#if PHI_LINKEDPOOL_USE_CC_ALLOC
+    void initialize(size_t size, cc::allocator* allocator = cc::system_allocator)
+#else
+    void initialize(size_t size, void* = nullptr)
+#endif
     {
         static_assert(sizeof(T) >= sizeof(T*), "linked_pool element type must be large enough to accomodate a pointer");
 
         if (size == 0)
             return;
 
-        CC_ASSERT(size < 1u << sc_num_index_bits && "linked_pool size too large for index type");
+        if constexpr (EnableGenCheck)
+        {
+            CC_ASSERT(size < 1u << sc_num_index_bits && "linked_pool size too large for index type");
+        }
+        else
+        {
+            CC_ASSERT(size < (1u << (32 - sc_num_padding_bits)) && "linked_pool size too large for index type");
+        }
+
         CC_ASSERT(_pool == nullptr && "re-initialized linked_pool");
+#if PHI_LINKEDPOOL_USE_CC_ALLOC
+        CC_CONTRACT(allocator != nullptr);
+        _alloc = allocator;
+#endif
 
         _pool_size = size;
-        _pool = static_cast<T*>(std::malloc(sizeof(T) * _pool_size));
+#if PHI_LINKEDPOOL_USE_CC_ALLOC
+        _pool = reinterpret_cast<T*>(_alloc->alloc(sizeof(T) * _pool_size, alignof(T)));
+#else
+        _pool = reinterpret_cast<T*>(std::malloc(sizeof(T) * _pool_size));
+#endif
 
         // initialize linked list
         for (auto i = 0u; i < _pool_size - 1; ++i)
@@ -72,11 +100,16 @@ struct linked_pool
             new (cc::placement_new, tail_ptr) T*(nullptr);
         }
 
-#if PHI_ENABLE_HANDLE_GEN_CHECK
-        // initialize generation handles
-        _generation = static_cast<internal_handle_t*>(std::malloc(sizeof(internal_handle_t) * _pool_size));
-        std::memset(_generation, 0, sizeof(internal_handle_t) * _pool_size);
+        if constexpr (EnableGenCheck)
+        {
+            // initialize generation handles
+#if PHI_LINKEDPOOL_USE_CC_ALLOC
+            _generation = reinterpret_cast<internal_handle_t*>(_alloc->alloc(sizeof(internal_handle_t) * _pool_size, alignof(internal_handle_t)));
+#else
+            _generation = reinterpret_cast<internal_handle_t*>(std::malloc(sizeof(internal_handle_t) * _pool_size));
 #endif
+            std::memset(_generation, 0, sizeof(internal_handle_t) * _pool_size);
+        }
 
         _first_free_node = &_pool[0];
     }
@@ -114,10 +147,12 @@ struct linked_pool
     void release_node(T* node)
     {
         CC_ASSERT(node >= &_pool[0] && node < &_pool[_pool_size] && "node outside of pool");
-#if PHI_ENABLE_HANDLE_GEN_CHECK
-        // release not based on handle, so we can't check the generation
-        ++_generation[node - _pool].generation; // increment generation on release
-#endif
+
+        if constexpr (EnableGenCheck)
+        {
+            // release not based on handle, so we can't check the generation
+            ++_generation[node - _pool].generation; // increment generation on release
+        }
 
         // call the destructor
         if constexpr (!std::is_trivially_destructible_v<T>)
@@ -146,6 +181,21 @@ struct linked_pool
     {
         CC_ASSERT(node >= &_pool[0] && node < &_pool[_pool_size] && "node outside of pool");
         return node - _pool;
+    }
+
+    bool is_alive(handle_t handle) const
+    {
+        if constexpr (EnableGenCheck)
+        {
+            CC_ASSERT(handle != uint32_t(-1) && "accessed null handle");
+            internal_handle_t const parsed_handle = cc::bit_cast<internal_handle_t>(handle);
+            return (parsed_handle.generation == _generation[parsed_handle.index].generation);
+        }
+        else
+        {
+            static_assert(EnableGenCheck, "is_alive requires enabled generational checks");
+            return false;
+        }
     }
 
     uint32_t get_handle_index(handle_t handle) const { return _read_index(handle); }
@@ -218,66 +268,90 @@ private:
 
     handle_t _acquire_handle(uint32_t real_index) const
     {
-#if PHI_ENABLE_HANDLE_GEN_CHECK
-        internal_handle_t res;
-        res.padding = 0;
-        res.index = real_index;
-        res.generation = _generation[real_index].generation;
-        return cc::bit_cast<uint32_t>(res);
-#else
-        return real_index;
-#endif
+        if constexpr (EnableGenCheck)
+        {
+            internal_handle_t res;
+            res.padding = 0;
+            res.index = real_index;
+            res.generation = _generation[real_index].generation;
+            return cc::bit_cast<uint32_t>(res);
+        }
+        else
+        {
+            return real_index;
+        }
     }
 
     handle_t _read_index(uint32_t handle) const
     {
-#if PHI_ENABLE_HANDLE_GEN_CHECK
-        CC_ASSERT(handle != uint32_t(-1) && "accessed null handle");
-        internal_handle_t const parsed_handle = cc::bit_cast<internal_handle_t>(handle);
-        uint32_t const real_index = parsed_handle.index;
-        CC_ASSERT(parsed_handle.generation == _generation[real_index].generation && "accessed a stale handle");
-        return real_index;
-#else
-        // we use the handle as-is, but mask out the padding
-        // mask is
-        // 0b00<..#sc_num_padding_bits..>00111<..rest of uint32..>1111
-        constexpr uint32_t mask = ((uint32_t(1) << (32 - sc_num_padding_bits)) - 1);
-        return handle & mask;
-#endif
+        if constexpr (EnableGenCheck)
+        {
+            CC_ASSERT(handle != uint32_t(-1) && "accessed null handle");
+            internal_handle_t const parsed_handle = cc::bit_cast<internal_handle_t>(handle);
+            uint32_t const real_index = parsed_handle.index;
+            CC_ASSERT(parsed_handle.generation == _generation[real_index].generation && "accessed a stale handle");
+            return real_index;
+        }
+        else
+        {
+            // we use the handle as-is, but mask out the padding
+            // mask is
+            // 0b00<..#sc_num_padding_bits..>00111<..rest of uint32..>1111
+            constexpr uint32_t mask = ((uint32_t(1) << (32 - sc_num_padding_bits)) - 1);
+            return handle & mask;
+        }
     }
 
     handle_t _read_index_on_release(uint32_t handle) const
     {
-#if PHI_ENABLE_HANDLE_GEN_CHECK
-        uint32_t const real_index = _read_index(handle);
-        ++_generation[real_index].generation; // increment generation on release
-        return real_index;
-#else
-        return _read_index(handle);
-#endif
+        if constexpr (EnableGenCheck)
+        {
+            uint32_t const real_index = _read_index(handle);
+            ++_generation[real_index].generation; // increment generation on release
+            return real_index;
+        }
+        else
+        {
+            return _read_index(handle);
+        }
     }
 
     void _destroy()
     {
         if (_pool)
         {
+#if PHI_LINKEDPOOL_USE_CC_ALLOC
+            _alloc->free(_pool);
+#else
             std::free(_pool);
+#endif
             _pool = nullptr;
             _pool_size = 0;
-#if PHI_ENABLE_HANDLE_GEN_CHECK
-            std::free(_generation);
-            _generation = nullptr;
+            if constexpr (EnableGenCheck)
+            {
+#if PHI_LINKEDPOOL_USE_CC_ALLOC
+                _alloc->free(_generation);
+#else
+                std::free(_generation);
 #endif
+                _generation = nullptr;
+            }
         }
     }
 
 private:
-    T* _first_free_node = nullptr;
     T* _pool = nullptr;
-#if PHI_ENABLE_HANDLE_GEN_CHECK
-    internal_handle_t* _generation = nullptr;
-#endif
     size_t _pool_size = 0;
-};
 
+    T* _first_free_node = nullptr;
+#if PHI_LINKEDPOOL_USE_CC_ALLOC
+    cc::allocator* _alloc = nullptr;
+#endif
+
+    // this field is useless for instances without generational checks,
+    // but the impact is likely not worth the trouble of conditional inheritance
+    internal_handle_t* _generation = nullptr;
+};
 }
+
+#undef PHI_LINKEDPOOL_DEFAULT_GENCHECK

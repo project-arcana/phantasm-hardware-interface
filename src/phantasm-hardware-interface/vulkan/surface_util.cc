@@ -86,7 +86,14 @@ bool phi::vk::can_queue_family_present_on_platform(VkPhysicalDevice physical, ui
 #ifdef CC_OS_WINDOWS
     return vkGetPhysicalDeviceWin32PresentationSupportKHR(physical, queue_family_index);
 #elif defined(CC_OS_LINUX)
-    return vkGetPhysicalDeviceXlibPresentationSupportKHR(physical, queue_family_index);
+    ::Display* const default_display = ::XOpenDisplay(nullptr);
+    CC_ASSERT(default_display != nullptr && "failed to open default Xlib display");
+    ::Visual* const visual = DefaultVisual(default_display, DefaultScreen(default_display));
+    ::VisualID const default_vis_id = ::XVisualIDFromVisual(visual);
+    auto const res = vkGetPhysicalDeviceXlibPresentationSupportKHR(physical, queue_family_index, default_display, default_vis_id);
+    ::XCloseDisplay(default_display);
+    return res;
+#else
 #error "Unsupported platform"
 #endif
 }
