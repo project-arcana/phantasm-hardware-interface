@@ -223,6 +223,10 @@ public:
     // Debug interface
     //
 
+    /// resets the debug name of a resource
+    /// this is the name visible to diagnostic tools and referred to by validation warnings
+    virtual void setDebugName(handle::resource res, char const* name) = 0;
+
     /// prints diagnostic information about the given resource
     virtual void printInformation(handle::resource res) const = 0;
 

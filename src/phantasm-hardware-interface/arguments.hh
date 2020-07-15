@@ -1,6 +1,5 @@
 #pragma once
 
-#include <clean-core/capped_vector.hh>
 #include <clean-core/span.hh>
 
 #include <typed-geometry/types/size.hh>
@@ -109,14 +108,14 @@ struct blas_element
 struct raytracing_shader_library
 {
     shader_binary binary;
-    cc::capped_vector<wchar_t const*, 16> symbols;
+    detail::trivial_capped_vector<wchar_t const*, 16> symbols;
 };
 
 /// associates symbols exported from libraries with their argument shapes
 struct raytracing_argument_association
 {
-    cc::capped_vector<wchar_t const*, 16> symbols;
-    cc::capped_vector<shader_arg_shape, limits::max_shader_arguments> argument_shapes;
+    detail::trivial_capped_vector<wchar_t const*, 16> symbols;
+    detail::trivial_capped_vector<shader_arg_shape, limits::max_shader_arguments> argument_shapes;
     bool has_root_constants = false;
 };
 
@@ -133,7 +132,7 @@ struct shader_table_record
     wchar_t const* symbol = nullptr;     ///< name of the shader or hit group
     void const* root_arg_data = nullptr; ///< optional, data of the root constant data
     uint32_t root_arg_size = 0;          ///< size of the root constant data
-    cc::capped_vector<shader_argument, limits::max_shader_arguments> shader_arguments;
+    detail::trivial_capped_vector<shader_argument, limits::max_shader_arguments> shader_arguments;
 };
 
 using raytracing_shader_libraries = cc::span<raytracing_shader_library const>;

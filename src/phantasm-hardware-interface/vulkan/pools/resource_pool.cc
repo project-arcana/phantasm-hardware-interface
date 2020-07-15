@@ -289,6 +289,20 @@ void phi::vk::ResourcePool::free(cc::span<const phi::handle::resource> resources
     }
 }
 
+void phi::vk::ResourcePool::setDebugName(phi::handle::resource res, const char* name)
+{
+    CC_CONTRACT(name != nullptr);
+    auto const& node = internalGet(res);
+    if (node.type == resource_node::resource_type::image)
+    {
+        util::set_object_name(mDevice, node.image.raw_image, "%s [respool named]", name);
+    }
+    else
+    {
+        util::set_object_name(mDevice, node.buffer.raw_buffer, "%s [respool named]", name);
+    }
+}
+
 void phi::vk::ResourcePool::initialize(VkPhysicalDevice physical, VkDevice device, unsigned max_num_resources, unsigned max_num_swapchains)
 {
     mDevice = device;

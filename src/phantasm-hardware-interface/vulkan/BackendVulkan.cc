@@ -393,6 +393,8 @@ void phi::vk::BackendVulkan::freeRange(cc::span<const phi::handle::accel_struct>
     mPoolAccelStructs.free(as);
 }
 
+void phi::vk::BackendVulkan::setDebugName(phi::handle::resource res, const char* name) { mPoolResources.setDebugName(res, name); }
+
 void phi::vk::BackendVulkan::printInformation(phi::handle::resource res) const
 {
     PHI_LOG << "Inspecting resource " << res._value;

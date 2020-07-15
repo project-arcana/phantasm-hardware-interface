@@ -295,6 +295,12 @@ void phi::d3d12::ResourcePool::free(cc::span<const phi::handle::resource> resour
     }
 }
 
+void phi::d3d12::ResourcePool::setDebugName(phi::handle::resource res, const char* name)
+{
+    CC_CONTRACT(name != nullptr);
+    util::set_object_name(internalGet(res).resource, "%s [respool named]", name);
+}
+
 phi::handle::resource phi::d3d12::ResourcePool::acquireBuffer(
     D3D12MA::Allocation* alloc, D3D12_RESOURCE_STATES initial_state, uint64_t buffer_width, unsigned buffer_stride, phi::resource_heap heap)
 {

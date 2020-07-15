@@ -37,6 +37,8 @@ public:
     void free(handle::resource res);
     void free(cc::span<handle::resource const> resources);
 
+    void setDebugName(handle::resource res, char const* name);
+
 public:
     struct resource_node
     {
