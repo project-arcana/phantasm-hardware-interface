@@ -43,7 +43,7 @@ phi::handle::pipeline_state phi::vk::PipelinePool::createPipelineState(phi::arg:
 
 
     pipeline_layout* layout;
-    unsigned pool_index;
+    uint32_t pool_index;
     // Do things requiring synchronization
     {
         auto lg = std::lock_guard(mMutex);
@@ -77,7 +77,7 @@ phi::handle::pipeline_state phi::vk::PipelinePool::createPipelineState(phi::arg:
         vkDestroyRenderPass(mDevice, dummy_render_pass, nullptr);
     }
 
-    return {static_cast<handle::index_t>(pool_index)};
+    return {pool_index};
 }
 
 phi::handle::pipeline_state phi::vk::PipelinePool::createComputePipelineState(phi::arg::shader_arg_shapes shader_arg_shapes,
@@ -104,7 +104,7 @@ phi::handle::pipeline_state phi::vk::PipelinePool::createComputePipelineState(ph
 
 
     pipeline_layout* layout;
-    unsigned pool_index;
+    uint32_t pool_index;
     // Do things requiring synchronization
     {
         auto lg = std::lock_guard(mMutex);
@@ -121,13 +121,11 @@ phi::handle::pipeline_state phi::vk::PipelinePool::createComputePipelineState(ph
 
     new_node.raw_pipeline = create_compute_pipeline(mDevice, new_node.associated_pipeline_layout->raw_layout, patched_shader_stage);
 
-    return {static_cast<handle::index_t>(pool_index)};
+    return {pool_index};
 }
 
 void phi::vk::PipelinePool::free(phi::handle::pipeline_state ps)
 {
-    // TODO: dangle check
-
     // This requires no synchronization, as VMA internally syncs
     pso_node& freed_node = mPool.get(ps._value);
     vkDestroyPipeline(mDevice, freed_node.raw_pipeline, nullptr);

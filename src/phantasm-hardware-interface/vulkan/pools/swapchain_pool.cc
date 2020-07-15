@@ -39,6 +39,8 @@ phi::handle::swapchain phi::vk::SwapchainPool::createSwapchain(const window_hand
 
     auto const backbuffer_format_info = get_backbuffer_information(mPhysicalDevice, new_node.surface);
     new_node.backbuf_format = choose_backbuffer_format(backbuffer_format_info.backbuffer_formats);
+    // The reason for assuming a backbuffer format here is to be able to use a global VkRenderPass
+    // If this turns out to be a problem, we'll have to use a cache for multiple ones instead
     CC_RUNTIME_ASSERT(new_node.backbuf_format.format == gc_assumed_backbuffer_format && "Assumed backbuffer format wrong, please contact maintainers");
 
     cc::array<VkCommandBuffer> linear_cmd_buffers = cc::array<VkCommandBuffer>::uninitialized(num_backbuffers);
