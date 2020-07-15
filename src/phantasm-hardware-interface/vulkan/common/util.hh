@@ -36,6 +36,8 @@ inline constexpr VkObjectType get_object_type()
         return VK_OBJECT_TYPE_FENCE;
     else if constexpr (std::is_same_v<VkT, VkAccelerationStructureNV_T> || std::is_same_v<VkT, VkAccelerationStructureKHR_T>)
         return VK_OBJECT_TYPE_ACCELERATION_STRUCTURE_NV;
+    else if constexpr (std::is_same_v<VkT, VkSemaphore_T>)
+        return VK_OBJECT_TYPE_SEMAPHORE;
     else
     {
         static_assert(cc::always_false<VkT>, "unknown vulkan object type");

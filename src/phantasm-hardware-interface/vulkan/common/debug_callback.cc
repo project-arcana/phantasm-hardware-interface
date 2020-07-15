@@ -6,7 +6,7 @@
 
 namespace
 {
-constexpr char const* to_literal(VkDebugUtilsMessageSeverityFlagBitsEXT severity)
+[[maybe_unused]] constexpr char const* to_literal(VkDebugUtilsMessageSeverityFlagBitsEXT severity)
 {
     switch (severity)
     {
@@ -22,7 +22,7 @@ constexpr char const* to_literal(VkDebugUtilsMessageSeverityFlagBitsEXT severity
         return "unknown severity";
     }
 }
-constexpr char const* to_literal(VkDebugUtilsMessageTypeFlagsEXT type)
+[[maybe_unused]] constexpr char const* to_literal(VkDebugUtilsMessageTypeFlagsEXT type)
 {
     switch (type)
     {
@@ -45,7 +45,7 @@ VkBool32 phi::vk::detail::debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT 
 {
     if (severity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT)
     {
-        // cc::breakpoint(); // NOTE: setting a breakpoint here sometimes doesn't suffice
+        // cc::breakpoint(); // NOTE: setting a breakpoint here sometimes doesn't suffice, this does
         RICH_LOG_IMPL(phi::detail::vulkan_log)("{}", callback_data->pMessage);
     }
     return VK_FALSE;

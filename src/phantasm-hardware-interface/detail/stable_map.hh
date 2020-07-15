@@ -22,7 +22,7 @@ public:
         _keys = cc::array<key_element>::defaulted(size);
     }
 
-    void memset_values_zero() { std::memset(_values.data(), 0, _values.size() * sizeof(ValueT)); }
+    void memset_values_zero() { std::memset(_values.data(), 0, _values.size_bytes()); }
 
     template <class T>
     bool contains_key(T const& key) const

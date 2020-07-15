@@ -4,8 +4,8 @@
 
 #include <clean-core/capped_array.hh>
 
-#include <phantasm-hardware-interface/types.hh>
 #include <phantasm-hardware-interface/detail/linked_pool.hh>
+#include <phantasm-hardware-interface/fwd.hh>
 #include <phantasm-hardware-interface/types.hh>
 
 #include <phantasm-hardware-interface/vulkan/loader/volk.hh>
@@ -104,7 +104,7 @@ private:
     std::mutex mMutex;
     phi::detail::linked_pool<swapchain> mPool;
 
-    VkRenderPass mRenderPass;
+    VkRenderPass mRenderPass = nullptr;
     VkCommandPool mDummyPresentCommandPool;
 };
 }

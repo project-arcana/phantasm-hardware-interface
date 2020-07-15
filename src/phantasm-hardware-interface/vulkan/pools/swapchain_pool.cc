@@ -6,6 +6,7 @@
 #include <phantasm-hardware-interface/detail/log.hh>
 
 #include <phantasm-hardware-interface/vulkan/Device.hh>
+#include <phantasm-hardware-interface/vulkan/common/util.hh>
 #include <phantasm-hardware-interface/vulkan/common/verify.hh>
 #include <phantasm-hardware-interface/vulkan/gpu_choice_util.hh>
 #include <phantasm-hardware-interface/vulkan/surface_util.hh>
@@ -39,6 +40,8 @@ phi::handle::swapchain phi::vk::SwapchainPool::createSwapchain(const window_hand
 
     auto const backbuffer_format_info = get_backbuffer_information(mPhysicalDevice, new_node.surface);
     new_node.backbuf_format = choose_backbuffer_format(backbuffer_format_info.backbuffer_formats);
+    // The reason for assuming a backbuffer format here is to be able to use a global VkRenderPass created at pool init
+    // If this turns out to be a problem, we'll have to use a cache for multiple ones instead
     CC_RUNTIME_ASSERT(new_node.backbuf_format.format == gc_assumed_backbuffer_format && "Assumed backbuffer format wrong, please contact maintainers");
 
     cc::array<VkCommandBuffer> linear_cmd_buffers = cc::array<VkCommandBuffer>::uninitialized(num_backbuffers);
@@ -76,6 +79,7 @@ phi::handle::swapchain phi::vk::SwapchainPool::createSwapchain(const window_hand
             fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
             PHI_VK_VERIFY_SUCCESS(vkCreateFence(mDevice, &fence_info, nullptr, &backbuffer.fence_command_buf_executed));
+            util::set_object_name(mDevice, backbuffer.fence_command_buf_executed, "swapchain %u, backbuffer fence #%u", res, i);
         }
         // create semaphores
         {
@@ -86,49 +90,9 @@ phi::handle::swapchain phi::vk::SwapchainPool::createSwapchain(const window_hand
 
             PHI_VK_VERIFY_SUCCESS(vkCreateSemaphore(mDevice, &sem_info, nullptr, &backbuffer.sem_image_available));
             PHI_VK_VERIFY_SUCCESS(vkCreateSemaphore(mDevice, &sem_info, nullptr, &backbuffer.sem_render_finished));
+            util::set_object_name(mDevice, backbuffer.sem_image_available, "swapchain %u, sem img avail #%u", res, i);
+            util::set_object_name(mDevice, backbuffer.sem_render_finished, "swapchain %u, sem render finish #%u", res, i);
         }
-    }
-
-
-    // Create render pass
-    {
-        // color RT
-        VkAttachmentDescription attachments[1];
-        attachments[0].format = new_node.backbuf_format.format;
-        attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
-        attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-        attachments[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        attachments[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        attachments[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        attachments[0].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-        attachments[0].flags = 0;
-
-        VkAttachmentReference color_reference = {0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
-
-        VkSubpassDescription subpass = {};
-        subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-        subpass.flags = 0;
-        subpass.inputAttachmentCount = 0;
-        subpass.pInputAttachments = nullptr;
-        subpass.colorAttachmentCount = 1;
-        subpass.pColorAttachments = &color_reference;
-        subpass.pResolveAttachments = nullptr;
-        subpass.pDepthStencilAttachment = nullptr;
-        subpass.preserveAttachmentCount = 0;
-        subpass.pPreserveAttachments = nullptr;
-
-        VkRenderPassCreateInfo rp_info = {};
-        rp_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-        rp_info.pNext = nullptr;
-        rp_info.attachmentCount = 1;
-        rp_info.pAttachments = attachments;
-        rp_info.subpassCount = 1;
-        rp_info.pSubpasses = &subpass;
-        rp_info.dependencyCount = 0;
-        rp_info.pDependencies = nullptr;
-
-        PHI_VK_VERIFY_SUCCESS(vkCreateRenderPass(mDevice, &rp_info, nullptr, &mRenderPass));
     }
 
     auto res_handle = handle::swapchain{res};
