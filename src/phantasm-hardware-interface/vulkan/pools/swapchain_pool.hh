@@ -104,7 +104,7 @@ private:
     std::mutex mMutex;
     phi::detail::linked_pool<swapchain> mPool;
 
-    VkRenderPass mRenderPass;
+    VkRenderPass mRenderPass = nullptr;
     VkCommandPool mDummyPresentCommandPool;
 };
 }
