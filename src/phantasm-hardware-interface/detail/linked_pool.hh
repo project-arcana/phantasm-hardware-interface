@@ -4,7 +4,11 @@
 #include <cstdlib>
 #include <cstring>
 
+#define PHI_LINKEDPOOL_USE_CC_ALLOC false // NOTE: compat only
+
+#if PHI_LINKEDPOOL_USE_CC_ALLOC
 #include <clean-core/allocator.hh>
+#endif
 #include <clean-core/bit_cast.hh>
 #include <clean-core/bits.hh>
 #include <clean-core/new.hh>
@@ -46,16 +50,16 @@ struct linked_pool
 
     ~linked_pool() { _destroy(); }
 
-
+#if PHI_LINKEDPOOL_USE_CC_ALLOC
     void initialize(size_t size, cc::allocator* allocator = cc::system_allocator)
+#else
+    void initialize(size_t size, void* = nullptr)
+#endif
     {
         static_assert(sizeof(T) >= sizeof(T*), "linked_pool element type must be large enough to accomodate a pointer");
 
         if (size == 0)
             return;
-
-        CC_ASSERT(_pool == nullptr && "re-initialized linked_pool");
-        CC_CONTRACT(allocator != nullptr);
 
         if constexpr (EnableGenCheck)
         {
@@ -66,10 +70,18 @@ struct linked_pool
             CC_ASSERT(size < (1u << (32 - sc_num_padding_bits)) && "linked_pool size too large for index type");
         }
 
+        CC_ASSERT(_pool == nullptr && "re-initialized linked_pool");
+#if PHI_LINKEDPOOL_USE_CC_ALLOC
+        CC_CONTRACT(allocator != nullptr);
         _alloc = allocator;
+#endif
 
         _pool_size = size;
+#if PHI_LINKEDPOOL_USE_CC_ALLOC
         _pool = reinterpret_cast<T*>(_alloc->alloc(sizeof(T) * _pool_size, alignof(T)));
+#else
+        _pool = reinterpret_cast<T*>(std::malloc(sizeof(T) * _pool_size));
+#endif
 
         // initialize linked list
         for (auto i = 0u; i < _pool_size - 1; ++i)
@@ -87,7 +99,11 @@ struct linked_pool
         if constexpr (EnableGenCheck)
         {
             // initialize generation handles
+#if PHI_LINKEDPOOL_USE_CC_ALLOC
             _generation = reinterpret_cast<internal_handle_t*>(_alloc->alloc(sizeof(internal_handle_t) * _pool_size, alignof(internal_handle_t)));
+#else
+            _generation = reinterpret_cast<internal_handle_t*>(std::malloc(sizeof(internal_handle_t) * _pool_size));
+#endif
             std::memset(_generation, 0, sizeof(internal_handle_t) * _pool_size);
         }
 
@@ -300,12 +316,20 @@ private:
     {
         if (_pool)
         {
+#if PHI_LINKEDPOOL_USE_CC_ALLOC
             _alloc->free(_pool);
+#else
+            std::free(_pool);
+#endif
             _pool = nullptr;
             _pool_size = 0;
             if constexpr (EnableGenCheck)
             {
+#if PHI_LINKEDPOOL_USE_CC_ALLOC
                 _alloc->free(_generation);
+#else
+                std::free(_generation);
+#endif
                 _generation = nullptr;
             }
         }
@@ -316,8 +340,9 @@ private:
     size_t _pool_size = 0;
 
     T* _first_free_node = nullptr;
-
+#if PHI_LINKEDPOOL_USE_CC_ALLOC
     cc::allocator* _alloc = nullptr;
+#endif
 
     // this field is useless for instances without generational checks,
     // but the impact is likely not worth the trouble of conditional inheritance
