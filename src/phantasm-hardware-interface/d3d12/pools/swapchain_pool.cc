@@ -146,7 +146,9 @@ void phi::d3d12::SwapchainPool::setFullscreen(phi::handle::swapchain handle, boo
 void phi::d3d12::SwapchainPool::present(phi::handle::swapchain handle)
 {
     swapchain& node = mPool.get(handle._value);
-    PHI_D3D12_VERIFY_FULL(node.swapchain_com->Present(0, node.mode == present_mode::allow_tearing ? DXGI_PRESENT_ALLOW_TEARING : 0), mParentDevice);
+    PHI_D3D12_VERIFY_FULL(node.swapchain_com->Present(node.mode == present_mode::synced ? 1 : 0, //
+                                                      node.mode == present_mode::allow_tearing ? DXGI_PRESENT_ALLOW_TEARING : 0),
+                          mParentDevice);
 
     auto const backbuffer_i = node.swapchain_com->GetCurrentBackBufferIndex();
     node.backbuffers[backbuffer_i].fence.issueFence(*mParentQueue);

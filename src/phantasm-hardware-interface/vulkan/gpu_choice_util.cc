@@ -140,7 +140,7 @@ VkPresentModeKHR phi::vk::choose_present_mode(cc::span<const VkPresentModeKHR> a
         preferred = VK_PRESENT_MODE_IMMEDIATE_KHR;
         break;
     case present_mode::synced:
-        preferred = VK_PRESENT_MODE_MAILBOX_KHR;
+        preferred = VK_PRESENT_MODE_FIFO_KHR;
         break;
     }
 
