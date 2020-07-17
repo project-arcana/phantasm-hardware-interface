@@ -18,6 +18,7 @@ constexpr VkFormat gc_assumed_backbuffer_format = VK_FORMAT_B8G8R8A8_UNORM;
 
 phi::handle::swapchain phi::vk::SwapchainPool::createSwapchain(const window_handle& window_handle, int initial_w, int initial_h, unsigned num_backbuffers, phi::present_mode mode)
 {
+    CC_CONTRACT(initial_w > 0 && initial_h > 0);
     handle::index_t res;
     {
         auto lg = std::lock_guard(mMutex);
@@ -111,6 +112,7 @@ void phi::vk::SwapchainPool::free(phi::handle::swapchain handle)
 
 void phi::vk::SwapchainPool::onResize(phi::handle::swapchain handle, int w, int h)
 {
+    CC_CONTRACT(w > 0 && h > 0);
     auto& node = mPool.get(handle._value);
     teardownSwapchain(node);
     setupSwapchain(handle, w, h);

@@ -121,6 +121,8 @@ phi::handle::resource phi::d3d12::ResourcePool::createTexture(
 {
     constexpr D3D12_RESOURCE_STATES initial_state = util::to_native(resource_state::copy_dest);
 
+    CC_CONTRACT(w > 0 && h > 0);
+
     D3D12_RESOURCE_DESC desc = {};
     desc.Dimension = util::to_native(dim);
     desc.Format = util::to_dxgi_format(format);
@@ -147,6 +149,8 @@ phi::handle::resource phi::d3d12::ResourcePool::createTexture(
 phi::handle::resource phi::d3d12::ResourcePool::createRenderTarget(
     phi::format format, unsigned w, unsigned h, unsigned samples, unsigned array_size, rt_clear_value const* optimized_clear_val, const char* dbg_name)
 {
+    CC_CONTRACT(w > 0 && h > 0);
+
     auto const format_dxgi = util::to_dxgi_format(format);
     if (is_depth_format(format))
     {
@@ -206,6 +210,7 @@ phi::handle::resource phi::d3d12::ResourcePool::createRenderTarget(
 
 phi::handle::resource phi::d3d12::ResourcePool::createBuffer(uint64_t size_bytes, unsigned stride_bytes, resource_heap heap, bool allow_uav, const char* dbg_name)
 {
+    CC_CONTRACT(size_bytes > 0);
     D3D12_RESOURCE_STATES const initial_state = d3d12_get_initial_state_by_heap(heap);
 
     auto desc = CD3DX12_RESOURCE_DESC::Buffer(size_bytes);

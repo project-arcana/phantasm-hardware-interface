@@ -4,7 +4,7 @@
 #include <cstdlib>
 #include <cstring>
 
-#define PHI_LINKEDPOOL_USE_CC_ALLOC false // NOTE: compat only
+#define PHI_LINKEDPOOL_USE_CC_ALLOC true // NOTE: compat only
 
 #if PHI_LINKEDPOOL_USE_CC_ALLOC
 #include <clean-core/allocator.hh>
@@ -15,19 +15,21 @@
 #include <clean-core/vector.hh>
 
 #ifdef CC_ENABLE_ASSERTIONS
-#define PHI_LINKEDPOOL_DEFAULT_GENCHECK true
+#define PHI_LINKEDPOOL_DEBUG_GENCHECK true
 #else
-#define PHI_LINKEDPOOL_DEFAULT_GENCHECK false
+#define PHI_LINKEDPOOL_DEBUG_GENCHECK false
 #endif
 
 namespace phi::detail
 {
 /// Fixed-size object pool
 /// Uses an in-place linked list in free nodes, for O(1) acquire, release and size overhead
-template <class T, bool EnableGenCheck = PHI_LINKEDPOOL_DEFAULT_GENCHECK>
+template <class T, bool GenCheckEnabled = false>
 struct linked_pool
 {
-    using handle_t = uint32_t;
+    // internally, generational checks are active in debug even if disabled via template argument
+    // explicitly enabling allows for public ::is_alive() functionality
+    static constexpr bool sc_enable_gen_check = PHI_LINKEDPOOL_DEBUG_GENCHECK || GenCheckEnabled;
 
     static constexpr size_t sc_num_padding_bits = 3;
     static constexpr size_t sc_num_index_bits = 16;
@@ -37,6 +39,8 @@ struct linked_pool
         uint32_t generation : 32 - (sc_num_padding_bits + sc_num_index_bits);
         uint32_t padding : sc_num_padding_bits;
     };
+
+    using handle_t = uint32_t;
     static_assert(sizeof(internal_handle_t) == sizeof(handle_t));
 
     linked_pool() = default;
@@ -65,7 +69,7 @@ struct linked_pool
         if (size == 0)
             return;
 
-        if constexpr (EnableGenCheck)
+        if constexpr (sc_enable_gen_check)
         {
             CC_ASSERT(size < 1u << sc_num_index_bits && "linked_pool size too large for index type");
         }
@@ -100,7 +104,7 @@ struct linked_pool
             new (cc::placement_new, tail_ptr) T*(nullptr);
         }
 
-        if constexpr (EnableGenCheck)
+        if constexpr (sc_enable_gen_check)
         {
             // initialize generation handles
 #if PHI_LINKEDPOOL_USE_CC_ALLOC
@@ -148,7 +152,7 @@ struct linked_pool
     {
         CC_ASSERT(node >= &_pool[0] && node < &_pool[_pool_size] && "node outside of pool");
 
-        if constexpr (EnableGenCheck)
+        if constexpr (sc_enable_gen_check)
         {
             // release not based on handle, so we can't check the generation
             ++_generation[node - _pool].generation; // increment generation on release
@@ -185,7 +189,9 @@ struct linked_pool
 
     bool is_alive(handle_t handle) const
     {
-        if constexpr (EnableGenCheck)
+        // NOTE: sc_enable_gen_check is always true in debug, but this method requires
+        // "hard enabled" generational checks via the template arguments (as it would otherwise fail in release)
+        if constexpr (GenCheckEnabled)
         {
             CC_ASSERT(handle != uint32_t(-1) && "accessed null handle");
             internal_handle_t const parsed_handle = cc::bit_cast<internal_handle_t>(handle);
@@ -193,7 +199,7 @@ struct linked_pool
         }
         else
         {
-            static_assert(EnableGenCheck, "is_alive requires enabled generational checks");
+            static_assert(GenCheckEnabled, "is_alive requires hard-enabled generational checks");
             return false;
         }
     }
@@ -268,7 +274,7 @@ private:
 
     handle_t _acquire_handle(uint32_t real_index) const
     {
-        if constexpr (EnableGenCheck)
+        if constexpr (sc_enable_gen_check)
         {
             internal_handle_t res;
             res.padding = 0;
@@ -284,7 +290,7 @@ private:
 
     handle_t _read_index(uint32_t handle) const
     {
-        if constexpr (EnableGenCheck)
+        if constexpr (sc_enable_gen_check)
         {
             CC_ASSERT(handle != uint32_t(-1) && "accessed null handle");
             internal_handle_t const parsed_handle = cc::bit_cast<internal_handle_t>(handle);
@@ -304,7 +310,7 @@ private:
 
     handle_t _read_index_on_release(uint32_t handle) const
     {
-        if constexpr (EnableGenCheck)
+        if constexpr (sc_enable_gen_check)
         {
             uint32_t const real_index = _read_index(handle);
             ++_generation[real_index].generation; // increment generation on release
@@ -327,7 +333,7 @@ private:
 #endif
             _pool = nullptr;
             _pool_size = 0;
-            if constexpr (EnableGenCheck)
+            if constexpr (sc_enable_gen_check)
             {
 #if PHI_LINKEDPOOL_USE_CC_ALLOC
                 _alloc->free(_generation);
@@ -354,4 +360,4 @@ private:
 };
 }
 
-#undef PHI_LINKEDPOOL_DEFAULT_GENCHECK
+#undef PHI_LINKEDPOOL_DEBUG_GENCHECK

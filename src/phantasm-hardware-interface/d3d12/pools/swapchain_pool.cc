@@ -62,6 +62,7 @@ void phi::d3d12::SwapchainPool::destroy()
 
 phi::handle::swapchain phi::d3d12::SwapchainPool::createSwapchain(HWND window_handle, int initial_w, int initial_h, unsigned num_backbuffers, phi::present_mode mode)
 {
+    CC_CONTRACT(initial_w > 0 && initial_h > 0);
     handle::index_t res;
     {
         auto lg = std::lock_guard(mMutex);
@@ -127,6 +128,7 @@ void phi::d3d12::SwapchainPool::free(phi::handle::swapchain handle)
 
 void phi::d3d12::SwapchainPool::onResize(phi::handle::swapchain handle, int w, int h)
 {
+    CC_CONTRACT(w > 0 && h > 0);
     swapchain& node = mPool.get(handle._value);
     node.backbuf_width = w;
     node.backbuf_height = h;

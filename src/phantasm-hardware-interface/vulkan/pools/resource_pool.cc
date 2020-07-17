@@ -66,6 +66,7 @@ constexpr char const* vk_get_heap_type_literal(phi::resource_heap heap)
 phi::handle::resource phi::vk::ResourcePool::createTexture(
     format format, unsigned w, unsigned h, unsigned mips, texture_dimension dim, unsigned depth_or_array_size, bool allow_uav, const char* dbg_name)
 {
+    CC_CONTRACT(w > 0 && h > 0);
     VkImageCreateInfo image_info = {};
     image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     image_info.pNext = nullptr;
@@ -113,6 +114,7 @@ phi::handle::resource phi::vk::ResourcePool::createTexture(
 
 phi::handle::resource phi::vk::ResourcePool::createRenderTarget(phi::format format, unsigned w, unsigned h, unsigned samples, unsigned array_size, char const* dbg_name)
 {
+    CC_CONTRACT(w > 0 && h > 0);
     VkImageCreateInfo image_info = {};
     image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     image_info.pNext = nullptr;
@@ -155,6 +157,7 @@ phi::handle::resource phi::vk::ResourcePool::createRenderTarget(phi::format form
 
 phi::handle::resource phi::vk::ResourcePool::createBuffer(uint64_t size_bytes, unsigned stride_bytes, resource_heap heap, bool allow_uav, char const* dbg_name)
 {
+    CC_CONTRACT(size_bytes > 0);
     VkBufferCreateInfo buffer_info = {};
     buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     buffer_info.size = size_bytes;
