@@ -14,12 +14,6 @@
 #include <clean-core/new.hh>
 #include <clean-core/vector.hh>
 
-#ifdef CC_ENABLE_ASSERTIONS
-#define PHI_LINKEDPOOL_DEBUG_GENCHECK true
-#else
-#define PHI_LINKEDPOOL_DEBUG_GENCHECK false
-#endif
-
 namespace phi::detail
 {
 /// Fixed-size object pool
@@ -29,7 +23,11 @@ struct linked_pool
 {
     // internally, generational checks are active in debug even if disabled via template argument
     // explicitly enabling allows for public ::is_alive() functionality
-    static constexpr bool sc_enable_gen_check = PHI_LINKEDPOOL_DEBUG_GENCHECK || GenCheckEnabled;
+#ifdef CC_ENABLE_ASSERTIONS
+    static constexpr bool sc_enable_gen_check = true;
+#else
+    static constexpr bool sc_enable_gen_check = GenCheckEnabled;
+#endif
 
     static constexpr size_t sc_num_padding_bits = 3;
     static constexpr size_t sc_num_index_bits = 16;
@@ -44,11 +42,7 @@ struct linked_pool
     static_assert(sizeof(internal_handle_t) == sizeof(handle_t));
 
     linked_pool() = default;
-#if PHI_LINKEDPOOL_USE_CC_ALLOC
     explicit linked_pool(size_t size, cc::allocator* allocator = cc::system_allocator) { initialize(size, allocator); }
-#else
-    explicit linked_pool(size_t size, void* = nullptr) { initialize(size); }
-#endif
 
     // NOTE: Adding these isn't trivial because pointers in the linked list would have to be readjusted
     linked_pool(linked_pool const&) = delete;
@@ -58,11 +52,7 @@ struct linked_pool
 
     ~linked_pool() { _destroy(); }
 
-#if PHI_LINKEDPOOL_USE_CC_ALLOC
     void initialize(size_t size, cc::allocator* allocator = cc::system_allocator)
-#else
-    void initialize(size_t size, void* = nullptr)
-#endif
     {
         static_assert(sizeof(T) >= sizeof(T*), "linked_pool element type must be large enough to accomodate a pointer");
 
@@ -79,17 +69,11 @@ struct linked_pool
         }
 
         CC_ASSERT(_pool == nullptr && "re-initialized linked_pool");
-#if PHI_LINKEDPOOL_USE_CC_ALLOC
         CC_CONTRACT(allocator != nullptr);
         _alloc = allocator;
-#endif
 
         _pool_size = size;
-#if PHI_LINKEDPOOL_USE_CC_ALLOC
         _pool = reinterpret_cast<T*>(_alloc->alloc(sizeof(T) * _pool_size, alignof(T)));
-#else
-        _pool = reinterpret_cast<T*>(std::malloc(sizeof(T) * _pool_size));
-#endif
 
         // initialize linked list
         for (auto i = 0u; i < _pool_size - 1; ++i)
@@ -107,11 +91,7 @@ struct linked_pool
         if constexpr (sc_enable_gen_check)
         {
             // initialize generation handles
-#if PHI_LINKEDPOOL_USE_CC_ALLOC
             _generation = reinterpret_cast<internal_handle_t*>(_alloc->alloc(sizeof(internal_handle_t) * _pool_size, alignof(internal_handle_t)));
-#else
-            _generation = reinterpret_cast<internal_handle_t*>(std::malloc(sizeof(internal_handle_t) * _pool_size));
-#endif
             std::memset(_generation, 0, sizeof(internal_handle_t) * _pool_size);
         }
 
@@ -326,20 +306,12 @@ private:
     {
         if (_pool)
         {
-#if PHI_LINKEDPOOL_USE_CC_ALLOC
             _alloc->free(_pool);
-#else
-            std::free(_pool);
-#endif
             _pool = nullptr;
             _pool_size = 0;
             if constexpr (sc_enable_gen_check)
             {
-#if PHI_LINKEDPOOL_USE_CC_ALLOC
                 _alloc->free(_generation);
-#else
-                std::free(_generation);
-#endif
                 _generation = nullptr;
             }
         }
@@ -350,14 +322,10 @@ private:
     size_t _pool_size = 0;
 
     T* _first_free_node = nullptr;
-#if PHI_LINKEDPOOL_USE_CC_ALLOC
     cc::allocator* _alloc = nullptr;
-#endif
 
     // this field is useless for instances without generational checks,
     // but the impact is likely not worth the trouble of conditional inheritance
     internal_handle_t* _generation = nullptr;
 };
 }
-
-#undef PHI_LINKEDPOOL_DEBUG_GENCHECK
