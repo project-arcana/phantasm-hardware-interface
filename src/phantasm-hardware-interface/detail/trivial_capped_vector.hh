@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <cstring>
+#include <initializer_list>
 #include <type_traits>
 
 #include <clean-core/assert.hh>
@@ -92,6 +93,15 @@ public:
     }
 
     void clear() { _size = 0; }
+
+public:
+    trivial_capped_vector() = default;
+    trivial_capped_vector(std::initializer_list<T> data)
+    {
+        CC_ASSERT(data.size() <= N && "initializer list too large");
+        std::memcpy(_vals, data.begin(), sizeof(T) * data.size());
+        _size = uint8_t(data.size());
+    }
 
 private:
     T _vals[N];
