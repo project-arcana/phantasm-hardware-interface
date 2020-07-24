@@ -1,5 +1,7 @@
 #pragma once
 
+#include <clean-core/fwd.hh>
+
 #include <typed-geometry/types/size.hh>
 
 #include <phantasm-hardware-interface/arguments.hh>
@@ -225,7 +227,7 @@ public:
 
     /// resets the debug name of a resource
     /// this is the name visible to diagnostic tools and referred to by validation warnings
-    virtual void setDebugName(handle::resource res, char const* name) = 0;
+    virtual void setDebugName(handle::resource res, cc::string_view name) = 0;
 
     /// prints diagnostic information about the given resource
     virtual void printInformation(handle::resource res) const = 0;

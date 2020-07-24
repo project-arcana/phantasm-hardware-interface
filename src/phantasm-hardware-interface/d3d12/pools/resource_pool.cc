@@ -300,10 +300,10 @@ void phi::d3d12::ResourcePool::free(cc::span<const phi::handle::resource> resour
     }
 }
 
-void phi::d3d12::ResourcePool::setDebugName(phi::handle::resource res, const char* name)
+void phi::d3d12::ResourcePool::setDebugName(phi::handle::resource res, const char* name, unsigned name_length)
 {
     CC_CONTRACT(name != nullptr);
-    util::set_object_name(internalGet(res).resource, "%s [respool named]", name);
+    util::set_object_name(internalGet(res).resource, "%*s [respool named]", name_length, name);
 }
 
 phi::handle::resource phi::d3d12::ResourcePool::acquireBuffer(

@@ -327,7 +327,10 @@ void phi::d3d12::BackendD3D12::freeRange(cc::span<const phi::handle::accel_struc
     mPoolAccelStructs.free(as);
 }
 
-void phi::d3d12::BackendD3D12::setDebugName(phi::handle::resource res, const char* name) { mPoolResources.setDebugName(res, name); }
+void phi::d3d12::BackendD3D12::setDebugName(phi::handle::resource res, cc::string_view name)
+{
+    mPoolResources.setDebugName(res, name.data(), unsigned(name.length()));
+}
 
 void phi::d3d12::BackendD3D12::printInformation(phi::handle::resource res) const
 {

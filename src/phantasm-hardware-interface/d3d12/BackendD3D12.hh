@@ -220,7 +220,7 @@ public:
     // Debug interface
     //
 
-    void setDebugName(handle::resource res, const char* name) override;
+    void setDebugName(handle::resource res, cc::string_view name) override;
     void printInformation(handle::resource res) const override;
     bool startForcedDiagnosticCapture() override;
     bool endForcedDiagnosticCapture() override;
