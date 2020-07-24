@@ -183,7 +183,7 @@ phi::d3d12::AccelStructPool::accel_struct_node& phi::d3d12::AccelStructPool::acq
         res = mPool.acquire();
     }
 
-    out_handle = {static_cast<handle::index_t>(res)};
+    out_handle = {static_cast<handle::handle_t>(res)};
     return mPool.get(res);
 }
 

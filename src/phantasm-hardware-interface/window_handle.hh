@@ -13,7 +13,7 @@ namespace phi
 /// opaque native window handle
 struct window_handle
 {
-    enum wh_type : uint8_t
+    enum wh_type
     {
         wh_sdl,
         wh_win32_hwnd,

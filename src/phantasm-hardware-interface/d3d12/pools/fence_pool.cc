@@ -16,7 +16,7 @@ phi::handle::fence phi::d3d12::FencePool::createFence()
     node& new_node = mPool.get(pool_index);
     new_node.create(mDevice);
 
-    return {static_cast<handle::index_t>(pool_index)};
+    return {static_cast<handle::handle_t>(pool_index)};
 }
 
 void phi::d3d12::FencePool::free(phi::handle::fence fence)

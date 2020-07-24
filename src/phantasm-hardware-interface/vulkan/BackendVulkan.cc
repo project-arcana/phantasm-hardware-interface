@@ -110,7 +110,7 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg)
         // Load device-based Vulkan entrypoints
         volkLoadDevice(mDevice.getDevice());
 
-        print_startup_message(gpu_infos, chosen_index, config, false, true);
+        print_startup_message(gpu_infos, chosen_index, config, false);
     }
 
     // Pool init
@@ -180,6 +180,8 @@ void phi::vk::BackendVulkan::destroy()
 
         vkDestroyInstance(mInstance, nullptr);
         mInstance = nullptr;
+
+        mThreadAssociation.destroy();
     }
 }
 

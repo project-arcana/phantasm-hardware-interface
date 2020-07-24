@@ -2,8 +2,7 @@
 
 #include <clean-core/assert.hh>
 
-#include <rich-log/log.hh>
-
+#include <phantasm-hardware-interface/detail/log.hh>
 #include <phantasm-hardware-interface/types.hh>
 
 namespace
@@ -40,12 +39,6 @@ constexpr char const* get_validation_literal(phi::validation_level level)
         return "on_extended_dred";
     }
     CC_UNREACHABLE_SWITCH_WORKAROUND(level);
-}
-
-constexpr void phi_log(rlog::MessageBuilder& builder)
-{
-    builder.set_domain(rlog::domain("PHI"));
-    builder.set_separator("");
 }
 }
 
@@ -136,27 +129,26 @@ phi::gpu_vendor phi::get_gpu_vendor_from_id(unsigned vendor_id)
     }
 }
 
-void phi::print_startup_message(cc::span<const phi::gpu_info> gpu_candidates, size_t chosen_index, const phi::backend_config& config, bool is_d3d12, bool verbose)
+void phi::print_startup_message(cc::span<const phi::gpu_info> gpu_candidates, size_t chosen_index, const phi::backend_config& config, bool is_d3d12)
 {
     if (!config.print_startup_message)
         return;
 
-    LOG(phi_log, "{} backend initialized, validation: {}", //
-        is_d3d12 ? "d3d12" : "vulkan", get_validation_literal(config.validation));
+    PHI_LOG("{} backend initialized, validation: {}", //
+            is_d3d12 ? "d3d12" : "vulkan", get_validation_literal(config.validation));
 
-    if (verbose)
-        LOG(phi_log, "   {} threads, max {} resources, max {} PSOs", //
-            config.num_threads, config.max_num_resources, config.max_num_pipeline_states);
+        PHI_LOG("   {} threads, max {} resources, max {} PSOs", //
+                config.num_threads, config.max_num_resources, config.max_num_pipeline_states);
 
     if (chosen_index < gpu_candidates.size())
     {
-        LOG(phi_log, "   chose gpu #{} ({}) from {} candidate{}, preference: {}", //
-            chosen_index, gpu_candidates[chosen_index].description.c_str(), gpu_candidates.size(), (gpu_candidates.size() == 1 ? "" : "s"),
-            get_preference_literal(config.adapter));
+        PHI_LOG("   chose gpu #{} ({}) from {} candidate{}, preference: {}", //
+                chosen_index, gpu_candidates[chosen_index].description.c_str(), gpu_candidates.size(), (gpu_candidates.size() == 1 ? "" : "s"),
+                get_preference_literal(config.adapter));
     }
     else
     {
-        LOG(phi_log, "   failed to choose gpu from {} candidate{}, preference: {}", //
-            gpu_candidates.size(), (gpu_candidates.size() == 1 ? "" : "s"), get_preference_literal(config.adapter));
+        PHI_LOG("   failed to choose gpu from {} candidate{}, preference: {}", //
+                gpu_candidates.size(), (gpu_candidates.size() == 1 ? "" : "s"), get_preference_literal(config.adapter));
     }
 }

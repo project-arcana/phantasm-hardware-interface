@@ -170,7 +170,7 @@ phi::handle::shader_view phi::vk::ShaderViewPool::create(cc::span<resource_view 
         }
     }
 
-    return {static_cast<handle::index_t>(pool_index)};
+    return {static_cast<handle::handle_t>(pool_index)};
 }
 
 void phi::vk::ShaderViewPool::free(phi::handle::shader_view sv)

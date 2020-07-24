@@ -37,8 +37,8 @@ void phi::d3d12::Device::initialize(IDXGIAdapter& adapter, const backend_config&
         std::fflush(stdout);
     }
 
-    // Capability checks
-    mFeatures = check_capabilities(mDevice);
+    // Feature checks
+    mFeatures = get_gpu_features(mDevice);
 
     // QIs
     auto const got_device5 = SUCCEEDED(mDevice->QueryInterface(PHI_COM_WRITE(mDevice5)));

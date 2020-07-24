@@ -63,7 +63,7 @@ void phi::d3d12::SwapchainPool::destroy()
 phi::handle::swapchain phi::d3d12::SwapchainPool::createSwapchain(HWND window_handle, int initial_w, int initial_h, unsigned num_backbuffers, phi::present_mode mode)
 {
     CC_CONTRACT(initial_w > 0 && initial_h > 0);
-    handle::index_t res;
+    handle::handle_t res;
     {
         auto lg = std::lock_guard(mMutex);
         res = mPool.acquire();

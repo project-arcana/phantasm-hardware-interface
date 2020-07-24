@@ -2,6 +2,8 @@
 
 #include <clean-core/assert.hh>
 
+#include <phantasm-hardware-interface/config.hh>
+#include <phantasm-hardware-interface/detail/gpu_info.hh>
 #include <phantasm-hardware-interface/detail/log.hh>
 
 #include "adapter_choice_util.hh"
@@ -76,7 +78,7 @@ void phi::d3d12::Adapter::initialize(const backend_config& config)
         mFactory->EnumAdapters(chosen_adapter_index, temp_adapter.override());
         PHI_D3D12_VERIFY(temp_adapter.get_interface(mAdapter));
 
-        print_startup_message(candidates, chosen_adapter_index, config, true, true);
+        print_startup_message(candidates, chosen_adapter_index, config, true);
     }
 
     // Debug layer init

@@ -324,7 +324,7 @@ phi::handle::resource phi::d3d12::ResourcePool::acquireBuffer(
     new_node.buffer.width = unsigned(buffer_width);
     new_node.buffer.stride = buffer_stride;
 
-    return {static_cast<handle::index_t>(res)};
+    return {static_cast<handle::handle_t>(res)};
 }
 
 phi::handle::resource phi::d3d12::ResourcePool::acquireImage(
@@ -347,5 +347,5 @@ phi::handle::resource phi::d3d12::ResourcePool::acquireImage(
     new_node.image.num_array_layers = num_array_layers;
     new_node.image.pixel_format = pixel_format;
 
-    return {static_cast<handle::index_t>(res)};
+    return {static_cast<handle::handle_t>(res)};
 }

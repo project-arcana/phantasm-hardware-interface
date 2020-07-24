@@ -35,7 +35,7 @@ phi::handle::fence phi::vk::FencePool::createFence()
     VkSemaphore& new_sem = mPool.get(pool_index);
     PHI_VK_VERIFY_SUCCESS(vkCreateSemaphore(mDevice, &sem_info, nullptr, &new_sem));
 
-    return {static_cast<handle::index_t>(pool_index)};
+    return {static_cast<handle::handle_t>(pool_index)};
 }
 
 void phi::vk::FencePool::free(phi::handle::fence fence)

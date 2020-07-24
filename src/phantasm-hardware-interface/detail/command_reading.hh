@@ -15,7 +15,7 @@ PHI_CMD_TYPE_VALUES
 #undef PHI_X
 
     /// returns the size in bytes of the given command
-    [[nodiscard]] inline constexpr size_t
+    [[nodiscard]] constexpr size_t
     get_command_size(detail::cmd_type type)
 {
     switch (type)
@@ -26,11 +26,12 @@ PHI_CMD_TYPE_VALUES
         PHI_CMD_TYPE_VALUES
 #undef PHI_X
     }
+    CC_UNREACHABLE("invalid command type");
     return 0; // suppress warnings
 }
 
 /// returns a string literal corresponding to the command type
-[[nodiscard]] inline constexpr char const* to_string(detail::cmd_type type)
+[[nodiscard]] constexpr char const* to_string(detail::cmd_type type)
 {
     switch (type)
     {
@@ -40,6 +41,7 @@ PHI_CMD_TYPE_VALUES
         PHI_CMD_TYPE_VALUES
 #undef PHI_X
     }
+    CC_UNREACHABLE("invalid command type");
     return ""; // suppress warnings
 }
 
@@ -50,16 +52,16 @@ void dynamic_dispatch(detail::cmd_base const& base, F& callback)
 {
     switch (base.s_internal_type)
     {
-#define PHI_X(_val_)                                                   \
-    case detail::cmd_type::_val_:                                      \
-        callback.execute(static_cast<::phi::cmd::_val_ const&>(base)); \
-        break;
+#define PHI_X(_val_)              \
+    case detail::cmd_type::_val_: \
+        return callback.execute(static_cast<::phi::cmd::_val_ const&>(base));
         PHI_CMD_TYPE_VALUES
 #undef PHI_X
     }
+    CC_UNREACHABLE("invalid command");
 }
 
-[[nodiscard]] inline constexpr size_t compute_max_command_size()
+[[nodiscard]] constexpr size_t compute_max_command_size()
 {
     size_t res = 0;
 #define PHI_X(_val_) res = cc::max(res, sizeof(::phi::cmd::_val_));
