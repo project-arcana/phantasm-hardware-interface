@@ -137,8 +137,8 @@ void phi::print_startup_message(cc::span<const phi::gpu_info> gpu_candidates, si
     PHI_LOG("{} backend initialized, validation: {}", //
             is_d3d12 ? "d3d12" : "vulkan", get_validation_literal(config.validation));
 
-        PHI_LOG("   {} threads, max {} resources, max {} PSOs", //
-                config.num_threads, config.max_num_resources, config.max_num_pipeline_states);
+    PHI_LOG("   {} threads, max {} resources, max {} PSOs", //
+            config.num_threads, config.max_num_resources, config.max_num_pipeline_states);
 
     if (chosen_index < gpu_candidates.size())
     {
