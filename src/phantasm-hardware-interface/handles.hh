@@ -14,6 +14,7 @@ struct abstract_handle
     index_t _value;
     abstract_handle() = default;
     constexpr abstract_handle(index_t val) : _value(val) {}
+    void invalidate() & { _value = null_handle_value; }
     [[nodiscard]] constexpr bool is_valid() const noexcept { return _value != null_handle_value; }
     [[nodiscard]] constexpr bool operator==(abstract_handle rhs) const noexcept { return _value == rhs._value; }
     [[nodiscard]] constexpr bool operator!=(abstract_handle rhs) const noexcept { return _value != rhs._value; }

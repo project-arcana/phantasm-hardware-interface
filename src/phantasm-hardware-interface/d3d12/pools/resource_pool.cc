@@ -116,9 +116,12 @@ phi::handle::resource phi::d3d12::ResourcePool::injectBackbufferResource(unsigne
     return {res_handle};
 }
 
-phi::handle::resource phi::d3d12::ResourcePool::createTexture(format format, unsigned w, unsigned h, unsigned mips, texture_dimension dim, unsigned depth_or_array_size, bool allow_uav)
+phi::handle::resource phi::d3d12::ResourcePool::createTexture(
+    format format, unsigned w, unsigned h, unsigned mips, texture_dimension dim, unsigned depth_or_array_size, bool allow_uav, const char* dbg_name)
 {
     constexpr D3D12_RESOURCE_STATES initial_state = util::to_native(resource_state::copy_dest);
+
+    CC_CONTRACT(w > 0 && h > 0);
 
     D3D12_RESOURCE_DESC desc = {};
     desc.Dimension = util::to_native(dim);
@@ -138,13 +141,16 @@ phi::handle::resource phi::d3d12::ResourcePool::createTexture(format format, uns
 
     auto* const alloc = mAllocator.allocate(desc, initial_state);
     auto const real_mip_levels = alloc->GetResource()->GetDesc().MipLevels;
-    util::set_object_name(alloc->GetResource(), "respool texture%s[%u] (%ux%u, %u mips)", d3d12_get_tex_dim_literal(dim), depth_or_array_size, w, h, real_mip_levels);
-
+    util::set_object_name(alloc->GetResource(), "pool tex%s[%u] %s (%ux%u, %u mips)", d3d12_get_tex_dim_literal(dim), depth_or_array_size,
+                          dbg_name ? dbg_name : "", w, h, real_mip_levels);
     return acquireImage(alloc, format, initial_state, real_mip_levels, desc.DepthOrArraySize);
 }
 
-phi::handle::resource phi::d3d12::ResourcePool::createRenderTarget(phi::format format, unsigned w, unsigned h, unsigned samples, unsigned array_size, rt_clear_value const* optimized_clear_val)
+phi::handle::resource phi::d3d12::ResourcePool::createRenderTarget(
+    phi::format format, unsigned w, unsigned h, unsigned samples, unsigned array_size, rt_clear_value const* optimized_clear_val, const char* dbg_name)
 {
+    CC_CONTRACT(w > 0 && h > 0);
+
     auto const format_dxgi = util::to_dxgi_format(format);
     if (is_depth_format(format))
     {
@@ -168,7 +174,7 @@ phi::handle::resource phi::d3d12::ResourcePool::createRenderTarget(phi::format f
                                                        samples != 1 ? DXGI_STANDARD_MULTISAMPLE_QUALITY_PATTERN : 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
 
         auto* const alloc = mAllocator.allocate(desc, initial_state, &clear_value);
-        util::set_object_name(alloc->GetResource(), "respool depth stencil target");
+        util::set_object_name(alloc->GetResource(), "pool depth tgt %s (%ux%u, fmt %u)", dbg_name ? dbg_name : "", w, h, unsigned(format));
         return acquireImage(alloc, format, initial_state, desc.MipLevels, desc.ArraySize());
     }
     else
@@ -197,13 +203,14 @@ phi::handle::resource phi::d3d12::ResourcePool::createRenderTarget(phi::format f
                                                        samples != 1 ? DXGI_STANDARD_MULTISAMPLE_QUALITY_PATTERN : 0, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
 
         auto* const alloc = mAllocator.allocate(desc, initial_state, &clear_value);
-        util::set_object_name(alloc->GetResource(), "respool render target");
+        util::set_object_name(alloc->GetResource(), "pool render tgt %s (%ux%u, fmt %u)", dbg_name ? dbg_name : "", w, h, unsigned(format));
         return acquireImage(alloc, format, initial_state, desc.MipLevels, desc.ArraySize());
     }
 }
 
-phi::handle::resource phi::d3d12::ResourcePool::createBuffer(uint64_t size_bytes, unsigned stride_bytes, resource_heap heap, bool allow_uav)
+phi::handle::resource phi::d3d12::ResourcePool::createBuffer(uint64_t size_bytes, unsigned stride_bytes, resource_heap heap, bool allow_uav, const char* dbg_name)
 {
+    CC_CONTRACT(size_bytes > 0);
     D3D12_RESOURCE_STATES const initial_state = d3d12_get_initial_state_by_heap(heap);
 
     auto desc = CD3DX12_RESOURCE_DESC::Buffer(size_bytes);
@@ -212,8 +219,8 @@ phi::handle::resource phi::d3d12::ResourcePool::createBuffer(uint64_t size_bytes
         desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
     auto* const alloc = mAllocator.allocate(desc, initial_state, nullptr, util::to_native(heap));
-    util::set_object_name(alloc->GetResource(), "respool buffer (%uB, %uB stride, %s heap)", unsigned(size_bytes), stride_bytes,
-                          d3d12_get_heap_type_literal(heap));
+    util::set_object_name(alloc->GetResource(), "pool buf %s (%uB, %uB stride, %s heap)", dbg_name ? dbg_name : "", unsigned(size_bytes),
+                          stride_bytes, d3d12_get_heap_type_literal(heap));
     return acquireBuffer(alloc, initial_state, size_bytes, stride_bytes, heap);
 }
 
@@ -291,6 +298,12 @@ void phi::d3d12::ResourcePool::free(cc::span<const phi::handle::resource> resour
             mPool.release(unsigned(res._value));
         }
     }
+}
+
+void phi::d3d12::ResourcePool::setDebugName(phi::handle::resource res, const char* name, unsigned name_length)
+{
+    CC_CONTRACT(name != nullptr);
+    util::set_object_name(internalGet(res).resource, "%*s [respool named]", name_length, name);
 }
 
 phi::handle::resource phi::d3d12::ResourcePool::acquireBuffer(

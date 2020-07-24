@@ -23,13 +23,14 @@ public:
     // frontend-facing API
 
     /// create a 1D, 2D or 3D texture, or a 1D/2D array
-    [[nodiscard]] handle::resource createTexture(format format, unsigned w, unsigned h, unsigned mips, texture_dimension dim, unsigned depth_or_array_size, bool allow_uav);
+    [[nodiscard]] handle::resource createTexture(
+        format format, unsigned w, unsigned h, unsigned mips, texture_dimension dim, unsigned depth_or_array_size, bool allow_uav, char const* dbg_name);
 
     /// create a render- or depth-stencil target
-    [[nodiscard]] handle::resource createRenderTarget(format format, unsigned w, unsigned h, unsigned samples, unsigned array_size);
+    [[nodiscard]] handle::resource createRenderTarget(format format, unsigned w, unsigned h, unsigned samples, unsigned array_size, char const* dbg_name);
 
     /// create a buffer, with an element stride if its an index or vertex buffer
-    [[nodiscard]] handle::resource createBuffer(uint64_t size_bytes, unsigned stride_bytes, resource_heap heap, bool allow_uav);
+    [[nodiscard]] handle::resource createBuffer(uint64_t size_bytes, unsigned stride_bytes, resource_heap heap, bool allow_uav, char const* dbg_name);
 
     std::byte* mapBuffer(handle::resource res);
 
@@ -39,6 +40,8 @@ public:
 
     void free(handle::resource res);
     void free(cc::span<handle::resource const> resources);
+
+    void setDebugName(handle::resource res, char const* name, unsigned name_len);
 
 public:
     struct resource_node
