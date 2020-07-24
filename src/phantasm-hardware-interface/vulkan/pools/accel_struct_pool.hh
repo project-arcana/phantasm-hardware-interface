@@ -9,7 +9,7 @@
 #include <phantasm-hardware-interface/detail/linked_pool.hh>
 #include <phantasm-hardware-interface/types.hh>
 
-#include <phantasm-hardware-interface/vulkan/loader/vulkan_fwd.hh>
+#include <phantasm-hardware-interface/vulkan/loader/volk.hh>
 
 namespace phi::vk
 {

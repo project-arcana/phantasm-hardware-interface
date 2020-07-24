@@ -1,5 +1,7 @@
 #pragma once
 
+#include <clean-core/array.hh>
+
 #include <phantasm-hardware-interface/commands.hh>
 
 #include <phantasm-hardware-interface/d3d12/fwd.hh>

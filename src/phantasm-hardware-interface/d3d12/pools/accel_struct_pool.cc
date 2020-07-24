@@ -189,6 +189,6 @@ phi::d3d12::AccelStructPool::accel_struct_node& phi::d3d12::AccelStructPool::acq
 
 void phi::d3d12::AccelStructPool::internalFree(phi::d3d12::AccelStructPool::accel_struct_node& node)
 {
-    cc::array const buffers_to_free = {node.buffer_as, node.buffer_scratch, node.buffer_instances};
+    handle::resource buffers_to_free[] = {node.buffer_as, node.buffer_scratch, node.buffer_instances};
     mResourcePool->free(buffers_to_free);
 }
