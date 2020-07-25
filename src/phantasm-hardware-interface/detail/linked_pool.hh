@@ -4,11 +4,7 @@
 #include <cstdlib>
 #include <cstring>
 
-#define PHI_LINKEDPOOL_USE_CC_ALLOC true // NOTE: compat only
-
-#if PHI_LINKEDPOOL_USE_CC_ALLOC
 #include <clean-core/allocator.hh>
-#endif
 #include <clean-core/bit_cast.hh>
 #include <clean-core/bits.hh>
 #include <clean-core/new.hh>

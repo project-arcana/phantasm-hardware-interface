@@ -116,6 +116,8 @@ void phi::d3d12::BackendD3D12::destroy()
         mAdapter.invalidate();
 
         ::CloseHandle(mFlushEvent);
+
+        mThreadAssociation.destroy();
     }
 }
 

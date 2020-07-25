@@ -3,6 +3,7 @@
 #include <clean-core/assert.hh>
 #include <clean-core/capped_vector.hh>
 
+#include <phantasm-hardware-interface/config.hh>
 #include <phantasm-hardware-interface/detail/log.hh>
 
 #include "common/verify.hh"

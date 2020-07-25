@@ -1,7 +1,7 @@
 #pragma once
 
 #include <phantasm-hardware-interface/config.hh>
-#include <phantasm-hardware-interface/gpu_info.hh>
+#include <phantasm-hardware-interface/detail/gpu_info.hh>
 
 #include "common/d3d12_fwd.hh"
 #include "common/shared_com_ptr.hh"

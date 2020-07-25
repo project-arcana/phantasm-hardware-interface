@@ -29,6 +29,8 @@ extern "C"
     struct VkAccelerationStructureCreateInfoNV;
     struct VkGeometryNV;
 
+    // TODO: clean this up once Vk Raytracing gets revisisted,
+    // eventually only VK_KHR_ray_tracing should be used
     struct VkAccelerationStructureNV_T;
     struct VkAccelerationStructureKHR_T;
 }

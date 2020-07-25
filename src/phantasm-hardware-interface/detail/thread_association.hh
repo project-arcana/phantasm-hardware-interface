@@ -12,6 +12,7 @@ namespace phi::detail
 struct thread_association
 {
     void initialize();
+    void destroy();
     [[nodiscard]] unsigned get_current_index();
 
 private:

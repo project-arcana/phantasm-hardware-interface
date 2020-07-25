@@ -47,7 +47,7 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createPipelineS
     }
 
 
-    return {static_cast<handle::index_t>(pool_index)};
+    return {static_cast<handle::handle_t>(pool_index)};
 }
 
 phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createComputePipelineState(phi::arg::shader_arg_shapes shader_arg_shapes,

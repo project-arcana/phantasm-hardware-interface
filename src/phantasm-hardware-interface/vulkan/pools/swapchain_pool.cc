@@ -3,6 +3,7 @@
 #include <clean-core/assert.hh>
 #include <clean-core/utility.hh>
 
+#include <phantasm-hardware-interface/config.hh>
 #include <phantasm-hardware-interface/detail/log.hh>
 
 #include <phantasm-hardware-interface/vulkan/Device.hh>
@@ -19,7 +20,7 @@ constexpr VkFormat gc_assumed_backbuffer_format = VK_FORMAT_B8G8R8A8_UNORM;
 phi::handle::swapchain phi::vk::SwapchainPool::createSwapchain(const window_handle& window_handle, int initial_w, int initial_h, unsigned num_backbuffers, phi::present_mode mode)
 {
     CC_CONTRACT(initial_w > 0 && initial_h > 0);
-    handle::index_t res;
+    handle::handle_t res;
     {
         auto lg = std::lock_guard(mMutex);
         res = mPool.acquire();

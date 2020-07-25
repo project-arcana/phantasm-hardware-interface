@@ -1,5 +1,7 @@
 #include "thread_association.hh"
 
+#include <clean-core/assert.hh>
+
 namespace
 {
 struct thread_index_info
@@ -8,15 +10,31 @@ struct thread_index_info
     unsigned index = 0;
 };
 
-int s_global_threadstorage_id = 0;
+int s_global_threadassoc_id = 0;
+bool s_global_threadalloc_in_use = false;
 thread_local thread_index_info tl_index_info;
 
 }
 
 void phi::detail::thread_association::initialize()
 {
-    _id = s_global_threadstorage_id++;
+    // NOTE: this assert is overzealous, concurrent use of thread_association is possible, just not from
+    // the same OS thread. As that would be a little harder to diagnose, this check will do for now.
+    // the only way this assert is hit is if multiple phi::Backends are alive at the same time, if
+    // that turns out to be a valid usecase, revisit
+    CC_ASSERT_MSG(!s_global_threadalloc_in_use, "only one thread_association can be alive at a time\nif you really require multiple PHI "
+                                                "backends concurrently, please contact the maintainers");
+
+    s_global_threadalloc_in_use = true;
+
+    _id = s_global_threadassoc_id++;
     _num_associations.store(0);
+}
+
+void phi::detail::thread_association::destroy()
+{
+    CC_ASSERT(s_global_threadalloc_in_use && "programmer error");
+    s_global_threadalloc_in_use = false;
 }
 
 unsigned phi::detail::thread_association::get_current_index()

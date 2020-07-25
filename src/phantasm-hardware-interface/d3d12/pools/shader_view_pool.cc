@@ -100,7 +100,7 @@ phi::handle::shader_view phi::d3d12::ShaderViewPool::create(cc::span<resource_vi
         }
     }
 
-    return {static_cast<handle::index_t>(pool_index)};
+    return {static_cast<handle::handle_t>(pool_index)};
 }
 
 void phi::d3d12::ShaderViewPool::free(phi::handle::shader_view sv)

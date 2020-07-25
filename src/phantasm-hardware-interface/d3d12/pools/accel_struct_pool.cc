@@ -183,12 +183,12 @@ phi::d3d12::AccelStructPool::accel_struct_node& phi::d3d12::AccelStructPool::acq
         res = mPool.acquire();
     }
 
-    out_handle = {static_cast<handle::index_t>(res)};
+    out_handle = {static_cast<handle::handle_t>(res)};
     return mPool.get(res);
 }
 
 void phi::d3d12::AccelStructPool::internalFree(phi::d3d12::AccelStructPool::accel_struct_node& node)
 {
-    cc::array const buffers_to_free = {node.buffer_as, node.buffer_scratch, node.buffer_instances};
+    handle::resource buffers_to_free[] = {node.buffer_as, node.buffer_scratch, node.buffer_instances};
     mResourcePool->free(buffers_to_free);
 }

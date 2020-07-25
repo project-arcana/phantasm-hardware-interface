@@ -100,7 +100,7 @@ cc::vector<phi::gpu_info> phi::d3d12::get_adapter_candidates()
     return res;
 }
 
-phi::gpu_feature_flags phi::d3d12::check_capabilities(ID3D12Device* device)
+phi::gpu_feature_flags phi::d3d12::get_gpu_features(ID3D12Device* device)
 {
     gpu_feature_flags res = {};
 

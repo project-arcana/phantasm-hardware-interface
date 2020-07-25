@@ -4,16 +4,16 @@
 
 namespace phi::handle
 {
-using index_t = uint32_t;
-inline constexpr index_t null_handle_value = index_t(-1);
+using handle_t = uint32_t;
+inline constexpr handle_t null_handle_value = handle_t(-1);
 
 namespace detail
 {
 struct abstract_handle
 {
-    index_t _value;
+    handle_t _value;
     abstract_handle() = default;
-    constexpr abstract_handle(index_t val) : _value(val) {}
+    constexpr abstract_handle(handle_t val) : _value(val) {}
     void invalidate() & { _value = null_handle_value; }
     [[nodiscard]] constexpr bool is_valid() const noexcept { return _value != null_handle_value; }
     [[nodiscard]] constexpr bool operator==(abstract_handle rhs) const noexcept { return _value == rhs._value; }

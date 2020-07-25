@@ -97,13 +97,13 @@ phi::vk::backbuffer_information phi::vk::get_backbuffer_information(VkPhysicalDe
 
     uint32_t num_formats;
     vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &num_formats, nullptr);
-    CC_RUNTIME_ASSERT(num_formats != 0);
+    CC_ASSERT(num_formats != 0);
     res.backbuffer_formats = cc::array<VkSurfaceFormatKHR>::uninitialized(num_formats);
     vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &num_formats, res.backbuffer_formats.data());
 
     uint32_t num_present_modes;
     vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &num_present_modes, nullptr);
-    CC_RUNTIME_ASSERT(num_present_modes != 0);
+    CC_ASSERT(num_present_modes != 0);
     res.present_modes = cc::array<VkPresentModeKHR>::uninitialized(num_present_modes);
     vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &num_present_modes, res.present_modes.data());
 

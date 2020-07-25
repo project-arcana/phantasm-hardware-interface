@@ -253,7 +253,7 @@ phi::handle::accel_struct phi::vk::AccelStructPool::acquireAccelStruct(VkAcceler
 
     PHI_VK_VERIFY_SUCCESS(vkGetAccelerationStructureHandleNV(mDevice, raw_as, sizeof(new_node.raw_as_handle), &new_node.raw_as_handle));
 
-    return {static_cast<handle::index_t>(res)};
+    return {static_cast<handle::handle_t>(res)};
 }
 
 void phi::vk::AccelStructPool::moveGeometriesToAS(phi::handle::accel_struct as, cc::vector<VkGeometryNV>&& geometries)

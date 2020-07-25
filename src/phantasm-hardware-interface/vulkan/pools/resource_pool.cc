@@ -467,7 +467,7 @@ phi::handle::resource phi::vk::ResourcePool::acquireBuffer(VmaAllocation alloc, 
     new_node.master_state = resource_state::undefined;
     new_node.master_state_dependency = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 
-    return {static_cast<handle::index_t>(res)};
+    return {static_cast<handle::handle_t>(res)};
 }
 phi::handle::resource phi::vk::ResourcePool::acquireImage(
     VmaAllocation alloc, VkImage image, format pixel_format, unsigned num_mips, unsigned num_array_layers, unsigned num_samples, int width, int height)
@@ -493,7 +493,7 @@ phi::handle::resource phi::vk::ResourcePool::acquireImage(
     new_node.master_state = resource_state::undefined;
     new_node.master_state_dependency = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 
-    return {static_cast<handle::index_t>(res)};
+    return {static_cast<handle::handle_t>(res)};
 }
 
 void phi::vk::ResourcePool::internalFree(resource_node& node)

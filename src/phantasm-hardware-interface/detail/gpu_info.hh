@@ -6,7 +6,7 @@
 #include <clean-core/span.hh>
 #include <clean-core/string.hh>
 
-#include "config.hh"
+#include <phantasm-hardware-interface/fwd.hh>
 
 namespace phi
 {
@@ -64,5 +64,5 @@ struct gpu_info
 
 [[nodiscard]] size_t get_preferred_gpu(cc::span<gpu_info const> candidates, adapter_preference preference);
 
-void print_startup_message(cc::span<gpu_info const> gpu_candidates, size_t chosen_index, backend_config const& config, bool is_d3d12, bool verbose);
+void print_startup_message(cc::span<gpu_info const> gpu_candidates, size_t chosen_index, backend_config const& config, bool is_d3d12);
 }
