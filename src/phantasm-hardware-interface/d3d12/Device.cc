@@ -35,7 +35,8 @@ void phi::d3d12::Device::initialize(IDXGIAdapter& adapter, const backend_config&
         // to make following errors more legible
         // this also allows the user to verify if validation layer messages are printed on the TTY he's looking at,
         // it can for example instead be printed to the VS debug console
-        PHI_LOG("gpu validation enabled \u001b[38;5;244m(if there is no message above ^^^^ d3d12 is printing to a different tty, like the vs debug console)\u001b[0m");
+        PHI_LOG("gpu validation enabled \u001b[38;5;244m(if there is no message above ^^^^ d3d12 is printing to a different tty, like the vs debug "
+                "console)\u001b[0m");
         std::printf("\n");
         std::fflush(stdout);
     }
