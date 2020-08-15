@@ -1,51 +1,28 @@
 #pragma once
 
 #include <cstdint>
-#include <cstdlib>
 #include <cstring>
 
+#include <clean-core/alloc_vector.hh>
 #include <clean-core/allocator.hh>
 #include <clean-core/bit_cast.hh>
 #include <clean-core/bits.hh>
 #include <clean-core/new.hh>
-#include <clean-core/vector.hh>
 
 namespace phi::detail
 {
+void radix_sort(uint32_t* a, uint32_t* temp, size_t n);
+
 /// Fixed-size object pool
 /// Uses an in-place linked list in free nodes, for O(1) acquire, release and size overhead
+/// Pointers remain stable
 template <class T, bool GenCheckEnabled = false>
 struct linked_pool
 {
-    // internally, generational checks are active in debug even if disabled via template argument
-    // explicitly enabling allows for public ::is_alive() functionality
-#ifdef CC_ENABLE_ASSERTIONS
-    static constexpr bool sc_enable_gen_check = true;
-#else
-    static constexpr bool sc_enable_gen_check = GenCheckEnabled;
-#endif
-
-    static constexpr size_t sc_num_padding_bits = 3;
-    static constexpr size_t sc_num_index_bits = 16;
-    struct internal_handle_t
-    {
-        uint32_t index : sc_num_index_bits;
-        uint32_t generation : 32 - (sc_num_padding_bits + sc_num_index_bits);
-        uint32_t padding : sc_num_padding_bits;
-    };
-
     using handle_t = uint32_t;
-    static_assert(sizeof(internal_handle_t) == sizeof(handle_t));
 
     linked_pool() = default;
     explicit linked_pool(size_t size, cc::allocator* allocator = cc::system_allocator) { initialize(size, allocator); }
-
-    // NOTE: Adding these isn't trivial because pointers in the linked list would have to be readjusted
-    linked_pool(linked_pool const&) = delete;
-    linked_pool(linked_pool&&) noexcept = delete;
-    linked_pool& operator=(linked_pool const&) = delete;
-    linked_pool& operator=(linked_pool&&) noexcept = delete;
-
     ~linked_pool() { _destroy(); }
 
     void initialize(size_t size, cc::allocator* allocator = cc::system_allocator)
@@ -187,19 +164,16 @@ struct linked_pool
     size_t max_size() const { return _pool_size; }
 
     /// pass a lambda that is called with a T& of each allocated node
-    /// acquire and release CAN be called from within the lambda
-    /// This operation is slow and should not occur in normal operation
+    /// acquire CAN be called from within the lambda
+    /// release CAN be called from within the lambda ONLY for nodes already iterated (including the current one)
+    /// this operation is slow and should not occur in normal operation
     template <class F>
-    unsigned iterate_allocated_nodes(F&& func)
+    unsigned iterate_allocated_nodes(F&& func, cc::allocator* temp_alloc = cc::system_allocator)
     {
         if (_pool == nullptr)
             return 0;
 
-        auto free_indices = _get_free_node_indices();
-        // sort ascending
-        std::qsort(
-            free_indices.data(), free_indices.size(), sizeof(free_indices[0]),
-            +[](void const* a, void const* b) -> int { return int(*(handle_t*)a) - int(*(handle_t*)b); });
+        auto const free_indices = _get_free_node_indices(temp_alloc);
 
         unsigned num_iterated_nodes = 0;
         unsigned free_list_index = 0;
@@ -223,9 +197,9 @@ struct linked_pool
     }
 
     /// This operation is slow and should not occur in normal operation
-    unsigned release_all()
+    unsigned release_all(cc::allocator* temp_alloc = cc::system_allocator)
     {
-        return iterate_allocated_nodes([this](T& node) { release_node(&node); });
+        return iterate_allocated_nodes([this](T& node) { release_node(&node); }, temp_alloc);
     }
 
     /// NOTE: advanced feature, returns a valid handle for the index
@@ -233,9 +207,36 @@ struct linked_pool
     handle_t unsafe_construct_handle_for_index(uint32_t index) const { return _acquire_handle(index); }
 
 private:
-    cc::vector<handle_t> _get_free_node_indices() const
+    // internally, generational checks are active in debug even if disabled via template argument
+    // explicitly enabling allows for public ::is_alive() functionality
+#ifdef CC_ENABLE_ASSERTIONS
+    static constexpr bool sc_enable_gen_check = true;
+#else
+    static constexpr bool sc_enable_gen_check = GenCheckEnabled;
+#endif
+
+    static constexpr size_t sc_num_padding_bits = 3;
+    static constexpr size_t sc_num_index_bits = 16;
+    struct internal_handle_t
     {
-        cc::vector<handle_t> free_indices;
+        uint32_t index : sc_num_index_bits;
+        uint32_t generation : 32 - (sc_num_padding_bits + sc_num_index_bits);
+        uint32_t padding : sc_num_padding_bits;
+    };
+    static_assert(sizeof(internal_handle_t) == sizeof(handle_t));
+
+private:
+    // NOTE: Adding these isn't trivial because pointers in the linked list would have to be readjusted
+    linked_pool(linked_pool const&) = delete;
+    linked_pool(linked_pool&&) noexcept = delete;
+    linked_pool& operator=(linked_pool const&) = delete;
+    linked_pool& operator=(linked_pool&&) noexcept = delete;
+
+private:
+    /// returns indices of unallocated slots, sorted ascending
+    cc::alloc_vector<handle_t> _get_free_node_indices(cc::allocator* temp_alloc) const
+    {
+        cc::alloc_vector<handle_t> free_indices(temp_alloc);
         free_indices.reserve(_pool_size);
 
         T* cursor = _first_free_node;
@@ -244,6 +245,9 @@ private:
             free_indices.push_back(static_cast<handle_t>(cursor - _pool));
             cursor = *reinterpret_cast<T**>(cursor);
         }
+        // sort ascending
+        auto temp_sortvec = cc::alloc_vector<handle_t>::uninitialized(free_indices.size(), temp_alloc);
+        radix_sort(free_indices.data(), temp_sortvec.data(), free_indices.size());
 
         return free_indices;
     }
