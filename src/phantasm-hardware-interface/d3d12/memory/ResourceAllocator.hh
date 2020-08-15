@@ -31,5 +31,6 @@ public:
 
 private:
     D3D12MA::Allocator* mAllocator = nullptr;
+    ID3D12Device* mDevice = nullptr;
 };
 }
