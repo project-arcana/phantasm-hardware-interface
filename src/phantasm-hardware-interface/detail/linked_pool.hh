@@ -15,6 +15,7 @@ void radix_sort(uint32_t* a, uint32_t* temp, size_t n);
 
 /// Fixed-size object pool
 /// Uses an in-place linked list in free nodes, for O(1) acquire, release and size overhead
+/// Pointers remain stable
 template <class T, bool GenCheckEnabled = false>
 struct linked_pool
 {
