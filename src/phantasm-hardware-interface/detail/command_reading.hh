@@ -15,7 +15,7 @@ PHI_CMD_TYPE_VALUES
 #undef PHI_X
 
     /// returns the size in bytes of the given command
-    [[nodiscard]] constexpr size_t
+    [[nodiscard]] inline size_t
     get_command_size(detail::cmd_type type)
 {
     switch (type)
@@ -31,7 +31,7 @@ PHI_CMD_TYPE_VALUES
 }
 
 /// returns a string literal corresponding to the command type
-[[nodiscard]] constexpr char const* to_string(detail::cmd_type type)
+[[nodiscard]] inline char const* to_string(detail::cmd_type type)
 {
     switch (type)
     {
