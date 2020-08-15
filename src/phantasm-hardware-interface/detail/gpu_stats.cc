@@ -41,7 +41,7 @@ bool load_address_t(platform_dll_t dll, char const* name, T& out_func_ptr)
     void* const loaded_raw = load_address(dll, name);
     if (!loaded_raw)
     {
-        LOG_WARN("failed to load dll function {}", name);
+        PHI_LOG_ERROR("failed to load dll function {}", name);
         return false;
     }
     else
@@ -93,7 +93,7 @@ struct nvml_dll_state
 
         if (!_dll)
         {
-            LOG_WARN("Unable to load NVML .dll/.so");
+            PHI_LOG_ERROR("Unable to load NVML .dll/.so");
             return false;
         }
 
@@ -105,7 +105,7 @@ struct nvml_dll_state
             auto const success = load_address_t(_dll, "nvmlInit", _nvmlInit);
             if (!success)
             {
-                LOG_WARN("Unable to load nvmlInit address");
+                PHI_LOG_ERROR("Unable to load nvmlInit address");
                 return false;
             }
             else
@@ -133,7 +133,7 @@ struct nvml_dll_state
         auto const ret = _nvmlInit();
         if (ret != 0)
         {
-            LOG_WARN("nvmlInit call unsuccessful (returned {})", ret);
+            PHI_LOG_ERROR("nvmlInit call unsuccessful (returned {})", ret);
             return false;
         }
 
@@ -148,7 +148,7 @@ struct nvml_dll_state
         auto const ret = _nvmlShutdown();
         if (ret != 0)
         {
-            LOG_WARN("nvmlShutdown unsuccessful");
+            PHI_LOG_ERROR("nvmlShutdown unsuccessful");
         }
 
         close_dll(_dll);

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <rich-log/log.hh>
+#include <rich-log/detail/log_impl.hh>
 
 namespace phi::detail
 {
