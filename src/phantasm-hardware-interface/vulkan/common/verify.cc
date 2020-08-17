@@ -6,6 +6,8 @@
 
 #include <clean-core/assert.hh>
 
+#include <phantasm-hardware-interface/detail/log.hh>
+
 namespace
 {
 #define CASE_STRINGIFY_RETURN(_val_) \
@@ -66,13 +68,11 @@ void phi::vk::detail::verify_failure_handler(VkResult vr, const char* expression
     // Make sure this really is a failed VkResult
     CC_ASSERT(vr != VK_SUCCESS);
 
-    auto const error_string = get_vk_error_literal(vr);
+    char const* error_string = get_vk_error_literal(vr);
 
-    // TODO: Proper logging
-    fprintf(stderr, "[phi][vk] backend verify on `%s' failed.\n", expression);
-    fprintf(stderr, "  error: %s\n", error_string);
-    fprintf(stderr, "  file %s:%d\n", filename, line);
-    fflush(stderr);
+    PHI_LOG_ASSERT("backend verify on {} failed", expression);
+    PHI_LOG_ASSERT("  error: {}", error_string);
+    PHI_LOG_ASSERT("  file {}:{}", filename, line);
 
     // TODO: Graceful shutdown, possibly memory dump n
     std::abort();

@@ -155,14 +155,20 @@ void phi::d3d12::detail::verify_failure_handler(HRESULT hr, const char* expressi
     CC_RUNTIME_ASSERT(FAILED(hr));
 
     // TODO: Proper logging
-    fprintf(stderr, "[phi][d3d12] backend verify on `%s' failed.\n", expression);
-    fprintf(stderr, "  error: %s\n", get_general_error_literal(hr));
-    fprintf(stderr, "  file %s:%d\n", filename, line);
-    fflush(stderr);
+    PHI_LOG_ASSERT("backend verify on {} failed", expression);
+    PHI_LOG_ASSERT("  error: {}", get_general_error_literal(hr));
+    PHI_LOG_ASSERT("  file {}:{}", filename, line);
 
     if (hr == DXGI_ERROR_DEVICE_REMOVED && device)
     {
-        print_dred_information(device);
+        if (device != nullptr)
+        {
+            print_dred_information(device);
+        }
+        else
+        {
+            PHI_LOG_ASSERT("device was removed, but assert handler has no access to ID3D12Device");
+        }
     }
 
     // TODO: Graceful shutdown
@@ -171,9 +177,8 @@ void phi::d3d12::detail::verify_failure_handler(HRESULT hr, const char* expressi
 
 void phi::d3d12::detail::dred_assert_handler(void* device_child, const char* expression, const char* filename, int line)
 {
-    fprintf(stderr, "[phi][d3d12] DRED assert on `%s' failed.\n", expression);
-    fprintf(stderr, "  file %s:%d\n", filename, line);
-    fflush(stderr);
+    PHI_LOG_ASSERT("device-removal related assert on {} failed", expression);
+    PHI_LOG_ASSERT("  file {}:{}", filename, line);
 
     auto* const as_device_child = static_cast<ID3D12DeviceChild*>(device_child);
 
@@ -185,7 +190,7 @@ void phi::d3d12::detail::dred_assert_handler(void* device_child, const char* exp
     }
     else
     {
-        PHI_LOG_ERROR("Failed to recover device from ID3D12DeviceChild {}", device_child);
+        PHI_LOG_ASSERT("Failed to recover device from ID3D12DeviceChild {}", device_child);
     }
 
     // TODO: Graceful shutdown
