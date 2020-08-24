@@ -113,6 +113,11 @@ void phi::d3d12::BackendD3D12::destroy()
             thread_comp.cmd_list_allocator.destroy();
         }
 
+        mDirectQueue.destroy();
+        mCopyQueue.destroy();
+        mComputeQueue.destroy();
+
+        mDevice.invalidate();
         mAdapter.invalidate();
 
         ::CloseHandle(mFlushEvent);

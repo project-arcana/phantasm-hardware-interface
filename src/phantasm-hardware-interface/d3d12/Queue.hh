@@ -18,15 +18,15 @@ public:
     Queue& operator=(Queue&&) noexcept = delete;
 
     void initialize(ID3D12Device& device, queue_type type = queue_type::direct);
+    void destroy();
 
-    [[nodiscard]] ID3D12CommandQueue& getQueue() const { return *mQueue.get(); }
-    [[nodiscard]] shared_com_ptr<ID3D12CommandQueue> const& getQueueShared() const { return mQueue; }
+    [[nodiscard]] ID3D12CommandQueue& getQueue() const { return *mQueue; }
 
-    ID3D12Fence& getFence() const { return *mInternalFence.get(); }
+    ID3D12Fence& getFence() const { return *mInternalFence; }
 
 private:
-    shared_com_ptr<ID3D12CommandQueue> mQueue;
-    shared_com_ptr<ID3D12Fence> mInternalFence;
+    ID3D12CommandQueue* mQueue = nullptr;
+    ID3D12Fence* mInternalFence = nullptr;
 };
 
 }

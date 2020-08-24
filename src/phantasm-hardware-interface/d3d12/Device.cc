@@ -70,3 +70,10 @@ void phi::d3d12::Device::initialize(IDXGIAdapter& adapter, const backend_config&
         }
     }
 }
+
+void phi::d3d12::Device::invalidate()
+{
+    mDREDSettings = nullptr;
+    mDevice = nullptr;
+    mDevice5 = nullptr;
+}

@@ -18,6 +18,7 @@ public:
     Device& operator=(Device&&) noexcept = delete;
 
     void initialize(IDXGIAdapter& adapter, backend_config const& config);
+    void invalidate();
 
     gpu_feature_flags getFeatures() const { return mFeatures; }
     bool hasSM6WaveIntrinsics() const { return mFeatures.has(gpu_feature::hlsl_wave_ops); }
