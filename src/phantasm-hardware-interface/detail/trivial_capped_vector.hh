@@ -94,6 +94,8 @@ public:
 
     void clear() { _size = 0; }
 
+    void resize(uint8_t size) { _size = size; }
+
 public:
     trivial_capped_vector() = default;
     trivial_capped_vector(std::initializer_list<T> data)

@@ -7,7 +7,7 @@ namespace phi::mem
 // From D3D12 sample MiniEngine
 // https://github.com/Microsoft/DirectX-Graphics-Samples/blob/master/MiniEngine/Core/Math/Common.h
 template <class T>
-[[nodiscard]] T align_up_masked(T value, size_t mask)
+constexpr T align_up_masked(T value, size_t mask)
 {
     return (T)(((size_t)value + mask) & ~mask);
 }
@@ -19,7 +19,7 @@ template <class T>
 }
 
 template <class T>
-[[nodiscard]] T align_up(T value, size_t alignment)
+constexpr T align_up(T value, size_t alignment)
 {
     return align_up_masked(value, alignment - 1);
 }

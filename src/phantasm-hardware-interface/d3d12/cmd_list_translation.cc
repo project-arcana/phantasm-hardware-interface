@@ -176,6 +176,7 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::draw& draw)
                                                      draw.root_constants, 0);
         }
 
+        CC_ASSERT(root_sig.argument_maps.size() == draw.shader_arguments.size() && "given amount of shader arguments deviates from pipeline state configuration");
         for (uint8_t i = 0; i < root_sig.argument_maps.size(); ++i)
         {
             auto& bound_arg = _bound.shader_args[i];
@@ -197,12 +198,14 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::draw& draw)
             {
                 if (map.srv_uav_table_param != uint32_t(-1))
                 {
+                    CC_ASSERT(_globals.pool_shader_views->hasSRVsUAVs(arg.shader_view) && "shader_view is missing SRVs/UAVs");
                     auto const sv_desc_table = _globals.pool_shader_views->getSRVUAVGPUHandle(arg.shader_view);
                     _cmd_list->SetGraphicsRootDescriptorTable(map.srv_uav_table_param, sv_desc_table);
                 }
 
                 if (map.sampler_table_param != uint32_t(-1))
                 {
+                    CC_ASSERT(_globals.pool_shader_views->hasSamplers(arg.shader_view) && "shader_view is missing Samplers");
                     auto const sampler_desc_table = _globals.pool_shader_views->getSamplerGPUHandle(arg.shader_view);
                     _cmd_list->SetGraphicsRootDescriptorTable(map.sampler_table_param, sampler_desc_table);
                 }
