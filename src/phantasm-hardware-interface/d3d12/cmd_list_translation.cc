@@ -27,6 +27,11 @@ void phi::d3d12::command_list_translator::initialize(
     _thread_local.initialize(*_globals.device);
 }
 
+void phi::d3d12::command_list_translator::destroy()
+{
+    _thread_local.destroy();
+}
+
 void phi::d3d12::command_list_translator::translateCommandList(
     ID3D12GraphicsCommandList5* list, queue_type type, d3d12_incomplete_state_cache* state_cache, std::byte* buffer, size_t buffer_size)
 {
@@ -685,4 +690,10 @@ void phi::d3d12::translator_thread_local_memory::initialize(ID3D12Device& device
 {
     lin_alloc_rtvs.initialize(device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, limits::max_render_targets);
     lin_alloc_dsvs.initialize(device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, limits::max_render_targets);
+}
+
+void phi::d3d12::translator_thread_local_memory::destroy()
+{
+    lin_alloc_rtvs.destroy();
+    lin_alloc_dsvs.destroy();
 }

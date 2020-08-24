@@ -107,10 +107,12 @@ void phi::d3d12::BackendD3D12::destroy()
         mPoolPSOs.destroy();
         mPoolShaderViews.destroy();
         mPoolResources.destroy();
+        mPoolQueries.destroy();
 
         for (auto& thread_comp : mThreadComponents)
         {
             thread_comp.cmd_list_allocator.destroy();
+            thread_comp.translator.destroy();
         }
 
         mDirectQueue.destroy();

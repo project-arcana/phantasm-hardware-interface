@@ -39,6 +39,8 @@ public:
 public:
     void initialize(ID3D12Device& device, D3D12_DESCRIPTOR_HEAP_TYPE type, unsigned num_descriptors, unsigned page_size = 8);
 
+    void destroy();
+
     [[nodiscard]] handle_t allocate(int num_descriptors)
     {
         if (num_descriptors <= 0)
@@ -83,7 +85,7 @@ public:
     [[nodiscard]] ID3D12DescriptorHeap* getHeap() const { return mHeap; }
 
 private:
-    shared_com_ptr<ID3D12DescriptorHeap> mHeap;
+    ID3D12DescriptorHeap* mHeap;
     D3D12_CPU_DESCRIPTOR_HANDLE mHeapStartCPU;
     D3D12_GPU_DESCRIPTOR_HANDLE mHeapStartGPU;
     phi::detail::page_allocator mPageAllocator;

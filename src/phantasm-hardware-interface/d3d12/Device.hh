@@ -26,8 +26,6 @@ public:
     bool hasVariableRateShading() const { return mFeatures.has_any_of({gpu_feature::shading_rate_t1, gpu_feature::shading_rate_t2}); }
 
     ID3D12Device& getDevice() const { return *mDevice.get(); }
-    shared_com_ptr<ID3D12Device> const& getDeviceShared() const { return mDevice; }
-
     ID3D12Device5* getDevice5() const { return mDevice5.get(); }
 
 private:

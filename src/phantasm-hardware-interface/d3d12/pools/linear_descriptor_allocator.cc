@@ -23,6 +23,11 @@ void phi::d3d12::CPUDescriptorLinearAllocator::initialize(ID3D12Device& device, 
     mHandleCPU = mHeap->GetCPUDescriptorHandleForHeapStart();
 }
 
+void phi::d3d12::CPUDescriptorLinearAllocator::destroy()
+{
+    mHeap = nullptr;
+}
+
 phi::d3d12::resource_view_cpu_only phi::d3d12::CPUDescriptorLinearAllocator::allocate(unsigned num)
 {
     auto const res = D3D12_CPU_DESCRIPTOR_HANDLE{mHandleCPU.ptr + mNumAllocatedDescriptors * mDescriptorSize};

@@ -17,12 +17,21 @@ void phi::d3d12::DescriptorPageAllocator::initialize(ID3D12Device& device, D3D12
     desc.Type = type;
     desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
     desc.NodeMask = 0;
-    PHI_D3D12_VERIFY(device.CreateDescriptorHeap(&desc, PHI_COM_WRITE(mHeap)));
+    PHI_D3D12_VERIFY(device.CreateDescriptorHeap(&desc, IID_PPV_ARGS(&mHeap)));
     util::set_object_name(mHeap, "desc page allocator, type %d, size %d", int(type), int(num_descriptors));
 
     mHeapStartCPU = mHeap->GetCPUDescriptorHandleForHeapStart();
 
     mHeapStartGPU = mHeap->GetGPUDescriptorHandleForHeapStart();
+}
+
+void phi::d3d12::DescriptorPageAllocator::destroy()
+{
+    if (mHeap != nullptr)
+    {
+        mHeap->Release();
+        mHeap = nullptr;
+    }
 }
 
 phi::handle::shader_view phi::d3d12::ShaderViewPool::create(cc::span<resource_view const> srvs, cc::span<resource_view const> uavs, cc::span<sampler_config const> samplers)
@@ -137,5 +146,7 @@ void phi::d3d12::ShaderViewPool::initialize(ID3D12Device* device, phi::d3d12::Re
 
 void phi::d3d12::ShaderViewPool::destroy()
 {
-    // nothing, the heaps themselves are being destroyed
+    mPool.destroy();
+    mSRVUAVAllocator.destroy();
+    mSamplerAllocator.destroy();
 }

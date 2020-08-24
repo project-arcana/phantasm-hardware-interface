@@ -25,10 +25,7 @@ public:
     void invalidate();
 
     [[nodiscard]] IDXGIAdapter& getAdapter() const { return *mAdapter.get(); }
-    [[nodiscard]] shared_com_ptr<IDXGIAdapter> getAdapterShared() const { return mAdapter; }
-
     [[nodiscard]] IDXGIFactory4& getFactory() const { return *mFactory.get(); }
-    [[nodiscard]] shared_com_ptr<IDXGIFactory4> getFactoryShared() const { return mFactory; }
 
 private:
     shared_com_ptr<IDXGIAdapter> mAdapter;
