@@ -19,8 +19,8 @@ struct framebuffer_config
     bool logic_op_enable = false;
     blend_logic_op logic_op = blend_logic_op::no_op;
 
-    /// format of the depth stencil target, [0, 1]
-    detail::trivial_capped_vector<format, 1> depth_target;
+    /// format of the depth stencil target, or format::none
+    format depth_target = format::none;
 
 public:
     void add_render_target(format fmt)
@@ -30,9 +30,8 @@ public:
         render_targets.push_back(new_rt);
     }
 
-    void add_depth_target(format fmt) { depth_target.push_back(fmt); }
-
-    void remove_depth_target() { depth_target.clear(); }
+    void set_depth_target(format fmt) { depth_target = fmt; }
+    void remove_depth_target() { depth_target = format::none; }
 };
 
 struct vertex_format

@@ -106,6 +106,10 @@ namespace phi::vk::util
         return VK_FORMAT_D32_SFLOAT_S8_UINT;
     case bf::depth24un_stencil8u:
         return VK_FORMAT_D24_UNORM_S8_UINT;
+
+    case bf::none:
+    case bf::MAX_FORMAT_RANGE:
+        return VK_FORMAT_UNDEFINED;
     }
     CC_UNREACHABLE_SWITCH_WORKAROUND(format);
 }

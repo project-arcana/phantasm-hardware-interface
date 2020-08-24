@@ -113,6 +113,8 @@ enum class resource_heap : uint8_t
 /// [f]loat, [i]nt, [u]int, [un]orm, [uf]loat, [t]ypeless
 enum class format : uint8_t
 {
+    none = 0,
+
     // regular formats
     rgba32f,
     rgb32f,
@@ -164,16 +166,21 @@ enum class format : uint8_t
     // depth stencil formats
     depth32f_stencil8u,
     depth24un_stencil8u,
+
+    MAX_FORMAT_RANGE,
+    NUM_FORMATS = MAX_FORMAT_RANGE - 1
 };
 
+constexpr bool is_valid_format(format fmt) { return fmt > format::none && fmt < format::MAX_FORMAT_RANGE; }
+
 /// returns true if the format is a view-only format
-[[nodiscard]] constexpr bool is_view_format(format fmt) { return fmt >= format::r24un_g8t && fmt < format::depth32f; }
+constexpr bool is_view_format(format fmt) { return fmt >= format::r24un_g8t && fmt < format::depth32f; }
 
 /// returns true if the format is a depth OR depth stencil format
-[[nodiscard]] constexpr bool is_depth_format(format fmt) { return fmt >= format::depth32f; }
+constexpr bool is_depth_format(format fmt) { return fmt >= format::depth32f; }
 
 /// returns true if the format is a depth stencil format
-[[nodiscard]] constexpr bool is_depth_stencil_format(format fmt) { return fmt >= format::depth32f_stencil8u; }
+constexpr bool is_depth_stencil_format(format fmt) { return fmt >= format::depth32f_stencil8u; }
 
 /// information about a single vertex attribute
 struct vertex_attribute_info

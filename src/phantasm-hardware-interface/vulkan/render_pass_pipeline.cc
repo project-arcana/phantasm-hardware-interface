@@ -40,11 +40,11 @@ VkRenderPass phi::vk::create_render_pass(VkDevice device, arg::framebuffer_confi
             ref.layout = util::to_image_layout(resource_state::render_target);
         }
 
-        for (format ds : framebuffer.depth_target)
+        if (framebuffer.depth_target != format::none)
         {
             auto& desc = attachments.emplace_back();
             desc = {};
-            desc.format = util::to_vk_format(ds);
+            desc.format = util::to_vk_format(framebuffer.depth_target);
             desc.samples = sample_bits;
             desc.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
             desc.storeOp = VK_ATTACHMENT_STORE_OP_STORE;

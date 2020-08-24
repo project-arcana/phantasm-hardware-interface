@@ -30,4 +30,7 @@ inline constexpr unsigned max_raytracing_argument_assocs = 8u;
 /// the maximum amount of hit groups
 /// configurable
 inline constexpr unsigned max_raytracing_hit_groups = 16u;
+
+/// amount of shader stages in the graphics pipeline
+inline constexpr unsigned num_graphics_shader_stages = 5u;
 }
