@@ -457,7 +457,8 @@ void phi::vk::CommandListPool::initialize(phi::vk::Device& device,
     mPoolCopy.initialize(num_copy_lists_total);
     mPool.initialize(num_direct_lists_total + num_compute_lists_total + num_copy_lists_total);
 
-    mFenceRing.initialize(mDevice, thread_allocators.size() * (num_direct_allocs + num_compute_allocs + num_copy_allocs) + 5); // arbitrary safety buffer, should never be required
+    mFenceRing.initialize(mDevice, unsigned(thread_allocators.size()) * (num_direct_allocs + num_compute_allocs + num_copy_allocs)
+                                       + 5); // arbitrary safety buffer, should never be required
 
 
     auto const direct_queue_family = unsigned(device.getQueueFamilyDirect());
