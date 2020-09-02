@@ -17,8 +17,8 @@ option(PHI_ENABLE_DEBUG_MARKERS "enable API debug markers" ON)
 
 # Enables PIX detection, marker support and capture forcing
 # requires WinPixEventRuntime.dll to be available to the executable (in the same folder)
-# this dll is included in extern/win32_pix_runtime/bin/
-option(PHI_ENABLE_D3D12_PIX "enable DirectX 12 PIX integration" OFF)
+# this dll is included in extern/win32_pix_runtime/bin/ and is automatically copied if enabled
+option(PHI_ENABLE_D3D12_PIX "enable DirectX 12 PIX integration" ON)
 option(PHI_ENABLE_SDL2 "enable SDL2 integration" ON)
 
 # =========================================
