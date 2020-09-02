@@ -2,5 +2,5 @@
 
 namespace phi::log
 {
-void dump_hex(char const* desc, void const* addr, int len);
+void dump_hex(void const* addr, int len);
 }

@@ -1,58 +1,74 @@
 #include "log_util.hh"
 
 #include <cstdio>
+#include <cstring>
 
-void phi::log::dump_hex(const char* description, const void* data, int length)
+#include <clean-core/bits.hh>
+
+void phi::log::dump_hex(const void* data, int length)
 {
-    int i;
+    int i = 0;
     unsigned char buff[17];                                         // stores the ASCII data
     auto const* const pc = static_cast<unsigned char const*>(data); // cast to make the code cleaner.
+    buff[16] = '\0';
 
-    // Output description if given.
+    // loop body
+    // 16 bytes at once
 
-    if (description != nullptr)
-        std::printf("%s:\n", description);
-
-    // Process every byte in the data.
-
-    for (i = 0; i < length; i++)
+    while (i + 16 < length)
     {
-        // Multiple of 16 means new line (with line offset).
-
-        if ((i % 16) == 0)
+        for (auto j = 0; j < 16; ++j)
         {
-            // Just don't print ASCII for the zeroth line.
-
-            if (i != 0)
-                std::printf("  %s\n", buff);
-
-            // Output the offset.
-
-            std::printf("  %04x ", i);
+            if ((pc[i + j] < 0x20) || (pc[i + j] > 0x7e))
+                buff[j] = '.';
+            else
+                buff[j] = pc[i + j];
         }
 
-        // Now the hex code for the specific character.
+        std::printf("  %04x  %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x  %s\n", i, //
+                    pc[i + 0], pc[i + 1], pc[i + 2], pc[i + 3],                                                         //
+                    pc[i + 4], pc[i + 5], pc[i + 6], pc[i + 7],                                                         //
+                    pc[i + 8], pc[i + 9], pc[i + 10], pc[i + 11],                                                       //
+                    pc[i + 12], pc[i + 13], pc[i + 14], pc[i + 15],                                                     //
+                    buff);
 
-        std::printf(" %02x", pc[i]);
-
-        // And store a printable ASCII character for later.
-
-        if ((pc[i] < 0x20) || (pc[i] > 0x7e))
-            buff[i % 16] = '.';
-        else
-            buff[i % 16] = pc[i];
-        buff[(i % 16) + 1] = '\0';
+        i += 16;
     }
 
-    // Pad out last line if not exactly 16 characters.
+    // loop epilogue
 
-    while ((i % 16) != 0)
+    if (i < length)
     {
-        std::printf("   ");
-        i++;
+        // begin the last line
+        std::printf("  %04x ", i);
+
+        auto j = 0;
+        while (i < length)
+        {
+            // fill in the last line
+            std::printf(" %02x", pc[i]);
+            if ((pc[i] < 0x20) || (pc[i] > 0x7e))
+                buff[j] = '.';
+            else
+                buff[j] = pc[i];
+            ++i;
+            ++j;
+        }
+
+        while (j < 16)
+        {
+            buff[j] = ' ';
+            ++j;
+        }
+
+        while (cc::mod_pow2(i, 16u) != 0)
+        {
+            // pad out the last line
+            std::printf("   ");
+            ++i;
+        }
+
+        // print the last data-as-string
+        std::printf("  %s\n", buff);
     }
-
-    // And print the final ASCII bit.
-
-    std::printf("  %s\n", buff);
 }
