@@ -29,7 +29,7 @@ public:
         return res;
     }
 
-    ID3D12Fence* fence;
+    ID3D12Fence* fence = nullptr;
     ::HANDLE event;
 };
 

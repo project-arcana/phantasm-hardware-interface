@@ -232,7 +232,7 @@ public:
     uint64_t getGPUTimestampFrequency() const override
     {
         uint64_t res;
-        mDirectQueue.getQueue().GetTimestampFrequency(&res);
+        mDirectQueue.command_queue->GetTimestampFrequency(&res);
         return res;
     }
 
@@ -245,13 +245,13 @@ public:
 
     [[nodiscard]] ID3D12Device& getDevice() { return mDevice.getDevice(); }
     [[nodiscard]] ID3D12Device5* getDevice5() { return mDevice.getDevice5(); }
-    [[nodiscard]] ID3D12CommandQueue& getDirectQueue() { return mDirectQueue.getQueue(); }
+    [[nodiscard]] ID3D12CommandQueue& getDirectQueue() { return *mDirectQueue.command_queue; }
 
 
 private:
     ID3D12CommandQueue& getQueueByType(queue_type type) const
     {
-        return (type == queue_type::direct ? mDirectQueue.getQueue() : (type == queue_type::compute ? mComputeQueue.getQueue() : mCopyQueue.getQueue()));
+        return (type == queue_type::direct ? *mDirectQueue.command_queue : (type == queue_type::compute ? *mComputeQueue.command_queue : *mCopyQueue.command_queue));
     }
 
     struct per_thread_component;

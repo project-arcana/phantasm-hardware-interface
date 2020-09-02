@@ -62,7 +62,7 @@ void phi::d3d12::BackendD3D12::initialize(const phi::backend_config& config)
         }
 
         mPoolSwapchains.initialize(&mAdapter.getFactory(), &mDevice.getDevice(),
-                                   config.present_from_compute_queue ? &mComputeQueue.getQueue() : &mDirectQueue.getQueue(), config.max_num_swapchains);
+                                   config.present_from_compute_queue ? mComputeQueue.command_queue : mDirectQueue.command_queue, config.max_num_swapchains);
     }
 
     // Per-thread components and command list pool
@@ -119,8 +119,8 @@ void phi::d3d12::BackendD3D12::destroy()
         mCopyQueue.destroy();
         mComputeQueue.destroy();
 
-        mDevice.invalidate();
-        mAdapter.invalidate();
+        mDevice.destroy();
+        mAdapter.destroy();
 
         ::CloseHandle(mFlushEvent);
 
@@ -136,19 +136,15 @@ void phi::d3d12::BackendD3D12::flushGPU()
 
     ++mFlushSignalVal;
 
-    PHI_D3D12_VERIFY(mDirectQueue.getQueue().Signal(&mDirectQueue.getFence(), mFlushSignalVal));
-    PHI_D3D12_VERIFY(mComputeQueue.getQueue().Signal(&mComputeQueue.getFence(), mFlushSignalVal));
-    PHI_D3D12_VERIFY(mCopyQueue.getQueue().Signal(&mCopyQueue.getFence(), mFlushSignalVal));
+    PHI_D3D12_VERIFY(mDirectQueue.command_queue->Signal(mDirectQueue.fence, mFlushSignalVal));
+    PHI_D3D12_VERIFY(mComputeQueue.command_queue->Signal(mComputeQueue.fence, mFlushSignalVal));
+    PHI_D3D12_VERIFY(mCopyQueue.command_queue->Signal(mCopyQueue.fence, mFlushSignalVal));
 
-    cc::array<ID3D12Fence*, 3> fences;
-    fences[0] = &mDirectQueue.getFence();
-    fences[1] = &mComputeQueue.getFence();
-    fences[2] = &mCopyQueue.getFence();
-
-    cc::array<uint64_t, 3> fence_vals = {mFlushSignalVal, mFlushSignalVal, mFlushSignalVal};
-
+    ID3D12Fence* fences[] = {mDirectQueue.fence, mComputeQueue.fence, mCopyQueue.fence};
+    uint64_t fence_vals[] = {mFlushSignalVal, mFlushSignalVal, mFlushSignalVal};
     ID3D12Device5* const device = mDevice.getDevice5();
-    PHI_D3D12_VERIFY(device->SetEventOnMultipleFenceCompletion(fences.data(), fence_vals.data(), 3, D3D12_MULTIPLE_FENCE_WAIT_FLAG_ALL, mFlushEvent));
+
+    PHI_D3D12_VERIFY(device->SetEventOnMultipleFenceCompletion(fences, fence_vals, 3, D3D12_MULTIPLE_FENCE_WAIT_FLAG_ALL, mFlushEvent));
     ::WaitForSingleObject(mFlushEvent, INFINITE);
 }
 

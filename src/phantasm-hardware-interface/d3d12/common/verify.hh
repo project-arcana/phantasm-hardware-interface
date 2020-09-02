@@ -62,3 +62,13 @@ namespace phi::d3d12::detail
             ::phi::d3d12::detail::verify_failure_handler(op_res, #_expr_, __FILE__, __LINE__, _device_ptr_); \
         }                                                                                                    \
     } while (0)
+
+#define PHI_D3D12_SAFE_RELEASE(_val_) \
+    do                                \
+    {                                 \
+        if (_val_ != nullptr)         \
+        {                             \
+            _val_->Release();         \
+            _val_ = nullptr;          \
+        }                             \
+    } while (0)

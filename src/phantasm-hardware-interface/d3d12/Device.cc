@@ -6,6 +6,7 @@
 
 #include "adapter_choice_util.hh"
 #include "common/d3d12_sanitized.hh"
+#include "common/shared_com_ptr.hh"
 #include "common/verify.hh"
 
 
@@ -13,9 +14,9 @@ void phi::d3d12::Device::initialize(IDXGIAdapter& adapter, const backend_config&
 {
     if (config.validation >= validation_level::on_extended_dred)
     {
-        auto const hr = D3D12GetDebugInterface(PHI_COM_WRITE(mDREDSettings));
+        auto const hr = D3D12GetDebugInterface(IID_PPV_ARGS(&mDREDSettings));
 
-        if (detail::hr_succeeded(hr) && mDREDSettings.is_valid())
+        if (detail::hr_succeeded(hr) && mDREDSettings)
         {
             mDREDSettings->SetAutoBreadcrumbsEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
             mDREDSettings->SetPageFaultEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
@@ -27,7 +28,7 @@ void phi::d3d12::Device::initialize(IDXGIAdapter& adapter, const backend_config&
         }
     }
 
-    PHI_D3D12_VERIFY(::D3D12CreateDevice(&adapter, D3D_FEATURE_LEVEL_12_0, PHI_COM_WRITE(mDevice)));
+    PHI_D3D12_VERIFY(::D3D12CreateDevice(&adapter, D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&mDevice)));
 
     if (config.validation >= validation_level::on_extended)
     {
@@ -45,7 +46,7 @@ void phi::d3d12::Device::initialize(IDXGIAdapter& adapter, const backend_config&
     mFeatures = get_gpu_features(mDevice);
 
     // QIs
-    auto const got_device5 = SUCCEEDED(mDevice->QueryInterface(PHI_COM_WRITE(mDevice5)));
+    auto const got_device5 = SUCCEEDED(mDevice->QueryInterface(IID_PPV_ARGS(&mDevice5)));
     if (!got_device5)
     {
         PHI_LOG_ERROR << "unable to QI ID3D12Device5 - please update to Windows 10 1809 or higher";
@@ -64,16 +65,16 @@ void phi::d3d12::Device::initialize(IDXGIAdapter& adapter, const backend_config&
         else
         {
             shared_com_ptr<ID3D12InfoQueue> info_queue;
-            PHI_D3D12_VERIFY(mDevice5.get_interface(info_queue));
+            PHI_D3D12_VERIFY(mDevice5->QueryInterface(PHI_COM_WRITE(info_queue)));
             PHI_D3D12_VERIFY(info_queue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, TRUE));
             PHI_LOG("d3d12_break_on_warn enabled");
         }
     }
 }
 
-void phi::d3d12::Device::invalidate()
+void phi::d3d12::Device::destroy()
 {
-    mDREDSettings = nullptr;
-    mDevice = nullptr;
-    mDevice5 = nullptr;
+    PHI_D3D12_SAFE_RELEASE(mDREDSettings);
+    PHI_D3D12_SAFE_RELEASE(mDevice);
+    PHI_D3D12_SAFE_RELEASE(mDevice5);
 }
