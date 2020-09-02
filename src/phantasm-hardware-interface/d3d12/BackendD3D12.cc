@@ -39,29 +39,32 @@ void phi::d3d12::BackendD3D12::initialize(const phi::backend_config& config)
     {
         mAdapter.initialize(config);
         mDevice.initialize(mAdapter.getAdapter(), config);
-
-        mDirectQueue.initialize(mDevice.getDevice(), queue_type::direct);
-        mComputeQueue.initialize(mDevice.getDevice(), queue_type::compute);
-        mCopyQueue.initialize(mDevice.getDevice(), queue_type::copy);
     }
 
-    auto& device = mDevice.getDevice();
+    auto* const device = mDevice.getDevice();
+
+    // queues
+    {
+        mDirectQueue.initialize(device, queue_type::direct);
+        mComputeQueue.initialize(device, queue_type::compute);
+        mCopyQueue.initialize(device, queue_type::copy);
+    }
 
     // Global pools
     {
         mPoolResources.initialize(device, config.max_num_resources, config.max_num_swapchains);
-        mPoolShaderViews.initialize(&device, &mPoolResources, config.max_num_cbvs, config.max_num_srvs + config.max_num_uavs, config.max_num_samplers);
-        mPoolPSOs.initialize(mDevice.getDevice5(), config.max_num_pipeline_states, config.max_num_raytrace_pipeline_states);
-        mPoolFences.initialize(&device, config.max_num_fences);
+        mPoolShaderViews.initialize(device, &mPoolResources, config.max_num_cbvs, config.max_num_srvs + config.max_num_uavs, config.max_num_samplers);
+        mPoolPSOs.initialize(device, config.max_num_pipeline_states, config.max_num_raytrace_pipeline_states);
+        mPoolFences.initialize(device, config.max_num_fences);
         mPoolQueries.initialize(device, config.num_timestamp_queries, config.num_occlusion_queries, config.num_pipeline_stat_queries);
 
         if (isRaytracingEnabled())
         {
-            mPoolAccelStructs.initialize(mDevice.getDevice5(), &mPoolResources, config.max_num_accel_structs);
-            mShaderTableCtor.initialize(mDevice.getDevice5(), &mPoolShaderViews, &mPoolResources, &mPoolPSOs, &mPoolAccelStructs);
+            mPoolAccelStructs.initialize(device, &mPoolResources, config.max_num_accel_structs);
+            mShaderTableCtor.initialize(device, &mPoolShaderViews, &mPoolResources, &mPoolPSOs, &mPoolAccelStructs);
         }
 
-        mPoolSwapchains.initialize(&mAdapter.getFactory(), &mDevice.getDevice(),
+        mPoolSwapchains.initialize(&mAdapter.getFactory(), device,
                                    config.present_from_compute_queue ? mComputeQueue.command_queue : mDirectQueue.command_queue, config.max_num_swapchains);
     }
 
@@ -75,7 +78,7 @@ void phi::d3d12::BackendD3D12::initialize(const phi::backend_config& config)
 
         for (auto& thread_comp : mThreadComponents)
         {
-            thread_comp.translator.initialize(&device, &mPoolShaderViews, &mPoolResources, &mPoolPSOs, &mPoolAccelStructs, &mPoolQueries);
+            thread_comp.translator.initialize(device, &mPoolShaderViews, &mPoolResources, &mPoolPSOs, &mPoolAccelStructs, &mPoolQueries);
             thread_allocator_ptrs.push_back(&thread_comp.cmd_list_allocator);
         }
 
@@ -142,7 +145,7 @@ void phi::d3d12::BackendD3D12::flushGPU()
 
     ID3D12Fence* fences[] = {mDirectQueue.fence, mComputeQueue.fence, mCopyQueue.fence};
     uint64_t fence_vals[] = {mFlushSignalVal, mFlushSignalVal, mFlushSignalVal};
-    ID3D12Device5* const device = mDevice.getDevice5();
+    ID3D12Device5* const device = mDevice.getDevice();
 
     PHI_D3D12_VERIFY(device->SetEventOnMultipleFenceCompletion(fences, fence_vals, 3, D3D12_MULTIPLE_FENCE_WAIT_FLAG_ALL, mFlushEvent));
     ::WaitForSingleObject(mFlushEvent, INFINITE);

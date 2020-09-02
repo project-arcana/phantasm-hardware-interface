@@ -15,7 +15,7 @@ void phi::d3d12::QueryPool::free(phi::handle::query_range qr)
     getHeap(type).free(index);
 }
 
-void phi::d3d12::QueryPool::initialize(ID3D12Device& device, unsigned num_timestamp, unsigned num_occlusion, unsigned num_pipeline_stats)
+void phi::d3d12::QueryPool::initialize(ID3D12Device* device, unsigned num_timestamp, unsigned num_occlusion, unsigned num_pipeline_stats)
 {
     CC_ASSERT(num_timestamp < mcIndexOffsetStep && num_occlusion < mcIndexOffsetStep && num_pipeline_stats < mcIndexOffsetStep && "too many queries configured");
     mHeapTimestamps.initialize(device, D3D12_QUERY_HEAP_TYPE_TIMESTAMP, num_timestamp);

@@ -20,11 +20,11 @@ public:
     constexpr static int sc_page_size = 2;
 
 public:
-    void initialize(ID3D12Device& device, D3D12_QUERY_HEAP_TYPE type, unsigned max_num_queries)
+    void initialize(ID3D12Device* device, D3D12_QUERY_HEAP_TYPE type, unsigned max_num_queries)
     {
         mType = type;
         D3D12_QUERY_HEAP_DESC desc = {type, max_num_queries, 0};
-        device.CreateQueryHeap(&desc, PHI_COM_WRITE(mHeap));
+        device->CreateQueryHeap(&desc, PHI_COM_WRITE(mHeap));
 
         mPageAllocator.initialize(max_num_queries, sc_page_size);
     }
@@ -130,7 +130,7 @@ public:
 public:
     // internal API
 
-    void initialize(ID3D12Device& device, unsigned num_timestamp, unsigned num_occlusion, unsigned num_pipeline_stats);
+    void initialize(ID3D12Device* device, unsigned num_timestamp, unsigned num_occlusion, unsigned num_pipeline_stats);
 
     void destroy();
 

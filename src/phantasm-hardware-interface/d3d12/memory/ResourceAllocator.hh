@@ -13,14 +13,7 @@ namespace phi::d3d12
 class ResourceAllocator
 {
 public:
-    ResourceAllocator() = default;
-    ResourceAllocator(ResourceAllocator const&) = delete;
-    ResourceAllocator(ResourceAllocator&&) noexcept = delete;
-    ResourceAllocator& operator=(ResourceAllocator const&) = delete;
-    ResourceAllocator& operator=(ResourceAllocator&&) noexcept = delete;
-
-public:
-    void initialize(ID3D12Device& device);
+    void initialize(ID3D12Device *device);
     void destroy();
 
     /// allocate a resource, thread safe

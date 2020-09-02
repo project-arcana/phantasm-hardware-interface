@@ -243,8 +243,7 @@ public:
 public:
     // backend-internal
 
-    [[nodiscard]] ID3D12Device& getDevice() { return mDevice.getDevice(); }
-    [[nodiscard]] ID3D12Device5* getDevice5() { return mDevice.getDevice5(); }
+    [[nodiscard]] ID3D12Device5* getDevice5() { return mDevice.getDevice(); }
     [[nodiscard]] ID3D12CommandQueue& getDirectQueue() { return *mDirectQueue.command_queue; }
 
 

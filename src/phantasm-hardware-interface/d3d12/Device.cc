@@ -28,7 +28,8 @@ void phi::d3d12::Device::initialize(IDXGIAdapter& adapter, const backend_config&
         }
     }
 
-    PHI_D3D12_VERIFY(::D3D12CreateDevice(&adapter, D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&mDevice)));
+    shared_com_ptr<ID3D12Device> temp_device;
+    PHI_D3D12_VERIFY(::D3D12CreateDevice(&adapter, D3D_FEATURE_LEVEL_12_0, PHI_COM_WRITE(temp_device)));
 
     if (config.validation >= validation_level::on_extended)
     {
@@ -43,17 +44,17 @@ void phi::d3d12::Device::initialize(IDXGIAdapter& adapter, const backend_config&
     }
 
     // Feature checks
-    mFeatures = get_gpu_features(mDevice);
+    mFeatures = get_gpu_features(temp_device);
 
     // QIs
-    auto const got_device5 = SUCCEEDED(mDevice->QueryInterface(IID_PPV_ARGS(&mDevice5)));
+    auto const got_device5 = SUCCEEDED(temp_device->QueryInterface(IID_PPV_ARGS(&mDevice)));
     if (!got_device5)
     {
         PHI_LOG_ERROR << "unable to QI ID3D12Device5 - please update to Windows 10 1809 or higher";
         PHI_LOG_ERROR << "to check your windows version, press Win + R and enter 'winver'";
         CC_RUNTIME_ASSERT(false && "unsupported windows 10 version, please update to windows 10 1809 or higher");
         // this is likely redundant, but just to make sure
-        mDevice5 = nullptr;
+        mDevice = nullptr;
     }
 
     if ((config.native_features & backend_config::native_feature_d3d12_break_on_warn) != 0)
@@ -65,7 +66,7 @@ void phi::d3d12::Device::initialize(IDXGIAdapter& adapter, const backend_config&
         else
         {
             shared_com_ptr<ID3D12InfoQueue> info_queue;
-            PHI_D3D12_VERIFY(mDevice5->QueryInterface(PHI_COM_WRITE(info_queue)));
+            PHI_D3D12_VERIFY(mDevice->QueryInterface(PHI_COM_WRITE(info_queue)));
             PHI_D3D12_VERIFY(info_queue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, TRUE));
             PHI_LOG("d3d12_break_on_warn enabled");
         }
@@ -76,5 +77,4 @@ void phi::d3d12::Device::destroy()
 {
     PHI_D3D12_SAFE_RELEASE(mDREDSettings);
     PHI_D3D12_SAFE_RELEASE(mDevice);
-    PHI_D3D12_SAFE_RELEASE(mDevice5);
 }

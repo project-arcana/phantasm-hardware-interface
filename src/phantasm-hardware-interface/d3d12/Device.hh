@@ -18,13 +18,11 @@ public:
     bool hasRaytracing() const { return mFeatures.has(gpu_feature::raytracing); }
     bool hasVariableRateShading() const { return mFeatures.has_any_of({gpu_feature::shading_rate_t1, gpu_feature::shading_rate_t2}); }
 
-    ID3D12Device& getDevice() const { return *mDevice; }
-    ID3D12Device5* getDevice5() const { return mDevice5; }
+    ID3D12Device5* getDevice() const { return mDevice; }
 
 private:
     ID3D12DeviceRemovedExtendedDataSettings* mDREDSettings = nullptr;
-    ID3D12Device* mDevice = nullptr;
-    ID3D12Device5* mDevice5 = nullptr;
+    ID3D12Device5* mDevice = nullptr;
     gpu_feature_flags mFeatures;
 };
 
