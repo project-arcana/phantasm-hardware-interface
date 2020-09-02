@@ -4,9 +4,9 @@
 
 #include <phantasm-hardware-interface/types.hh>
 
-namespace phi::detail
+namespace phi::util
 {
-[[nodiscard]] inline unsigned format_size_bytes(format fmt)
+[[nodiscard]] inline unsigned get_format_size_bytes(format fmt)
 {
     switch (fmt)
     {
@@ -76,12 +76,15 @@ namespace phi::detail
     case format::bc6h_16uf:
         CC_UNREACHABLE("compressed block format has no per-pixel byte size");
         return 0;
+    default:
+        CC_UNREACHABLE("unknown format");
+        return 0;
     }
     CC_UNREACHABLE("unknown format");
     return 0;
 }
 
-[[nodiscard]] inline unsigned format_num_components(format fmt)
+[[nodiscard]] inline unsigned get_format_num_components(format fmt)
 {
     switch (fmt)
     {
@@ -132,6 +135,9 @@ namespace phi::detail
     case format::r24t_g8u:
     case format::r24un_g8t:
         return 1;
+    default:
+        CC_UNREACHABLE("unknown format");
+        return 0;
     }
     CC_UNREACHABLE("unknown format");
     return 0;

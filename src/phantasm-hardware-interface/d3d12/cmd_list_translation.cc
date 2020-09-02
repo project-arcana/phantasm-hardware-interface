@@ -27,10 +27,7 @@ void phi::d3d12::command_list_translator::initialize(
     _thread_local.initialize(*_globals.device);
 }
 
-void phi::d3d12::command_list_translator::destroy()
-{
-    _thread_local.destroy();
-}
+void phi::d3d12::command_list_translator::destroy() { _thread_local.destroy(); }
 
 void phi::d3d12::command_list_translator::translateCommandList(
     ID3D12GraphicsCommandList5* list, queue_type type, d3d12_incomplete_state_cache* state_cache, std::byte* buffer, size_t buffer_size)
@@ -477,7 +474,7 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::copy_texture& 
 void phi::d3d12::command_list_translator::execute(const phi::cmd::copy_buffer_to_texture& copy_text)
 {
     auto const& dest_info = _globals.pool_resources->getImageInfo(copy_text.destination);
-    auto const pixel_bytes = phi::detail::format_size_bytes(dest_info.pixel_format);
+    auto const pixel_bytes = phi::util::get_format_size_bytes(dest_info.pixel_format);
     auto const format_dxgi = util::to_dxgi_format(dest_info.pixel_format);
 
     D3D12_SUBRESOURCE_FOOTPRINT footprint;
@@ -485,7 +482,7 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::copy_buffer_to
     footprint.Width = copy_text.dest_width;
     footprint.Height = copy_text.dest_height;
     footprint.Depth = 1;
-    footprint.RowPitch = mem::align_up(pixel_bytes * copy_text.dest_width, 256);
+    footprint.RowPitch = phi::util::align_up(pixel_bytes * copy_text.dest_width, 256);
 
     D3D12_PLACED_SUBRESOURCE_FOOTPRINT placed_footprint;
     placed_footprint.Offset = copy_text.source_offset;
@@ -507,7 +504,7 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::copy_texture_t
     footprint.Width = copy_text.src_width;
     footprint.Height = copy_text.src_height;
     footprint.Depth = 1;
-    footprint.RowPitch = mem::align_up(phi::detail::format_size_bytes(src_info.pixel_format) * copy_text.src_width, 256);
+    footprint.RowPitch = phi::util::align_up(phi::util::get_format_size_bytes(src_info.pixel_format) * copy_text.src_width, 256);
 
     D3D12_PLACED_SUBRESOURCE_FOOTPRINT dest_placed_footprint;
     dest_placed_footprint.Offset = copy_text.dest_offset;

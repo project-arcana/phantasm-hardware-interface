@@ -2,7 +2,7 @@
 
 #include <cstddef>
 
-namespace phi::mem
+namespace phi::util
 {
 // From D3D12 sample MiniEngine
 // https://github.com/Microsoft/DirectX-Graphics-Samples/blob/master/MiniEngine/Core/Math/Common.h
@@ -46,11 +46,5 @@ template <class T>
 [[nodiscard]] T align_offset(T offset, size_t alignment)
 {
     return ((offset + (alignment - 1)) & ~(alignment - 1));
-}
-
-template <class T>
-[[nodiscard]] bool is_power_of_two(T value)
-{
-    return value != 0 && (value & (value - 1)) == 0;
 }
 }
