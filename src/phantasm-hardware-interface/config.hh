@@ -15,6 +15,7 @@ enum class adapter_preference : uint8_t
 
 enum class validation_level : uint8_t
 {
+    // No validation, fastest
     off,
 
     // D3D12: Whether to enable debug layers, requires installed D3D12 SDK
