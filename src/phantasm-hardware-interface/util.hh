@@ -7,6 +7,8 @@
 
 #include <phantasm-hardware-interface/types.hh>
 
+#include <phantasm-hardware-interface/detail/byte_util.hh>
+
 namespace phi::util
 {
 /// returns the size in pixels the given texture dimension has at the specified mip level
@@ -34,4 +36,24 @@ unsigned get_texture_pixel_byte_offset(tg::isize2 size, format fmt, tg::ivec2 pi
 
 /// converts texture data from bgra8 to rgba8
 void unswizzle_bgra_texture_data(cc::span<std::byte> in_out_texture_data);
+
+/// returns the offset in bytes of the next element of size 'next_size_bytes' in a HLSL constant buffer
+/// where head_offset_bytes is the amount of bytes already in use
+constexpr unsigned get_hlsl_constant_buffer_offset(unsigned head_offset_bytes, unsigned next_size_bytes)
+{
+    // ref: https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/dx-graphics-hlsl-packing-rule
+    CC_ASSERT(next_size_bytes <= 16 && "unexpectedly large element");
+
+    // head is always aligned up to a 4-byte boundary
+    auto const head_aligned_4 = phi::util::align_up(head_offset_bytes, 4);
+    if (cc::mod_pow2(head_aligned_4, 16) + next_size_bytes > 16)
+    {
+        // if the element would straddle a 16-byte boundary (float4), it is pushed into the next one
+        return phi::util::align_up(head_offset_bytes, 16);
+    }
+    else
+    {
+        return head_aligned_4;
+    }
+}
 }
