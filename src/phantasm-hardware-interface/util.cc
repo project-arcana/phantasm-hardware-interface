@@ -2,6 +2,9 @@
 
 #include <phantasm-hardware-interface/detail/byte_util.hh>
 #include <phantasm-hardware-interface/detail/format_size.hh>
+#include <phantasm-hardware-interface/detail/log.hh>
+
+#include <clean-core/span.hh>
 
 unsigned phi::util::get_texture_size_bytes(tg::isize3 size, phi::format fmt, int num_mips, bool is_d3d12)
 {
@@ -38,4 +41,12 @@ unsigned phi::util::get_texture_pixel_byte_offset(tg::isize2 size, phi::format f
         row_width = phi::util::align_up(row_width, 256);
 
     return pixel.y * row_width + pixel.x * bytes_per_pixel;
+}
+
+void phi::util::unswizzle_bgra_texture_data(cc::span<std::byte> in_out_texture_data)
+{
+    for (auto i = 0u; i < in_out_texture_data.size(); i += 4)
+    {
+        cc::swap(in_out_texture_data[i], in_out_texture_data[i + 2]);
+    }
 }

@@ -145,9 +145,8 @@ void phi::d3d12::BackendD3D12::flushGPU()
 
     ID3D12Fence* fences[] = {mDirectQueue.fence, mComputeQueue.fence, mCopyQueue.fence};
     uint64_t fence_vals[] = {mFlushSignalVal, mFlushSignalVal, mFlushSignalVal};
-    ID3D12Device5* const device = mDevice.getDevice();
 
-    PHI_D3D12_VERIFY(device->SetEventOnMultipleFenceCompletion(fences, fence_vals, 3, D3D12_MULTIPLE_FENCE_WAIT_FLAG_ALL, mFlushEvent));
+    PHI_D3D12_VERIFY(mDevice.getDevice()->SetEventOnMultipleFenceCompletion(fences, fence_vals, 3, D3D12_MULTIPLE_FENCE_WAIT_FLAG_ALL, mFlushEvent));
     ::WaitForSingleObject(mFlushEvent, INFINITE);
 }
 

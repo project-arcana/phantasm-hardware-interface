@@ -20,16 +20,9 @@ public:
     constexpr static int sc_page_size = 2;
 
 public:
-    void initialize(ID3D12Device* device, D3D12_QUERY_HEAP_TYPE type, unsigned max_num_queries)
-    {
-        mType = type;
-        D3D12_QUERY_HEAP_DESC desc = {type, max_num_queries, 0};
-        device->CreateQueryHeap(&desc, PHI_COM_WRITE(mHeap));
+    void initialize(ID3D12Device* device, D3D12_QUERY_HEAP_TYPE type, unsigned max_num_queries);
 
-        mPageAllocator.initialize(max_num_queries, sc_page_size);
-    }
-
-    void destroy() { mHeap = nullptr; }
+    void destroy();
 
     [[nodiscard]] handle_t allocate(int num_queries)
     {
@@ -50,11 +43,11 @@ public:
     }
 
     [[nodiscard]] int getNumPages() const { return mPageAllocator.get_num_pages(); }
-    ID3D12QueryHeap* getHeap() const { return mHeap.get(); }
+    ID3D12QueryHeap* getHeap() const { return mHeap; }
     D3D12_QUERY_HEAP_TYPE getNativeType() const { return mType; }
 
 private:
-    shared_com_ptr<ID3D12QueryHeap> mHeap;
+    ID3D12QueryHeap* mHeap;
     phi::detail::page_allocator mPageAllocator;
     D3D12_QUERY_HEAP_TYPE mType;
 };

@@ -1,7 +1,6 @@
 #pragma once
 
 #include <phantasm-hardware-interface/d3d12/common/d3d12_sanitized.hh>
-#include <phantasm-hardware-interface/d3d12/common/shared_com_ptr.hh>
 
 namespace phi::d3d12
 {
@@ -53,7 +52,7 @@ public:
     ID3D12DescriptorHeap* getHeap() const { return mHeap; }
 
 private:
-    shared_com_ptr<ID3D12DescriptorHeap> mHeap;
+    ID3D12DescriptorHeap* mHeap = nullptr;
     D3D12_CPU_DESCRIPTOR_HANDLE mHandleCPU;
     unsigned mDescriptorSize = 0;
     unsigned mNumDescriptors = 0;

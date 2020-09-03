@@ -21,7 +21,6 @@ public:
     ID3D12Device5* getDevice() const { return mDevice; }
 
 private:
-    ID3D12DeviceRemovedExtendedDataSettings* mDREDSettings = nullptr;
     ID3D12Device5* mDevice = nullptr;
     gpu_feature_flags mFeatures;
 };

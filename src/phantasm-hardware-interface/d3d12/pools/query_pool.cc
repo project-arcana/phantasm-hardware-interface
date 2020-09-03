@@ -1,5 +1,7 @@
 #include "query_pool.hh"
 
+#include <phantasm-hardware-interface/d3d12/common/verify.hh>
+
 phi::handle::query_range phi::d3d12::QueryPool::create(phi::query_type type, unsigned size)
 {
     auto lg = std::lock_guard(mMutex);
@@ -29,3 +31,14 @@ void phi::d3d12::QueryPool::destroy()
     mHeapOcclusion.destroy();
     mHeapPipelineStats.destroy();
 }
+
+void phi::d3d12::QueryPageAllocator::initialize(ID3D12Device* device, D3D12_QUERY_HEAP_TYPE type, unsigned max_num_queries)
+{
+    mType = type;
+    D3D12_QUERY_HEAP_DESC desc = {type, max_num_queries, 0};
+    device->CreateQueryHeap(&desc, IID_PPV_ARGS(&mHeap));
+
+    mPageAllocator.initialize(max_num_queries, sc_page_size);
+}
+
+void phi::d3d12::QueryPageAllocator::destroy() { PHI_D3D12_SAFE_RELEASE(mHeap); }

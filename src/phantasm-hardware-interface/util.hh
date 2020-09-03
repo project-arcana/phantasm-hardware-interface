@@ -31,4 +31,7 @@ unsigned get_texture_size_bytes(tg::isize3 size, format fmt, int num_mips, bool 
 
 /// returns the offset in bytes of the given pixel position in a texture of given size and format (in a GPU buffer)
 unsigned get_texture_pixel_byte_offset(tg::isize2 size, format fmt, tg::ivec2 pixel, bool is_d3d12);
+
+/// converts texture data from bgra8 to rgba8
+void unswizzle_bgra_texture_data(cc::span<std::byte> in_out_texture_data);
 }
