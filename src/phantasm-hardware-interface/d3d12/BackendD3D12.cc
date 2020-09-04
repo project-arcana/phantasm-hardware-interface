@@ -1,7 +1,6 @@
 #include "BackendD3D12.hh"
 
 #include <clean-core/vector.hh>
-#include <clean-core/native/win32_util.hh>
 
 #include <phantasm-hardware-interface/detail/log.hh>
 #include <phantasm-hardware-interface/window_handle.hh>
@@ -31,7 +30,7 @@ struct BackendD3D12::per_thread_component
 void phi::d3d12::BackendD3D12::initialize(const phi::backend_config& config)
 {
     // enable colors as rich-log is used by this library
-    cc::win32_enable_console_colors();
+    rlog::enable_win32_colors();
 
     mFlushEvent = CreateEventEx(nullptr, FALSE, FALSE, EVENT_ALL_ACCESS);
     CC_ASSERT(mFlushEvent != INVALID_HANDLE_VALUE && "failed to create win32 event");

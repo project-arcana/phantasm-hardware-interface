@@ -29,7 +29,7 @@ struct BackendVulkan::per_thread_component
 void phi::vk::BackendVulkan::initialize(const backend_config& config_arg)
 {
     // enable colors as rich-log is used by this library
-    cc::win32_enable_console_colors();
+    rlog::enable_win32_colors();
 
     PHI_VK_VERIFY_SUCCESS(volkInitialize());
 
