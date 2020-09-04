@@ -23,6 +23,9 @@ public:
 private:
     ID3D12Device5* mDevice = nullptr;
     gpu_feature_flags mFeatures;
+
+    bool mIsShutdownCrashSubsceptible = false;
+    bool mIsShutdownCrashWorkaroundActive = false;
 };
 
 }

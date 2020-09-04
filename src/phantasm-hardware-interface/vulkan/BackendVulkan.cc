@@ -1,6 +1,7 @@
 #include "BackendVulkan.hh"
 
 #include <clean-core/array.hh>
+#include <clean-core/native/win32_util.hh>
 
 #include <rich-log/logger.hh>
 
@@ -27,8 +28,8 @@ struct BackendVulkan::per_thread_component
 
 void phi::vk::BackendVulkan::initialize(const backend_config& config_arg)
 {
-    // just making sure
-    rlog::enable_win32_colors();
+    // enable colors as rich-log is used by this library
+    cc::win32_enable_console_colors();
 
     PHI_VK_VERIFY_SUCCESS(volkInitialize());
 

@@ -185,8 +185,8 @@ phi::gpu_feature_flags phi::d3d12::get_gpu_features(ID3D12Device* device)
             }
         }
 
-        // Mesh and Amplification shaders were added in Win10 20H1, also known as Win10 2004 (Released May 2020)
-        // NOTE: Explicitly do not use NTDDI_WIN10_20H1 on the right hand as it isn't defined on previous versions
+        // Mesh and Amplification shaders were added in Win10 20H1, also known as Win10 2004, codename Vibranium (Vb) (Released May 2020)
+        // NOTE: Explicitly do not use NTDDI_WIN10_VB on the right hand as it isn't defined on previous versions
 #if WDK_NTDDI_VERSION >= 0x0A000008
         // Mesh/Amplification shaders
         {

@@ -2,6 +2,8 @@
 
 #include <cstdio>
 
+#include <clean-core/native/win32_util.hh>
+
 #include <phantasm-hardware-interface/detail/log.hh>
 
 #include "adapter_choice_util.hh"
@@ -12,6 +14,34 @@
 
 void phi::d3d12::Device::initialize(IDXGIAdapter& adapter, const backend_config& config)
 {
+    // determine vulnerability to shutdown crash bug
+    if (config.validation >= validation_level::on_extended)
+    {
+        // only affects enabled GBV
+        unsigned winver_major, winver_minor, winver_build;
+        if (cc::win32_get_version(winver_major, winver_minor, winver_build))
+        {
+            if (winver_major == 10 && winver_minor == 0 && winver_build <= 19042)
+            {
+                // only affects windows versions up to and including 20H2
+                mIsShutdownCrashSubsceptible = true;
+            }
+        }
+    }
+
+    if ((config.native_features & backend_config::native_feature_d3d12_workaround_device_release_crash) != 0)
+    {
+        if (mIsShutdownCrashSubsceptible)
+        {
+            mIsShutdownCrashWorkaroundActive = true;
+            PHI_LOG("d3d12_workaround_device_release_crash enabled");
+        }
+        else
+        {
+            PHI_LOG_WARN("ignored d3d12_workaround_device_release_crash - not subsceptible");
+        }
+    }
+
     if (config.validation >= validation_level::on_extended_dred)
     {
         shared_com_ptr<ID3D12DeviceRemovedExtendedDataSettings> dred_settings;
@@ -28,6 +58,7 @@ void phi::d3d12::Device::initialize(IDXGIAdapter& adapter, const backend_config&
             PHI_LOG_ERROR << "failed to enable DRED";
         }
     }
+
 
     shared_com_ptr<ID3D12Device> temp_device;
     PHI_D3D12_VERIFY(::D3D12CreateDevice(&adapter, D3D_FEATURE_LEVEL_12_0, PHI_COM_WRITE(temp_device)));
@@ -61,7 +92,7 @@ void phi::d3d12::Device::initialize(IDXGIAdapter& adapter, const backend_config&
     {
         if (config.validation < validation_level::on)
         {
-            PHI_LOG_ERROR("cannot enable d3d12_break_on_warn with disabled validation");
+            PHI_LOG_WARN("cannot enable d3d12_break_on_warn with disabled validation");
         }
         else
         {
@@ -73,4 +104,29 @@ void phi::d3d12::Device::initialize(IDXGIAdapter& adapter, const backend_config&
     }
 }
 
-void phi::d3d12::Device::destroy() { PHI_D3D12_SAFE_RELEASE(mDevice); }
+void phi::d3d12::Device::destroy()
+{
+    // print a warning about the spurious GBV shutdown crash in Win10 20H1 and 20H2
+    if (mIsShutdownCrashSubsceptible)
+    {
+        if (!mIsShutdownCrashWorkaroundActive)
+        {
+            // versions 20H1 (build 19041) and 20H2 (build 19042) are both affected,
+            // insider builds and public releases afterwards have a fix
+            PHI_LOG_WARN("D3D12's GPU-based validation has a known spurious crash at shutdown, which might occur right now");
+            PHI_LOG_WARN("The current windows version is affected (up to Win10 2009/20H2, resolved in later versions and insider from "
+                         "09.2020)");
+            PHI_LOG_WARN("As a workaround, device destruction can be skipped by enabling d3d12_workaround_device_release_crash in the backend config "
+                         "native features");
+        }
+        else
+        {
+            // deliberately drop the device without destroying it
+            PHI_LOG("d3d12_workaround_device_release_crash enabled - leaking ID3D12Device to avoid crash");
+            mDevice = nullptr;
+            return;
+        }
+    }
+
+    PHI_D3D12_SAFE_RELEASE(mDevice);
+}
