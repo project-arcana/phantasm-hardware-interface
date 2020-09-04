@@ -8,40 +8,58 @@
 
 #include "adapter_choice_util.hh"
 #include "common/d3d12_sanitized.hh"
+#include "common/safe_seh_call.hh"
 #include "common/shared_com_ptr.hh"
 #include "common/verify.hh"
 
 
 void phi::d3d12::Device::initialize(IDXGIAdapter& adapter, const backend_config& config)
 {
-    // determine vulnerability to shutdown crash bug
-    if (config.validation >= validation_level::on_extended)
+    // shutdown crash detection / workaround
     {
-        // only affects enabled GBV
-        unsigned winver_major, winver_minor, winver_build;
-        if (cc::win32_get_version(winver_major, winver_minor, winver_build))
+        bool const is_shutdown_crash_workaround_requested
+            = (config.native_features & backend_config::native_feature_d3d12_workaround_device_release_crash) != 0;
+
+        // determine vulnerability to shutdown crash bug
+        if (config.validation >= validation_level::on_extended)
         {
-            if (winver_major == 10 && winver_minor == 0 && winver_build <= 19042)
+            // only affects enabled GBV
+            unsigned winver_major, winver_minor, winver_build;
+            if (cc::win32_get_version(winver_major, winver_minor, winver_build))
             {
-                // only affects windows versions up to and including 20H2
-                mIsShutdownCrashSubsceptible = true;
+                if (winver_major == 10 && winver_minor == 0 && winver_build <= 19042)
+                {
+                    // only affects windows versions up to and including 20H2
+
+                    if (!is_shutdown_crash_workaround_requested)
+                    {
+                        PHI_LOG_WARN("the current windows version ({}.{}.{}) is affected by a spurious D3D12 crash at shutdown with enabled GPU "
+                                     "based validation (validation::on_extended)",
+                                     winver_major, winver_minor, winver_build);
+                        PHI_LOG_WARN("it is resolved in releases after Win10 20H2, device destruction can be skipped by enabling "
+                                     "d3d12_workaround_device_release_crash in the backend config native features");
+                    }
+
+                    mIsShutdownCrashSubsceptible = true;
+                }
+            }
+        }
+
+        if (is_shutdown_crash_workaround_requested)
+        {
+            if (mIsShutdownCrashSubsceptible)
+            {
+                mIsShutdownCrashWorkaroundActive = true;
+                PHI_LOG("d3d12_workaround_device_release_crash enabled");
+            }
+            else
+            {
+                PHI_LOG_WARN("ignored d3d12_workaround_device_release_crash - not subsceptible");
             }
         }
     }
 
-    if ((config.native_features & backend_config::native_feature_d3d12_workaround_device_release_crash) != 0)
-    {
-        if (mIsShutdownCrashSubsceptible)
-        {
-            mIsShutdownCrashWorkaroundActive = true;
-            PHI_LOG("d3d12_workaround_device_release_crash enabled");
-        }
-        else
-        {
-            PHI_LOG_WARN("ignored d3d12_workaround_device_release_crash - not subsceptible");
-        }
-    }
-
+    // DRED
     if (config.validation >= validation_level::on_extended_dred)
     {
         shared_com_ptr<ID3D12DeviceRemovedExtendedDataSettings> dred_settings;
@@ -60,9 +78,11 @@ void phi::d3d12::Device::initialize(IDXGIAdapter& adapter, const backend_config&
     }
 
 
+    // Device Creation
     shared_com_ptr<ID3D12Device> temp_device;
     PHI_D3D12_VERIFY(::D3D12CreateDevice(&adapter, D3D_FEATURE_LEVEL_12_0, PHI_COM_WRITE(temp_device)));
 
+    // GBV startup message
     if (config.validation >= validation_level::on_extended)
     {
         // D3D12 has just logged its GPU validation startup message, print a newline
@@ -78,7 +98,7 @@ void phi::d3d12::Device::initialize(IDXGIAdapter& adapter, const backend_config&
     // Feature checks
     mFeatures = get_gpu_features(temp_device);
 
-    // QIs
+    // QI proper device
     auto const got_device5 = SUCCEEDED(temp_device->QueryInterface(IID_PPV_ARGS(&mDevice)));
     if (!got_device5)
     {
@@ -88,6 +108,7 @@ void phi::d3d12::Device::initialize(IDXGIAdapter& adapter, const backend_config&
         CC_RUNTIME_ASSERT(false && "unsupported windows 10 version, please update to windows 10 1809 or higher");
     }
 
+    // break on warn
     if ((config.native_features & backend_config::native_feature_d3d12_break_on_warn) != 0)
     {
         if (config.validation < validation_level::on)
@@ -111,21 +132,34 @@ void phi::d3d12::Device::destroy()
     {
         if (!mIsShutdownCrashWorkaroundActive)
         {
-            // versions 20H1 (build 19041) and 20H2 (build 19042) are both affected,
-            // insider builds and public releases afterwards have a fix
-            PHI_LOG_WARN("D3D12's GPU-based validation has a known spurious crash at shutdown, which might occur right now");
-            PHI_LOG_WARN("The current windows version is affected (up to Win10 2009/20H2, resolved in later versions and insider from "
-                         "09.2020)");
-            PHI_LOG_WARN("As a workaround, device destruction can be skipped by enabling d3d12_workaround_device_release_crash in the backend config "
-                         "native features");
+            PHI_LOG("destroying ID3D12Device, spurious crash at shutdown might be imminent");
+            PHI_LOG("device destruction can be skipped by enabling d3d12_workaround_device_release_crash in the backend config native features");
+
+            try
+            {
+                detail::perform_safe_seh_call(
+                    [&] {
+                        //
+                        PHI_D3D12_SAFE_RELEASE(mDevice);
+                    },
+                    [&] {
+                        //
+                        PHI_LOG_WARN("survived a crash in SEH __try/__except");
+                    });
+            }
+            catch (...)
+            {
+                PHI_LOG_WARN("survived a crash in try/catch");
+            }
         }
         else
         {
             // deliberately drop the device without destroying it
             PHI_LOG("d3d12_workaround_device_release_crash enabled - leaking ID3D12Device to avoid crash");
             mDevice = nullptr;
-            return;
         }
+
+        return;
     }
 
     PHI_D3D12_SAFE_RELEASE(mDevice);

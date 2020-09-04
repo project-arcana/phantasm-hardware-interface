@@ -20,4 +20,16 @@ void perform_safe_seh_call(Ft&& f_try)
     }
 }
 
+template <class Ft, class Fe>
+void perform_safe_seh_call(Ft&& f_try, Fe&& f_except)
+{
+    __try
+    {
+        f_try();
+    }
+    __except (is_delay_load_exception(static_cast<_EXCEPTION_POINTERS*>(_exception_info())))
+    {
+        f_except();
+    }
+}
 }
