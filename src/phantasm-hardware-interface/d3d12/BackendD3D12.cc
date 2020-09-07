@@ -206,28 +206,18 @@ phi::handle::command_list phi::d3d12::BackendD3D12::recordCommandList(std::byte*
     return res;
 }
 
-void phi::d3d12::BackendD3D12::submit(cc::span<const phi::handle::command_list> cls, queue_type queue)
+void phi::d3d12::BackendD3D12::submit(cc::span<const phi::handle::command_list> cls,
+                                      queue_type queue,
+                                      cc::span<const fence_operation> fence_waits_before,
+                                      cc::span<const fence_operation> fence_signals_after)
 {
-    constexpr auto c_batch_size = 16;
-    ID3D12CommandQueue& target_queue = getQueueByType(queue);
-
-    cc::capped_vector<ID3D12CommandList*, c_batch_size * 2> submit_batch;
-    cc::capped_vector<handle::command_list, c_batch_size> barrier_lists;
-    unsigned last_cl_index = 0;
-    unsigned num_cls_in_batch = 0;
+    constexpr unsigned c_max_num_command_lists = 32u;
+    cc::capped_vector<ID3D12CommandList*, c_max_num_command_lists * 2> cmd_bufs_to_submit;
+    cc::capped_vector<handle::command_list, c_max_num_command_lists> barrier_lists;
+    CC_ASSERT(cls.size() <= c_max_num_command_lists && "too many commandlists submitted at once");
 
     auto& thread_comp = getCurrentThreadComponent();
 
-    auto const submit_flush = [&]() {
-        target_queue.ExecuteCommandLists(UINT(submit_batch.size()), submit_batch.data());
-        mPoolCmdLists.freeOnSubmit(barrier_lists, target_queue);
-        mPoolCmdLists.freeOnSubmit(cls.subspan(last_cl_index, num_cls_in_batch), target_queue);
-
-        submit_batch.clear();
-        barrier_lists.clear();
-        last_cl_index += num_cls_in_batch;
-        num_cls_in_batch = 0;
-    };
 
     for (auto const cl : cls)
     {
@@ -257,18 +247,29 @@ void phi::d3d12::BackendD3D12::submit(cc::span<const phi::handle::command_list> 
             barrier_lists.push_back(mPoolCmdLists.create(t_cmd_list, thread_comp.cmd_list_allocator, queue));
             t_cmd_list->ResourceBarrier(UINT(barriers.size()), barriers.size() > 0 ? barriers.data() : nullptr);
             t_cmd_list->Close();
-            submit_batch.push_back(t_cmd_list);
+            cmd_bufs_to_submit.push_back(t_cmd_list);
         }
 
-        submit_batch.push_back(mPoolCmdLists.getRawList(cl));
-        ++num_cls_in_batch;
-
-        if (num_cls_in_batch == c_batch_size)
-            submit_flush();
+        cmd_bufs_to_submit.push_back(mPoolCmdLists.getRawList(cl));
     }
 
-    if (num_cls_in_batch > 0)
-        submit_flush();
+
+    ID3D12CommandQueue& target_queue = getQueueByType(queue);
+
+    for (auto const& wait_op : fence_waits_before)
+    {
+        mPoolFences.waitGPU(wait_op.fence, wait_op.value, target_queue);
+    }
+
+    target_queue.ExecuteCommandLists(UINT(cmd_bufs_to_submit.size()), cmd_bufs_to_submit.data());
+
+    for (auto const& signal_op : fence_signals_after)
+    {
+        mPoolFences.signalGPU(signal_op.fence, signal_op.value, target_queue);
+    }
+
+    mPoolCmdLists.freeOnSubmit(barrier_lists, target_queue);
+    mPoolCmdLists.freeOnSubmit(cls, target_queue);
 }
 
 phi::handle::pipeline_state phi::d3d12::BackendD3D12::createRaytracingPipelineState(arg::raytracing_shader_libraries libraries,

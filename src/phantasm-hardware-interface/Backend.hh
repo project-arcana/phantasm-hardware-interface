@@ -1,5 +1,7 @@
 #pragma once
 
+#include <clean-core/span.hh>
+
 #include <typed-geometry/types/size.hh>
 
 #include <phantasm-hardware-interface/fwd.hh>
@@ -150,8 +152,13 @@ public:
     /// destroy the given command list handles
     virtual void discard(cc::span<handle::command_list const> cls) = 0;
 
-    /// submit and destroy the given command list handles
-    virtual void submit(cc::span<handle::command_list const> cls, queue_type queue = queue_type::direct) = 0;
+    /// submit and destroy the given command list handles on a specified queue
+    /// waiting on GPU for given fences before execution, and signalling fences on GPU after the commandlists have completed
+    virtual void submit(cc::span<handle::command_list const> cls,
+                        queue_type queue = queue_type::direct,
+                        cc::span<fence_operation const> fence_waits_before = {},
+                        cc::span<fence_operation const> fence_signals_after = {})
+        = 0;
 
     //
     // Fence interface
@@ -168,12 +175,6 @@ public:
 
     /// block on CPU until a fence reaches a given value
     virtual void waitFenceCPU(handle::fence fence, uint64_t wait_value) = 0;
-
-    /// signal a fence to a given value from a specified GPU queue
-    virtual void signalFenceGPU(handle::fence fence, uint64_t new_value, queue_type queue) = 0;
-
-    /// block on a specified GPU queue until a fence reaches a given value
-    virtual void waitFenceGPU(handle::fence fence, uint64_t wait_value, queue_type queue) = 0;
 
     virtual void free(cc::span<handle::fence const> fences) = 0;
 

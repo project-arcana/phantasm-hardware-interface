@@ -7,14 +7,6 @@
 #include <phantasm-hardware-interface/vulkan/common/verify.hh>
 #include <phantasm-hardware-interface/vulkan/loader/volk.hh>
 
-namespace
-{
-constexpr VkPipelineStageFlags const gc_wait_dst_masks[8]
-    = {VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-       VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-       VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT};
-}
-
 phi::handle::fence phi::vk::FencePool::createFence()
 {
     unsigned pool_index;
@@ -101,11 +93,6 @@ void phi::vk::FencePool::signalCPU(phi::handle::fence fence, uint64_t val) const
     PHI_VK_VERIFY_SUCCESS(vkSignalSemaphoreKHR(mDevice, &info));
 }
 
-void phi::vk::FencePool::signalGPU(phi::handle::fence fence, uint64_t val, VkQueue queue) const
-{
-    signalWaitGPU(cc::span{fence}, cc::span{val}, {}, {}, queue);
-}
-
 void phi::vk::FencePool::waitCPU(phi::handle::fence fence, uint64_t val) const
 {
     VkSemaphore sem = get(fence);
@@ -118,46 +105,6 @@ void phi::vk::FencePool::waitCPU(phi::handle::fence fence, uint64_t val) const
 
     // NOTE: KHR! We're not on Vulkan 1.2, these are the extension timeline semaphores and not the 1.2 core ones
     PHI_VK_VERIFY_SUCCESS(vkWaitSemaphoresKHR(mDevice, &info, UINT64_MAX));
-}
-
-void phi::vk::FencePool::waitGPU(phi::handle::fence fence, uint64_t val, VkQueue queue) const
-{
-    signalWaitGPU({}, {}, cc::span{fence}, cc::span{val}, queue);
-}
-
-void phi::vk::FencePool::signalWaitGPU(cc::span<const phi::handle::fence> signal_fences,
-                                       cc::span<const uint64_t> signal_vals,
-                                       cc::span<const phi::handle::fence> wait_fences,
-                                       cc::span<const uint64_t> wait_vals,
-                                       VkQueue queue) const
-{
-    cc::capped_array<VkSemaphore, 8> wait_sems;
-    wait_sems.emplace(wait_fences.size());
-    for (auto i = 0u; i < wait_sems.size(); ++i)
-        wait_sems[i] = get(wait_fences[i]);
-
-    cc::capped_array<VkSemaphore, 8> signal_sems;
-    signal_sems.emplace(signal_fences.size());
-    for (auto i = 0u; i < signal_sems.size(); ++i)
-        signal_sems[i] = get(signal_fences[i]);
-
-    VkTimelineSemaphoreSubmitInfoKHR timelineInfo = {};
-    timelineInfo.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO_KHR;
-    timelineInfo.waitSemaphoreValueCount = uint32_t(wait_vals.size());
-    timelineInfo.pWaitSemaphoreValues = wait_vals.data();
-    timelineInfo.signalSemaphoreValueCount = uint32_t(signal_vals.size());
-    timelineInfo.pSignalSemaphoreValues = signal_vals.data();
-
-    VkSubmitInfo submitInfo = {};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitInfo.pNext = &timelineInfo;
-    submitInfo.waitSemaphoreCount = uint32_t(wait_sems.size());
-    submitInfo.pWaitSemaphores = wait_sems.empty() ? nullptr : wait_sems.data();
-    submitInfo.signalSemaphoreCount = uint32_t(signal_sems.size());
-    submitInfo.pSignalSemaphores = signal_sems.empty() ? nullptr : signal_sems.data();
-    submitInfo.pWaitDstStageMask = gc_wait_dst_masks;
-
-    PHI_VK_VERIFY_SUCCESS(vkQueueSubmit(queue, 1, &submitInfo, nullptr));
 }
 
 uint64_t phi::vk::FencePool::getValue(phi::handle::fence fence) const

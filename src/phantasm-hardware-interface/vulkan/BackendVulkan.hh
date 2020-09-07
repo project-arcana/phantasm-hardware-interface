@@ -138,7 +138,11 @@ public:
 
     [[nodiscard]] handle::command_list recordCommandList(std::byte* buffer, size_t size, queue_type queue = queue_type::direct) override;
     void discard(cc::span<handle::command_list const> cls) override { mPoolCmdLists.freeAndDiscard(cls); }
-    void submit(cc::span<handle::command_list const> cls, queue_type queue = queue_type::direct) override;
+
+    void submit(cc::span<handle::command_list const> cls,
+                queue_type queue = queue_type::direct,
+                cc::span<fence_operation const> fence_waits_before = {},
+                cc::span<fence_operation const> fence_signals_after = {}) override;
 
     //
     // Fence interface
@@ -152,16 +156,6 @@ public:
     void signalFenceCPU(handle::fence fence, uint64_t new_value) override { mPoolFences.signalCPU(fence, new_value); }
 
     void waitFenceCPU(handle::fence fence, uint64_t wait_value) override { mPoolFences.waitCPU(fence, wait_value); }
-
-    void signalFenceGPU(handle::fence fence, uint64_t new_value, queue_type queue) override
-    {
-        mPoolFences.signalGPU(fence, new_value, getQueueByType(queue));
-    }
-
-    void waitFenceGPU(handle::fence fence, uint64_t wait_value, queue_type queue) override
-    {
-        mPoolFences.waitGPU(fence, wait_value, getQueueByType(queue));
-    }
 
     void free(cc::span<handle::fence const> fences) override { mPoolFences.free(fences); }
 
@@ -244,6 +238,9 @@ private:
         return (type == queue_type::direct ? mDevice.getQueueDirect() : (type == queue_type::compute ? mDevice.getQueueCompute() : mDevice.getQueueCopy()));
     }
 
+    struct per_thread_component;
+    per_thread_component& getCurrentThreadComponent();
+
 private:
     VkInstance mInstance = nullptr;
     VkDebugUtilsMessengerEXT mDebugMessenger = nullptr;
@@ -260,7 +257,6 @@ private:
     SwapchainPool mPoolSwapchains;
 
     // Logic
-    struct per_thread_component;
     cc::fwd_array<per_thread_component> mThreadComponents;
     phi::detail::thread_association mThreadAssociation;
 

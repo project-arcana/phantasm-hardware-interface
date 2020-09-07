@@ -626,6 +626,13 @@ enum class query_type : uint8_t
     pipeline_stats
 };
 
+/// a single signal- or wait operation on a fence
+struct fence_operation
+{
+    handle::fence fence;
+    uint64_t value;
+};
+
 /// indirect draw command, as it is laid out in a GPU buffer
 struct gpu_indirect_command_draw
 {
