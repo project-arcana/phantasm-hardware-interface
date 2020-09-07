@@ -243,11 +243,14 @@ VkImageView phi::vk::ShaderViewPool::makeImageView(const resource_view& sve, boo
     info.subresourceRange.baseArrayLayer = sve.texture_info.array_start;
     info.subresourceRange.layerCount = sve.texture_info.array_size;
 
-    // for UAVs, cubemaps are represented as 2D arrays of size 6 instead
-    if (is_uav && info.viewType == VK_IMAGE_VIEW_TYPE_CUBE)
+    if (info.viewType == VK_IMAGE_VIEW_TYPE_CUBE)
     {
-        info.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
-        info.subresourceRange.layerCount = 6;
+        info.subresourceRange.layerCount = 6; // cubes always require 6 layers
+        if (is_uav)
+        {
+            // UAVs explicitly represent cubes as 2D arrays of size 6
+            info.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+        }
     }
 
     VkImageView res;
