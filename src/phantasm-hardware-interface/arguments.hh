@@ -107,8 +107,14 @@ struct blas_element
 /// a shader library lists the symbol names it exports
 struct raytracing_shader_library
 {
+    struct library_export
+    {
+        shader_stage stage;
+        char const* entrypoint;
+    };
+
     shader_binary binary;
-    detail::trivial_capped_vector<wchar_t const*, 16> symbols;
+    detail::trivial_capped_vector<library_export, 16> exports;
 };
 
 /// associates symbols exported from libraries with their argument shapes
@@ -119,12 +125,22 @@ struct raytracing_argument_association
     bool has_root_constants = false;
 };
 
+#if 0
+struct raytracing_argument_association
+{
+    unsigned library_index = 0;                                 ///< the library containing the exports referenced below
+    detail::trivial_capped_vector<unsigned, 16> export_indices; ///< indices into raytracing_shader_library::exports
+    detail::trivial_capped_vector<shader_arg_shape, limits::max_shader_arguments> argument_shapes;
+    bool has_root_constants = false;
+};
+#endif
+
 struct raytracing_hit_group
 {
-    wchar_t const* name = nullptr;
-    wchar_t const* closest_hit_symbol = nullptr;
-    wchar_t const* any_hit_symbol = nullptr;      ///< optional
-    wchar_t const* intersection_symbol = nullptr; ///< optional
+    char const* name = nullptr;
+    char const* closest_hit_name = nullptr;
+    char const* any_hit_name = nullptr;      ///< optional
+    char const* intersection_name = nullptr; ///< optional
 };
 
 struct shader_table_record

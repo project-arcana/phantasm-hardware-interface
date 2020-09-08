@@ -133,6 +133,7 @@ namespace phi::vk::util
     case phi::shader_stage::ray_closest_hit:
     case phi::shader_stage::ray_intersect:
     case phi::shader_stage::ray_any_hit:
+    case phi::shader_stage::ray_callable:
         return VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV;
     }
 
@@ -312,6 +313,8 @@ namespace phi::vk::util
         return VK_SHADER_STAGE_INTERSECTION_BIT_NV;
     case phi::shader_stage::ray_any_hit:
         return VK_SHADER_STAGE_ANY_HIT_BIT_NV;
+    case phi::shader_stage::ray_callable:
+        return VK_SHADER_STAGE_CALLABLE_BIT_NV;
     }
 
     CC_UNREACHABLE_SWITCH_WORKAROUND(stage);

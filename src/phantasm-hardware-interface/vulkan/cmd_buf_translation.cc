@@ -599,7 +599,26 @@ void phi::vk::command_list_translator::execute(const phi::cmd::update_top_level&
                          1, &mem_barrier, 0, nullptr, 0, nullptr);
 }
 
-void phi::vk::command_list_translator::execute(const cmd::dispatch_rays& dispatch_rays) {}
+void phi::vk::command_list_translator::execute(const cmd::dispatch_rays& dispatch_rays)
+{
+    auto const& pso_node = _globals.pool_pipeline_states->get(dispatch_rays.pso);
+
+    if (_bound.update_pso(dispatch_rays.pso))
+    {
+        _bound.update_pipeline_layout(pso_node.associated_pipeline_layout->raw_layout);
+        vkCmdBindPipeline(_cmd_list, VK_PIPELINE_BIND_POINT_RAY_TRACING_NV, pso_node.raw_pipeline);
+    }
+
+    auto const& raygen_info = _globals.pool_resources->getBufferInfo(dispatch_rays.table_raygen);
+    auto const& miss_info = _globals.pool_resources->getBufferInfo(dispatch_rays.table_miss);
+    auto const& hitgroup_info = _globals.pool_resources->getBufferInfo(dispatch_rays.table_hitgroups);
+
+    vkCmdTraceRaysNV(_cmd_list, raygen_info.raw_buffer, 0,              //
+                     miss_info.raw_buffer, 0, miss_info.stride,         //
+                     hitgroup_info.raw_buffer, 0, hitgroup_info.stride, //
+                     VK_NULL_HANDLE, 0, 0,                              //
+                     dispatch_rays.width, dispatch_rays.height, dispatch_rays.depth);
+}
 
 void phi::vk::command_list_translator::execute(const phi::cmd::clear_textures& clear_tex)
 {

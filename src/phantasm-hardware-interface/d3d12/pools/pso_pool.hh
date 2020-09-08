@@ -35,7 +35,7 @@ public:
                                                                        arg::raytracing_hit_groups hit_groups,
                                                                        unsigned max_recursion,
                                                                        unsigned max_payload_size_bytes,
-                                                                       unsigned max_attribute_size_bytes);
+                                                                       unsigned max_attribute_size_bytes, cc::allocator* scratch_alloc);
 
     void free(handle::pipeline_state ps);
 

@@ -124,6 +124,19 @@ phi::handle::pipeline_state phi::vk::PipelinePool::createComputePipelineState(ph
     return {pool_index};
 }
 
+phi::handle::pipeline_state phi::vk::PipelinePool::createRaytracingPipelineState(phi::arg::raytracing_shader_libraries libraries,
+                                                                                 phi::arg::raytracing_argument_associations arg_assocs,
+                                                                                 phi::arg::raytracing_hit_groups hit_groups,
+                                                                                 unsigned max_recursion,
+                                                                                 unsigned max_payload_size_bytes,
+                                                                                 unsigned max_attribute_size_bytes)
+{
+    CC_RUNTIME_ASSERT(false && "UNIMPLEMENTED");
+
+//    create_raytracing_pipeline();
+    return handle::null_pipeline_state;
+}
+
 void phi::vk::PipelinePool::free(phi::handle::pipeline_state ps)
 {
     // This requires no synchronization, as VMA internally syncs
@@ -143,8 +156,8 @@ void phi::vk::PipelinePool::initialize(VkDevice device, unsigned max_num_psos)
     mPool.initialize(max_num_psos);
 
     // almost arbitrary, revisit upon crashes
-    mLayoutCache.initialize(max_num_psos / 2);
-    mRenderPassCache.initialize(max_num_psos / 2);
+    mLayoutCache.initialize(max_num_psos);
+    mRenderPassCache.initialize(max_num_psos);
 
     // precise
     mDescriptorAllocator.initialize(mDevice, 0, 0, 0, max_num_psos);

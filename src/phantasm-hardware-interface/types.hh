@@ -33,6 +33,7 @@ enum class shader_stage : uint8_t
     ray_closest_hit,
     ray_intersect,
     ray_any_hit,
+    ray_callable
 };
 
 /// 0 to N shader_stages
@@ -42,8 +43,8 @@ CC_FLAGS_ENUM_SIZED(shader_stage, 16);
 inline constexpr shader_stage_flags_t shader_stage_mask_all_graphics
     = shader_stage::vertex | shader_stage::hull | shader_stage::domain | shader_stage::geometry | shader_stage::pixel;
 
-inline constexpr shader_stage_flags_t shader_stage_mask_all_ray
-    = shader_stage::ray_gen | shader_stage::ray_miss | shader_stage::ray_closest_hit | shader_stage::ray_intersect | shader_stage::ray_any_hit;
+inline constexpr shader_stage_flags_t shader_stage_mask_all_ray = shader_stage::ray_gen | shader_stage::ray_miss | shader_stage::ray_closest_hit
+                                                                  | shader_stage::ray_intersect | shader_stage::ray_any_hit | shader_stage::ray_callable;
 
 enum class queue_type : uint8_t
 {

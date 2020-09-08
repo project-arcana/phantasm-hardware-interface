@@ -280,7 +280,8 @@ phi::handle::pipeline_state phi::d3d12::BackendD3D12::createRaytracingPipelineSt
                                                                                     unsigned max_attribute_size_bytes)
 {
     CC_ASSERT(isRaytracingEnabled() && "raytracing is not enabled");
-    return mPoolPSOs.createRaytracingPipelineState(libraries, arg_assocs, hit_groups, max_recursion, max_payload_size_bytes, max_attribute_size_bytes);
+    return mPoolPSOs.createRaytracingPipelineState(libraries, arg_assocs, hit_groups, max_recursion, max_payload_size_bytes, max_attribute_size_bytes,
+                                                   cc::system_allocator);
 }
 
 phi::handle::accel_struct phi::d3d12::BackendD3D12::createTopLevelAccelStruct(unsigned num_instances)

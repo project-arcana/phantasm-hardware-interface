@@ -575,7 +575,7 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::update_bottom_
 void phi::d3d12::command_list_translator::execute(const phi::cmd::update_top_level& tlas_update)
 {
     auto& dest_node = _globals.pool_accel_structs->getNode(tlas_update.dest);
-    ID3D12Resource* const dest_as_buffer = _globals.pool_resources->getRawResource(dest_node.buffer_as);
+    // ID3D12Resource* const dest_as_buffer = _globals.pool_resources->getRawResource(dest_node.buffer_as);
 
     D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC as_create_info = {};
     as_create_info.Inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;

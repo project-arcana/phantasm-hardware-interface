@@ -1,7 +1,10 @@
 #include "pso_pool.hh"
 
+#include <clean-core/alloc_array.hh>
+#include <clean-core/alloc_vector.hh>
 #include <clean-core/utility.hh>
-#include <clean-core/vector.hh>
+
+#include <clean-core/native/wchar_conversion.hh>
 
 #include <phantasm-hardware-interface/detail/byte_util.hh>
 #include <phantasm-hardware-interface/detail/log.hh>
@@ -16,6 +19,32 @@
 namespace
 {
 constexpr uint32_t gc_d3d12_is_raytracing_pso_bit = (uint32_t(1) << 31);
+
+
+struct text_buffer
+{
+    wchar_t* buf = nullptr;
+    size_t num_chars = 0;
+    size_t cursor = 0;
+
+    void init(wchar_t* buf, size_t num_chars)
+    {
+        this->buf = buf;
+        this->num_chars = num_chars;
+    }
+
+    wchar_t const* write_string(char const* str)
+    {
+        if (!str)
+            return nullptr;
+
+        CC_ASSERT(cursor < num_chars && "text buffer full");
+        unsigned num_written = cc::char_to_widechar(cc::span{buf + cursor, num_chars - cursor}, str);
+        wchar_t const* const res = buf + cursor;
+        cursor += num_written;
+        return res;
+    }
+};
 }
 
 phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createPipelineState(phi::arg::vertex_format vertex_format,
@@ -82,7 +111,8 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracin
                                                                                                arg::raytracing_hit_groups hit_groups,
                                                                                                unsigned max_recursion,
                                                                                                unsigned max_payload_size_bytes,
-                                                                                               unsigned max_attribute_size_bytes)
+                                                                                               unsigned max_attribute_size_bytes,
+                                                                                               cc::allocator* scratch_alloc)
 {
     CC_ASSERT(libraries.size() > 0 && arg_assocs.size() <= limits::max_raytracing_argument_assocs && "zero libraries or too many argument associations");
     CC_ASSERT(hit_groups.size() <= limits::max_raytracing_hit_groups && "too many hit groups");
@@ -104,33 +134,43 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracin
     }
 
     // Library exports, one per symbol per library
-    cc::vector<D3D12_EXPORT_DESC> export_descs;
+    cc::alloc_vector<D3D12_EXPORT_DESC> export_descs(scratch_alloc);
     export_descs.reserve(libraries.size() * 10);
 
-    cc::vector<wchar_t const*> all_symbols_contiguous;
+    cc::alloc_vector<wchar_t const*> all_symbols_contiguous(scratch_alloc);
     all_symbols_contiguous.reserve(export_descs.size());
 
     // Libraries
-    cc::vector<D3D12_DXIL_LIBRARY_DESC> library_descs;
-    {
-        library_descs.reserve(libraries.size());
+    cc::alloc_vector<D3D12_DXIL_LIBRARY_DESC> library_descs(scratch_alloc);
+    library_descs.reserve(libraries.size());
 
+    // 128 wchars per string
+    // 10 strings per library (wc: 16)
+    // 4 strings per hitgroup
+    // 10 strings per arg assoc (wc: 16)
+    cc::alloc_array<wchar_t> wchar_conv_buf_mem((libraries.size() * 10 + hit_groups.size() * 4 + arg_assocs.size() * 10) * 128, scratch_alloc);
+    text_buffer wchar_conv_buf;
+    wchar_conv_buf.init(wchar_conv_buf_mem.data(), wchar_conv_buf_mem.size());
+
+    {
         for (auto const& lib : libraries)
         {
             auto& new_desc = library_descs.emplace_back();
             new_desc.DXILLibrary = D3D12_SHADER_BYTECODE{lib.binary.data, lib.binary.size};
-            new_desc.NumExports = static_cast<UINT>(lib.symbols.size());
+            new_desc.NumExports = static_cast<UINT>(lib.exports.size());
 
             auto const export_desc_offset = export_descs.size();
 
-            for (wchar_t const* const symbol_string : lib.symbols)
+            for (auto const& exp : lib.exports)
             {
+                wchar_t const* const symbol_name = wchar_conv_buf.write_string(exp.entrypoint);
+
                 auto& new_export = export_descs.emplace_back();
-                new_export.Name = symbol_string;
+                new_export.Name = symbol_name;
                 new_export.Flags = D3D12_EXPORT_FLAG_NONE;
                 new_export.ExportToRename = nullptr;
 
-                all_symbols_contiguous.push_back(symbol_string);
+                all_symbols_contiguous.push_back(symbol_name);
             }
 
             new_desc.pExports = export_descs.data() + export_desc_offset;
@@ -138,31 +178,60 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracin
     }
 
     // Argument (local root signature) associations
-    cc::vector<D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION> rootsig_associations;
-    {
-        rootsig_associations.reserve(arg_assocs.size());
+    cc::alloc_vector<D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION> rootsig_associations(scratch_alloc);
+    rootsig_associations.reserve(arg_assocs.size());
 
-        for (auto const& aa : arg_assocs)
-        {
-            auto& new_association = rootsig_associations.emplace_back();
-            new_association.pSubobjectToAssociate = nullptr; // will be filled in later
-            new_association.NumExports = static_cast<UINT>(aa.symbols.size());
-            new_association.pExports = const_cast<wchar_t const**>(aa.symbols.data());
-        }
+
+    for (auto const& aa : arg_assocs)
+    {
+        auto& new_association = rootsig_associations.emplace_back();
+        new_association.pSubobjectToAssociate = nullptr; // will be filled in later
+        new_association.NumExports = static_cast<UINT>(aa.symbols.size());
+        new_association.pExports = const_cast<wchar_t const**>(aa.symbols.data());
     }
 
+#if 0
+    // Argument (local root signature) associations
+    cc::alloc_vector<D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION> rootsig_associations(scratch_alloc);
+    rootsig_associations.reserve(arg_assocs.size());
+
+    cc::alloc_vector<wchar_t const*> flat_symbol_names(scratch_alloc);
+    flat_symbol_names.reserve(arg_assocs.size() * 16);
+
+    for (auto const& aa : arg_assocs)
+    {
+        unsigned export_desc_offset = 0;
+        for (auto i = 0u; i < aa.library_index; ++i)
+        {
+            export_desc_offset += library_descs[i].NumExports;
+        }
+
+        unsigned flat_symbol_names_offset = unsigned(flat_symbol_names.size());
+        for (auto i = 0u; i < aa.export_indices.size(); ++i)
+        {
+            flat_symbol_names.push_back(export_descs[aa.export_indices[i] + export_desc_offset].Name);
+        }
+
+        auto& new_association = rootsig_associations.emplace_back();
+        new_association.pSubobjectToAssociate = nullptr; // will be filled in later
+        new_association.NumExports = static_cast<UINT>(aa.export_indices.size());
+        new_association.pExports = flat_symbol_names.data() + flat_symbol_names_offset;
+    }
+#endif
+
+
     // Hit groups
-    cc::vector<D3D12_HIT_GROUP_DESC> hit_group_descs;
+    cc::alloc_vector<D3D12_HIT_GROUP_DESC> hit_group_descs(scratch_alloc);
     hit_group_descs.reserve(hit_groups.size());
 
     for (auto const& hg : hit_groups)
     {
         D3D12_HIT_GROUP_DESC& new_desc = hit_group_descs.emplace_back();
         new_desc.Type = D3D12_HIT_GROUP_TYPE_TRIANGLES;
-        new_desc.HitGroupExport = hg.name;
-        new_desc.ClosestHitShaderImport = hg.closest_hit_symbol;
-        new_desc.AnyHitShaderImport = hg.any_hit_symbol;
-        new_desc.IntersectionShaderImport = hg.intersection_symbol;
+        new_desc.HitGroupExport = wchar_conv_buf.write_string(hg.name);
+        new_desc.ClosestHitShaderImport = wchar_conv_buf.write_string(hg.closest_hit_name);
+        new_desc.AnyHitShaderImport = wchar_conv_buf.write_string(hg.any_hit_name);
+        new_desc.IntersectionShaderImport = wchar_conv_buf.write_string(hg.intersection_name);
     }
 
     // shader config + association
@@ -184,7 +253,7 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracin
 
     rt_pso_node& new_node = mPoolRaytracing.get(pool_index);
 
-    cc::vector<D3D12_STATE_SUBOBJECT> subobjects;
+    cc::alloc_vector<D3D12_STATE_SUBOBJECT> subobjects(scratch_alloc);
     {
         // 1 per library
         // 2 per arg assoc: local root signature, subobject association

@@ -6,8 +6,8 @@ extern "C"
 {
     typedef uint32_t VkFlags;
     typedef uint32_t VkBool32;
-    typedef uint64_t VkDeviceSize;
     typedef uint32_t VkSampleMask;
+    typedef uint64_t VkDeviceSize;
 
 #define PHI_VK_DEFINE_HANDLE(object) typedef struct object##_T* object
 
@@ -25,14 +25,6 @@ extern "C"
     PHI_VK_DEFINE_HANDLE(VkSemaphore);
 
 #undef PHI_VK_DEFINE_HANDLE
-
-    struct VkAccelerationStructureCreateInfoNV;
-    struct VkGeometryNV;
-
-    // TODO: clean this up once Vk Raytracing gets revisisted,
-    // eventually only VK_KHR_ray_tracing should be used
-    struct VkAccelerationStructureNV_T;
-    struct VkAccelerationStructureKHR_T;
 }
 
 #if defined(__LP64__) || defined(_WIN64) || (defined(__x86_64__) && !defined(__ILP32__)) || defined(_M_X64) || defined(__ia64) || defined(_M_IA64) \
