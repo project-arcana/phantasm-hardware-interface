@@ -373,8 +373,8 @@ phi::handle::pipeline_state phi::vk::BackendVulkan::createRaytracingPipelineStat
                                                                                   unsigned max_attribute_size_bytes)
 {
     CC_ASSERT(isRaytracingEnabled() && "raytracing is not enabled");
-    PHI_LOG_ERROR("createRaytracingPipelineState unimplemented");
-    return handle::null_pipeline_state;
+    return mPoolPipelines.createRaytracingPipelineState(libraries, arg_assocs, hit_groups, max_recursion, max_payload_size_bytes,
+                                                        max_attribute_size_bytes, cc::system_allocator);
 }
 
 phi::handle::accel_struct phi::vk::BackendVulkan::createTopLevelAccelStruct(unsigned num_instances)

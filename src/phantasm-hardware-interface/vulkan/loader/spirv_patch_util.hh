@@ -2,9 +2,9 @@
 
 #include <cstddef>
 
+#include <clean-core/alloc_vector.hh>
 #include <clean-core/capped_vector.hh>
 #include <clean-core/string.hh>
-#include <clean-core/vector.hh>
 
 #include <phantasm-hardware-interface/arguments.hh>
 #include <phantasm-hardware-interface/limits.hh>
@@ -56,7 +56,7 @@ struct spirv_desc_info
 
 struct spirv_refl_info
 {
-    cc::vector<spirv_desc_info> descriptor_infos;
+    cc::alloc_vector<spirv_desc_info> descriptor_infos;
     bool has_push_constants = false;
 };
 
@@ -71,12 +71,12 @@ struct patched_spirv_stage
 /// we have to shift all CBVs up by [max num shader args] sets to make our API work in vulkan
 /// unlike the register-to-binding shift with -fvk-[x]-shift, this cannot be done with DXC flags
 /// instead we provide these helpers which use the spirv-reflect library to do the same
-[[nodiscard]] patched_spirv_stage create_patched_spirv(std::byte const* bytecode, size_t bytecode_size, spirv_refl_info& out_info);
+[[nodiscard]] patched_spirv_stage create_patched_spirv(std::byte const* bytecode, size_t bytecode_size, spirv_refl_info& out_info, cc::allocator* scratch_alloc);
 
 void free_patched_spirv(patched_spirv_stage const& val);
 
 /// create a sorted, deduplicated vector of descriptor range infos from an unsorted raw output from previous patches
-cc::vector<spirv_desc_info> merge_spirv_descriptors(cc::span<spirv_desc_info> desc_infos);
+cc::alloc_vector<spirv_desc_info> merge_spirv_descriptors(cc::span<spirv_desc_info> desc_infos, cc::allocator* alloc);
 
 void print_spirv_info(cc::span<spirv_desc_info const> info);
 

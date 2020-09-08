@@ -2,6 +2,7 @@
 
 #include <algorithm>
 
+#include <clean-core/alloc_array.hh>
 #include <clean-core/array.hh>
 #include <clean-core/assert.hh>
 #include <clean-core/bit_cast.hh>
@@ -62,13 +63,30 @@ namespace
         return sd::geometry;
     case SPV_REFLECT_SHADER_STAGE_FRAGMENT_BIT:
         return sd::pixel;
+
     case SPV_REFLECT_SHADER_STAGE_COMPUTE_BIT:
         return sd::compute;
+
+        //    case VK_SHADER_STAGE_ANY_HIT_BIT_NV:
+        //        return sd::ray_any_hit;
+        //    case VK_SHADER_STAGE_RAYGEN_BIT_NV:
+        //        return sd::ray_gen;
+        //    case VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV:
+        //        return sd::ray_closest_hit;
+        //    case VK_SHADER_STAGE_CALLABLE_BIT_NV:
+        //        return sd::ray_callable;
+        //    case VK_SHADER_STAGE_INTERSECTION_BIT_NV:
+        //        return sd::ray_intersect;
+        //    case VK_SHADER_STAGE_MISS_BIT_NV:
+        //        return sd::ray_miss;
     }
     CC_UNREACHABLE_SWITCH_WORKAROUND(shader_stage_flags);
 }
 
-void patchSpvReflectShader(SpvReflectShaderModule& module, phi::shader_stage current_stage, cc::vector<phi::vk::util::spirv_desc_info>& out_desc_infos)
+void patchSpvReflectShader(SpvReflectShaderModule& module,
+                           phi::shader_stage current_stage,
+                           cc::alloc_vector<phi::vk::util::spirv_desc_info>& out_desc_infos,
+                           cc::allocator* scratch_alloc)
 {
     using namespace phi::vk;
 
@@ -76,7 +94,7 @@ void patchSpvReflectShader(SpvReflectShaderModule& module, phi::shader_stage cur
     {
         uint32_t num_bindings;
         spvReflectEnumerateDescriptorBindings(&module, &num_bindings, nullptr);
-        cc::array<SpvReflectDescriptorBinding*> bindings(num_bindings);
+        cc::alloc_array<SpvReflectDescriptorBinding*> bindings(num_bindings, scratch_alloc);
         spvReflectEnumerateDescriptorBindings(&module, &num_bindings, bindings.data());
 
         for (auto const* const b : bindings)
@@ -93,7 +111,7 @@ void patchSpvReflectShader(SpvReflectShaderModule& module, phi::shader_stage cur
     {
         uint32_t num_bindings;
         spvReflectEnumerateDescriptorBindings(&module, &num_bindings, nullptr);
-        cc::array<SpvReflectDescriptorBinding*> bindings(num_bindings);
+        cc::alloc_array<SpvReflectDescriptorBinding*> bindings(num_bindings, scratch_alloc);
         spvReflectEnumerateDescriptorBindings(&module, &num_bindings, bindings.data());
 
         out_desc_infos.reserve(out_desc_infos.size() + num_bindings);
@@ -115,15 +133,16 @@ void patchSpvReflectShader(SpvReflectShaderModule& module, phi::shader_stage cur
 
 }
 
-phi::vk::util::patched_spirv_stage phi::vk::util::create_patched_spirv(std::byte const* bytecode, size_t bytecode_size, spirv_refl_info& out_info)
+phi::vk::util::patched_spirv_stage phi::vk::util::create_patched_spirv(std::byte const* bytecode, size_t bytecode_size, spirv_refl_info& out_info, cc::allocator* scratch_alloc)
 {
     patched_spirv_stage res;
 
     SpvReflectShaderModule module;
-    spvReflectCreateShaderModule(bytecode_size, bytecode, &module);
+    auto const result = spvReflectCreateShaderModule(bytecode_size, bytecode, &module);
+    CC_ASSERT(result == SPV_REFLECT_RESULT_SUCCESS && "failed to reflect SPIR-V");
 
     res.stage = reflect_to_pr(module.shader_stage);
-    patchSpvReflectShader(module, res.stage, out_info.descriptor_infos);
+    patchSpvReflectShader(module, res.stage, out_info.descriptor_infos, scratch_alloc);
 
     res.size = spvReflectGetCodeSize(&module);
     res.data = cc::bit_cast<std::byte*>(module._internal->spirv_code);
@@ -156,7 +175,7 @@ void phi::vk::util::free_patched_spirv(const patched_spirv_stage& val)
     ::free(val.data);
 }
 
-cc::vector<phi::vk::util::spirv_desc_info> phi::vk::util::merge_spirv_descriptors(cc::span<spirv_desc_info> desc_infos)
+cc::alloc_vector<phi::vk::util::spirv_desc_info> phi::vk::util::merge_spirv_descriptors(cc::span<spirv_desc_info> desc_infos, cc::allocator* alloc)
 {
     // sort by set, then binding (both ascending)
     std::sort(desc_infos.begin(), desc_infos.end(), [](spirv_desc_info const& lhs, spirv_desc_info const& rhs) {
@@ -166,7 +185,7 @@ cc::vector<phi::vk::util::spirv_desc_info> phi::vk::util::merge_spirv_descriptor
             return lhs.binding < rhs.binding;
     });
 
-    cc::vector<spirv_desc_info> sorted_merged_res;
+    cc::alloc_vector<spirv_desc_info> sorted_merged_res(alloc);
     sorted_merged_res.reserve(desc_infos.size());
     spirv_desc_info* curr_range = nullptr;
 

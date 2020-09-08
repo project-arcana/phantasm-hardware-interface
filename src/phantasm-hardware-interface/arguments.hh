@@ -104,20 +104,20 @@ struct blas_element
     bool is_opaque = true;
 };
 
+struct raytracing_library_export
+{
+    shader_stage stage;
+    char const* entrypoint;
+};
+
 /// a shader library lists the symbol names it exports
 struct raytracing_shader_library
 {
-    struct library_export
-    {
-        shader_stage stage;
-        char const* entrypoint;
-    };
-
     shader_binary binary;
-    detail::trivial_capped_vector<library_export, 16> exports;
+    detail::trivial_capped_vector<raytracing_library_export, 16> exports;
 };
 
-/// associates symbols exported from libraries with their argument shapes
+/// associates exports from libraries with their argument shapes
 struct raytracing_argument_association
 {
     unsigned library_index = 0;                                 ///< the library containing the exports referenced below
@@ -128,6 +128,7 @@ struct raytracing_argument_association
 
 struct raytracing_hit_group
 {
+    // TODO: instead of names, indices into library exports? (D3D12 / Vk Tradeoff)
     char const* name = nullptr;
     char const* closest_hit_name = nullptr;
     char const* any_hit_name = nullptr;      ///< optional
@@ -136,9 +137,9 @@ struct raytracing_hit_group
 
 struct shader_table_record
 {
-    wchar_t const* symbol = nullptr;     ///< name of the shader or hit group
-    void const* root_arg_data = nullptr; ///< optional, data of the root constant data
-    uint32_t root_arg_size = 0;          ///< size of the root constant data
+    [[deprecated]] wchar_t const* symbol = nullptr; ///< name of the shader or hit group
+    void const* root_arg_data = nullptr;            ///< optional, data of the root constant data
+    uint32_t root_arg_size = 0;                     ///< size of the root constant data
     detail::trivial_capped_vector<shader_argument, limits::max_shader_arguments> shader_arguments;
 };
 

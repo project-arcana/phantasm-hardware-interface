@@ -7,39 +7,43 @@
 #include <phantasm-hardware-interface/vulkan/common/util.hh>
 #include <phantasm-hardware-interface/vulkan/loader/spirv_patch_util.hh>
 #include <phantasm-hardware-interface/vulkan/render_pass_pipeline.hh>
+#include <phantasm-hardware-interface/vulkan/shader.hh>
 
 phi::handle::pipeline_state phi::vk::PipelinePool::createPipelineState(phi::arg::vertex_format vertex_format,
                                                                        phi::arg::framebuffer_config const& framebuffer_config,
                                                                        phi::arg::shader_arg_shapes shader_arg_shapes,
                                                                        bool should_have_push_constants,
                                                                        phi::arg::graphics_shaders shader_stages,
-                                                                       const phi::pipeline_config& primitive_config)
+                                                                       const phi::pipeline_config& primitive_config,
+                                                                       cc::allocator* scratch_alloc)
 {
     // Patch and reflect SPIR-V binaries
     cc::capped_vector<util::patched_spirv_stage, 6> patched_shader_stages;
-    cc::vector<util::spirv_desc_info> shader_descriptor_ranges;
+    cc::alloc_vector<util::spirv_desc_info> shader_descriptor_ranges;
     bool has_push_constants = false;
     CC_DEFER
     {
         for (auto const& ps : patched_shader_stages)
             util::free_patched_spirv(ps);
     };
+
     {
         util::spirv_refl_info spirv_info;
+        spirv_info.descriptor_infos.reset_reserve(scratch_alloc, shader_stages.size() * 8);
 
         for (auto const& shader : shader_stages)
         {
-            patched_shader_stages.push_back(util::create_patched_spirv(shader.binary.data, shader.binary.size, spirv_info));
+            patched_shader_stages.push_back(util::create_patched_spirv(shader.binary.data, shader.binary.size, spirv_info, scratch_alloc));
         }
 
-        shader_descriptor_ranges = util::merge_spirv_descriptors(spirv_info.descriptor_infos);
+        shader_descriptor_ranges = util::merge_spirv_descriptors(spirv_info.descriptor_infos, scratch_alloc);
         has_push_constants = spirv_info.has_push_constants;
-
-        // In debug, calculate the amount of descriptors in the SPIR-V reflection and assert that the
-        // amount declared in the shader arg shapes is the same
-        CC_ASSERT(util::is_consistent_with_reflection(shader_descriptor_ranges, shader_arg_shapes) && "Given shader argument shapes inconsistent with SPIR-V reflection");
-        CC_ASSERT(has_push_constants == should_have_push_constants && "Shader push constant reflection inconsistent with creation argument");
     }
+
+    // In debug, calculate the amount of descriptors in the SPIR-V reflection and assert that the
+    // amount declared in the shader arg shapes is the same
+    CC_ASSERT(util::is_consistent_with_reflection(shader_descriptor_ranges, shader_arg_shapes) && "Given shader argument shapes inconsistent with SPIR-V reflection");
+    CC_ASSERT(has_push_constants == should_have_push_constants && "Shader push constant reflection inconsistent with creation argument");
 
 
     pipeline_layout* layout;
@@ -82,18 +86,21 @@ phi::handle::pipeline_state phi::vk::PipelinePool::createPipelineState(phi::arg:
 
 phi::handle::pipeline_state phi::vk::PipelinePool::createComputePipelineState(phi::arg::shader_arg_shapes shader_arg_shapes,
                                                                               arg::shader_binary compute_shader,
-                                                                              bool should_have_push_constants)
+                                                                              bool should_have_push_constants,
+                                                                              cc::allocator* scratch_alloc)
 {
     // Patch and reflect SPIR-V binary
     util::patched_spirv_stage patched_shader_stage;
-    cc::vector<util::spirv_desc_info> shader_descriptor_ranges;
+    cc::alloc_vector<util::spirv_desc_info> shader_descriptor_ranges;
     bool has_push_constants = false;
     CC_DEFER { util::free_patched_spirv(patched_shader_stage); };
 
     {
         util::spirv_refl_info spirv_info;
-        patched_shader_stage = util::create_patched_spirv(compute_shader.data, compute_shader.size, spirv_info);
-        shader_descriptor_ranges = util::merge_spirv_descriptors(spirv_info.descriptor_infos);
+        spirv_info.descriptor_infos.reset_reserve(scratch_alloc, 10);
+
+        patched_shader_stage = util::create_patched_spirv(compute_shader.data, compute_shader.size, spirv_info, scratch_alloc);
+        shader_descriptor_ranges = util::merge_spirv_descriptors(spirv_info.descriptor_infos, scratch_alloc);
         has_push_constants = spirv_info.has_push_constants;
 
         // In debug, calculate the amount of descriptors in the SPIR-V reflection and assert that the
@@ -129,12 +136,44 @@ phi::handle::pipeline_state phi::vk::PipelinePool::createRaytracingPipelineState
                                                                                  phi::arg::raytracing_hit_groups hit_groups,
                                                                                  unsigned max_recursion,
                                                                                  unsigned max_payload_size_bytes,
-                                                                                 unsigned max_attribute_size_bytes)
+                                                                                 unsigned max_attribute_size_bytes,
+                                                                                 cc::allocator* scratch_alloc)
 {
-    CC_RUNTIME_ASSERT(false && "UNIMPLEMENTED");
+    CC_ASSERT(libraries.size() > 0 && arg_assocs.size() <= limits::max_raytracing_argument_assocs && "zero libraries or too many argument associations");
+    CC_ASSERT(hit_groups.size() <= limits::max_raytracing_hit_groups && "too many hit groups");
 
-//    create_raytracing_pipeline();
-    return handle::null_pipeline_state;
+    CC_RUNTIME_ASSERT(false && "createRaytracingPipelineState WIP, not functional");
+    // NOTE: right now this hinges on SPIRV-Reflect not supporting ray tracing shader stages
+    // since it's abandoned. Patching support in doesn't seem so straightforward, SPIRV-Cross:
+    // https://github.com/KhronosGroup/SPIRV-Cross
+    // might be the only alternative. Unfortunately it's much larger, and it's not entirely clear
+    // if Vk_NV_ray_tracing is already fully supported (Vk_KHR_ray_tracing is not, see
+    // https://github.com/KhronosGroup/SPIRV-Cross/pull/1364)
+
+    patched_shader_intermediates shader_intermediates;
+    shader_intermediates.initialize_from_libraries(mDevice, libraries, scratch_alloc);
+    CC_DEFER { shader_intermediates.free(mDevice); };
+
+    // verifying the descriptor ranges reflected here is much more involved than in a graphics / compute setting, skipping for now
+
+    pipeline_layout* layout;
+    uint32_t pool_index;
+    // Do things requiring synchronization
+    {
+        auto lg = std::lock_guard(mMutex);
+        layout = mLayoutCache.getOrCreate(mDevice, shader_intermediates.sorted_merged_descriptor_infos, shader_intermediates.has_root_constants);
+        pool_index = mPool.acquire();
+    }
+
+    // Populate new node
+    pso_node& new_node = mPool.get(pool_index);
+    new_node.associated_pipeline_layout = layout;
+    new_node.rt_formats.clear();
+    new_node.num_msaa_samples = 0;
+    new_node.raw_pipeline = create_raytracing_pipeline(mDevice, shader_intermediates, new_node.associated_pipeline_layout->raw_layout, arg_assocs,
+                                                       hit_groups, max_recursion, max_payload_size_bytes, max_attribute_size_bytes, scratch_alloc);
+
+    return {pool_index};
 }
 
 void phi::vk::PipelinePool::free(phi::handle::pipeline_state ps)

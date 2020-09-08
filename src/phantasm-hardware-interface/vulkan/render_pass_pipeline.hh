@@ -1,5 +1,6 @@
 #pragma once
 
+#include <clean-core/alloc_vector.hh>
 #include <clean-core/capped_vector.hh>
 #include <clean-core/span.hh>
 
@@ -14,6 +15,7 @@ namespace util
 {
 struct patched_spirv_stage;
 }
+struct patched_shader_intermediates;
 
 [[nodiscard]] VkRenderPass create_render_pass(VkDevice device, const arg::framebuffer_config& framebuffer, phi::pipeline_config const& config);
 
@@ -31,12 +33,12 @@ struct patched_spirv_stage;
 [[nodiscard]] VkPipeline create_compute_pipeline(VkDevice device, VkPipelineLayout pipeline_layout, const util::patched_spirv_stage& compute_shader);
 
 VkPipeline create_raytracing_pipeline(VkDevice device,
+                                      const phi::vk::patched_shader_intermediates& shader_intermediates,
                                       VkPipelineLayout pipeline_layout,
-                                      cc::span<util::patched_spirv_stage const> shaders,
-                                      phi::arg::raytracing_shader_libraries libraries,
                                       phi::arg::raytracing_argument_associations arg_assocs,
                                       phi::arg::raytracing_hit_groups hit_groups,
                                       unsigned max_recursion,
                                       unsigned max_payload_size_bytes,
-                                      unsigned max_attribute_size_bytes);
+                                      unsigned max_attribute_size_bytes,
+                                      cc::allocator* scratch_alloc);
 }

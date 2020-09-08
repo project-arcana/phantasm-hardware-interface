@@ -1,5 +1,7 @@
 #include "render_pass_pipeline.hh"
 
+#include <clean-core/alloc_array.hh>
+#include <clean-core/alloc_vector.hh>
 #include <clean-core/array.hh>
 
 #include <phantasm-hardware-interface/detail/log.hh>
@@ -360,43 +362,26 @@ VkPipeline phi::vk::create_compute_pipeline(VkDevice device, VkPipelineLayout pi
 }
 
 VkPipeline phi::vk::create_raytracing_pipeline(VkDevice device,
+                                               patched_shader_intermediates const& shader_intermediates,
                                                VkPipelineLayout pipeline_layout,
-                                               cc::span<const phi::vk::util::patched_spirv_stage> shaders,
-                                               phi::arg::raytracing_shader_libraries libraries,
                                                phi::arg::raytracing_argument_associations arg_assocs,
                                                phi::arg::raytracing_hit_groups hit_groups,
                                                unsigned max_recursion,
                                                unsigned max_payload_size_bytes,
-                                               unsigned max_attribute_size_bytes)
+                                               unsigned max_attribute_size_bytes,
+                                               cc::allocator* scratch_alloc)
 {
-    CC_ASSERT(libraries.size() > 0 && arg_assocs.size() <= limits::max_raytracing_argument_assocs && "zero libraries or too many argument associations");
-    CC_ASSERT(hit_groups.size() <= limits::max_raytracing_hit_groups && "too many hit groups");
-
-    cc::vector<shader> shader_modules;
-    cc::vector<VkPipelineShaderStageCreateInfo> shader_create_infos;
-    shader_modules.reserve(libraries.size() * 16);
-    shader_create_infos.reserve(shader_modules.size());
-
-    for (auto const& lib : libraries)
-    {
-        for (auto const& exp : lib.exports)
-        {
-            shader& new_shader = shader_modules.emplace_back();
-            initialize_shader(new_shader, device, lib.binary.data, lib.binary.size, exp.entrypoint, exp.stage);
-            shader_create_infos.push_back(get_shader_create_info(new_shader));
-        }
-    }
-
+    // NOTE: N^2 string compares! could be remedied by indices instead of names in hitgroup struct
     auto const f_get_shader_index_by_symbol = [&](char const* symbol, shader_stage stage) -> uint32_t {
         if (!symbol)
             return VK_SHADER_UNUSED_NV;
 
-        for (uint32_t i = 0u; i < shader_modules.size(); ++i)
+        for (uint32_t i = 0u; i < shader_intermediates.shader_modules.size(); ++i)
         {
-            if (shader_modules[i].stage != stage)
+            if (shader_intermediates.shader_modules[i].stage != stage)
                 continue;
 
-            if (std::strcmp(shader_modules[i].entrypoint, symbol) == 0)
+            if (std::strcmp(shader_intermediates.shader_modules[i].entrypoint, symbol) == 0)
             {
                 return i;
             }
@@ -405,8 +390,8 @@ VkPipeline phi::vk::create_raytracing_pipeline(VkDevice device,
         return VK_SHADER_UNUSED_NV;
     };
 
-    cc::vector<VkRayTracingShaderGroupCreateInfoNV> group_infos;
-    group_infos.reserve(hit_groups.size());
+    cc::alloc_vector<VkRayTracingShaderGroupCreateInfoNV> group_infos(scratch_alloc);
+    group_infos.reserve(hit_groups.size()); // exact
 
     for (auto const& hg : hit_groups)
     {
@@ -423,8 +408,8 @@ VkPipeline phi::vk::create_raytracing_pipeline(VkDevice device,
     pso_info.sType = VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_NV;
 
     pso_info.flags = 0; // TODO
-    pso_info.stageCount = uint32_t(shader_create_infos.size());
-    pso_info.pStages = shader_create_infos.data();
+    pso_info.stageCount = uint32_t(shader_intermediates.shader_create_infos.size());
+    pso_info.pStages = shader_intermediates.shader_create_infos.data();
     pso_info.groupCount = uint32_t(group_infos.size());
     pso_info.pGroups = group_infos.data();
     pso_info.maxRecursionDepth = max_recursion;
@@ -435,11 +420,6 @@ VkPipeline phi::vk::create_raytracing_pipeline(VkDevice device,
 
     VkPipeline res;
     PHI_VK_VERIFY_SUCCESS(vkCreateRayTracingPipelinesNV(device, nullptr, 1, &pso_info, nullptr, &res));
-
-    for (auto& shader : shader_modules)
-    {
-        shader.free(device);
-    }
 
     return res;
 }

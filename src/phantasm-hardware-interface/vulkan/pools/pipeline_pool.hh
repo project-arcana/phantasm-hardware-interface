@@ -28,16 +28,21 @@ public:
                                                              arg::shader_arg_shapes shader_arg_shapes,
                                                              bool should_have_push_constants,
                                                              arg::graphics_shaders shader_stages,
-                                                             phi::pipeline_config const& primitive_config);
+                                                             phi::pipeline_config const& primitive_config,
+                                                             cc::allocator* scratch_alloc);
 
-    [[nodiscard]] handle::pipeline_state createComputePipelineState(arg::shader_arg_shapes shader_arg_shapes, arg::shader_binary compute_shader, bool should_have_push_constants);
+    [[nodiscard]] handle::pipeline_state createComputePipelineState(arg::shader_arg_shapes shader_arg_shapes,
+                                                                    arg::shader_binary compute_shader,
+                                                                    bool should_have_push_constants,
+                                                                    cc::allocator* scratch_alloc);
 
     [[nodiscard]] handle::pipeline_state createRaytracingPipelineState(arg::raytracing_shader_libraries libraries,
                                                                        arg::raytracing_argument_associations arg_assocs,
                                                                        arg::raytracing_hit_groups hit_groups,
                                                                        unsigned max_recursion,
                                                                        unsigned max_payload_size_bytes,
-                                                                       unsigned max_attribute_size_bytes);
+                                                                       unsigned max_attribute_size_bytes,
+                                                                       cc::allocator* scratch_alloc);
 
     void free(handle::pipeline_state ps);
 

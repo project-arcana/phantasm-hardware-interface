@@ -122,12 +122,12 @@ public:
                                                              arg::graphics_shaders shaders,
                                                              phi::pipeline_config const& primitive_config) override
     {
-        return mPoolPipelines.createPipelineState(vertex_format, framebuffer_conf, shader_arg_shapes, has_root_constants, shaders, primitive_config);
+        return mPoolPipelines.createPipelineState(vertex_format, framebuffer_conf, shader_arg_shapes, has_root_constants, shaders, primitive_config, cc::system_allocator);
     }
 
     [[nodiscard]] handle::pipeline_state createComputePipelineState(arg::shader_arg_shapes shader_arg_shapes, arg::shader_binary shader, bool has_root_constants) override
     {
-        return mPoolPipelines.createComputePipelineState(shader_arg_shapes, shader, has_root_constants);
+        return mPoolPipelines.createComputePipelineState(shader_arg_shapes, shader, has_root_constants, cc::system_allocator);
     }
 
     void free(handle::pipeline_state ps) override { mPoolPipelines.free(ps); }
