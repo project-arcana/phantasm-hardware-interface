@@ -6,6 +6,7 @@
 #include <phantasm-hardware-interface/detail/log.hh>
 
 #include <phantasm-hardware-interface/d3d12/common/d3d12_sanitized.hh>
+#include <phantasm-hardware-interface/d3d12/common/dxgi_format.hh>
 #include <phantasm-hardware-interface/d3d12/common/native_enum.hh>
 #include <phantasm-hardware-interface/d3d12/common/verify.hh>
 
@@ -31,7 +32,7 @@ phi::handle::accel_struct phi::d3d12::AccelStructPool::createBottomLevelAS(cc::s
         egeom.Triangles.VertexBuffer.StartAddress = mResourcePool->getRawResource(elem.vertex_buffer)->GetGPUVirtualAddress();
         egeom.Triangles.VertexBuffer.StrideInBytes = vert_info.stride;
         egeom.Triangles.VertexCount = elem.num_vertices;
-        egeom.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
+        egeom.Triangles.VertexFormat = util::to_dxgi_format(elem.vertex_pos_format);
 
 
         if (elem.index_buffer.is_valid())

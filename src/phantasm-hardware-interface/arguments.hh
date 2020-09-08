@@ -100,6 +100,7 @@ struct blas_element
     handle::resource index_buffer = handle::null_resource; ///< optional
     unsigned num_vertices = 0;
     unsigned num_indices = 0;
+    format vertex_pos_format = format::rgb32f;
     bool is_opaque = true;
 };
 
