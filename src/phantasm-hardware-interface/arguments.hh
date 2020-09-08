@@ -120,20 +120,11 @@ struct raytracing_shader_library
 /// associates symbols exported from libraries with their argument shapes
 struct raytracing_argument_association
 {
-    detail::trivial_capped_vector<wchar_t const*, 16> symbols;
-    detail::trivial_capped_vector<shader_arg_shape, limits::max_shader_arguments> argument_shapes;
-    bool has_root_constants = false;
-};
-
-#if 0
-struct raytracing_argument_association
-{
     unsigned library_index = 0;                                 ///< the library containing the exports referenced below
-    detail::trivial_capped_vector<unsigned, 16> export_indices; ///< indices into raytracing_shader_library::exports
+    detail::trivial_capped_vector<unsigned, 16> export_indices; ///< indices into raytracing_shader_library::exports of the specified library
     detail::trivial_capped_vector<shader_arg_shape, limits::max_shader_arguments> argument_shapes;
     bool has_root_constants = false;
 };
-#endif
 
 struct raytracing_hit_group
 {

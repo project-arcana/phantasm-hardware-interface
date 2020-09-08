@@ -181,20 +181,6 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracin
     cc::alloc_vector<D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION> rootsig_associations(scratch_alloc);
     rootsig_associations.reserve(arg_assocs.size());
 
-
-    for (auto const& aa : arg_assocs)
-    {
-        auto& new_association = rootsig_associations.emplace_back();
-        new_association.pSubobjectToAssociate = nullptr; // will be filled in later
-        new_association.NumExports = static_cast<UINT>(aa.symbols.size());
-        new_association.pExports = const_cast<wchar_t const**>(aa.symbols.data());
-    }
-
-#if 0
-    // Argument (local root signature) associations
-    cc::alloc_vector<D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION> rootsig_associations(scratch_alloc);
-    rootsig_associations.reserve(arg_assocs.size());
-
     cc::alloc_vector<wchar_t const*> flat_symbol_names(scratch_alloc);
     flat_symbol_names.reserve(arg_assocs.size() * 16);
 
@@ -217,7 +203,6 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracin
         new_association.NumExports = static_cast<UINT>(aa.export_indices.size());
         new_association.pExports = flat_symbol_names.data() + flat_symbol_names_offset;
     }
-#endif
 
 
     // Hit groups
