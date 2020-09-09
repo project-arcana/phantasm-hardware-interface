@@ -98,9 +98,12 @@ public:
         return createBuffer(size_bytes, stride_bytes, resource_heap::upload, false);
     }
 
-    [[nodiscard]] std::byte* mapBuffer(handle::resource res) override { return mPoolResources.mapBuffer(res); }
+    [[nodiscard]] std::byte* mapBuffer(handle::resource res, int begin = 0, int end = -1) override
+    {
+        return mPoolResources.mapBuffer(res, begin, end);
+    }
 
-    void unmapBuffer(handle::resource res) override { return mPoolResources.unmapBuffer(res); }
+    void unmapBuffer(handle::resource res, int begin = 0, int end = -1) override { return mPoolResources.unmapBuffer(res, begin, end); }
 
     void free(handle::resource res) override { mPoolResources.free(res); }
 

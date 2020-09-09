@@ -32,9 +32,9 @@ public:
     /// create a buffer, with an element stride if its an index or vertex buffer
     [[nodiscard]] handle::resource createBuffer(uint64_t size_bytes, unsigned stride_bytes, resource_heap heap, bool allow_uav, char const* dbg_name);
 
-    std::byte* mapBuffer(handle::resource res);
+    std::byte* mapBuffer(handle::resource res, int begin = 0, int end = -1);
 
-    void unmapBuffer(handle::resource res);
+    void unmapBuffer(handle::resource res, int begin = 0, int end = -1);
 
     [[nodiscard]] handle::resource createBufferInternal(uint64_t size_bytes, unsigned stride_bytes, resource_heap heap, VkBufferUsageFlags usage);
 

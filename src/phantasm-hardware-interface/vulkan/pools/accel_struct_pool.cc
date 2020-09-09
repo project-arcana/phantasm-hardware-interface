@@ -81,6 +81,12 @@ phi::handle::accel_struct phi::vk::AccelStructPool::createBottomLevelAS(cc::span
             egeom.geometry.triangles.indexType = VK_INDEX_TYPE_NONE_NV;
         }
 
+        if (elem.transform_buffer.is_valid())
+        {
+            egeom.geometry.triangles.transformData = mResourcePool->getRawBuffer(elem.transform_buffer);
+            egeom.geometry.triangles.transformOffset = elem.transform_buffer_offset_bytes;
+        }
+
         egeom.geometry.aabbs.sType = VK_STRUCTURE_TYPE_GEOMETRY_AABB_NV;
         egeom.flags = elem.is_opaque ? VK_GEOMETRY_OPAQUE_BIT_NV : 0;
     }

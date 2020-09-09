@@ -3,6 +3,7 @@
 #include <clean-core/utility.hh>
 #include <clean-core/vector.hh>
 
+#include <phantasm-hardware-interface/detail/byte_util.hh>
 #include <phantasm-hardware-interface/detail/log.hh>
 
 #include <phantasm-hardware-interface/d3d12/common/d3d12_sanitized.hh>
@@ -50,6 +51,22 @@ phi::handle::accel_struct phi::d3d12::AccelStructPool::createBottomLevelAS(cc::s
             egeom.Triangles.IndexFormat = DXGI_FORMAT_UNKNOWN;
         }
 
+        if (elem.transform_buffer.is_valid())
+        {
+            CC_ASSERT(elem.transform_buffer_offset_bytes + sizeof(float[3 * 4]) <= mResourcePool->getBufferInfo(elem.transform_buffer).width
+                      && "BLAS element transform buffer offset out of bounds");
+
+            auto const transform_va = mResourcePool->getRawResource(elem.transform_buffer)->GetGPUVirtualAddress();
+            egeom.Triangles.Transform3x4 = transform_va + elem.transform_buffer_offset_bytes;
+
+            CC_ASSERT(phi::util::is_aligned(egeom.Triangles.Transform3x4, D3D12_RAYTRACING_TRANSFORM3X4_BYTE_ALIGNMENT)
+                      && "BLAS elem transform address must be aligned to 16B");
+        }
+        else
+        {
+            egeom.Triangles.Transform3x4 = 0;
+        }
+
         egeom.Flags = elem.is_opaque ? D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE : D3D12_RAYTRACING_GEOMETRY_FLAG_NONE;
     }
 
@@ -57,7 +74,7 @@ phi::handle::accel_struct phi::d3d12::AccelStructPool::createBottomLevelAS(cc::s
     D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC as_create_info = {};
     as_create_info.Inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
     as_create_info.Inputs.Flags = util::to_native_flags(flags);
-    as_create_info.Inputs.NumDescs = static_cast<UINT>(new_node.geometries.size());
+    as_create_info.Inputs.NumDescs = UINT(new_node.geometries.size());
     as_create_info.Inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
     as_create_info.Inputs.pGeometryDescs = new_node.geometries.data();
 

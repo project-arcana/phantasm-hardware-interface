@@ -28,9 +28,9 @@ public:
     /// create a buffer, with an element stride if its an index or vertex buffer
     [[nodiscard]] handle::resource createBuffer(uint64_t size_bytes, unsigned stride_bytes, resource_heap heap, bool allow_uav, char const* dbg_name);
 
-    [[nodiscard]] std::byte* mapBuffer(handle::resource res);
+    [[nodiscard]] std::byte* mapBuffer(handle::resource res, int begin = 0, int end = -1);
 
-    void unmapBuffer(handle::resource res);
+    void unmapBuffer(handle::resource res, int begin = 0, int end = -1);
 
     [[nodiscard]] handle::resource createBufferInternal(uint64_t size_bytes, unsigned stride_bytes, bool allow_uav, D3D12_RESOURCE_STATES initial_state);
 
@@ -79,7 +79,7 @@ public:
 public:
     // internal API
 
-    void initialize(ID3D12Device *device, unsigned max_num_resources, unsigned max_num_swapchains);
+    void initialize(ID3D12Device* device, unsigned max_num_resources, unsigned max_num_swapchains);
     void destroy();
 
     //

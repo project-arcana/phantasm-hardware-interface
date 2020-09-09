@@ -666,25 +666,6 @@ enum class accel_struct_build_flags : uint8_t
 CC_FLAGS_ENUM(accel_struct_build_flags);
 using accel_struct_build_flags_t = cc::flags<accel_struct_build_flags>;
 
-/// geometry instance within a top level acceleration structure (layout dictated by DXR/Vulkan RT Extension)
-struct accel_struct_geometry_instance
-{
-    /// Transform matrix, containing only the top 3 rows
-    float transform[12];
-    /// Instance index
-    uint32_t instance_id : 24;
-    /// Visibility mask
-    uint32_t mask : 8;
-    /// Index of the hit group which will be invoked when a ray hits the instance
-    uint32_t instance_offset : 24;
-    /// Instance flags, such as culling
-    uint32_t flags : 8;
-    /// Opaque handle of the bottom-level acceleration structure
-    uint64_t native_accel_struct_handle;
-};
-
-static_assert(sizeof(accel_struct_geometry_instance) == 64, "accel_struct_geometry_instance compiles to incorrect size");
-
 // these flags align exactly with both vulkan and d3d12, and are not translated
 using accel_struct_instance_flags_t = uint32_t;
 namespace accel_struct_instance_flags
@@ -698,6 +679,25 @@ enum accel_struct_instance_flags_e : accel_struct_instance_flags_t
     force_no_opaque = 0x0008
 };
 }
+
+/// geometry instance within a top level acceleration structure (layout dictated by DXR/Vulkan RT Extension)
+struct accel_struct_geometry_instance
+{
+    /// Transposed transform matrix, containing only the top 3 rows (laid out as three 4-vectors)
+    float transposed_transform[12];
+    /// Instance id - arbitrary value, accessed in shaders via `InstanceID()` (HLSL)
+    uint32_t instance_id : 24;
+    /// Visibility mask - matched against `InstanceInclusionMask` parameter in `TraceRays(..)` (HLSL)
+    uint32_t mask : 8;
+    /// Index of the hit group which will be invoked when a ray hits the instance
+    uint32_t hit_group_index : 24;
+    /// Instance flags, such as culling
+    accel_struct_instance_flags_t flags : 8;
+    /// Opaque handle of the bottom-level acceleration structure
+    uint64_t native_accel_struct_handle;
+};
+
+static_assert(sizeof(accel_struct_geometry_instance) == 64, "accel_struct_geometry_instance compiles to incorrect size");
 
 /// the size and element-strides of a raytracing shader table
 struct shader_table_sizes

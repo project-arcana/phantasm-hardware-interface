@@ -224,23 +224,22 @@ phi::handle::resource phi::d3d12::ResourcePool::createBuffer(uint64_t size_bytes
     return acquireBuffer(alloc, initial_state, size_bytes, stride_bytes, heap);
 }
 
-std::byte* phi::d3d12::ResourcePool::mapBuffer(phi::handle::resource res)
+std::byte* phi::d3d12::ResourcePool::mapBuffer(phi::handle::resource res, int begin, int end)
 {
     CC_ASSERT(res.is_valid() && "attempted to map invalid handle");
 
     resource_node const& node = mPool.get(unsigned(res._value));
-
     CC_ASSERT(node.type == resource_node::resource_type::buffer && node.heap != resource_heap::gpu && //
               "attempted to map non-buffer or buffer on GPU heap");
 
 
-    D3D12_RANGE range = {0, node.buffer.width};
+    D3D12_RANGE const range = {SIZE_T(begin), end < 0 ? node.buffer.width : SIZE_T(end)};
     void* data_start_void;
     PHI_D3D12_VERIFY(node.resource->Map(0, &range, &data_start_void));
-    return cc::bit_cast<std::byte*>(data_start_void);
+    return reinterpret_cast<std::byte*>(data_start_void);
 }
 
-void phi::d3d12::ResourcePool::unmapBuffer(phi::handle::resource res)
+void phi::d3d12::ResourcePool::unmapBuffer(phi::handle::resource res, int begin, int end)
 {
     CC_ASSERT(res.is_valid() && "attempted to unmap invalid handle");
 
@@ -249,7 +248,8 @@ void phi::d3d12::ResourcePool::unmapBuffer(phi::handle::resource res)
     CC_ASSERT(node.type == resource_node::resource_type::buffer && node.heap != resource_heap::gpu && //
               "attempted to unmap non-buffer or buffer on GPU heap");
 
-    D3D12_RANGE range = {0, node.heap == resource_heap::readback ? 0 : node.buffer.width};
+    SIZE_T const default_width = node.heap == resource_heap::readback ? begin : node.buffer.width;
+    D3D12_RANGE const range = {SIZE_T(begin), end < 0 ? default_width : SIZE_T(end)};
     node.resource->Unmap(0, &range);
 }
 

@@ -54,7 +54,7 @@ struct page_allocator
             _pages[unsigned(page)] = 0;
     }
 
-    void free_all() { cc::fill(_pages, 0); }
+    void free_all() { std::memset(_pages.data(), 0, _pages.size_bytes()); }
 
 public:
     [[nodiscard]] int get_page_size() const { return _page_size; }

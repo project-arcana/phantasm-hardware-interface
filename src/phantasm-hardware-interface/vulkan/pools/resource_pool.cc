@@ -185,7 +185,7 @@ phi::handle::resource phi::vk::ResourcePool::createBuffer(uint64_t size_bytes, u
     return acquireBuffer(res_alloc, res_buffer, buffer_info.usage, size_bytes, stride_bytes, heap);
 }
 
-std::byte* phi::vk::ResourcePool::mapBuffer(phi::handle::resource res)
+std::byte* phi::vk::ResourcePool::mapBuffer(phi::handle::resource res, int begin, int end)
 {
     CC_ASSERT(res.is_valid() && "attempted to map invalid handle");
 
@@ -213,13 +213,13 @@ std::byte* phi::vk::ResourcePool::mapBuffer(phi::handle::resource res)
 
     if (node.heap == resource_heap::readback)
     {
-        vmaInvalidateAllocation(mAllocator, node.allocation, 0, node.buffer.width);
+        vmaInvalidateAllocation(mAllocator, node.allocation, begin, end < 0 ? node.buffer.width : end);
     }
 
-    return cc::bit_cast<std::byte*>(data_start_void);
+    return reinterpret_cast<std::byte*>(data_start_void) + begin;
 }
 
-void phi::vk::ResourcePool::unmapBuffer(phi::handle::resource res)
+void phi::vk::ResourcePool::unmapBuffer(phi::handle::resource res, int begin, int end)
 {
     CC_ASSERT(res.is_valid() && "attempted to unmap invalid handle");
 
@@ -236,7 +236,7 @@ void phi::vk::ResourcePool::unmapBuffer(phi::handle::resource res)
     // see note in ::mapBuffer above
     if (node.heap == resource_heap::upload)
     {
-        vmaFlushAllocation(mAllocator, node.allocation, 0, node.buffer.width);
+        vmaFlushAllocation(mAllocator, node.allocation, begin, end < 0 ? node.buffer.width : end);
     }
 }
 
