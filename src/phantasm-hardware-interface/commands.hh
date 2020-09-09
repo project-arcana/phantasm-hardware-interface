@@ -430,9 +430,9 @@ PHI_DEFINE_CMD(dispatch_rays)
     handle::resource table_raygen = handle::null_resource;
     handle::resource table_miss = handle::null_resource;
     handle::resource table_hitgroups = handle::null_resource;
-    unsigned width = 0;
-    unsigned height = 0;
-    unsigned depth = 0;
+    unsigned width = 1;
+    unsigned height = 1;
+    unsigned depth = 1;
 };
 
 /// clear up to 4 textures to specified values - standalone (outside of begin/end_render_pass)

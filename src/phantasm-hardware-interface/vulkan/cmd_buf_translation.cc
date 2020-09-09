@@ -48,6 +48,7 @@ void phi::vk::command_list_translator::translateCommandList(
 void phi::vk::command_list_translator::execute(const phi::cmd::begin_render_pass& begin_rp)
 {
     CC_ASSERT(_bound.raw_render_pass == nullptr && "double cmd::begin_render_pass - missing cmd::end_render_pass?");
+    CC_ASSERT(begin_rp.viewport.width + begin_rp.viewport.height != 0 && "recording begin_render_pass with empty viewport");
 
     // the image views used in this framebuffer
     cc::capped_vector<VkImageView, limits::max_render_targets + 1> fb_image_views;

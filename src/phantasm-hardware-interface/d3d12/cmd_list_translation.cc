@@ -56,6 +56,7 @@ void phi::d3d12::command_list_translator::translateCommandList(
 void phi::d3d12::command_list_translator::execute(const phi::cmd::begin_render_pass& begin_rp)
 {
     CC_ASSERT(_current_queue_type == queue_type::direct && "graphics commands are only valid on queue_type::direct");
+    CC_ASSERT(begin_rp.viewport.width + begin_rp.viewport.height != 0 && "recording begin_render_pass with empty viewport");
 
     // depthrange is hardcoded to [0, 1]
     auto const viewport = D3D12_VIEWPORT{float(begin_rp.viewport_offset.x),
