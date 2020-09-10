@@ -2,6 +2,8 @@
 
 #include <cstdint>
 
+#include <clean-core/fwd.hh>
+
 namespace phi
 {
 enum class adapter_preference : uint8_t
@@ -72,6 +74,11 @@ struct backend_config
     /// amount of threads to accomodate
     /// backend calls must only be made from <= [num_threads] unique OS threads
     unsigned num_threads = 1;
+
+    /// allocator for init-time allocations, only hit during init and shutdown
+    cc::allocator* static_allocator = cc::system_allocator;
+    /// allocator for runtime allocations, must be thread-safe
+    cc::allocator* dynamic_allocator = cc::system_allocator;
 
     /// resource limits
     unsigned max_num_swapchains = 32;

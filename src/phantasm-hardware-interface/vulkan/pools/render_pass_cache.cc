@@ -3,9 +3,9 @@
 #include <phantasm-hardware-interface/detail/hash.hh>
 #include <phantasm-hardware-interface/vulkan/render_pass_pipeline.hh>
 
-void phi::vk::RenderPassCache::initialize(unsigned max_elements)
+void phi::vk::RenderPassCache::initialize(unsigned max_elements, cc::allocator* static_alloc)
 {
-    mCache.initialize(max_elements);
+    mCache.initialize(max_elements, static_alloc);
     mCache.memset_values_zero(); // we're dealing with plain pointers, memset to nullptr
 }
 

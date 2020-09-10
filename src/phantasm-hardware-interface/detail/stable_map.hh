@@ -2,7 +2,7 @@
 
 #include <cstring>
 
-#include <clean-core/array.hh>
+#include <clean-core/alloc_array.hh>
 #include <clean-core/hash.hh>
 #include <clean-core/utility.hh>
 
@@ -16,10 +16,10 @@ public:
     stable_map(stable_map const&) = delete;
     stable_map(stable_map&&) noexcept = delete;
 
-    void initialize(size_t size)
+    void initialize(size_t size, cc::allocator* alloc)
     {
-        _values = cc::array<ValueT>::defaulted(size);
-        _keys = cc::array<key_element>::defaulted(size);
+        _values = cc::alloc_array<ValueT>::defaulted(size, alloc);
+        _keys = cc::alloc_array<key_element>::defaulted(size, alloc);
     }
 
     void memset_values_zero() { std::memset(_values.data(), 0, _values.size_bytes()); }
@@ -96,8 +96,10 @@ public:
     void reset()
     {
         auto const size = _values.size();
-        _values = cc::array<ValueT>::defaulted(size);
-        _keys = cc::array<key_element>::defaulted(size);
+        for (auto& val : _values)
+            val = ValueT();
+        for (auto& key : _keys)
+            key = key_element();
     }
 
     // helper
@@ -118,7 +120,7 @@ private:
         bool occupied = false;
     };
 
-    cc::array<ValueT> _values;
-    cc::array<key_element> _keys;
+    cc::alloc_array<ValueT> _values;
+    cc::alloc_array<key_element> _keys;
 };
 }

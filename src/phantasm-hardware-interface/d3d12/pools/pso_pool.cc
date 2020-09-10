@@ -135,7 +135,7 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracin
 
     // Library exports, one per symbol per library
     cc::alloc_vector<D3D12_EXPORT_DESC> export_descs(scratch_alloc);
-    export_descs.reserve(libraries.size() * 10);
+    export_descs.reserve(libraries.size() * 16);
 
     cc::alloc_vector<wchar_t const*> all_symbols_contiguous(scratch_alloc);
     all_symbols_contiguous.reserve(export_descs.size());
@@ -148,33 +148,31 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracin
     // 10 strings per library (wc: 16)
     // 4 strings per hitgroup
     // 10 strings per arg assoc (wc: 16)
-    cc::alloc_array<wchar_t> wchar_conv_buf_mem((libraries.size() * 10 + hit_groups.size() * 4 + arg_assocs.size() * 10) * 128, scratch_alloc);
+    cc::alloc_array<wchar_t> wchar_conv_buf_mem((libraries.size() * 16 + hit_groups.size() * 4 + arg_assocs.size() * 16) * 128, scratch_alloc);
     text_buffer wchar_conv_buf;
     wchar_conv_buf.init(wchar_conv_buf_mem.data(), wchar_conv_buf_mem.size());
 
+    for (auto const& lib : libraries)
     {
-        for (auto const& lib : libraries)
+        auto& new_desc = library_descs.emplace_back();
+        new_desc.DXILLibrary = D3D12_SHADER_BYTECODE{lib.binary.data, lib.binary.size};
+        new_desc.NumExports = static_cast<UINT>(lib.exports.size());
+
+        auto const export_desc_offset = export_descs.size();
+
+        for (auto const& exp : lib.exports)
         {
-            auto& new_desc = library_descs.emplace_back();
-            new_desc.DXILLibrary = D3D12_SHADER_BYTECODE{lib.binary.data, lib.binary.size};
-            new_desc.NumExports = static_cast<UINT>(lib.exports.size());
+            wchar_t const* const symbol_name = wchar_conv_buf.write_string(exp.entrypoint);
 
-            auto const export_desc_offset = export_descs.size();
+            auto& new_export = export_descs.emplace_back();
+            new_export.Name = symbol_name;
+            new_export.Flags = D3D12_EXPORT_FLAG_NONE;
+            new_export.ExportToRename = nullptr;
 
-            for (auto const& exp : lib.exports)
-            {
-                wchar_t const* const symbol_name = wchar_conv_buf.write_string(exp.entrypoint);
-
-                auto& new_export = export_descs.emplace_back();
-                new_export.Name = symbol_name;
-                new_export.Flags = D3D12_EXPORT_FLAG_NONE;
-                new_export.ExportToRename = nullptr;
-
-                all_symbols_contiguous.push_back(symbol_name);
-            }
-
-            new_desc.pExports = export_descs.data() + export_desc_offset;
+            all_symbols_contiguous.push_back(symbol_name);
         }
+
+        new_desc.pExports = export_descs.data() + export_desc_offset;
     }
 
     // Argument (local root signature) associations
@@ -203,7 +201,6 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracin
         new_association.NumExports = static_cast<UINT>(aa.export_indices.size());
         new_association.pExports = flat_symbol_names.data() + flat_symbol_names_offset;
     }
-
 
     // Hit groups
     cc::alloc_vector<D3D12_HIT_GROUP_DESC> hit_group_descs(scratch_alloc);
@@ -350,13 +347,14 @@ void phi::d3d12::PipelineStateObjectPool::free(phi::handle::pipeline_state ps)
     }
 }
 
-void phi::d3d12::PipelineStateObjectPool::initialize(ID3D12Device5* device_rt, unsigned max_num_psos, unsigned max_num_psos_raytracing)
+void phi::d3d12::PipelineStateObjectPool::initialize(ID3D12Device5* device_rt, unsigned max_num_psos, unsigned max_num_psos_raytracing, cc::allocator* static_alloc)
 {
     // Component init
     mDevice = device_rt;
-    mPool.initialize(max_num_psos);
-    mPoolRaytracing.initialize(max_num_psos_raytracing);
-    mRootSigCache.initialize((max_num_psos / 2) + max_num_psos_raytracing); // almost arbitrary, revisit if this blows up
+    mStaticAllocator = static_alloc;
+    mPool.initialize(max_num_psos, static_alloc);
+    mPoolRaytracing.initialize(max_num_psos_raytracing, static_alloc);
+    mRootSigCache.initialize((max_num_psos / 2) + max_num_psos_raytracing, static_alloc); // almost arbitrary, revisit if this blows up
 
     // Create empty raytracing rootsig
     mEmptyRaytraceRootSignature = mRootSigCache.getOrCreate(*mDevice, {}, false, root_signature_type::raytrace_global)->raw_root_sig;

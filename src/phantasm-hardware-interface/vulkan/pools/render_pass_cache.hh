@@ -22,7 +22,7 @@ namespace phi::vk
 class RenderPassCache
 {
 public:
-    void initialize(unsigned max_elements);
+    void initialize(unsigned max_elements, cc::allocator* static_alloc);
     void destroy(VkDevice device);
 
     /// receive an existing render pass matching the framebuffer formats and config, or create a new one

@@ -52,9 +52,9 @@ void phi::d3d12::BackendD3D12::initialize(const phi::backend_config& config)
 
     // Global pools
     {
-        mPoolResources.initialize(device, config.max_num_resources, config.max_num_swapchains);
+        mPoolResources.initialize(device, config.max_num_resources, config.max_num_swapchains, config.static_allocator, config.dynamic_allocator);
         mPoolShaderViews.initialize(device, &mPoolResources, config.max_num_cbvs, config.max_num_srvs + config.max_num_uavs, config.max_num_samplers);
-        mPoolPSOs.initialize(device, config.max_num_pipeline_states, config.max_num_raytrace_pipeline_states);
+        mPoolPSOs.initialize(device, config.max_num_pipeline_states, config.max_num_raytrace_pipeline_states, config.static_allocator);
         mPoolFences.initialize(device, config.max_num_fences);
         mPoolQueries.initialize(device, config.num_timestamp_queries, config.num_occlusion_queries, config.num_pipeline_stat_queries);
 

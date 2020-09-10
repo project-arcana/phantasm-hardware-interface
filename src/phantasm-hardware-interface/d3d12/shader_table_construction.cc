@@ -1,5 +1,6 @@
 #include "shader_table_construction.hh"
 
+#include <clean-core/native/wchar_conversion.hh>
 #include <clean-core/utility.hh>
 #include <clean-core/vector.hh>
 
@@ -37,8 +38,14 @@ void phi::d3d12::ShaderTableConstructor::writeShaderTable(std::byte* dest, phi::
     {
         std::byte* data_ptr_inner = data_ptr_outer;
 
+        wchar_t shader_symbol_wide[512];
+        int const num_wchars = cc::char_to_widechar(shader_symbol_wide, rec.symbol);
+        CC_ASSERT(num_wchars < int(sizeof(shader_symbol_wide) / sizeof(wchar_t)) - 1 && "shader symbol string too large");
+
         // copy the shader identifier
-        void* symbol_id_data = pso_state_props->GetShaderIdentifier(rec.symbol);
+        void* symbol_id_data = pso_state_props->GetShaderIdentifier(shader_symbol_wide);
+        CC_ASSERT(symbol_id_data != nullptr && "unknown shader symbol in shader_table_record");
+
         std::memcpy(data_ptr_inner, symbol_id_data, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
         data_ptr_inner += D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
 

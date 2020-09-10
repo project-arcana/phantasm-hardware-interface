@@ -1,5 +1,7 @@
 #pragma once
 
+#include <clean-core/fwd.hh>
+
 #include <phantasm-hardware-interface/d3d12/common/d3d12_sanitized.hh>
 
 namespace D3D12MA
@@ -13,7 +15,7 @@ namespace phi::d3d12
 class ResourceAllocator
 {
 public:
-    void initialize(ID3D12Device *device);
+    void initialize(ID3D12Device* device, cc::allocator* dynamic_alloc);
     void destroy();
 
     /// allocate a resource, thread safe

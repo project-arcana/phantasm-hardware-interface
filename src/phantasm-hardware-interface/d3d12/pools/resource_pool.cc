@@ -60,15 +60,16 @@ constexpr D3D12_RESOURCE_STATES d3d12_get_initial_state_by_heap(phi::resource_he
 }
 }
 
-void phi::d3d12::ResourcePool::initialize(ID3D12Device* device, unsigned max_num_resources, unsigned max_num_swapchains)
+void phi::d3d12::ResourcePool::initialize(ID3D12Device* device, unsigned max_num_resources, unsigned max_num_swapchains, cc::allocator* static_alloc, cc::allocator* dynamic_alloc)
 {
-    mAllocator.initialize(device);
-    mPool.initialize(max_num_resources + max_num_swapchains); // additional resources for swapchain backbuffers
+    mAllocator.initialize(device, dynamic_alloc);
+    mPool.initialize(max_num_resources + max_num_swapchains, static_alloc); // additional resources for swapchain backbuffers
 
     mNumReservedBackbuffers = max_num_swapchains;
     for (auto i = 0u; i < mNumReservedBackbuffers; ++i)
     {
         auto backbuffer_reserved = mPool.acquire();
+        (void)backbuffer_reserved;
     }
 }
 

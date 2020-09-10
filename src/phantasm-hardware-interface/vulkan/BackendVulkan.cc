@@ -126,7 +126,7 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg)
     }
 
     // Pool init
-    mPoolPipelines.initialize(mDevice.getDevice(), config.max_num_pipeline_states);
+    mPoolPipelines.initialize(mDevice.getDevice(), config.max_num_pipeline_states, config.static_allocator);
     mPoolResources.initialize(mDevice.getPhysicalDevice(), mDevice.getDevice(), config.max_num_resources, config.max_num_swapchains);
     mPoolShaderViews.initialize(mDevice.getDevice(), &mPoolResources, config.max_num_cbvs, config.max_num_srvs, config.max_num_uavs, config.max_num_samplers);
     mPoolFences.initialize(mDevice.getDevice(), config.max_num_fences);

@@ -189,14 +189,14 @@ void phi::vk::PipelinePool::free(phi::handle::pipeline_state ps)
     }
 }
 
-void phi::vk::PipelinePool::initialize(VkDevice device, unsigned max_num_psos)
+void phi::vk::PipelinePool::initialize(VkDevice device, unsigned max_num_psos, cc::allocator* static_alloc)
 {
     mDevice = device;
-    mPool.initialize(max_num_psos);
+    mPool.initialize(max_num_psos, static_alloc);
 
     // almost arbitrary, revisit upon crashes
-    mLayoutCache.initialize(max_num_psos);
-    mRenderPassCache.initialize(max_num_psos);
+    mLayoutCache.initialize(max_num_psos, static_alloc);
+    mRenderPassCache.initialize(max_num_psos, static_alloc);
 
     // precise
     mDescriptorAllocator.initialize(mDevice, 0, 0, 0, max_num_psos);

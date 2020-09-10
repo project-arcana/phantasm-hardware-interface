@@ -16,7 +16,7 @@ namespace phi::d3d12
 class RootSignatureCache
 {
 public:
-    void initialize(unsigned max_num_root_sigs);
+    void initialize(unsigned max_num_root_sigs, cc::allocator *alloc);
     void destroy();
 
     /// receive an existing root signature matching the shape, or create a new one

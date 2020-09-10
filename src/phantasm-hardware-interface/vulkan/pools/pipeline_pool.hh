@@ -60,7 +60,7 @@ public:
 public:
     // internal API
 
-    void initialize(VkDevice device, unsigned max_num_psos);
+    void initialize(VkDevice device, unsigned max_num_psos, cc::allocator* static_alloc);
     void destroy();
 
     [[nodiscard]] pso_node const& get(handle::pipeline_state ps) const { return mPool.get(ps._value); }

@@ -79,7 +79,7 @@ public:
 public:
     // internal API
 
-    void initialize(ID3D12Device* device, unsigned max_num_resources, unsigned max_num_swapchains);
+    void initialize(ID3D12Device* device, unsigned max_num_resources, unsigned max_num_swapchains, cc::allocator* static_alloc, cc::allocator* dynamic_alloc);
     void destroy();
 
     //

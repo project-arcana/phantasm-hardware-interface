@@ -2,6 +2,8 @@
 
 #include <mutex>
 
+#include <clean-core/alloc_array.hh>
+
 #include <phantasm-hardware-interface/arguments.hh>
 #include <phantasm-hardware-interface/detail/linked_pool.hh>
 #include <phantasm-hardware-interface/types.hh>
@@ -35,7 +37,8 @@ public:
                                                                        arg::raytracing_hit_groups hit_groups,
                                                                        unsigned max_recursion,
                                                                        unsigned max_payload_size_bytes,
-                                                                       unsigned max_attribute_size_bytes, cc::allocator* scratch_alloc);
+                                                                       unsigned max_attribute_size_bytes,
+                                                                       cc::allocator* scratch_alloc);
 
     void free(handle::pipeline_state ps);
 
@@ -52,12 +55,20 @@ public:
         ID3D12StateObject* raw_state_object;
         ID3D12StateObjectProperties* raw_state_object_props;
         cc::capped_vector<root_signature*, limits::max_raytracing_argument_assocs> associated_root_signatures;
+
+        struct export_info
+        {
+            std::byte shader_identifier[D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES];
+        };
+
+        cc::alloc_array<export_info> export_infos;
+        cc::alloc_array<export_info> hitgroup_infos;
     };
 
 public:
     // internal API
 
-    void initialize(ID3D12Device5* device_rt, unsigned max_num_psos, unsigned max_num_psos_raytracing);
+    void initialize(ID3D12Device5* device_rt, unsigned max_num_psos, unsigned max_num_psos_raytracing, cc::allocator* static_alloc);
     void destroy();
 
     [[nodiscard]] pso_node const& get(handle::pipeline_state ps) const { return mPool.get(ps._value); }
@@ -71,6 +82,7 @@ public:
 
 private:
     ID3D12Device5* mDevice = nullptr;
+    cc::allocator* mStaticAllocator = nullptr;
 
     RootSignatureCache mRootSigCache;
     ID3D12RootSignature* mEmptyRaytraceRootSignature = nullptr;

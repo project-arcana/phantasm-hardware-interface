@@ -139,9 +139,9 @@ struct raytracing_hit_group
 
 struct shader_table_record
 {
-    [[deprecated]] wchar_t const* symbol = nullptr; ///< name of the shader or hit group
-    void const* root_arg_data = nullptr;            ///< optional, data of the root constant data
-    uint32_t root_arg_size = 0;                     ///< size of the root constant data
+    char const* symbol = nullptr;        ///< name of the shader or hit group
+    void const* root_arg_data = nullptr; ///< optional, data of the root constant data
+    uint32_t root_arg_size = 0;          ///< size of the root constant data
     detail::trivial_capped_vector<shader_argument, limits::max_shader_arguments> shader_arguments;
 };
 

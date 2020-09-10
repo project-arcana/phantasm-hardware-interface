@@ -15,7 +15,7 @@ class DescriptorAllocator;
 class PipelineLayoutCache
 {
 public:
-    void initialize(unsigned max_elements);
+    void initialize(unsigned max_elements, cc::allocator* static_alloc);
     void destroy(VkDevice device);
 
     /// receive an existing root signature matching the shape, or create a new one
