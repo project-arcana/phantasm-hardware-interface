@@ -55,13 +55,13 @@ void phi::d3d12::BackendD3D12::initialize(const phi::backend_config& config)
         mPoolResources.initialize(device, config.max_num_resources, config.max_num_swapchains, config.static_allocator, config.dynamic_allocator);
         mPoolShaderViews.initialize(device, &mPoolResources, config.max_num_cbvs, config.max_num_srvs + config.max_num_uavs, config.max_num_samplers,
                                     config.static_allocator);
-        mPoolPSOs.initialize(device, config.max_num_pipeline_states, config.max_num_raytrace_pipeline_states, config.static_allocator);
+        mPoolPSOs.initialize(device, config.max_num_pipeline_states, config.max_num_raytrace_pipeline_states, config.static_allocator, config.dynamic_allocator);
         mPoolFences.initialize(device, config.max_num_fences, config.static_allocator);
         mPoolQueries.initialize(device, config.num_timestamp_queries, config.num_occlusion_queries, config.num_pipeline_stat_queries, config.static_allocator);
 
         if (isRaytracingEnabled())
         {
-            mPoolAccelStructs.initialize(device, &mPoolResources, config.max_num_accel_structs, config.static_allocator);
+            mPoolAccelStructs.initialize(device, &mPoolResources, config.max_num_accel_structs, config.static_allocator, config.dynamic_allocator);
             mShaderTableCtor.initialize(device, &mPoolShaderViews, &mPoolResources, &mPoolPSOs, &mPoolAccelStructs);
         }
 
@@ -313,7 +313,9 @@ void phi::d3d12::BackendD3D12::uploadTopLevelInstances(phi::handle::accel_struct
 {
     CC_ASSERT(isRaytracingEnabled() && "raytracing is not enabled");
     auto const& node = mPoolAccelStructs.getNode(as);
-    std::memcpy(node.buffer_instances_map, instances.data(), instances.size_bytes());
+    std::byte* const map = mapBuffer(node.buffer_instances);
+    std::memcpy(map, instances.data(), instances.size_bytes());
+    unmapBuffer(node.buffer_instances);
 }
 
 phi::handle::resource phi::d3d12::BackendD3D12::getAccelStructBuffer(phi::handle::accel_struct as) { return mPoolAccelStructs.getNode(as).buffer_as; }

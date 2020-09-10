@@ -137,8 +137,11 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracin
     cc::alloc_vector<D3D12_EXPORT_DESC> export_descs(scratch_alloc);
     export_descs.reserve(libraries.size() * 16);
 
-    cc::alloc_vector<wchar_t const*> all_symbols_contiguous(scratch_alloc);
-    all_symbols_contiguous.reserve(export_descs.size());
+    cc::alloc_vector<wchar_t const*> all_export_symbols_contiguous(scratch_alloc);
+    all_export_symbols_contiguous.reserve(export_descs.size());
+
+    cc::alloc_vector<wchar_t const*> identifiable_export_symbols_contiguous(scratch_alloc);
+    identifiable_export_symbols_contiguous.reserve(export_descs.size());
 
     // Libraries
     cc::alloc_vector<D3D12_DXIL_LIBRARY_DESC> library_descs(scratch_alloc);
@@ -156,11 +159,11 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracin
     {
         auto& new_desc = library_descs.emplace_back();
         new_desc.DXILLibrary = D3D12_SHADER_BYTECODE{lib.binary.data, lib.binary.size};
-        new_desc.NumExports = static_cast<UINT>(lib.exports.size());
+        new_desc.NumExports = static_cast<UINT>(lib.shader_exports.size());
 
         auto const export_desc_offset = export_descs.size();
 
-        for (auto const& exp : lib.exports)
+        for (auto const& exp : lib.shader_exports)
         {
             wchar_t const* const symbol_name = wchar_conv_buf.write_string(exp.entrypoint);
 
@@ -169,7 +172,12 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracin
             new_export.Flags = D3D12_EXPORT_FLAG_NONE;
             new_export.ExportToRename = nullptr;
 
-            all_symbols_contiguous.push_back(symbol_name);
+            all_export_symbols_contiguous.push_back(symbol_name);
+
+            if (shader_stage_mask_ray_identifiable & exp.stage)
+            {
+                identifiable_export_symbols_contiguous.push_back(symbol_name);
+            }
         }
 
         new_desc.pExports = export_descs.data() + export_desc_offset;
@@ -222,8 +230,8 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracin
     shader_config.MaxAttributeSizeInBytes = max_attribute_size_bytes;
 
     D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION shader_config_association;
-    shader_config_association.NumExports = static_cast<UINT>(all_symbols_contiguous.size());
-    shader_config_association.pExports = all_symbols_contiguous.data();
+    shader_config_association.NumExports = UINT(all_export_symbols_contiguous.size());
+    shader_config_association.pExports = all_export_symbols_contiguous.data();
 
     // pipeline config
     D3D12_RAYTRACING_PIPELINE_CONFIG pipeline_config;
@@ -314,6 +322,24 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracin
     // QI the properties for access to shader identifiers
     PHI_D3D12_VERIFY(new_node.raw_state_object->QueryInterface(IID_PPV_ARGS(&new_node.raw_state_object_props)));
 
+    // cache shader identifiers for all exports and hitgroups
+    new_node.export_infos = cc::alloc_array<rt_pso_node::export_info>::uninitialized(identifiable_export_symbols_contiguous.size(), mDynamicAllocator);
+    new_node.hitgroup_infos = cc::alloc_array<rt_pso_node::export_info>::uninitialized(hit_group_descs.size(), mDynamicAllocator);
+
+    for (auto i = 0u; i < identifiable_export_symbols_contiguous.size(); ++i)
+    {
+        void const* const export_identifier = new_node.raw_state_object_props->GetShaderIdentifier(identifiable_export_symbols_contiguous[i]);
+        CC_ASSERT(export_identifier != nullptr && "cannot find exported symbol in library");
+        std::memcpy(new_node.export_infos[i].shader_identifier, export_identifier, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
+    }
+
+    for (auto i = 0u; i < hit_group_descs.size(); ++i)
+    {
+        void const* const hitgroup_identifier = new_node.raw_state_object_props->GetShaderIdentifier(hit_group_descs[i].HitGroupExport);
+        CC_ASSERT(hitgroup_identifier != nullptr && "cannot find hitgroup symbol in library");
+        std::memcpy(new_node.hitgroup_infos[i].shader_identifier, hitgroup_identifier, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
+    }
+
     return {pool_index | gc_d3d12_is_raytracing_pso_bit};
 }
 
@@ -347,11 +373,12 @@ void phi::d3d12::PipelineStateObjectPool::free(phi::handle::pipeline_state ps)
     }
 }
 
-void phi::d3d12::PipelineStateObjectPool::initialize(ID3D12Device5* device_rt, unsigned max_num_psos, unsigned max_num_psos_raytracing, cc::allocator* static_alloc)
+void phi::d3d12::PipelineStateObjectPool::initialize(
+    ID3D12Device5* device_rt, unsigned max_num_psos, unsigned max_num_psos_raytracing, cc::allocator* static_alloc, cc::allocator* dynamic_alloc)
 {
     // Component init
     mDevice = device_rt;
-    mStaticAllocator = static_alloc;
+    mDynamicAllocator = dynamic_alloc;
     mPool.initialize(max_num_psos, static_alloc);
     mPoolRaytracing.initialize(max_num_psos_raytracing, static_alloc);
     mRootSigCache.initialize((max_num_psos / 2) + max_num_psos_raytracing, static_alloc); // almost arbitrary, revisit if this blows up

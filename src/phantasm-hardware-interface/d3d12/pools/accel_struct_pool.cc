@@ -17,7 +17,7 @@ phi::handle::accel_struct phi::d3d12::AccelStructPool::createBottomLevelAS(cc::s
 {
     handle::accel_struct res_handle;
     accel_struct_node& new_node = acquireAccelStruct(res_handle);
-    new_node.reset();
+    new_node.reset(mDynamicAllocator, elements.size());
 
     new_node.geometries.reserve(elements.size());
 
@@ -100,10 +100,11 @@ phi::handle::accel_struct phi::d3d12::AccelStructPool::createBottomLevelAS(cc::s
 phi::handle::accel_struct phi::d3d12::AccelStructPool::createTopLevelAS(unsigned num_instances)
 {
     static_assert(sizeof(D3D12_RAYTRACING_INSTANCE_DESC) == sizeof(accel_struct_geometry_instance), "acceleration instance struct sizes mismatch");
+    CC_ASSERT(num_instances > 0 && "empty top-level accel_struct not allowed");
 
     handle::accel_struct res_handle;
     accel_struct_node& new_node = acquireAccelStruct(res_handle);
-    new_node.reset();
+    new_node.reset(mDynamicAllocator, num_instances);
 
     // Assemble the bottom level AS object
     D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC as_create_info = {};
@@ -125,7 +126,6 @@ phi::handle::accel_struct phi::d3d12::AccelStructPool::createTopLevelAS(unsigned
         cc::max<UINT64>(prebuild_info.ScratchDataSizeInBytes, prebuild_info.UpdateScratchDataSizeInBytes), 0, true, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
     new_node.buffer_instances
         = mResourcePool->createBuffer(sizeof(accel_struct_geometry_instance) * num_instances, 0, resource_heap::upload, false, "phi-toplevel-as");
-    new_node.buffer_instances_map = mResourcePool->mapBuffer(new_node.buffer_instances);
 
     // query GPU address (raw native handle)
     new_node.raw_as_handle = mResourcePool->getRawResource(new_node.buffer_as)->GetGPUVirtualAddress();
@@ -162,11 +162,13 @@ void phi::d3d12::AccelStructPool::free(cc::span<const phi::handle::accel_struct>
     }
 }
 
-void phi::d3d12::AccelStructPool::initialize(ID3D12Device5* device, phi::d3d12::ResourcePool* res_pool, unsigned max_num_accel_structs, cc::allocator* static_alloc)
+void phi::d3d12::AccelStructPool::initialize(
+    ID3D12Device5* device, phi::d3d12::ResourcePool* res_pool, unsigned max_num_accel_structs, cc::allocator* static_alloc, cc::allocator* dynamic_alloc)
 {
     CC_ASSERT(mDevice == nullptr && mResourcePool == nullptr && "double init");
     mDevice = device;
     mResourcePool = res_pool;
+    mDynamicAllocator = dynamic_alloc;
     mPool.initialize(max_num_accel_structs, static_alloc);
 }
 
@@ -209,4 +211,14 @@ void phi::d3d12::AccelStructPool::internalFree(phi::d3d12::AccelStructPool::acce
 {
     handle::resource buffers_to_free[] = {node.buffer_as, node.buffer_scratch, node.buffer_instances};
     mResourcePool->free(buffers_to_free);
+}
+
+void phi::d3d12::AccelStructPool::accel_struct_node::reset(cc::allocator* dyn_alloc, unsigned num_geom_reserve)
+{
+    raw_as_handle = 0;
+    buffer_as = handle::null_resource;
+    buffer_scratch = handle::null_resource;
+    buffer_instances = handle::null_resource;
+    flags = {};
+    geometries.reset_reserve(dyn_alloc, num_geom_reserve);
 }

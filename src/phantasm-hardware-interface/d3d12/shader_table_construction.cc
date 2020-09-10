@@ -28,25 +28,28 @@ phi::shader_table_sizes phi::d3d12::ShaderTableConstructor::calculateShaderTable
     return res;
 }
 
-void phi::d3d12::ShaderTableConstructor::writeShaderTable(std::byte* dest, phi::handle::pipeline_state pso, unsigned stride_bytes, phi::arg::shader_table_records records)
+void phi::d3d12::ShaderTableConstructor::writeShaderTable(std::byte* dest, handle::pipeline_state pso, unsigned stride_bytes, arg::shader_table_records records)
 {
     CC_ASSERT(pool_pipeline_states->isRaytracingPipeline(pso) && "invalid or non-raytracing PSO given");
-    auto const pso_state_props = pool_pipeline_states->getRaytrace(pso).raw_state_object_props;
+    auto const& pso_info = pool_pipeline_states->getRaytrace(pso);
 
     std::byte* data_ptr_outer = dest;
     for (auto const& rec : records)
     {
         std::byte* data_ptr_inner = data_ptr_outer;
 
-        wchar_t shader_symbol_wide[512];
-        int const num_wchars = cc::char_to_widechar(shader_symbol_wide, rec.symbol);
-        CC_ASSERT(num_wchars < int(sizeof(shader_symbol_wide) / sizeof(wchar_t)) - 1 && "shader symbol string too large");
-
         // copy the shader identifier
-        void* symbol_id_data = pso_state_props->GetShaderIdentifier(shader_symbol_wide);
-        CC_ASSERT(symbol_id_data != nullptr && "unknown shader symbol in shader_table_record");
+        if (rec.target_type == arg::shader_table_record::e_target_identifiable_shader)
+        {
+            CC_ASSERT(rec.target_index < pso_info.export_infos.size() && "shader table record - shader index OOB");
+            std::memcpy(data_ptr_inner, pso_info.export_infos[rec.target_index].shader_identifier, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
+        }
+        else // (e_target_hitgroup)
+        {
+            CC_ASSERT(rec.target_index < pso_info.hitgroup_infos.size() && "shader table record - hitgroup index OOB");
+            std::memcpy(data_ptr_inner, pso_info.hitgroup_infos[rec.target_index].shader_identifier, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
+        }
 
-        std::memcpy(data_ptr_inner, symbol_id_data, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
         data_ptr_inner += D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
 
         // copy the root constants

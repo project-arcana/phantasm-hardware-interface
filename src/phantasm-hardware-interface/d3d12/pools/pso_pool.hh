@@ -68,7 +68,7 @@ public:
 public:
     // internal API
 
-    void initialize(ID3D12Device5* device_rt, unsigned max_num_psos, unsigned max_num_psos_raytracing, cc::allocator* static_alloc);
+    void initialize(ID3D12Device5* device_rt, unsigned max_num_psos, unsigned max_num_psos_raytracing, cc::allocator* static_alloc, cc::allocator* dynamic_alloc);
     void destroy();
 
     [[nodiscard]] pso_node const& get(handle::pipeline_state ps) const { return mPool.get(ps._value); }
@@ -82,7 +82,7 @@ public:
 
 private:
     ID3D12Device5* mDevice = nullptr;
-    cc::allocator* mStaticAllocator = nullptr;
+    cc::allocator* mDynamicAllocator = nullptr;
 
     RootSignatureCache mRootSigCache;
     ID3D12RootSignature* mEmptyRaytraceRootSignature = nullptr;

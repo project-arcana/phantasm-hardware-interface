@@ -116,7 +116,7 @@ struct raytracing_library_export
 struct raytracing_shader_library
 {
     shader_binary binary;
-    detail::trivial_capped_vector<raytracing_library_export, 16> exports;
+    detail::trivial_capped_vector<raytracing_library_export, 16> shader_exports;
 };
 
 /// associates exports from libraries with their argument shapes
@@ -139,10 +139,38 @@ struct raytracing_hit_group
 
 struct shader_table_record
 {
-    char const* symbol = nullptr;        ///< name of the shader or hit group
+    enum e_shader_table_target : uint8_t
+    {
+        e_target_identifiable_shader,
+        e_target_hitgroup
+    };
+
+    /// a shader table record targets an identifiable shader (identfiable: ray_gen, ray_miss or ray_callable), or a hitgroup
+    e_shader_table_target target_type = e_target_identifiable_shader;
+    /// order corresponds to the order of exports/hitgroups at PSO creation
+    /// NOTE: shaders are indexed contiguously across libraries, and non-identifiable shaders are skipped
+    unsigned target_index = 0;
+
     void const* root_arg_data = nullptr; ///< optional, data of the root constant data
     uint32_t root_arg_size = 0;          ///< size of the root constant data
     detail::trivial_capped_vector<shader_argument, limits::max_shader_arguments> shader_arguments;
+
+    void set_shader(uint8_t index)
+    {
+        target_type = e_target_identifiable_shader;
+        target_index = index;
+    }
+
+    void set_hitgroup(uint8_t index)
+    {
+        target_type = e_target_hitgroup;
+        target_index = index;
+    }
+
+    void add_shader_arg(handle::resource cbv, unsigned cbv_off = 0, handle::shader_view sv = handle::null_shader_view)
+    {
+        shader_arguments.push_back(shader_argument{cbv, sv, cbv_off});
+    }
 };
 
 using raytracing_shader_libraries = cc::span<raytracing_shader_library const>;

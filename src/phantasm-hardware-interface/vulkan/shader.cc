@@ -45,7 +45,7 @@ void phi::vk::patched_shader_intermediates::initialize_from_libraries(VkDevice d
         patched_spirv.push_back(util::create_patched_spirv(lib.binary.data, lib.binary.size, spirv_info, alloc));
 
         // create a shader per export
-        for (auto const& exp : lib.exports)
+        for (auto const& exp : lib.shader_exports)
         {
             shader& new_shader = shader_modules.emplace_back();
             initialize_shader(new_shader, device, lib.binary.data, lib.binary.size, exp.entrypoint, exp.stage);
