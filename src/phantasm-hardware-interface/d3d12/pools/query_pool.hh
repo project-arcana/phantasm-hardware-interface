@@ -20,7 +20,7 @@ public:
     constexpr static int sc_page_size = 2;
 
 public:
-    void initialize(ID3D12Device* device, D3D12_QUERY_HEAP_TYPE type, unsigned max_num_queries);
+    void initialize(ID3D12Device* device, D3D12_QUERY_HEAP_TYPE type, unsigned max_num_queries, cc::allocator* static_alloc);
 
     void destroy();
 
@@ -123,7 +123,7 @@ public:
 public:
     // internal API
 
-    void initialize(ID3D12Device* device, unsigned num_timestamp, unsigned num_occlusion, unsigned num_pipeline_stats);
+    void initialize(ID3D12Device* device, unsigned num_timestamp, unsigned num_occlusion, unsigned num_pipeline_stats, cc::allocator *static_alloc);
 
     void destroy();
 

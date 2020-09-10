@@ -29,7 +29,7 @@ public:
     void free(cc::span<handle::accel_struct const> as);
 
 public:
-    void initialize(ID3D12Device5* device, ResourcePool* res_pool, unsigned max_num_accel_structs);
+    void initialize(ID3D12Device5* device, ResourcePool* res_pool, unsigned max_num_accel_structs, cc::allocator *static_alloc);
     void destroy();
 
 

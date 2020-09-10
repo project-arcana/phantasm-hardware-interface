@@ -16,14 +16,14 @@ DXGI_SWAP_CHAIN_FLAG get_pool_swapchain_flags(phi::present_mode mode)
 }
 }
 
-void phi::d3d12::SwapchainPool::initialize(IDXGIFactory4* factory, ID3D12Device* device, ID3D12CommandQueue* queue, unsigned max_num_swapchains)
+void phi::d3d12::SwapchainPool::initialize(IDXGIFactory4* factory, ID3D12Device* device, ID3D12CommandQueue* queue, unsigned max_num_swapchains, cc::allocator* static_alloc)
 {
     CC_ASSERT(mParentFactory == nullptr && "double init");
     mParentFactory = factory;
     mParentDevice = device;
     mParentQueue = queue;
 
-    mPool.initialize(max_num_swapchains);
+    mPool.initialize(max_num_swapchains, static_alloc);
 
     // create dedicated RTV heap for backbuffer RTVs
     {

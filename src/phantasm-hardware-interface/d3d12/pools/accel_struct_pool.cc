@@ -162,12 +162,12 @@ void phi::d3d12::AccelStructPool::free(cc::span<const phi::handle::accel_struct>
     }
 }
 
-void phi::d3d12::AccelStructPool::initialize(ID3D12Device5* device, phi::d3d12::ResourcePool* res_pool, unsigned max_num_accel_structs)
+void phi::d3d12::AccelStructPool::initialize(ID3D12Device5* device, phi::d3d12::ResourcePool* res_pool, unsigned max_num_accel_structs, cc::allocator* static_alloc)
 {
     CC_ASSERT(mDevice == nullptr && mResourcePool == nullptr && "double init");
     mDevice = device;
     mResourcePool = res_pool;
-    mPool.initialize(max_num_accel_structs);
+    mPool.initialize(max_num_accel_structs, static_alloc);
 }
 
 void phi::d3d12::AccelStructPool::destroy()

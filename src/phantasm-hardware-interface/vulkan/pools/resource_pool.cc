@@ -306,7 +306,7 @@ void phi::vk::ResourcePool::setDebugName(phi::handle::resource res, const char* 
     }
 }
 
-void phi::vk::ResourcePool::initialize(VkPhysicalDevice physical, VkDevice device, unsigned max_num_resources, unsigned max_num_swapchains)
+void phi::vk::ResourcePool::initialize(VkPhysicalDevice physical, VkDevice device, unsigned max_num_resources, unsigned max_num_swapchains, cc::allocator* static_alloc)
 {
     mDevice = device;
     {
@@ -317,10 +317,10 @@ void phi::vk::ResourcePool::initialize(VkPhysicalDevice physical, VkDevice devic
     }
 
     mAllocatorDescriptors.initialize(device, max_num_resources, 0, 0, 0);
-    mPool.initialize(max_num_resources + max_num_swapchains); // additional resources for swapchain backbuffers
+    mPool.initialize(max_num_resources + max_num_swapchains, static_alloc); // additional resources for swapchain backbuffers
 
     mNumReservedBackbuffers = max_num_swapchains;
-    mInjectedBackbufferViews = mInjectedBackbufferViews.filled(mNumReservedBackbuffers, nullptr);
+    mInjectedBackbufferViews = cc::alloc_array<VkImageView>::filled(mNumReservedBackbuffers, nullptr, static_alloc);
     for (auto i = 0u; i < mNumReservedBackbuffers; ++i)
     {
         auto backbuffer_reserved = mPool.acquire();

@@ -2,8 +2,6 @@
 
 #include <mutex>
 
-#include <clean-core/fwd_array.hh>
-
 #include <phantasm-hardware-interface/Backend.hh>
 #include <phantasm-hardware-interface/types.hh>
 
@@ -282,7 +280,9 @@ private:
     QueryPool mPoolQueries;
 
     // Logic
-    cc::fwd_array<per_thread_component> mThreadComponents;
+    per_thread_component* mThreadComponents;
+    unsigned mNumThreadComponents;
+    void* mThreadComponentAlloc;
     phi::detail::thread_association mThreadAssociation;
     ShaderTableConstructor mShaderTableCtor;
 

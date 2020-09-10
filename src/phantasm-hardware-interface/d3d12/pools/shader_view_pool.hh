@@ -37,7 +37,7 @@ public:
     using handle_t = int;
 
 public:
-    void initialize(ID3D12Device& device, D3D12_DESCRIPTOR_HEAP_TYPE type, unsigned num_descriptors, unsigned page_size = 8);
+    void initialize(ID3D12Device& device, D3D12_DESCRIPTOR_HEAP_TYPE type, unsigned num_descriptors, unsigned page_size, cc::allocator* static_alloc);
 
     void destroy();
 
@@ -109,7 +109,7 @@ public:
 public:
     // internal API
 
-    void initialize(ID3D12Device* device, ResourcePool* res_pool, unsigned num_shader_views, unsigned num_srvs_uavs, unsigned num_samplers);
+    void initialize(ID3D12Device* device, ResourcePool* res_pool, unsigned num_shader_views, unsigned num_srvs_uavs, unsigned num_samplers, cc::allocator* static_alloc);
     void destroy();
 
     [[nodiscard]] D3D12_GPU_DESCRIPTOR_HANDLE getSRVUAVGPUHandle(handle::shader_view sv) const

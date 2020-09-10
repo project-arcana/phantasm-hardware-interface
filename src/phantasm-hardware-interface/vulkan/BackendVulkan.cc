@@ -127,14 +127,15 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg)
 
     // Pool init
     mPoolPipelines.initialize(mDevice.getDevice(), config.max_num_pipeline_states, config.static_allocator);
-    mPoolResources.initialize(mDevice.getPhysicalDevice(), mDevice.getDevice(), config.max_num_resources, config.max_num_swapchains);
-    mPoolShaderViews.initialize(mDevice.getDevice(), &mPoolResources, config.max_num_cbvs, config.max_num_srvs, config.max_num_uavs, config.max_num_samplers);
-    mPoolFences.initialize(mDevice.getDevice(), config.max_num_fences);
-    mPoolQueries.initialize(mDevice.getDevice(), config.num_timestamp_queries, config.num_occlusion_queries, config.num_pipeline_stat_queries);
+    mPoolResources.initialize(mDevice.getPhysicalDevice(), mDevice.getDevice(), config.max_num_resources, config.max_num_swapchains, config.static_allocator);
+    mPoolShaderViews.initialize(mDevice.getDevice(), &mPoolResources, config.max_num_cbvs, config.max_num_srvs, config.max_num_uavs,
+                                config.max_num_samplers, config.static_allocator);
+    mPoolFences.initialize(mDevice.getDevice(), config.max_num_fences, config.static_allocator);
+    mPoolQueries.initialize(mDevice.getDevice(), config.num_timestamp_queries, config.num_occlusion_queries, config.num_pipeline_stat_queries, config.static_allocator);
 
     if (isRaytracingEnabled())
     {
-        mPoolAccelStructs.initialize(mDevice.getDevice(), &mPoolResources, config.max_num_accel_structs);
+        mPoolAccelStructs.initialize(mDevice.getDevice(), &mPoolResources, config.max_num_accel_structs, config.static_allocator);
     }
 
     mPoolSwapchains.initialize(mInstance, mDevice, config);
@@ -142,23 +143,26 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg)
     // Per-thread components and command list pool
     {
         mThreadAssociation.initialize();
-        mThreadComponents = mThreadComponents.defaulted(config.num_threads);
 
-        cc::vector<CommandAllocatorsPerThread*> thread_allocator_ptrs;
-        thread_allocator_ptrs.reserve(config.num_threads);
+        mThreadComponentAlloc = config.static_allocator;
+        mThreadComponents = config.static_allocator->new_array_sized<per_thread_component>(config.num_threads);
+        mNumThreadComponents = config.num_threads;
 
-        for (auto& thread_comp : mThreadComponents)
+        cc::alloc_array<CommandAllocatorsPerThread*> thread_allocator_ptrs(mNumThreadComponents, config.dynamic_allocator);
+
+        for (auto i = 0u; i < mNumThreadComponents; ++i)
         {
+            auto& thread_comp = mThreadComponents[i];
             thread_comp.translator.initialize(mDevice.getDevice(), &mPoolShaderViews, &mPoolResources, &mPoolPipelines, &mPoolCmdLists, &mPoolQueries,
                                               &mPoolAccelStructs);
-            thread_allocator_ptrs.push_back(&thread_comp.cmd_list_allocator);
+            thread_allocator_ptrs[i] = &thread_comp.cmd_list_allocator;
         }
 
         mPoolCmdLists.initialize(mDevice,                                                                                               //
                                  int(config.num_direct_cmdlist_allocators_per_thread), int(config.num_direct_cmdlists_per_allocator),   //
                                  int(config.num_compute_cmdlist_allocators_per_thread), int(config.num_compute_cmdlists_per_allocator), //
                                  int(config.num_copy_cmdlist_allocators_per_thread), int(config.num_copy_cmdlists_per_allocator),       //
-                                 thread_allocator_ptrs);
+                                 thread_allocator_ptrs, config.static_allocator, config.dynamic_allocator);
     }
 }
 
@@ -180,10 +184,12 @@ void phi::vk::BackendVulkan::destroy()
         mPoolPipelines.destroy();
         mPoolResources.destroy();
 
-        for (auto& thread_cmp : mThreadComponents)
+        for (auto i = 0u; i < mNumThreadComponents; ++i)
         {
-            thread_cmp.cmd_list_allocator.destroy(mDevice.getDevice());
+            auto& thread_comp = mThreadComponents[i];
+            thread_comp.cmd_list_allocator.destroy(mDevice.getDevice());
         }
+        reinterpret_cast<cc::allocator*>(mThreadComponentAlloc)->delete_array_sized(mThreadComponents, mNumThreadComponents);
 
         mDevice.destroy();
 
@@ -487,7 +493,7 @@ void phi::vk::BackendVulkan::createDebugMessenger()
 phi::vk::BackendVulkan::per_thread_component& phi::vk::BackendVulkan::getCurrentThreadComponent()
 {
     auto const current_index = mThreadAssociation.get_current_index();
-    CC_ASSERT_MSG(current_index < mThreadComponents.size(),
+    CC_ASSERT_MSG(current_index < mNumThreadComponents,
                   "Accessed phi Backend from more OS threads than configured in backend_config\n"
                   "recordCommandList() and submit() must only be used from at most backend_config::num_threads unique OS threads in total");
     return mThreadComponents[current_index];

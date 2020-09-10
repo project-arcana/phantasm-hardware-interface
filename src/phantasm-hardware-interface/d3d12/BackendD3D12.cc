@@ -53,33 +53,37 @@ void phi::d3d12::BackendD3D12::initialize(const phi::backend_config& config)
     // Global pools
     {
         mPoolResources.initialize(device, config.max_num_resources, config.max_num_swapchains, config.static_allocator, config.dynamic_allocator);
-        mPoolShaderViews.initialize(device, &mPoolResources, config.max_num_cbvs, config.max_num_srvs + config.max_num_uavs, config.max_num_samplers);
+        mPoolShaderViews.initialize(device, &mPoolResources, config.max_num_cbvs, config.max_num_srvs + config.max_num_uavs, config.max_num_samplers,
+                                    config.static_allocator);
         mPoolPSOs.initialize(device, config.max_num_pipeline_states, config.max_num_raytrace_pipeline_states, config.static_allocator);
-        mPoolFences.initialize(device, config.max_num_fences);
-        mPoolQueries.initialize(device, config.num_timestamp_queries, config.num_occlusion_queries, config.num_pipeline_stat_queries);
+        mPoolFences.initialize(device, config.max_num_fences, config.static_allocator);
+        mPoolQueries.initialize(device, config.num_timestamp_queries, config.num_occlusion_queries, config.num_pipeline_stat_queries, config.static_allocator);
 
         if (isRaytracingEnabled())
         {
-            mPoolAccelStructs.initialize(device, &mPoolResources, config.max_num_accel_structs);
+            mPoolAccelStructs.initialize(device, &mPoolResources, config.max_num_accel_structs, config.static_allocator);
             mShaderTableCtor.initialize(device, &mPoolShaderViews, &mPoolResources, &mPoolPSOs, &mPoolAccelStructs);
         }
 
-        mPoolSwapchains.initialize(&mAdapter.getFactory(), device,
-                                   config.present_from_compute_queue ? mComputeQueue.command_queue : mDirectQueue.command_queue, config.max_num_swapchains);
+        mPoolSwapchains.initialize(&mAdapter.getFactory(), device, config.present_from_compute_queue ? mComputeQueue.command_queue : mDirectQueue.command_queue,
+                                   config.max_num_swapchains, config.static_allocator);
     }
 
     // Per-thread components and command list pool
     {
         mThreadAssociation.initialize();
-        mThreadComponents = mThreadComponents.defaulted(config.num_threads);
 
-        cc::vector<CommandAllocatorsPerThread*> thread_allocator_ptrs;
-        thread_allocator_ptrs.reserve(config.num_threads);
+        mThreadComponentAlloc = config.static_allocator;
+        mThreadComponents = config.static_allocator->new_array_sized<per_thread_component>(config.num_threads);
+        mNumThreadComponents = config.num_threads;
 
-        for (auto& thread_comp : mThreadComponents)
+        cc::alloc_array<CommandAllocatorsPerThread*> thread_allocator_ptrs(mNumThreadComponents, config.dynamic_allocator);
+
+        for (auto i = 0u; i < mNumThreadComponents; ++i)
         {
+            auto& thread_comp = mThreadComponents[i];
             thread_comp.translator.initialize(device, &mPoolShaderViews, &mPoolResources, &mPoolPSOs, &mPoolAccelStructs, &mPoolQueries);
-            thread_allocator_ptrs.push_back(&thread_comp.cmd_list_allocator);
+            thread_allocator_ptrs[i] = &thread_comp.cmd_list_allocator;
         }
 
         mPoolCmdLists.initialize(*this,                                                                                                 //
@@ -112,11 +116,13 @@ void phi::d3d12::BackendD3D12::destroy()
         mPoolResources.destroy();
         mPoolQueries.destroy();
 
-        for (auto& thread_comp : mThreadComponents)
+        for (auto i = 0u; i < mNumThreadComponents; ++i)
         {
+            auto& thread_comp = mThreadComponents[i];
             thread_comp.cmd_list_allocator.destroy();
             thread_comp.translator.destroy();
         }
+        reinterpret_cast<cc::allocator*>(mThreadComponentAlloc)->delete_array_sized(mThreadComponents, mNumThreadComponents);
 
         mDirectQueue.destroy();
         mCopyQueue.destroy();
@@ -356,7 +362,7 @@ bool phi::d3d12::BackendD3D12::isRaytracingEnabled() const { return mDevice.hasR
 phi::d3d12::BackendD3D12::per_thread_component& phi::d3d12::BackendD3D12::getCurrentThreadComponent()
 {
     auto const current_index = mThreadAssociation.get_current_index();
-    CC_ASSERT_MSG(current_index < mThreadComponents.size(),
+    CC_ASSERT_MSG(current_index < mNumThreadComponents,
                   "Accessed phi Backend from more OS threads than configured in backend_config\n"
                   "recordCommandList() and submit() must only be used from at most backend_config::num_threads unique OS threads in total");
     return mThreadComponents[current_index];

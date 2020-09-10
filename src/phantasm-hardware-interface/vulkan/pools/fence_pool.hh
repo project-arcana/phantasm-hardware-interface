@@ -18,7 +18,7 @@ public:
     void free(cc::span<handle::fence const> fence_span);
 
 public:
-    void initialize(VkDevice device, unsigned max_num_fences);
+    void initialize(VkDevice device, unsigned max_num_fences, cc::allocator *static_alloc);
     void destroy();
 
     VkSemaphore get(handle::fence fence) const

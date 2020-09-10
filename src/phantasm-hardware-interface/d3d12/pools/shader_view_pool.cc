@@ -7,9 +7,9 @@
 
 #include "resource_pool.hh"
 
-void phi::d3d12::DescriptorPageAllocator::initialize(ID3D12Device& device, D3D12_DESCRIPTOR_HEAP_TYPE type, unsigned num_descriptors, unsigned page_size)
+void phi::d3d12::DescriptorPageAllocator::initialize(ID3D12Device& device, D3D12_DESCRIPTOR_HEAP_TYPE type, unsigned num_descriptors, unsigned page_size, cc::allocator* static_alloc)
 {
-    mPageAllocator.initialize(num_descriptors, page_size);
+    mPageAllocator.initialize(num_descriptors, page_size, static_alloc);
     mDescriptorSize = device.GetDescriptorHandleIncrementSize(type);
 
     D3D12_DESCRIPTOR_HEAP_DESC desc;
@@ -21,7 +21,6 @@ void phi::d3d12::DescriptorPageAllocator::initialize(ID3D12Device& device, D3D12
     util::set_object_name(mHeap, "desc page allocator, type %d, size %d", int(type), int(num_descriptors));
 
     mHeapStartCPU = mHeap->GetCPUDescriptorHandleForHeapStart();
-
     mHeapStartGPU = mHeap->GetGPUDescriptorHandleForHeapStart();
 }
 
@@ -135,13 +134,14 @@ void phi::d3d12::ShaderViewPool::free(cc::span<const phi::handle::shader_view> s
     }
 }
 
-void phi::d3d12::ShaderViewPool::initialize(ID3D12Device* device, phi::d3d12::ResourcePool* res_pool, unsigned num_shader_views, unsigned num_srvs_uavs, unsigned num_samplers)
+void phi::d3d12::ShaderViewPool::initialize(
+    ID3D12Device* device, phi::d3d12::ResourcePool* res_pool, unsigned num_shader_views, unsigned num_srvs_uavs, unsigned num_samplers, cc::allocator* static_alloc)
 {
     mDevice = device;
     mResourcePool = res_pool;
-    mSRVUAVAllocator.initialize(*device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, num_srvs_uavs);
-    mSamplerAllocator.initialize(*device, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, num_samplers);
-    mPool.initialize(num_shader_views);
+    mSRVUAVAllocator.initialize(*device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, num_srvs_uavs, 8, static_alloc);
+    mSamplerAllocator.initialize(*device, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, num_samplers, 8, static_alloc);
+    mPool.initialize(num_shader_views, static_alloc);
 }
 
 void phi::d3d12::ShaderViewPool::destroy()

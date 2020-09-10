@@ -2,7 +2,7 @@
 
 #include <mutex>
 
-#include <clean-core/array.hh>
+#include <clean-core/alloc_array.hh>
 
 #include <phantasm-hardware-interface/detail/linked_pool.hh>
 #include <phantasm-hardware-interface/types.hh>
@@ -94,7 +94,7 @@ public:
 public:
     // internal API
 
-    void initialize(VkPhysicalDevice physical, VkDevice device, unsigned max_num_resources, unsigned max_num_swapchains);
+    void initialize(VkPhysicalDevice physical, VkDevice device, unsigned max_num_resources, unsigned max_num_swapchains, cc::allocator *static_alloc);
     void destroy();
 
     //
@@ -177,7 +177,7 @@ private:
     unsigned mNumReservedBackbuffers;
     /// The image view of the currently injected backbuffer, stored separately to
     /// not take up space in resource_node, there is always just a single injected backbuffer
-    cc::array<VkImageView> mInjectedBackbufferViews;
+    cc::alloc_array<VkImageView> mInjectedBackbufferViews;
 
     /// Descriptor set layouts for buffer dynamic UBO descriptor sets
     /// permanently kept alive (a: no recreation required, b: drivers can crash

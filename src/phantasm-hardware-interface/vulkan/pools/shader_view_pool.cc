@@ -201,14 +201,15 @@ void phi::vk::ShaderViewPool::free(cc::span<const phi::handle::shader_view> svs)
     }
 }
 
-void phi::vk::ShaderViewPool::initialize(VkDevice device, ResourcePool* res_pool, unsigned num_cbvs, unsigned num_srvs, unsigned num_uavs, unsigned num_samplers)
+void phi::vk::ShaderViewPool::initialize(
+    VkDevice device, ResourcePool* res_pool, unsigned num_cbvs, unsigned num_srvs, unsigned num_uavs, unsigned num_samplers, cc::allocator* static_alloc)
 {
     mDevice = device;
     mResourcePool = res_pool;
 
     mAllocator.initialize(mDevice, num_cbvs, num_srvs, num_uavs, num_samplers);
     // Due to the fact that each shader argument represents up to one CBV, this is the upper limit for the amount of shader_view handles
-    mPool.initialize(num_cbvs);
+    mPool.initialize(num_cbvs, static_alloc);
 }
 
 void phi::vk::ShaderViewPool::destroy()

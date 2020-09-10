@@ -15,12 +15,12 @@ void phi::vk::QueryPool::free(phi::handle::query_range qr)
     getHeap(type).free(index);
 }
 
-void phi::vk::QueryPool::initialize(VkDevice device, unsigned num_timestamp, unsigned num_occlusion, unsigned num_pipeline_stats)
+void phi::vk::QueryPool::initialize(VkDevice device, unsigned num_timestamp, unsigned num_occlusion, unsigned num_pipeline_stats, cc::allocator* static_alloc)
 {
     CC_ASSERT(num_timestamp < mcIndexOffsetStep && num_occlusion < mcIndexOffsetStep && num_pipeline_stats < mcIndexOffsetStep && "too many queries configured");
-    mHeapTimestamps.initialize(device, VK_QUERY_TYPE_TIMESTAMP, num_timestamp);
-    mHeapOcclusion.initialize(device, VK_QUERY_TYPE_OCCLUSION, num_occlusion);
-    mHeapPipelineStats.initialize(device, VK_QUERY_TYPE_PIPELINE_STATISTICS, num_pipeline_stats);
+    mHeapTimestamps.initialize(device, VK_QUERY_TYPE_TIMESTAMP, num_timestamp, static_alloc);
+    mHeapOcclusion.initialize(device, VK_QUERY_TYPE_OCCLUSION, num_occlusion, static_alloc);
+    mHeapPipelineStats.initialize(device, VK_QUERY_TYPE_PIPELINE_STATISTICS, num_pipeline_stats, static_alloc);
 }
 
 void phi::vk::QueryPool::destroy(VkDevice dev)

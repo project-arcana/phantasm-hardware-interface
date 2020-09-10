@@ -59,11 +59,11 @@ void phi::vk::FencePool::free(cc::span<const phi::handle::fence> fence_span)
     }
 }
 
-void phi::vk::FencePool::initialize(VkDevice device, unsigned max_num_fences)
+void phi::vk::FencePool::initialize(VkDevice device, unsigned max_num_fences, cc::allocator* static_alloc)
 {
     CC_ASSERT(mDevice == nullptr && "double init");
     mDevice = device;
-    mPool.initialize(max_num_fences);
+    mPool.initialize(max_num_fences, static_alloc);
 }
 
 void phi::vk::FencePool::destroy()

@@ -205,12 +205,12 @@ void phi::vk::AccelStructPool::free(cc::span<const phi::handle::accel_struct> as
     }
 }
 
-void phi::vk::AccelStructPool::initialize(VkDevice device, phi::vk::ResourcePool* res_pool, unsigned max_num_accel_structs)
+void phi::vk::AccelStructPool::initialize(VkDevice device, phi::vk::ResourcePool* res_pool, unsigned max_num_accel_structs, cc::allocator* static_alloc)
 {
     CC_ASSERT(mDevice == nullptr && mResourcePool == nullptr && "double init");
     mDevice = device;
     mResourcePool = res_pool;
-    mPool.initialize(max_num_accel_structs);
+    mPool.initialize(max_num_accel_structs, static_alloc);
 }
 
 void phi::vk::AccelStructPool::destroy()

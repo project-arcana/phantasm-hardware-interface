@@ -205,7 +205,7 @@ void phi::vk::SwapchainPool::initialize(VkInstance instance, const phi::vk::Devi
     mPresentQueue = config.present_from_compute_queue ? device.getQueueCompute() : device.getQueueDirect();
     mPresentQueueFamilyIndex = config.present_from_compute_queue ? device.getQueueFamilyCompute() : device.getQueueFamilyDirect();
 
-    mPool.initialize(config.max_num_swapchains);
+    mPool.initialize(config.max_num_swapchains, config.static_allocator);
 
     // Create render pass
     {

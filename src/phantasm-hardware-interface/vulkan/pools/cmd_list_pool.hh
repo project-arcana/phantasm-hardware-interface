@@ -3,8 +3,8 @@
 #include <atomic>
 #include <mutex>
 
-#include <clean-core/array.hh>
-#include <clean-core/vector.hh>
+#include <clean-core/alloc_array.hh>
+#include <clean-core/alloc_vector.hh>
 
 #include <phantasm-hardware-interface/detail/incomplete_state_cache.hh>
 #include <phantasm-hardware-interface/detail/linked_pool.hh>
@@ -21,7 +21,7 @@ class Device;
 class FenceRingbuffer
 {
 public:
-    void initialize(VkDevice device, unsigned num_fences);
+    void initialize(VkDevice device, unsigned num_fences, cc::allocator* static_alloc);
     void destroy(VkDevice device);
 
 public:
@@ -66,7 +66,7 @@ private:
         std::atomic_int ref_count;
     };
 
-    cc::array<fence_node> mFences;
+    cc::alloc_array<fence_node> mFences;
     unsigned mNextFence = 0;
 };
 
@@ -75,7 +75,7 @@ private:
 struct cmd_allocator_node
 {
 public:
-    void initialize(VkDevice device, unsigned num_cmd_lists, unsigned queue_family_index, FenceRingbuffer* fence_ring);
+    void initialize(VkDevice device, unsigned num_cmd_lists, unsigned queue_family_index, FenceRingbuffer* fence_ring, cc::allocator* static_alloc, cc::allocator* dynamic_alloc);
     void destroy(VkDevice device);
 
 public:
@@ -132,7 +132,7 @@ private:
     FenceRingbuffer* _fence_ring;
 
     VkCommandPool _cmd_pool;
-    cc::array<VkCommandBuffer> _cmd_buffers;
+    cc::alloc_array<VkCommandBuffer> _cmd_buffers;
 
     /// amount of cmdbufs given out
     unsigned _num_in_flight = 0;
@@ -149,10 +149,10 @@ private:
     /// a storage for VkFramebuffers which have been created during recording of the command buffers
     /// created by this allocator. Recording threads add their created framebuffers, and the list gets
     /// destroyed on reset, guaranteeing that all of them are no longer in flight
-    cc::vector<VkFramebuffer> _associated_framebuffers;
+    cc::alloc_vector<VkFramebuffer> _associated_framebuffers;
 
     /// Framebuffers require their image views to stay alive as well
-    cc::vector<VkImageView> _associated_framebuffer_image_views;
+    cc::alloc_vector<VkImageView> _associated_framebuffer_image_views;
 };
 
 /// A bundle of single command allocators which automatically
@@ -161,7 +161,7 @@ private:
 class CommandAllocatorBundle
 {
 public:
-    void initialize(VkDevice device, unsigned num_allocators, unsigned num_cmdlists_per_allocator, unsigned queue_family_index, FenceRingbuffer* fence_ring);
+    void initialize(VkDevice device, unsigned num_allocators, unsigned num_cmdlists_per_allocator, unsigned queue_family_index, FenceRingbuffer* fence_ring, cc::allocator* static_alloc, cc::allocator *dynamic_alloc);
     void destroy(VkDevice device);
 
     /// Resets the given command list to use memory by an appropriate allocator
@@ -172,7 +172,7 @@ private:
     void updateActiveIndex(VkDevice device);
 
 private:
-    cc::array<cmd_allocator_node> mAllocators;
+    cc::alloc_array<cmd_allocator_node> mAllocators;
     size_t mActiveAllocator = 0u;
 };
 
@@ -273,7 +273,8 @@ public:
                     int num_compute_lists_per_alloc,
                     int num_copy_allocs,
                     int num_copy_lists_per_alloc,
-                    cc::span<CommandAllocatorsPerThread*> thread_allocators);
+                    cc::span<CommandAllocatorsPerThread*> thread_allocators,
+                    cc::allocator* static_alloc, cc::allocator *dynamic_alloc);
     void destroy();
 
 private:

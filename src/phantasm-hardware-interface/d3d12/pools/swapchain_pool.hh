@@ -64,7 +64,7 @@ public:
     DXGI_FORMAT getBackbufferFormat() const;
 
 public:
-    void initialize(IDXGIFactory4* factory, ID3D12Device* device, ID3D12CommandQueue* queue, unsigned max_num_swapchains);
+    void initialize(IDXGIFactory4* factory, ID3D12Device* device, ID3D12CommandQueue* queue, unsigned max_num_swapchains, cc::allocator* static_alloc);
     void destroy();
 
 

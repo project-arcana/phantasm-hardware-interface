@@ -1,7 +1,5 @@
 #pragma once
 
-#include <clean-core/fwd_array.hh>
-
 #include <phantasm-hardware-interface/Backend.hh>
 #include <phantasm-hardware-interface/detail/thread_association.hh>
 #include <phantasm-hardware-interface/types.hh>
@@ -87,7 +85,10 @@ public:
         return createBuffer(size_bytes, stride_bytes, resource_heap::upload, false);
     }
 
-    [[nodiscard]] std::byte* mapBuffer(handle::resource res, int begin = 0, int end = -1) override { return mPoolResources.mapBuffer(res, begin, end); }
+    [[nodiscard]] std::byte* mapBuffer(handle::resource res, int begin = 0, int end = -1) override
+    {
+        return mPoolResources.mapBuffer(res, begin, end);
+    }
 
     void unmapBuffer(handle::resource res, int begin = 0, int end = -1) override { return mPoolResources.unmapBuffer(res, begin, end); }
 
@@ -122,7 +123,8 @@ public:
                                                              arg::graphics_shaders shaders,
                                                              phi::pipeline_config const& primitive_config) override
     {
-        return mPoolPipelines.createPipelineState(vertex_format, framebuffer_conf, shader_arg_shapes, has_root_constants, shaders, primitive_config, cc::system_allocator);
+        return mPoolPipelines.createPipelineState(vertex_format, framebuffer_conf, shader_arg_shapes, has_root_constants, shaders, primitive_config,
+                                                  cc::system_allocator);
     }
 
     [[nodiscard]] handle::pipeline_state createComputePipelineState(arg::shader_arg_shapes shader_arg_shapes, arg::shader_binary shader, bool has_root_constants) override
@@ -257,7 +259,9 @@ private:
     SwapchainPool mPoolSwapchains;
 
     // Logic
-    cc::fwd_array<per_thread_component> mThreadComponents;
+    per_thread_component* mThreadComponents;
+    unsigned mNumThreadComponents;
+    void* mThreadComponentAlloc;
     phi::detail::thread_association mThreadAssociation;
 
     // Misc
