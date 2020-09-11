@@ -2,7 +2,7 @@
 
 #include <clean-core/vector.hh>
 
-#include <phantasm-hardware-interface/detail/log.hh>
+#include <phantasm-hardware-interface/common/log.hh>
 #include <phantasm-hardware-interface/window_handle.hh>
 
 #include <rich-log/logger.hh>

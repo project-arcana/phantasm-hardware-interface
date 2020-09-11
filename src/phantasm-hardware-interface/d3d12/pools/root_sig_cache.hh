@@ -3,8 +3,8 @@
 #include <clean-core/capped_vector.hh>
 
 #include <phantasm-hardware-interface/arguments.hh>
-#include <phantasm-hardware-interface/detail/hash.hh>
-#include <phantasm-hardware-interface/detail/stable_map.hh>
+#include <phantasm-hardware-interface/common/hash.hh>
+#include <phantasm-hardware-interface/common/container/stable_map.hh>
 
 #include <phantasm-hardware-interface/d3d12/common/d3d12_fwd.hh>
 #include <phantasm-hardware-interface/d3d12/root_signature.hh>

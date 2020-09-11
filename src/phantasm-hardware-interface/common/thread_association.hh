@@ -2,7 +2,7 @@
 
 #include <atomic>
 
-namespace phi::detail
+namespace phi
 {
 /// an association between threads and incrementing indices
 /// if get_current is called from n unique threads, they will each receive

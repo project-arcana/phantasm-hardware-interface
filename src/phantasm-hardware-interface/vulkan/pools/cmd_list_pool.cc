@@ -4,9 +4,9 @@
 
 #include <clean-core/utility.hh>
 
-#include <phantasm-hardware-interface/detail/log.hh>
+#include <phantasm-hardware-interface/common/log.hh>
 
-#include <phantasm-hardware-interface/detail/flat_map.hh>
+#include <phantasm-hardware-interface/common/container/flat_map.hh>
 #include <phantasm-hardware-interface/vulkan/BackendVulkan.hh>
 #include <phantasm-hardware-interface/vulkan/common/util.hh>
 

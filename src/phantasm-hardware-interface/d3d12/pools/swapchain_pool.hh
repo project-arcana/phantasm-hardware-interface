@@ -4,7 +4,7 @@
 
 #include <clean-core/capped_array.hh>
 
-#include <phantasm-hardware-interface/detail/linked_pool.hh>
+#include <phantasm-hardware-interface/common/container/linked_pool.hh>
 #include <phantasm-hardware-interface/handles.hh>
 #include <phantasm-hardware-interface/types.hh>
 
@@ -83,7 +83,7 @@ private:
 
     // owning
     std::mutex mMutex;
-    phi::detail::linked_pool<swapchain> mPool;
+    phi::linked_pool<swapchain> mPool;
     ID3D12DescriptorHeap* mRTVHeap;
     UINT mRTVSize;
 };

@@ -3,7 +3,7 @@
 #include <clean-core/alloc_array.hh>
 #include <clean-core/utility.hh>
 
-namespace phi::detail
+namespace phi
 {
 struct page_allocator
 {

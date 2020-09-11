@@ -1,8 +1,8 @@
 #include "util.hh"
 
-#include <phantasm-hardware-interface/detail/byte_util.hh>
-#include <phantasm-hardware-interface/detail/format_size.hh>
-#include <phantasm-hardware-interface/detail/log.hh>
+#include <phantasm-hardware-interface/common/byte_util.hh>
+#include <phantasm-hardware-interface/common/format_size.hh>
+#include <phantasm-hardware-interface/common/log.hh>
 
 #include <clean-core/span.hh>
 

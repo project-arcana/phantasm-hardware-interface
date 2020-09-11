@@ -6,7 +6,7 @@
 #include <clean-core/vector.hh>
 
 #include <phantasm-hardware-interface/arguments.hh>
-#include <phantasm-hardware-interface/detail/linked_pool.hh>
+#include <phantasm-hardware-interface/common/container/linked_pool.hh>
 #include <phantasm-hardware-interface/types.hh>
 
 #include <phantasm-hardware-interface/vulkan/loader/volk.hh>
@@ -26,7 +26,7 @@ public:
     void free(cc::span<handle::accel_struct const> as);
 
 public:
-    void initialize(VkDevice device, ResourcePool* res_pool, unsigned max_num_accel_structs, cc::allocator *static_alloc);
+    void initialize(VkDevice device, ResourcePool* res_pool, unsigned max_num_accel_structs, cc::allocator* static_alloc);
     void destroy();
 
 
@@ -60,7 +60,7 @@ private:
     VkDevice mDevice = nullptr;
     ResourcePool* mResourcePool = nullptr;
 
-    phi::detail::linked_pool<accel_struct_node> mPool;
+    phi::linked_pool<accel_struct_node> mPool;
 
     std::mutex mMutex;
 };

@@ -4,7 +4,7 @@
 #include <clean-core/alloc_vector.hh>
 #include <clean-core/array.hh>
 
-#include <phantasm-hardware-interface/detail/log.hh>
+#include <phantasm-hardware-interface/common/log.hh>
 #include <phantasm-hardware-interface/limits.hh>
 
 #include "common/native_enum.hh"

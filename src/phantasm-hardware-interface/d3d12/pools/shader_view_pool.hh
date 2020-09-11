@@ -6,8 +6,8 @@
 #include <clean-core/span.hh>
 
 #include <phantasm-hardware-interface/arguments.hh>
-#include <phantasm-hardware-interface/detail/linked_pool.hh>
-#include <phantasm-hardware-interface/detail/page_allocator.hh>
+#include <phantasm-hardware-interface/common/container/linked_pool.hh>
+#include <phantasm-hardware-interface/common/page_allocator.hh>
 #include <phantasm-hardware-interface/types.hh>
 
 #include <phantasm-hardware-interface/d3d12/common/d3d12_sanitized.hh>
@@ -88,7 +88,7 @@ private:
     ID3D12DescriptorHeap* mHeap;
     D3D12_CPU_DESCRIPTOR_HANDLE mHeapStartCPU;
     D3D12_GPU_DESCRIPTOR_HANDLE mHeapStartGPU;
-    phi::detail::page_allocator mPageAllocator;
+    phi::page_allocator mPageAllocator;
     unsigned mDescriptorSize = 0;
 };
 
@@ -158,7 +158,7 @@ private:
     ID3D12Device* mDevice;
     ResourcePool* mResourcePool;
 
-    phi::detail::linked_pool<shader_view_data> mPool;
+    phi::linked_pool<shader_view_data> mPool;
     DescriptorPageAllocator mSRVUAVAllocator;
     DescriptorPageAllocator mSamplerAllocator;
     std::mutex mMutex;

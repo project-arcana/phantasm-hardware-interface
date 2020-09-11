@@ -21,7 +21,7 @@ CC_FORCE_INLINE void radix_sort_pass(uint32_t const* src, uint32_t* dst, size_t 
 }
 }
 
-void phi::detail::radix_sort(uint32_t* a, uint32_t* temp, size_t n)
+void phi::radix_sort(uint32_t* a, uint32_t* temp, size_t n)
 {
     radix_sort_pass(a, temp, n, 0 * 8);
     radix_sort_pass(temp, a, n, 1 * 8);

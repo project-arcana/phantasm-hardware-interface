@@ -5,7 +5,7 @@
 
 #include <typed-geometry/tg.hh>
 
-#include <phantasm-hardware-interface/detail/log.hh>
+#include <phantasm-hardware-interface/common/log.hh>
 
 #include <phantasm-hardware-interface/util.hh>
 #include <phantasm-hardware-interface/vulkan/common/native_enum.hh>

@@ -2,8 +2,8 @@
 
 #include <mutex>
 
-#include <phantasm-hardware-interface/detail/linked_pool.hh>
-#include <phantasm-hardware-interface/detail/page_allocator.hh>
+#include <phantasm-hardware-interface/common/container/linked_pool.hh>
+#include <phantasm-hardware-interface/common/page_allocator.hh>
 #include <phantasm-hardware-interface/types.hh>
 
 #include <phantasm-hardware-interface/d3d12/common/d3d12_sanitized.hh>
@@ -48,7 +48,7 @@ public:
 
 private:
     ID3D12QueryHeap* mHeap;
-    phi::detail::page_allocator mPageAllocator;
+    phi::page_allocator mPageAllocator;
     D3D12_QUERY_HEAP_TYPE mType;
 };
 

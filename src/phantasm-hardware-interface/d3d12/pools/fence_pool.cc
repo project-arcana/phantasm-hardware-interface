@@ -1,6 +1,6 @@
 #include "fence_pool.hh"
 
-#include <phantasm-hardware-interface/detail/log.hh>
+#include <phantasm-hardware-interface/common/log.hh>
 
 #include <phantasm-hardware-interface/d3d12/common/d3d12_sanitized.hh>
 #include <phantasm-hardware-interface/d3d12/common/verify.hh>

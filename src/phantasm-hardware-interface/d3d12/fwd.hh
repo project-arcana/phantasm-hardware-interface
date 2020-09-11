@@ -1,6 +1,6 @@
 #pragma once
 
-#include <phantasm-hardware-interface/detail/detail_fwd.hh>
+#include <phantasm-hardware-interface/common/common_fwd.hh>
 
 #include "common/d3d12_fwd.hh"
 

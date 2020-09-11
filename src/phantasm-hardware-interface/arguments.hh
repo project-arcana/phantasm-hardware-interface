@@ -4,7 +4,7 @@
 
 #include <typed-geometry/types/size.hh>
 
-#include <phantasm-hardware-interface/detail/trivial_capped_vector.hh>
+#include <phantasm-hardware-interface/common/container/trivial_capped_vector.hh>
 
 #include "limits.hh"
 #include "types.hh"

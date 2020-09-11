@@ -1,6 +1,6 @@
 #include "debug_callback.hh"
 
-#include <phantasm-hardware-interface/detail/log.hh>
+#include <phantasm-hardware-interface/common/log.hh>
 
 #include <clean-core/breakpoint.hh>
 

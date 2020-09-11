@@ -3,8 +3,8 @@
 #include <clean-core/utility.hh>
 #include <clean-core/vector.hh>
 
+#include <phantasm-hardware-interface/common/log.hh>
 #include <phantasm-hardware-interface/config.hh>
-#include <phantasm-hardware-interface/detail/log.hh>
 
 #include "common/unique_name_set.hh"
 #include "common/verify.hh"

@@ -5,8 +5,8 @@
 #include <typed-geometry/types/objects/aabb.hh>
 #include <typed-geometry/types/size.hh>
 
-#include <phantasm-hardware-interface/detail/command_base.hh>
-#include <phantasm-hardware-interface/detail/trivial_capped_vector.hh>
+#include <phantasm-hardware-interface/common/command_base.hh>
+#include <phantasm-hardware-interface/common/container/trivial_capped_vector.hh>
 #include <phantasm-hardware-interface/limits.hh>
 #include <phantasm-hardware-interface/types.hh>
 

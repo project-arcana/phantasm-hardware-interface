@@ -2,7 +2,7 @@
 
 #include <clean-core/vector.hh>
 
-#include <phantasm-hardware-interface/detail/gpu_info.hh>
+#include <phantasm-hardware-interface/features/gpu_info.hh>
 #include <phantasm-hardware-interface/types.hh>
 
 #include "common/d3d12_sanitized.hh"

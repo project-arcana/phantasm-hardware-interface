@@ -9,7 +9,7 @@
 #include <clean-core/bits.hh>
 #include <clean-core/new.hh>
 
-namespace phi::detail
+namespace phi
 {
 void radix_sort(uint32_t* a, uint32_t* temp, size_t n);
 

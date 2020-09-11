@@ -4,7 +4,7 @@
 
 #include <clean-core/native/win32_util.hh>
 
-#include <phantasm-hardware-interface/detail/log.hh>
+#include <phantasm-hardware-interface/common/log.hh>
 
 #include "adapter_choice_util.hh"
 #include "common/d3d12_sanitized.hh"

@@ -7,7 +7,7 @@
 #include <clean-core/vector.hh>
 
 #include <phantasm-hardware-interface/arguments.hh>
-#include <phantasm-hardware-interface/detail/linked_pool.hh>
+#include <phantasm-hardware-interface/common/container/linked_pool.hh>
 #include <phantasm-hardware-interface/limits.hh>
 
 
@@ -67,7 +67,7 @@ private:
     ResourcePool* mResourcePool;
 
     /// The main pool data
-    phi::detail::linked_pool<shader_view_node> mPool;
+    phi::linked_pool<shader_view_node> mPool;
 
     /// "Backing" allocator
     DescriptorAllocator mAllocator;

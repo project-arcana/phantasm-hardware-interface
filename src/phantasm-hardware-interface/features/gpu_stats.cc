@@ -12,7 +12,7 @@
 
 #include <clean-core/assert.hh>
 
-#include <phantasm-hardware-interface/detail/log.hh>
+#include <phantasm-hardware-interface/common/log.hh>
 
 namespace
 {

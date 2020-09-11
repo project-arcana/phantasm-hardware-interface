@@ -5,8 +5,8 @@
 
 #include <rich-log/logger.hh>
 
+#include <phantasm-hardware-interface/common/log.hh>
 #include <phantasm-hardware-interface/config.hh>
-#include <phantasm-hardware-interface/detail/log.hh>
 
 #include "cmd_buf_translation.hh"
 #include "common/debug_callback.hh"

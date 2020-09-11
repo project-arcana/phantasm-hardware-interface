@@ -2,7 +2,7 @@
 
 #include <mutex>
 
-#include <phantasm-hardware-interface/detail/linked_pool.hh>
+#include <phantasm-hardware-interface/common/container/linked_pool.hh>
 #include <phantasm-hardware-interface/types.hh>
 
 #include <phantasm-hardware-interface/d3d12/memory/ResourceAllocator.hh>
@@ -162,7 +162,7 @@ private:
 
 private:
     /// The main pool data
-    phi::detail::linked_pool<resource_node> mPool;
+    phi::linked_pool<resource_node> mPool;
     /// Amount of handles (from the start) reserved for backbuffer injection
     unsigned mNumReservedBackbuffers;
 

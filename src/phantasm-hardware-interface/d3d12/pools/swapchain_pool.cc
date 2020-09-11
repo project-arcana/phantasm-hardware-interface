@@ -3,7 +3,7 @@
 #include <clean-core/assert.hh>
 
 #include <phantasm-hardware-interface/d3d12/common/util.hh>
-#include <phantasm-hardware-interface/detail/log.hh>
+#include <phantasm-hardware-interface/common/log.hh>
 
 namespace
 {

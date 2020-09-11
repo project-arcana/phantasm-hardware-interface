@@ -7,7 +7,7 @@
 
 #include <phantasm-hardware-interface/types.hh>
 
-#include <phantasm-hardware-interface/detail/byte_util.hh>
+#include <phantasm-hardware-interface/common/byte_util.hh>
 
 namespace phi::util
 {

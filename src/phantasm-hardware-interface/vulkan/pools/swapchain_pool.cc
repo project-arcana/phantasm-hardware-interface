@@ -4,7 +4,7 @@
 #include <clean-core/utility.hh>
 
 #include <phantasm-hardware-interface/config.hh>
-#include <phantasm-hardware-interface/detail/log.hh>
+#include <phantasm-hardware-interface/common/log.hh>
 
 #include <phantasm-hardware-interface/vulkan/Device.hh>
 #include <phantasm-hardware-interface/vulkan/common/util.hh>

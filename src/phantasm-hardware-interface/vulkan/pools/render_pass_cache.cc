@@ -1,6 +1,6 @@
 #include "render_pass_cache.hh"
 
-#include <phantasm-hardware-interface/detail/hash.hh>
+#include <phantasm-hardware-interface/common/hash.hh>
 #include <phantasm-hardware-interface/vulkan/render_pass_pipeline.hh>
 
 void phi::vk::RenderPassCache::initialize(unsigned max_elements, cc::allocator* static_alloc)

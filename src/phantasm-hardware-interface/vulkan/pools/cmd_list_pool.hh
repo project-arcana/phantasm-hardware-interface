@@ -6,8 +6,8 @@
 #include <clean-core/alloc_array.hh>
 #include <clean-core/alloc_vector.hh>
 
-#include <phantasm-hardware-interface/detail/incomplete_state_cache.hh>
-#include <phantasm-hardware-interface/detail/linked_pool.hh>
+#include <phantasm-hardware-interface/common/incomplete_state_cache.hh>
+#include <phantasm-hardware-interface/common/container/linked_pool.hh>
 #include <phantasm-hardware-interface/vulkan/common/verify.hh>
 #include <phantasm-hardware-interface/vulkan/common/vk_incomplete_state_cache.hh>
 #include <phantasm-hardware-interface/vulkan/loader/volk.hh>
@@ -248,7 +248,7 @@ public:
         VkCommandBuffer raw_buffer;
     };
 
-    using cmdlist_linked_pool_t = phi::detail::linked_pool<cmd_list_node>;
+    using cmdlist_linked_pool_t = phi::linked_pool<cmd_list_node>;
 
 public:
     // internal API

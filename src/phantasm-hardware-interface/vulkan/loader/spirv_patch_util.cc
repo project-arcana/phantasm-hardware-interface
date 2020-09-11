@@ -8,9 +8,9 @@
 #include <clean-core/bit_cast.hh>
 #include <clean-core/utility.hh>
 
-#include <phantasm-hardware-interface/detail/log.hh>
-#include <phantasm-hardware-interface/detail/unique_buffer.hh>
-#include <phantasm-hardware-interface/lib/spirv_reflect.hh>
+#include <phantasm-hardware-interface/common/container/unique_buffer.hh>
+#include <phantasm-hardware-interface/common/lib/spirv_reflect.hh>
+#include <phantasm-hardware-interface/common/log.hh>
 #include <phantasm-hardware-interface/limits.hh>
 
 #include <phantasm-hardware-interface/vulkan/common/native_enum.hh>

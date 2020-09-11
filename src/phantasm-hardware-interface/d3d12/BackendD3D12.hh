@@ -5,7 +5,7 @@
 #include <phantasm-hardware-interface/Backend.hh>
 #include <phantasm-hardware-interface/types.hh>
 
-#include <phantasm-hardware-interface/detail/thread_association.hh>
+#include <phantasm-hardware-interface/common/thread_association.hh>
 
 #include "Adapter.hh"
 #include "Device.hh"
@@ -283,7 +283,7 @@ private:
     per_thread_component* mThreadComponents;
     unsigned mNumThreadComponents;
     void* mThreadComponentAlloc;
-    phi::detail::thread_association mThreadAssociation;
+    phi::thread_association mThreadAssociation;
     ShaderTableConstructor mShaderTableCtor;
 
     // Misc

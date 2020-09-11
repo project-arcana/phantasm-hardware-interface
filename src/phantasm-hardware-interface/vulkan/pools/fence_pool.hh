@@ -2,7 +2,7 @@
 
 #include <mutex>
 
-#include <phantasm-hardware-interface/detail/linked_pool.hh>
+#include <phantasm-hardware-interface/common/container/linked_pool.hh>
 #include <phantasm-hardware-interface/types.hh>
 
 #include <phantasm-hardware-interface/vulkan/loader/vulkan_fwd.hh>
@@ -35,7 +35,7 @@ public:
 private:
     VkDevice mDevice = nullptr;
 
-    phi::detail::linked_pool<VkSemaphore> mPool;
+    phi::linked_pool<VkSemaphore> mPool;
 
     std::mutex mMutex;
 };

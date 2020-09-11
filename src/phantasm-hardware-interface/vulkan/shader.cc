@@ -4,7 +4,7 @@
 
 #include <clean-core/bit_cast.hh>
 
-#include <phantasm-hardware-interface/detail/unique_buffer.hh>
+#include <phantasm-hardware-interface/common/container/unique_buffer.hh>
 
 #include "common/native_enum.hh"
 #include "common/verify.hh"
@@ -63,8 +63,8 @@ void phi::vk::patched_shader_intermediates::free(VkDevice device)
     shader_modules = {};
     shader_create_infos = {};
 
-    for (auto & module : shader_modules)
-            module.free(device);
+    for (auto& module : shader_modules)
+        module.free(device);
 
     for (auto const& ps : patched_spirv)
         util::free_patched_spirv(ps);

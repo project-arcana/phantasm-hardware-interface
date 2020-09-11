@@ -3,8 +3,8 @@
 #include <clean-core/assert.hh>
 
 #include <phantasm-hardware-interface/config.hh>
-#include <phantasm-hardware-interface/detail/gpu_info.hh>
-#include <phantasm-hardware-interface/detail/log.hh>
+#include <phantasm-hardware-interface/features/gpu_info.hh>
+#include <phantasm-hardware-interface/common/log.hh>
 
 #include "adapter_choice_util.hh"
 #include "common/d3d12_sanitized.hh"

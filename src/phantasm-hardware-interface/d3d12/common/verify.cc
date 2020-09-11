@@ -5,7 +5,7 @@
 
 #include <clean-core/assert.hh>
 
-#include <phantasm-hardware-interface/detail/log.hh>
+#include <phantasm-hardware-interface/common/log.hh>
 
 #include "d3d12_sanitized.hh"
 #include "shared_com_ptr.hh"

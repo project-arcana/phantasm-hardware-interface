@@ -16,7 +16,7 @@ thread_local thread_index_info tl_index_info;
 
 }
 
-void phi::detail::thread_association::initialize()
+void phi::thread_association::initialize()
 {
     // NOTE: this assert is overzealous, concurrent use of thread_association is possible, just not from
     // the same OS thread. As that would be a little harder to diagnose, this check will do for now.
@@ -31,13 +31,13 @@ void phi::detail::thread_association::initialize()
     _num_associations.store(0);
 }
 
-void phi::detail::thread_association::destroy()
+void phi::thread_association::destroy()
 {
     CC_ASSERT(s_global_threadalloc_in_use && "programmer error");
     s_global_threadalloc_in_use = false;
 }
 
-unsigned phi::detail::thread_association::get_current_index()
+unsigned phi::thread_association::get_current_index()
 {
     if (tl_index_info.ts_id != _id)
     {

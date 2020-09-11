@@ -4,7 +4,7 @@
 #include <clean-core/span.hh>
 
 #include <phantasm-hardware-interface/commands.hh>
-#include <phantasm-hardware-interface/detail/stable_map.hh>
+#include <phantasm-hardware-interface/common/container/stable_map.hh>
 #include <phantasm-hardware-interface/limits.hh>
 #include <phantasm-hardware-interface/types.hh>
 

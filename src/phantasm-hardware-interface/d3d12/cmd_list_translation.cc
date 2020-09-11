@@ -1,10 +1,10 @@
 #include "cmd_list_translation.hh"
 
-#include <phantasm-hardware-interface/detail/byte_util.hh>
-#include <phantasm-hardware-interface/detail/command_reading.hh>
-#include <phantasm-hardware-interface/detail/format_size.hh>
-#include <phantasm-hardware-interface/detail/incomplete_state_cache.hh>
-#include <phantasm-hardware-interface/detail/log.hh>
+#include <phantasm-hardware-interface/common/byte_util.hh>
+#include <phantasm-hardware-interface/common/command_reading.hh>
+#include <phantasm-hardware-interface/common/format_size.hh>
+#include <phantasm-hardware-interface/common/incomplete_state_cache.hh>
+#include <phantasm-hardware-interface/common/log.hh>
 
 #include "common/diagnostic_util.hh"
 #include "common/dxgi_format.hh"

@@ -4,7 +4,7 @@
 
 #include <clean-core/alloc_array.hh>
 
-#include <phantasm-hardware-interface/detail/linked_pool.hh>
+#include <phantasm-hardware-interface/common/container/linked_pool.hh>
 #include <phantasm-hardware-interface/types.hh>
 
 #include <phantasm-hardware-interface/vulkan/resources/descriptor_allocator.hh>
@@ -171,7 +171,7 @@ private:
 
 private:
     /// The main pool data
-    phi::detail::linked_pool<resource_node> mPool;
+    phi::linked_pool<resource_node> mPool;
 
     /// Amount of handles (from the start) reserved for backbuffer injection
     unsigned mNumReservedBackbuffers;

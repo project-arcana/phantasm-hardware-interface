@@ -2,7 +2,7 @@
 
 #include <clean-core/macros.hh>
 
-#include <phantasm-hardware-interface/detail/value_category.hh>
+#include <phantasm-hardware-interface/common/value_category.hh>
 
 struct ID3D12Device;
 typedef long HRESULT;

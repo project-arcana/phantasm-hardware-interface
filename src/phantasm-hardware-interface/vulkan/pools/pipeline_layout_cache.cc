@@ -1,6 +1,6 @@
 #include "pipeline_layout_cache.hh"
 
-#include <phantasm-hardware-interface/detail/hash.hh>
+#include <phantasm-hardware-interface/common/hash.hh>
 
 void phi::vk::PipelineLayoutCache::initialize(unsigned max_elements, cc::allocator* static_alloc) { mCache.initialize(max_elements, static_alloc); }
 
