@@ -206,9 +206,10 @@ public:
 
     [[nodiscard]] uint64_t getAccelStructNativeHandle(handle::accel_struct as) override;
 
-    [[nodiscard]] shader_table_sizes calculateShaderTableSize(arg::shader_table_records ray_gen_records,
+    [[nodiscard]] shader_table_sizes calculateShaderTableSize(arg::shader_table_record const& ray_gen_record,
                                                               arg::shader_table_records miss_records,
-                                                              arg::shader_table_records hit_group_records) override;
+                                                              arg::shader_table_records hit_group_records,
+                                                              arg::shader_table_records callable_records = {}) override;
 
     void writeShaderTable(std::byte* dest, handle::pipeline_state pso, unsigned stride, arg::shader_table_records records) override;
 

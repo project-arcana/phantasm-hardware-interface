@@ -17,19 +17,29 @@
 #include "pools/resource_pool.hh"
 #include "pools/shader_view_pool.hh"
 
-phi::shader_table_sizes phi::d3d12::ShaderTableConstructor::calculateShaderTableSizes(phi::arg::shader_table_records ray_gen_records,
+phi::shader_table_sizes phi::d3d12::ShaderTableConstructor::calculateShaderTableSizes(const arg::shader_table_record& ray_gen_record,
                                                                                       phi::arg::shader_table_records miss_records,
-                                                                                      phi::arg::shader_table_records hit_group_records)
+                                                                                      phi::arg::shader_table_records hit_group_records,
+                                                                                      arg::shader_table_records callable_records)
 {
     shader_table_sizes res = {};
-    res.ray_gen_size = getShaderRecordSize(ray_gen_records);
-    res.miss_size = getShaderRecordSize(miss_records);
-    res.hit_group_size = getShaderRecordSize(hit_group_records);
+    res.size_ray_gen = getShaderRecordSize(cc::span{ray_gen_record});
+
+    res.stride_miss = getShaderRecordSize(miss_records);
+    res.size_miss = res.stride_miss * unsigned(miss_records.size());
+
+    res.stride_hit_group = getShaderRecordSize(hit_group_records);
+    res.size_hit_group = res.stride_hit_group * unsigned(hit_group_records.size());
+
+    res.stride_callable = getShaderRecordSize(callable_records);
+    res.size_callable = res.stride_callable * unsigned(callable_records.size());
 
     res.offset_ray_gen = 0;
-    res.offset_miss = phi::util::align_up(res.ray_gen_size.width_bytes, 64);
-    res.offset_hit_group = phi::util::align_up(res.offset_miss + res.miss_size.width_bytes, 64);
-    res.total_size = res.offset_hit_group + res.hit_group_size.width_bytes;
+    res.offset_miss = phi::util::align_up(res.offset_ray_gen + res.size_ray_gen, 64);
+    res.offset_hit_group = phi::util::align_up(res.offset_miss + res.size_miss, 64);
+    res.offset_callable = phi::util::align_up(res.offset_hit_group + res.size_hit_group, 64);
+
+    res.total_size = res.offset_callable + res.size_callable;
 
     return res;
 }
@@ -38,6 +48,8 @@ void phi::d3d12::ShaderTableConstructor::writeShaderTable(std::byte* dest, handl
 {
     CC_ASSERT(pool_pipeline_states->isRaytracingPipeline(pso) && "invalid or non-raytracing PSO given");
     auto const& pso_info = pool_pipeline_states->getRaytrace(pso);
+
+    CC_ASSERT(stride_bytes == 0 ? records.size() == 1 : true && "if no stride is specified, no more than a single record is allowed");
 
     std::byte* data_ptr_outer = dest;
     for (auto const& rec : records)
@@ -113,7 +125,7 @@ void phi::d3d12::ShaderTableConstructor::initialize(ID3D12Device5* device,
 }
 
 
-phi::buffer_size phi::d3d12::ShaderTableConstructor::getShaderRecordSize(phi::arg::shader_table_records records)
+unsigned phi::d3d12::ShaderTableConstructor::getShaderRecordSize(phi::arg::shader_table_records records)
 {
     unsigned max_num_args = 0;
     for (auto const& rec : records)
@@ -144,9 +156,7 @@ phi::buffer_size phi::d3d12::ShaderTableConstructor::getShaderRecordSize(phi::ar
         max_num_args = cc::max<uint32_t>(max_num_args, num_args);
     }
 
-    buffer_size res;
+
     // size of the program identifier, plus 8 bytes per maximum over the record's arguments, aligned to shader record alignment alignment
-    res.stride_bytes = phi::util::align_up(D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES + 8u * max_num_args, D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT);
-    res.width_bytes = res.stride_bytes * unsigned(records.size());
-    return res;
+    return phi::util::align_up(D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES + 8u * max_num_args, D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT);
 }

@@ -218,9 +218,10 @@ public:
     [[nodiscard]] virtual uint64_t getAccelStructNativeHandle(handle::accel_struct as) = 0;
 
     /// calculate the buffer sizes and strides to accomodate the given shader table records
-    [[nodiscard]] virtual shader_table_sizes calculateShaderTableSize(arg::shader_table_records ray_gen_records,
+    [[nodiscard]] virtual shader_table_sizes calculateShaderTableSize(arg::shader_table_record const& ray_gen_record,
                                                                       arg::shader_table_records miss_records,
-                                                                      arg::shader_table_records hit_group_records)
+                                                                      arg::shader_table_records hit_group_records,
+                                                                      arg::shader_table_records callable_records = {})
         = 0;
 
     /// write shader table records to memory - usually a mapped buffer

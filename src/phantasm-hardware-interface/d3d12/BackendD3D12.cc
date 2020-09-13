@@ -313,11 +313,12 @@ phi::handle::resource phi::d3d12::BackendD3D12::getAccelStructBuffer(phi::handle
 
 uint64_t phi::d3d12::BackendD3D12::getAccelStructNativeHandle(phi::handle::accel_struct as) { return mPoolAccelStructs.getNode(as).raw_as_handle; }
 
-phi::shader_table_sizes phi::d3d12::BackendD3D12::calculateShaderTableSize(phi::arg::shader_table_records ray_gen_records,
-                                                                           phi::arg::shader_table_records miss_records,
-                                                                           phi::arg::shader_table_records hit_group_records)
+phi::shader_table_sizes phi::d3d12::BackendD3D12::calculateShaderTableSize(arg::shader_table_record const& ray_gen_record,
+                                                                           arg::shader_table_records miss_records,
+                                                                           arg::shader_table_records hit_group_records,
+                                                                           arg::shader_table_records callable_records)
 {
-    return mShaderTableCtor.calculateShaderTableSizes(ray_gen_records, miss_records, hit_group_records);
+    return mShaderTableCtor.calculateShaderTableSizes(ray_gen_record, miss_records, hit_group_records, callable_records);
 }
 
 void phi::d3d12::BackendD3D12::writeShaderTable(std::byte* dest, handle::pipeline_state pso, unsigned stride, arg::shader_table_records records)

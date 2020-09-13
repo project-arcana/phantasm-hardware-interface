@@ -444,7 +444,7 @@ PHI_DEFINE_CMD(dispatch_rays)
     buffer_range table_ray_generation;
     buffer_range_and_stride table_miss;
     buffer_range_and_stride table_hit_groups;
-    buffer_range_and_stride table_callable;
+    buffer_range_and_stride table_callable; ///< optional
 
     unsigned width = 1;
     unsigned height = 1;
@@ -452,9 +452,12 @@ PHI_DEFINE_CMD(dispatch_rays)
 
     void set_single_shader_table(handle::resource shader_table, shader_table_sizes const& sizes)
     {
-        table_ray_generation = {shader_table, sizes.offset_ray_gen, sizes.ray_gen_size.width_bytes};
-        table_miss = {shader_table, sizes.offset_miss, sizes.miss_size.width_bytes, sizes.miss_size.stride_bytes};
-        table_hit_groups = {shader_table, sizes.offset_hit_group, sizes.hit_group_size.width_bytes, sizes.hit_group_size.stride_bytes};
+        table_ray_generation = {shader_table, sizes.offset_ray_gen, sizes.size_ray_gen};
+        table_miss = {shader_table, sizes.offset_miss, sizes.size_miss, sizes.stride_miss};
+        table_hit_groups = {shader_table, sizes.offset_hit_group, sizes.size_hit_group, sizes.stride_hit_group};
+
+        if (sizes.size_callable > 0)
+            table_callable = {shader_table, sizes.offset_callable, sizes.size_callable, sizes.stride_callable};
     }
 };
 
