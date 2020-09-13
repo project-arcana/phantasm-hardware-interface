@@ -218,6 +218,9 @@ public:
     /// NOTE: do not free this resource or transition its resource state
     [[nodiscard]] virtual handle::resource getAccelStructBuffer(handle::accel_struct as) = 0;
 
+    /// receive the native acceleration struct handle to be written to accel_struct_instance::native_bottom_level_as_handle
+    [[nodiscard]] virtual uint64_t getAccelStructNativeHandle(handle::accel_struct as) = 0;
+
     /// calculate the buffer sizes and strides to accomodate the given shader table records
     [[nodiscard]] virtual shader_table_sizes calculateShaderTableSize(arg::shader_table_records ray_gen_records,
                                                                       arg::shader_table_records miss_records,

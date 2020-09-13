@@ -414,8 +414,14 @@ void phi::vk::BackendVulkan::uploadTopLevelInstances(phi::handle::accel_struct a
 
 phi::handle::resource phi::vk::BackendVulkan::getAccelStructBuffer(phi::handle::accel_struct as)
 {
-    PHI_LOG_ERROR("calculateShaderTableSize unimplemented");
+    PHI_LOG_ERROR("getAccelStructBuffer unimplemented");
     return handle::null_resource;
+}
+
+uint64_t phi::vk::BackendVulkan::getAccelStructNativeHandle(phi::handle::accel_struct as)
+{
+    PHI_LOG_ERROR("getAccelStructNativeHandle unimplemented");
+    return 0;
 }
 
 phi::shader_table_sizes phi::vk::BackendVulkan::calculateShaderTableSize(phi::arg::shader_table_records ray_gen_records,

@@ -206,6 +206,8 @@ public:
 
     [[nodiscard]] handle::resource getAccelStructBuffer(handle::accel_struct as) override;
 
+    [[nodiscard]] uint64_t getAccelStructNativeHandle(handle::accel_struct as) override;
+
     [[nodiscard]] shader_table_sizes calculateShaderTableSize(arg::shader_table_records ray_gen_records,
                                                               arg::shader_table_records miss_records,
                                                               arg::shader_table_records hit_group_records) override;

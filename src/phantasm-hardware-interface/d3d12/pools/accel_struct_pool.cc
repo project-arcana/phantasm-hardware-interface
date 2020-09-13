@@ -124,8 +124,8 @@ phi::handle::accel_struct phi::d3d12::AccelStructPool::createTopLevelAS(unsigned
         = mResourcePool->createBufferInternal(prebuild_info.ResultDataMaxSizeInBytes, 0, true, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE);
     new_node.buffer_scratch = mResourcePool->createBufferInternal(
         cc::max<UINT64>(prebuild_info.ScratchDataSizeInBytes, prebuild_info.UpdateScratchDataSizeInBytes), 0, true, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-    new_node.buffer_instances
-        = mResourcePool->createBuffer(sizeof(accel_struct_instance) * num_instances, sizeof(accel_struct_instance), resource_heap::upload, false, "phi-toplevel-as");
+    new_node.buffer_instances = mResourcePool->createBuffer(sizeof(accel_struct_instance) * num_instances, sizeof(accel_struct_instance),
+                                                            resource_heap::upload, false, "phi-toplevel-as");
 
     // query GPU address (raw native handle)
     new_node.raw_as_handle = mResourcePool->getRawResource(new_node.buffer_as)->GetGPUVirtualAddress();
@@ -191,7 +191,7 @@ void phi::d3d12::AccelStructPool::destroy()
 
 phi::d3d12::AccelStructPool::accel_struct_node& phi::d3d12::AccelStructPool::getNode(phi::handle::accel_struct as)
 {
-    CC_ASSERT(as.is_valid());
+    CC_ASSERT(as.is_valid() && "accessed invalid handle::accel_struct");
     return mPool.get(as._value);
 }
 

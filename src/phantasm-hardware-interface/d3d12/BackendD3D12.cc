@@ -320,6 +320,8 @@ void phi::d3d12::BackendD3D12::uploadTopLevelInstances(phi::handle::accel_struct
 
 phi::handle::resource phi::d3d12::BackendD3D12::getAccelStructBuffer(phi::handle::accel_struct as) { return mPoolAccelStructs.getNode(as).buffer_as; }
 
+uint64_t phi::d3d12::BackendD3D12::getAccelStructNativeHandle(phi::handle::accel_struct as) { return mPoolAccelStructs.getNode(as).raw_as_handle; }
+
 phi::shader_table_sizes phi::d3d12::BackendD3D12::calculateShaderTableSize(phi::arg::shader_table_records ray_gen_records,
                                                                            phi::arg::shader_table_records miss_records,
                                                                            phi::arg::shader_table_records hit_group_records)
