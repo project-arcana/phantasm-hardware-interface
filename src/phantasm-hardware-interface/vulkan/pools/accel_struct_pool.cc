@@ -158,7 +158,7 @@ phi::handle::accel_struct phi::vk::AccelStructPool::createTopLevelAS(unsigned nu
     auto const buffer_as = mResourcePool->createBufferInternal(buffer_size_as, 0, resource_heap::gpu, VK_BUFFER_USAGE_RAY_TRACING_BIT_NV);
     auto const buffer_scratch = mResourcePool->createBufferInternal(buffer_size_scratch, 0, resource_heap::gpu, VK_BUFFER_USAGE_RAY_TRACING_BIT_NV);
 
-    auto const buffer_size_instances = sizeof(accel_struct_geometry_instance) * num_instances;
+    auto const buffer_size_instances = sizeof(accel_struct_instance) * num_instances;
     auto const buffer_instances = mResourcePool->createBufferInternal(buffer_size_instances, 0, resource_heap::upload, VK_BUFFER_USAGE_RAY_TRACING_BIT_NV);
 
     // Bind the AS buffer's memory to the AS

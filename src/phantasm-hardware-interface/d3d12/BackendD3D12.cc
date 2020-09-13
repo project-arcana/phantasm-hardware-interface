@@ -309,7 +309,7 @@ phi::handle::accel_struct phi::d3d12::BackendD3D12::createBottomLevelAccelStruct
     return res;
 }
 
-void phi::d3d12::BackendD3D12::uploadTopLevelInstances(phi::handle::accel_struct as, cc::span<const phi::accel_struct_geometry_instance> instances)
+void phi::d3d12::BackendD3D12::uploadTopLevelInstances(phi::handle::accel_struct as, cc::span<const phi::accel_struct_instance> instances)
 {
     CC_ASSERT(isRaytracingEnabled() && "raytracing is not enabled");
     auto const& node = mPoolAccelStructs.getNode(as);

@@ -31,7 +31,7 @@ struct rt_clear_value;
 struct blend_state;
 struct gpu_indirect_command_draw;
 struct gpu_indirect_command_draw_indexed;
-struct accel_struct_geometry_instance;
+struct accel_struct_instance;
 struct shader_table_sizes;
 
 // data enums

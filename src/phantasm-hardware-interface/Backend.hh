@@ -201,22 +201,30 @@ public:
                                                                                unsigned max_attribute_size_bytes)
         = 0;
 
-    [[nodiscard]] virtual handle::accel_struct createTopLevelAccelStruct(unsigned num_instances) = 0;
-
+    /// create a bottom level acceleration structure (BLAS) holding geometry elements
+    /// out_native_handle receives the value to be written to accel_struct_instance::native_bottom_level_as_handle
     [[nodiscard]] virtual handle::accel_struct createBottomLevelAccelStruct(cc::span<arg::blas_element const> elements,
                                                                             accel_struct_build_flags_t flags,
                                                                             uint64_t* out_native_handle = nullptr)
         = 0;
 
-    virtual void uploadTopLevelInstances(handle::accel_struct as, cc::span<accel_struct_geometry_instance const> instances) = 0;
+    /// create a top level acceleration structure (TLAS) holding BLAS instances
+    [[nodiscard]] virtual handle::accel_struct createTopLevelAccelStruct(unsigned num_instances) = 0;
 
+    /// map internal TLAS buffers and upload BLAS instance data
+    virtual void uploadTopLevelInstances(handle::accel_struct as, cc::span<accel_struct_instance const> instances) = 0;
+
+    /// receive the internal accel struct buffer for use in shader arguments and resource views
+    /// NOTE: do not free this resource or transition its resource state
     [[nodiscard]] virtual handle::resource getAccelStructBuffer(handle::accel_struct as) = 0;
 
+    /// calculate the buffer sizes and strides to accomodate the given shader table records
     [[nodiscard]] virtual shader_table_sizes calculateShaderTableSize(arg::shader_table_records ray_gen_records,
                                                                       arg::shader_table_records miss_records,
                                                                       arg::shader_table_records hit_group_records)
         = 0;
 
+    /// write shader table records to memory - usually a mapped buffer
     virtual void writeShaderTable(std::byte* dest, handle::pipeline_state pso, unsigned stride, arg::shader_table_records records) = 0;
 
     virtual void free(handle::accel_struct as) = 0;

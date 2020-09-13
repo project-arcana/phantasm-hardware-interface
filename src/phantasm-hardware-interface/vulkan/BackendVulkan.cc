@@ -402,13 +402,13 @@ phi::handle::accel_struct phi::vk::BackendVulkan::createBottomLevelAccelStruct(c
     return res;
 }
 
-void phi::vk::BackendVulkan::uploadTopLevelInstances(phi::handle::accel_struct as, cc::span<const phi::accel_struct_geometry_instance> instances)
+void phi::vk::BackendVulkan::uploadTopLevelInstances(phi::handle::accel_struct as, cc::span<const phi::accel_struct_instance> instances)
 {
     CC_ASSERT(isRaytracingEnabled() && "raytracing is not enabled");
     auto const& node = mPoolAccelStructs.getNode(as);
 
     auto* const map = mPoolResources.mapBuffer(node.buffer_instances);
-    std::memcpy(map, instances.data(), sizeof(accel_struct_geometry_instance) * instances.size());
+    std::memcpy(map, instances.data(), sizeof(accel_struct_instance) * instances.size());
     mPoolResources.unmapBuffer(node.buffer_instances);
 }
 

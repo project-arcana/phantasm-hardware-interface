@@ -409,14 +409,14 @@ PHI_DEFINE_CMD(end_debug_label){
     // empty
 };
 
-/// update a bottom level raytracing acceleration structure (BLAS)
+/// update or build a bottom level raytracing acceleration structure (BLAS)
 PHI_DEFINE_CMD(update_bottom_level)
 {
     handle::accel_struct dest = handle::null_accel_struct;
-    handle::accel_struct source = handle::null_accel_struct;
+    handle::accel_struct source = handle::null_accel_struct; ///< optional
 };
 
-/// update a top level raytracing acceleration structure (TLAS)
+/// update or build a top level raytracing acceleration structure (TLAS)
 PHI_DEFINE_CMD(update_top_level)
 {
     handle::accel_struct dest = handle::null_accel_struct;

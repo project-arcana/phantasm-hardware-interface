@@ -202,7 +202,7 @@ public:
                                                                     accel_struct_build_flags_t flags,
                                                                     uint64_t* out_native_handle = nullptr) override;
 
-    void uploadTopLevelInstances(handle::accel_struct as, cc::span<accel_struct_geometry_instance const> instances) override;
+    void uploadTopLevelInstances(handle::accel_struct as, cc::span<accel_struct_instance const> instances) override;
 
     [[nodiscard]] handle::resource getAccelStructBuffer(handle::accel_struct as) override;
 

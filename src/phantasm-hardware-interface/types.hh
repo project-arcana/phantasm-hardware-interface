@@ -688,24 +688,30 @@ enum accel_struct_instance_flags_e : accel_struct_instance_flags_t
 };
 }
 
-/// geometry instance within a top level acceleration structure (layout dictated by DXR/Vulkan RT Extension)
-struct accel_struct_geometry_instance
+/// bottom level accel struct instance within a top level accel struct (layout dictated by DXR/Vulkan RT Extension)
+struct accel_struct_instance
 {
     /// Transposed transform matrix, containing only the top 3 rows (laid out as three 4-vectors)
     float transposed_transform[12];
+
     /// Instance id - arbitrary value, accessed in shaders via `InstanceID()` (HLSL)
     uint32_t instance_id : 24;
+
     /// Visibility mask - matched against `InstanceInclusionMask` parameter in `TraceRays(..)` (HLSL)
-    uint32_t mask : 8;
+    uint32_t visibility_mask : 8;
+
     /// Index of the hit group which will be invoked when a ray hits the instance
     uint32_t hit_group_index : 24;
+
     /// Instance flags, such as culling
     accel_struct_instance_flags_t flags : 8;
-    /// Opaque handle of the bottom-level acceleration structure
-    uint64_t native_accel_struct_handle;
+
+    /// Opaque handle of the bottom-level acceleration structure,
+    /// as received from `out_native_handle` in `createBottomLevelAccelStruct` (phi Backend)
+    uint64_t native_bottom_level_as_handle;
 };
 
-static_assert(sizeof(accel_struct_geometry_instance) == 64, "accel_struct_geometry_instance compiles to incorrect size");
+static_assert(sizeof(accel_struct_instance) == 64, "accel_struct_instance compiles to incorrect size");
 
 /// the sizes required for the three components of a raytracing shader table
 struct shader_table_sizes

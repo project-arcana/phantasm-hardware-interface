@@ -99,7 +99,7 @@ phi::handle::accel_struct phi::d3d12::AccelStructPool::createBottomLevelAS(cc::s
 
 phi::handle::accel_struct phi::d3d12::AccelStructPool::createTopLevelAS(unsigned num_instances)
 {
-    static_assert(sizeof(D3D12_RAYTRACING_INSTANCE_DESC) == sizeof(accel_struct_geometry_instance), "acceleration instance struct sizes mismatch");
+    static_assert(sizeof(D3D12_RAYTRACING_INSTANCE_DESC) == sizeof(accel_struct_instance), "acceleration instance struct sizes mismatch");
     CC_ASSERT(num_instances > 0 && "empty top-level accel_struct not allowed");
 
     handle::accel_struct res_handle;
@@ -125,7 +125,7 @@ phi::handle::accel_struct phi::d3d12::AccelStructPool::createTopLevelAS(unsigned
     new_node.buffer_scratch = mResourcePool->createBufferInternal(
         cc::max<UINT64>(prebuild_info.ScratchDataSizeInBytes, prebuild_info.UpdateScratchDataSizeInBytes), 0, true, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
     new_node.buffer_instances
-        = mResourcePool->createBuffer(sizeof(accel_struct_geometry_instance) * num_instances, sizeof(accel_struct_geometry_instance), resource_heap::upload, false, "phi-toplevel-as");
+        = mResourcePool->createBuffer(sizeof(accel_struct_instance) * num_instances, sizeof(accel_struct_instance), resource_heap::upload, false, "phi-toplevel-as");
 
     // query GPU address (raw native handle)
     new_node.raw_as_handle = mResourcePool->getRawResource(new_node.buffer_as)->GetGPUVirtualAddress();
