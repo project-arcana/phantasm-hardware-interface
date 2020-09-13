@@ -13,16 +13,18 @@ public:
     void initialize(IDXGIAdapter& adapter, backend_config const& config);
     void destroy();
 
-    gpu_feature_flags getFeatures() const { return mFeatures; }
-    bool hasSM6WaveIntrinsics() const { return mFeatures.has(gpu_feature::hlsl_wave_ops); }
-    bool hasRaytracing() const { return mFeatures.has(gpu_feature::raytracing); }
-    bool hasVariableRateShading() const { return mFeatures.has_any_of({gpu_feature::shading_rate_t1, gpu_feature::shading_rate_t2}); }
+    bool hasSM6WaveIntrinsics() const { return mFeatures.features.has(gpu_feature::hlsl_wave_ops); }
+    bool hasRaytracing() const { return mIsRaytracingEnabled; }
+    bool hasVariableRateShading() const { return mFeatures.variable_rate_shading >= gpu_feature_info::variable_rate_shading_t1_0; }
 
     ID3D12Device5* getDevice() const { return mDevice; }
 
 private:
     ID3D12Device5* mDevice = nullptr;
-    gpu_feature_flags mFeatures;
+    gpu_feature_info mFeatures;
+    // whether raytracing is enabled in the config AND available
+    // there is nothing to "not init" on the D3D12 side with disabled (but available) RT, this is for phi-internals only
+    bool mIsRaytracingEnabled = false;
 
     bool mIsShutdownCrashSubsceptible = false;
     bool mIsShutdownCrashWorkaroundActive = false;

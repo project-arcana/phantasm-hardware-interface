@@ -613,6 +613,12 @@ public:
     static blend_state alpha_blending_premultiplied() { return blend_state(blend_factor::one, blend_factor::inv_src_alpha); }
 };
 
+struct buffer_size
+{
+    uint32_t width_bytes = 0;
+    uint32_t stride_bytes = 0;
+};
+
 /// the blending configuration for a specific render target slot of a (graphics) handle::pipeline_state
 struct render_target_config
 {
@@ -701,11 +707,11 @@ struct accel_struct_geometry_instance
 
 static_assert(sizeof(accel_struct_geometry_instance) == 64, "accel_struct_geometry_instance compiles to incorrect size");
 
-/// the size and element-strides of a raytracing shader table
+/// the sizes required for the three components of a raytracing shader table
 struct shader_table_sizes
 {
-    uint32_t ray_gen_stride_bytes = 0;
-    uint32_t miss_stride_bytes = 0;
-    uint32_t hit_group_stride_bytes = 0;
+    buffer_size ray_gen_size;
+    buffer_size miss_size;
+    buffer_size hit_group_size;
 };
 }

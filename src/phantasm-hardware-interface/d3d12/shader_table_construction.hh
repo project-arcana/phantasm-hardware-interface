@@ -25,7 +25,7 @@ public:
     void initialize(ID3D12Device5* device, ShaderViewPool* sv_pool, ResourcePool* resource_pool, PipelineStateObjectPool* pso_pool, AccelStructPool* as_pool);
 
 private:
-    unsigned getShaderRecordSize(phi::arg::shader_table_records records);
+    buffer_size getShaderRecordSize(phi::arg::shader_table_records records);
 
 private:
     ID3D12Device5* device;

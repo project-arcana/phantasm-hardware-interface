@@ -614,6 +614,7 @@ void phi::d3d12::command_list_translator::execute(const cmd::dispatch_rays& disp
 
     {
         auto const& table_info = _globals.pool_resources->getBufferInfo(dispatch_rays.table_miss);
+        CC_ASSERT(table_info.stride > 0 && "miss table buffers require stride info");
         auto const va = _globals.pool_resources->getRawResource(dispatch_rays.table_miss)->GetGPUVirtualAddress();
 
         desc.MissShaderTable.StartAddress = va;
@@ -623,6 +624,7 @@ void phi::d3d12::command_list_translator::execute(const cmd::dispatch_rays& disp
 
     {
         auto const& table_info = _globals.pool_resources->getBufferInfo(dispatch_rays.table_hitgroups);
+        CC_ASSERT(table_info.stride > 0 && "hitgroup table buffers require stride info");
         auto const va = _globals.pool_resources->getRawResource(dispatch_rays.table_hitgroups)->GetGPUVirtualAddress();
 
         desc.HitGroupTable.StartAddress = va;

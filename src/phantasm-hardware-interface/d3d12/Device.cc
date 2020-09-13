@@ -77,7 +77,6 @@ void phi::d3d12::Device::initialize(IDXGIAdapter& adapter, const backend_config&
         }
     }
 
-
     // Device Creation
     shared_com_ptr<ID3D12Device> temp_device;
     PHI_D3D12_VERIFY(::D3D12CreateDevice(&adapter, D3D_FEATURE_LEVEL_12_0, PHI_COM_WRITE(temp_device)));
@@ -95,18 +94,21 @@ void phi::d3d12::Device::initialize(IDXGIAdapter& adapter, const backend_config&
         std::fflush(stdout);
     }
 
-    // Feature checks
-    mFeatures = get_gpu_features(temp_device);
-
     // QI proper device
     auto const got_device5 = SUCCEEDED(temp_device->QueryInterface(IID_PPV_ARGS(&mDevice)));
     if (!got_device5)
     {
         // there is no way to recover here
-        PHI_LOG_ASSERT("unable to QI ID3D12Device5 - please update to Windows 10 1809 or higher");
+        // Device5 support is purely OS-based, Win10 1809+, aka Redstone 5
+        PHI_LOG_ASSERT("fatal error: unable to QI ID3D12Device5 - please update to Windows 10 1809 or higher");
         PHI_LOG_ASSERT("to check your windows version, press Win + R and enter 'winver'");
         CC_RUNTIME_ASSERT(false && "unsupported windows 10 version, please update to windows 10 1809 or higher");
     }
+
+    // Feature checks
+    mFeatures = get_gpu_features(mDevice);
+    // "enable" raytracing if it's requested and the GPU is capable
+    mIsRaytracingEnabled = config.enable_raytracing && mFeatures.raytracing >= gpu_feature_info::raytracing_t1_0;
 
     // break on warn
     if ((config.native_features & backend_config::native_feature_d3d12_break_on_warn) != 0)

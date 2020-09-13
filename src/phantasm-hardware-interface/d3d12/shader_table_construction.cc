@@ -22,9 +22,9 @@ phi::shader_table_sizes phi::d3d12::ShaderTableConstructor::calculateShaderTable
                                                                                       phi::arg::shader_table_records hit_group_records)
 {
     shader_table_sizes res = {};
-    res.ray_gen_stride_bytes = getShaderRecordSize(ray_gen_records);
-    res.miss_stride_bytes = getShaderRecordSize(miss_records);
-    res.hit_group_stride_bytes = getShaderRecordSize(hit_group_records);
+    res.ray_gen_size = getShaderRecordSize(ray_gen_records);
+    res.miss_size = getShaderRecordSize(miss_records);
+    res.hit_group_size = getShaderRecordSize(hit_group_records);
     return res;
 }
 
@@ -107,7 +107,7 @@ void phi::d3d12::ShaderTableConstructor::initialize(ID3D12Device5* device,
 }
 
 
-unsigned phi::d3d12::ShaderTableConstructor::getShaderRecordSize(phi::arg::shader_table_records records)
+phi::buffer_size phi::d3d12::ShaderTableConstructor::getShaderRecordSize(phi::arg::shader_table_records records)
 {
     unsigned max_num_args = 0;
     for (auto const& rec : records)
@@ -138,6 +138,9 @@ unsigned phi::d3d12::ShaderTableConstructor::getShaderRecordSize(phi::arg::shade
         max_num_args = cc::max<uint32_t>(max_num_args, num_args);
     }
 
+    buffer_size res;
     // size of the program identifier, plus 8 bytes per maximum over the record's arguments, aligned to shader record alignment alignment
-    return phi::util::align_up(D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES + 8u * max_num_args, D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT);
+    res.stride_bytes = phi::util::align_up(D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES + 8u * max_num_args, D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT);
+    res.width_bytes = res.stride_bytes * unsigned(records.size());
+    return res;
 }

@@ -95,6 +95,7 @@ public:
 
     /// create a buffer with optional element stride on resource_heap::upload (shorthand function)
     [[nodiscard]] virtual handle::resource createUploadBuffer(unsigned size_bytes, unsigned stride_bytes = 0) = 0;
+    [[nodiscard]] handle::resource createUploadBuffer(buffer_size size) { return createUploadBuffer(size.width_bytes, size.stride_bytes); }
 
     /// maps a buffer created on resource_heap::upload or ::readback to CPU-accessible memory and returns a pointer
     /// multiple (nested) maps are allowed, leaving a resource_heap::upload buffer persistently mapped is valid
