@@ -37,7 +37,6 @@ public:
         uint64_t raw_as_handle;
         handle::resource buffer_as;
         handle::resource buffer_scratch;
-        handle::resource buffer_instances;
         accel_struct_build_flags_t flags;
         cc::vector<VkGeometryNV> geometries;
     };
@@ -46,11 +45,7 @@ public:
     accel_struct_node& getNode(handle::accel_struct as);
 
 private:
-    handle::accel_struct acquireAccelStruct(VkAccelerationStructureNV raw_as,
-                                            accel_struct_build_flags_t flags,
-                                            handle::resource buffer_as,
-                                            handle::resource buffer_scratch,
-                                            handle::resource buffer_instances = handle::null_resource);
+    handle::accel_struct acquireAccelStruct(VkAccelerationStructureNV raw_as, accel_struct_build_flags_t flags, handle::resource buffer_as, handle::resource buffer_scratch);
 
     void moveGeometriesToAS(handle::accel_struct as, cc::vector<VkGeometryNV>&& geometries);
 

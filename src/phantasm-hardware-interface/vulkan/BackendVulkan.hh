@@ -181,13 +181,11 @@ public:
                                                                        unsigned max_payload_size_bytes,
                                                                        unsigned max_attribute_size_bytes) override;
 
-    handle::accel_struct createTopLevelAccelStruct(unsigned num_instances) override;
+    handle::accel_struct createTopLevelAccelStruct(unsigned num_instances, accel_struct_build_flags_t flags) override;
 
     handle::accel_struct createBottomLevelAccelStruct(cc::span<arg::blas_element const> elements,
                                                       accel_struct_build_flags_t flags,
                                                       uint64_t* out_native_handle = nullptr) override;
-
-    void uploadTopLevelInstances(handle::accel_struct as, cc::span<accel_struct_instance const> instances) override;
 
     [[nodiscard]] handle::resource getAccelStructBuffer(handle::accel_struct as) override;
 

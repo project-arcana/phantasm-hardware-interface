@@ -383,7 +383,7 @@ phi::handle::pipeline_state phi::vk::BackendVulkan::createRaytracingPipelineStat
                                                         max_attribute_size_bytes, cc::system_allocator);
 }
 
-phi::handle::accel_struct phi::vk::BackendVulkan::createTopLevelAccelStruct(unsigned num_instances)
+phi::handle::accel_struct phi::vk::BackendVulkan::createTopLevelAccelStruct(unsigned num_instances, accel_struct_build_flags_t flags)
 {
     CC_ASSERT(isRaytracingEnabled() && "raytracing is not enabled");
     return mPoolAccelStructs.createTopLevelAS(num_instances);
@@ -400,16 +400,6 @@ phi::handle::accel_struct phi::vk::BackendVulkan::createBottomLevelAccelStruct(c
         *out_native_handle = mPoolAccelStructs.getNode(res).raw_as_handle;
 
     return res;
-}
-
-void phi::vk::BackendVulkan::uploadTopLevelInstances(phi::handle::accel_struct as, cc::span<const phi::accel_struct_instance> instances)
-{
-    CC_ASSERT(isRaytracingEnabled() && "raytracing is not enabled");
-    auto const& node = mPoolAccelStructs.getNode(as);
-
-    auto* const map = mPoolResources.mapBuffer(node.buffer_instances);
-    std::memcpy(map, instances.data(), sizeof(accel_struct_instance) * instances.size());
-    mPoolResources.unmapBuffer(node.buffer_instances);
 }
 
 phi::handle::resource phi::vk::BackendVulkan::getAccelStructBuffer(phi::handle::accel_struct as)

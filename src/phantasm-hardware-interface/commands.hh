@@ -412,27 +412,50 @@ PHI_DEFINE_CMD(end_debug_label){
 /// update or build a bottom level raytracing acceleration structure (BLAS)
 PHI_DEFINE_CMD(update_bottom_level)
 {
+    /// the bottom level accel struct to build
     handle::accel_struct dest = handle::null_accel_struct;
-    handle::accel_struct source = handle::null_accel_struct; ///< optional
+
+    /// the bottom level accel struct to update from (optional)
+    /// if specified, dest must have been created with accel_struct_build_flags::allow_update
+    /// can be the same as dest for an in-place update
+    handle::accel_struct source = handle::null_accel_struct;
 };
 
 /// update or build a top level raytracing acceleration structure (TLAS)
+/// filling it with instances of bottom level accel structs (BLAS)
 PHI_DEFINE_CMD(update_top_level)
 {
-    handle::accel_struct dest = handle::null_accel_struct;
+    /// amount of instances to write
     unsigned num_instances = 0;
+
+    /// a buffer holding an array of accel_struct_instance structs (at least num_instances)
+    handle::resource source_buffer_instances = handle::null_resource;
+    unsigned source_buffer_offset_bytes = 0;
+
+    /// the top level accel struct to update
+    handle::accel_struct dest_accel_struct = handle::null_accel_struct;
 };
 
 /// dispatch rays given a raytracing pipeline state and shader tables for ray generation, ray miss and the involved hitgroups
 PHI_DEFINE_CMD(dispatch_rays)
 {
     handle::pipeline_state pso = handle::null_pipeline_state;
-    handle::resource table_raygen = handle::null_resource;
-    handle::resource table_miss = handle::null_resource;
-    handle::resource table_hitgroups = handle::null_resource;
+
+    buffer_range table_ray_generation;
+    buffer_range_and_stride table_miss;
+    buffer_range_and_stride table_hit_groups;
+    buffer_range_and_stride table_callable;
+
     unsigned width = 1;
     unsigned height = 1;
     unsigned depth = 1;
+
+    void set_single_shader_table(handle::resource shader_table, shader_table_sizes const& sizes)
+    {
+        table_ray_generation = {shader_table, sizes.offset_ray_gen, sizes.ray_gen_size.width_bytes};
+        table_miss = {shader_table, sizes.offset_miss, sizes.miss_size.width_bytes, sizes.miss_size.stride_bytes};
+        table_hit_groups = {shader_table, sizes.offset_hit_group, sizes.hit_group_size.width_bytes, sizes.hit_group_size.stride_bytes};
+    }
 };
 
 /// clear up to 4 textures to specified values - standalone (outside of begin/end_render_pass)

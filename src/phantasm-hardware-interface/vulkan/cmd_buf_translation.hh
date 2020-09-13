@@ -93,6 +93,8 @@ struct command_list_translator
 private:
     void bind_shader_arguments(handle::pipeline_state pso, std::byte const* root_consts, cc::span<shader_argument const> shader_args, VkPipelineBindPoint bind_point);
 
+    VkBuffer get_buffer_or_null(handle::resource buf) const;
+
 private:
     // non-owning constant (global)
     translator_global_memory _globals;

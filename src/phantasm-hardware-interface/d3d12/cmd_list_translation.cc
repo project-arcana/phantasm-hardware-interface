@@ -558,14 +558,37 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::update_bottom_
     auto& dest_node = _globals.pool_accel_structs->getNode(blas_update.dest);
     ID3D12Resource* const dest_as_buffer = _globals.pool_resources->getRawResource(dest_node.buffer_as);
 
+    // NOTE: this command is a strange CPU/GPU timeline hybrid - dest_node.geometries is required for both creation and this command,
+    // we have to keep the data alive up until this point. DXR spec has this to say:
+    //
+    //     "The reason pGeometryDescs is a CPU based parameter as opposed to InstanceDescs which live on the GPU is,
+    //     at least for initial implementations, the CPU needs to look at some of the information such as triangle
+    //     counts in pGeometryDescs in order to schedule acceleration structure builds. Perhaps in the future more
+    //     of the data can live on the GPU."
+    //
+    // figure out how much of the data is actually relevant for the build part, and maybe only request the real data in this command instead
+
     D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC as_create_info = {};
     as_create_info.Inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
     as_create_info.Inputs.Flags = util::to_native_flags(dest_node.flags);
-    as_create_info.Inputs.NumDescs = static_cast<UINT>(dest_node.geometries.size());
+    as_create_info.Inputs.NumDescs = UINT(dest_node.geometries.size());
+
     as_create_info.Inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
     as_create_info.Inputs.pGeometryDescs = dest_node.geometries.empty() ? nullptr : dest_node.geometries.data();
+
     as_create_info.DestAccelerationStructureData = dest_as_buffer->GetGPUVirtualAddress();
     as_create_info.ScratchAccelerationStructureData = _globals.pool_resources->getRawResource(dest_node.buffer_scratch)->GetGPUVirtualAddress();
+
+    if (blas_update.source.is_valid())
+    {
+        // there is a source - perform an update
+        // note that src == dest is a valid case
+        as_create_info.Inputs.Flags |= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PERFORM_UPDATE;
+
+        auto& src_node = _globals.pool_accel_structs->getNode(blas_update.source);
+        ID3D12Resource* const src_as_buffer = _globals.pool_resources->getRawResource(src_node.buffer_as);
+        as_create_info.SourceAccelerationStructureData = src_as_buffer->GetGPUVirtualAddress();
+    }
 
     _cmd_list->BuildRaytracingAccelerationStructure(&as_create_info, 0, nullptr);
 
@@ -575,16 +598,18 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::update_bottom_
 
 void phi::d3d12::command_list_translator::execute(const phi::cmd::update_top_level& tlas_update)
 {
-    auto& dest_node = _globals.pool_accel_structs->getNode(tlas_update.dest);
+    auto& dest_node = _globals.pool_accel_structs->getNode(tlas_update.dest_accel_struct);
     // ID3D12Resource* const dest_as_buffer = _globals.pool_resources->getRawResource(dest_node.buffer_as);
 
     D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC as_create_info = {};
     as_create_info.Inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
     as_create_info.Inputs.Flags = util::to_native_flags(dest_node.flags);
     as_create_info.Inputs.NumDescs = tlas_update.num_instances;
+
     as_create_info.Inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
-    as_create_info.Inputs.pGeometryDescs = nullptr;
-    as_create_info.Inputs.InstanceDescs = _globals.pool_resources->getRawResource(dest_node.buffer_instances)->GetGPUVirtualAddress();
+    as_create_info.Inputs.InstanceDescs
+        = _globals.pool_resources->getRawResource(tlas_update.source_buffer_instances)->GetGPUVirtualAddress() + tlas_update.source_buffer_offset_bytes;
+
     as_create_info.DestAccelerationStructureData = dest_node.raw_as_handle;
     as_create_info.ScratchAccelerationStructureData = _globals.pool_resources->getRawResource(dest_node.buffer_scratch)->GetGPUVirtualAddress();
 
@@ -605,32 +630,33 @@ void phi::d3d12::command_list_translator::execute(const cmd::dispatch_rays& disp
     D3D12_DISPATCH_RAYS_DESC desc = {};
 
     {
-        auto const& table_info = _globals.pool_resources->getBufferInfo(dispatch_rays.table_raygen);
-        auto const va = _globals.pool_resources->getRawResource(dispatch_rays.table_raygen)->GetGPUVirtualAddress();
+        auto const table_va = _globals.pool_resources->getBufferInfo(dispatch_rays.table_ray_generation.buffer).gpu_va;
 
-        desc.RayGenerationShaderRecord.StartAddress = va;
-        desc.RayGenerationShaderRecord.SizeInBytes = table_info.width;
+        desc.RayGenerationShaderRecord.StartAddress = table_va + dispatch_rays.table_ray_generation.offset_bytes;
+        desc.RayGenerationShaderRecord.SizeInBytes = dispatch_rays.table_ray_generation.size_bytes;
+
+        CC_ASSERT(phi::util::is_aligned(desc.RayGenerationShaderRecord.StartAddress, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT)
+                  && "ray generation shader table buffer offset is not aligned to 64B");
     }
 
-    {
-        auto const& table_info = _globals.pool_resources->getBufferInfo(dispatch_rays.table_miss);
-        CC_ASSERT(table_info.stride > 0 && "miss table buffers require stride info");
-        auto const va = _globals.pool_resources->getRawResource(dispatch_rays.table_miss)->GetGPUVirtualAddress();
+    auto const f_fill_out_buffer_range = [&](buffer_range_and_stride const& in_range, D3D12_GPU_VIRTUAL_ADDRESS_RANGE_AND_STRIDE& out_range) {
+        if (!in_range.buffer.is_valid())
+            return;
 
-        desc.MissShaderTable.StartAddress = va;
-        desc.MissShaderTable.SizeInBytes = table_info.width;
-        desc.MissShaderTable.StrideInBytes = table_info.stride;
-    }
+        auto const buffer_va = _globals.pool_resources->getBufferInfo(in_range.buffer).gpu_va;
 
-    {
-        auto const& table_info = _globals.pool_resources->getBufferInfo(dispatch_rays.table_hitgroups);
-        CC_ASSERT(table_info.stride > 0 && "hitgroup table buffers require stride info");
-        auto const va = _globals.pool_resources->getRawResource(dispatch_rays.table_hitgroups)->GetGPUVirtualAddress();
+        out_range.StartAddress = buffer_va + in_range.offset_bytes;
+        out_range.SizeInBytes = in_range.size_bytes;
+        out_range.StrideInBytes = in_range.stride_bytes;
 
-        desc.HitGroupTable.StartAddress = va;
-        desc.HitGroupTable.SizeInBytes = table_info.width;
-        desc.HitGroupTable.StrideInBytes = table_info.stride;
-    }
+        CC_ASSERT(phi::util::is_aligned(out_range.StartAddress, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT) && "shader table buffer offset is not aligned to 64B");
+        CC_ASSERT(out_range.StrideInBytes > 0 ? phi::util::is_aligned(out_range.StrideInBytes, D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT)
+                                              : 1 && "shader table stride is not aligned to 32B");
+    };
+
+    f_fill_out_buffer_range(dispatch_rays.table_miss, desc.MissShaderTable);
+    f_fill_out_buffer_range(dispatch_rays.table_hit_groups, desc.HitGroupTable);
+    f_fill_out_buffer_range(dispatch_rays.table_callable, desc.CallableShaderTable);
 
     desc.Width = dispatch_rays.width;
     desc.Height = dispatch_rays.height;

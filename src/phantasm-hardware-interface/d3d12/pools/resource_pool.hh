@@ -51,6 +51,7 @@ public:
 
         struct buffer_info
         {
+            D3D12_GPU_VIRTUAL_ADDRESS gpu_va;
             uint32_t width;
             uint32_t stride; ///< vertex size or index size
         };

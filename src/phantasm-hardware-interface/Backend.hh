@@ -95,7 +95,6 @@ public:
 
     /// create a buffer with optional element stride on resource_heap::upload (shorthand function)
     [[nodiscard]] virtual handle::resource createUploadBuffer(unsigned size_bytes, unsigned stride_bytes = 0) = 0;
-    [[nodiscard]] handle::resource createUploadBuffer(buffer_size size) { return createUploadBuffer(size.width_bytes, size.stride_bytes); }
 
     /// maps a buffer created on resource_heap::upload or ::readback to CPU-accessible memory and returns a pointer
     /// multiple (nested) maps are allowed, leaving a resource_heap::upload buffer persistently mapped is valid
@@ -209,10 +208,7 @@ public:
         = 0;
 
     /// create a top level acceleration structure (TLAS) holding BLAS instances
-    [[nodiscard]] virtual handle::accel_struct createTopLevelAccelStruct(unsigned num_instances) = 0;
-
-    /// map internal TLAS buffers and upload BLAS instance data
-    virtual void uploadTopLevelInstances(handle::accel_struct as, cc::span<accel_struct_instance const> instances) = 0;
+    [[nodiscard]] virtual handle::accel_struct createTopLevelAccelStruct(unsigned num_instances, accel_struct_build_flags_t flags) = 0;
 
     /// receive the internal accel struct buffer for use in shader arguments and resource views
     /// NOTE: do not free this resource or transition its resource state

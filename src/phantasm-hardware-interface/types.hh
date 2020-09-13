@@ -613,12 +613,6 @@ public:
     static blend_state alpha_blending_premultiplied() { return blend_state(blend_factor::one, blend_factor::inv_src_alpha); }
 };
 
-struct buffer_size
-{
-    uint32_t width_bytes = 0;
-    uint32_t stride_bytes = 0;
-};
-
 /// the blending configuration for a specific render target slot of a (graphics) handle::pipeline_state
 struct render_target_config
 {
@@ -713,11 +707,39 @@ struct accel_struct_instance
 
 static_assert(sizeof(accel_struct_instance) == 64, "accel_struct_instance compiles to incorrect size");
 
+
+struct buffer_range
+{
+    handle::resource buffer = handle::null_resource;
+    uint32_t offset_bytes = 0;
+    uint32_t size_bytes = 0;
+};
+
+struct buffer_range_and_stride
+{
+    handle::resource buffer = handle::null_resource;
+    uint32_t offset_bytes = 0;
+    uint32_t size_bytes = 0;
+    uint32_t stride_bytes = 0;
+};
+struct buffer_size
+{
+    uint32_t width_bytes = 0;
+    uint32_t stride_bytes = 0;
+};
+
 /// the sizes required for the three components of a raytracing shader table
 struct shader_table_sizes
 {
     buffer_size ray_gen_size;
     buffer_size miss_size;
     buffer_size hit_group_size;
+
+    // offsets to the three components if they were allocated in a single buffer
+    uint32_t offset_ray_gen = 0;
+    uint32_t offset_miss = 0;
+    uint32_t offset_hit_group = 0;
+    // size of a single buffer to accomodate all three components
+    uint32_t total_size = 0;
 };
 }

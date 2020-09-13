@@ -576,7 +576,7 @@ void phi::vk::command_list_translator::execute(const phi::cmd::update_bottom_lev
 
 void phi::vk::command_list_translator::execute(const phi::cmd::update_top_level& tlas_update)
 {
-    auto& dest_node = _globals.pool_accel_structs->getNode(tlas_update.dest);
+    auto& dest_node = _globals.pool_accel_structs->getNode(tlas_update.dest_accel_struct);
     auto const dest_scratch = _globals.pool_resources->getRawBuffer(dest_node.buffer_scratch);
 
     VkAccelerationStructureInfoNV build_info = {};
@@ -588,8 +588,8 @@ void phi::vk::command_list_translator::execute(const phi::cmd::update_top_level&
     build_info.pGeometries = nullptr;
     build_info.instanceCount = tlas_update.num_instances;
 
-    vkCmdBuildAccelerationStructureNV(_cmd_list, &build_info, _globals.pool_resources->getRawBuffer(dest_node.buffer_instances), 0, VK_FALSE,
-                                      dest_node.raw_as, nullptr, dest_scratch, 0);
+    vkCmdBuildAccelerationStructureNV(_cmd_list, &build_info, _globals.pool_resources->getRawBuffer(tlas_update.source_buffer_instances),
+                                      tlas_update.source_buffer_offset_bytes, VK_FALSE, dest_node.raw_as, nullptr, dest_scratch, 0);
 
     VkMemoryBarrier mem_barrier = {};
     mem_barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
@@ -610,14 +610,17 @@ void phi::vk::command_list_translator::execute(const cmd::dispatch_rays& dispatc
         vkCmdBindPipeline(_cmd_list, VK_PIPELINE_BIND_POINT_RAY_TRACING_NV, pso_node.raw_pipeline);
     }
 
-    auto const& raygen_info = _globals.pool_resources->getBufferInfo(dispatch_rays.table_raygen);
-    auto const& miss_info = _globals.pool_resources->getBufferInfo(dispatch_rays.table_miss);
-    auto const& hitgroup_info = _globals.pool_resources->getBufferInfo(dispatch_rays.table_hitgroups);
+    VkBuffer const raygen_buf = get_buffer_or_null(dispatch_rays.table_ray_generation.buffer);
+    VkBuffer const miss_buf = get_buffer_or_null(dispatch_rays.table_miss.buffer);
+    VkBuffer const hitgrp_buf = get_buffer_or_null(dispatch_rays.table_hit_groups.buffer);
+    VkBuffer const callable_buf = get_buffer_or_null(dispatch_rays.table_callable.buffer);
 
-    vkCmdTraceRaysNV(_cmd_list, raygen_info.raw_buffer, 0,              //
-                     miss_info.raw_buffer, 0, miss_info.stride,         //
-                     hitgroup_info.raw_buffer, 0, hitgroup_info.stride, //
-                     VK_NULL_HANDLE, 0, 0,                              //
+
+    vkCmdTraceRaysNV(_cmd_list,                                                                                            //
+                     raygen_buf, dispatch_rays.table_ray_generation.offset_bytes,                                          //
+                     miss_buf, dispatch_rays.table_miss.offset_bytes, dispatch_rays.table_miss.stride_bytes,               //
+                     hitgrp_buf, dispatch_rays.table_hit_groups.offset_bytes, dispatch_rays.table_hit_groups.stride_bytes, //
+                     callable_buf, dispatch_rays.table_callable.offset_bytes, dispatch_rays.table_callable.stride_bytes,   //
                      dispatch_rays.width, dispatch_rays.height, dispatch_rays.depth);
 }
 
@@ -699,4 +702,12 @@ void phi::vk::command_list_translator::bind_shader_arguments(phi::handle::pipeli
             }
         }
     }
+}
+
+VkBuffer phi::vk::command_list_translator::get_buffer_or_null(phi::handle::resource buf) const
+{
+    if (!buf.is_valid())
+        return nullptr;
+
+    return _globals.pool_resources->getRawBuffer(buf);
 }

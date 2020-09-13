@@ -25,6 +25,12 @@ phi::shader_table_sizes phi::d3d12::ShaderTableConstructor::calculateShaderTable
     res.ray_gen_size = getShaderRecordSize(ray_gen_records);
     res.miss_size = getShaderRecordSize(miss_records);
     res.hit_group_size = getShaderRecordSize(hit_group_records);
+
+    res.offset_ray_gen = 0;
+    res.offset_miss = phi::util::align_up(res.ray_gen_size.width_bytes, 64);
+    res.offset_hit_group = phi::util::align_up(res.offset_miss + res.miss_size.width_bytes, 64);
+    res.total_size = res.offset_hit_group + res.hit_group_size.width_bytes;
+
     return res;
 }
 

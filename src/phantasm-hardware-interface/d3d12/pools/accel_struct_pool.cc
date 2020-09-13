@@ -18,13 +18,13 @@ phi::handle::accel_struct phi::d3d12::AccelStructPool::createBottomLevelAS(cc::s
     handle::accel_struct res_handle;
     accel_struct_node& new_node = acquireAccelStruct(res_handle);
     new_node.reset(mDynamicAllocator, elements.size());
-
-    new_node.geometries.reserve(elements.size());
+    new_node.flags = flags;
 
     // build the D3D12_RAYTRACING_GEOMETRY_DESCs from the vertex/index buffer pairs
     for (auto const& elem : elements)
     {
         auto const& vert_info = mResourcePool->getBufferInfo(elem.vertex_buffer);
+        CC_ASSERT(vert_info.stride > 0 && "vertex buffers used in bottom level accel struct elements must have been created with a specified stride");
 
         D3D12_RAYTRACING_GEOMETRY_DESC& egeom = new_node.geometries.emplace_back();
         egeom = {};
@@ -39,6 +39,7 @@ phi::handle::accel_struct phi::d3d12::AccelStructPool::createBottomLevelAS(cc::s
         if (elem.index_buffer.is_valid())
         {
             auto const index_stride = mResourcePool->getBufferInfo(elem.index_buffer).stride;
+            CC_ASSERT(index_stride > 0 && "index buffers used in bottom level accel struct elements must have been created with a specified stride");
 
             egeom.Triangles.IndexBuffer = mResourcePool->getRawResource(elem.index_buffer)->GetGPUVirtualAddress();
             egeom.Triangles.IndexCount = elem.num_indices;
@@ -71,19 +72,17 @@ phi::handle::accel_struct phi::d3d12::AccelStructPool::createBottomLevelAS(cc::s
     }
 
     // Assemble the bottom level AS object
-    D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC as_create_info = {};
-    as_create_info.Inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
-    as_create_info.Inputs.Flags = util::to_native_flags(flags);
-    as_create_info.Inputs.NumDescs = UINT(new_node.geometries.size());
-    as_create_info.Inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
-    as_create_info.Inputs.pGeometryDescs = new_node.geometries.data();
+    D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS as_input_info = {};
+    as_input_info.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
+    as_input_info.Flags = util::to_native_flags(flags);
+    as_input_info.NumDescs = UINT(new_node.geometries.size());
+    as_input_info.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+    as_input_info.pGeometryDescs = new_node.geometries.data();
 
     // Query sizes for scratch and result buffers
     D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuild_info = {};
-    mDevice->GetRaytracingAccelerationStructurePrebuildInfo(&as_create_info.Inputs, &prebuild_info);
+    mDevice->GetRaytracingAccelerationStructurePrebuildInfo(&as_input_info, &prebuild_info);
     CC_ASSERT(prebuild_info.ResultDataMaxSizeInBytes > 0);
-
-    new_node.flags = flags;
 
     // Create scratch and result buffers
     new_node.buffer_as
@@ -91,32 +90,33 @@ phi::handle::accel_struct phi::d3d12::AccelStructPool::createBottomLevelAS(cc::s
     new_node.buffer_scratch = mResourcePool->createBufferInternal(
         cc::max<UINT64>(prebuild_info.ScratchDataSizeInBytes, prebuild_info.UpdateScratchDataSizeInBytes), 0, true, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
-    // query GPU address (raw native handle)
+    // query GPU VA ("raw native handle" in phi API naming)
     new_node.raw_as_handle = mResourcePool->getRawResource(new_node.buffer_as)->GetGPUVirtualAddress();
 
     return res_handle;
 }
 
-phi::handle::accel_struct phi::d3d12::AccelStructPool::createTopLevelAS(unsigned num_instances)
+phi::handle::accel_struct phi::d3d12::AccelStructPool::createTopLevelAS(unsigned num_instances, accel_struct_build_flags_t flags)
 {
     static_assert(sizeof(D3D12_RAYTRACING_INSTANCE_DESC) == sizeof(accel_struct_instance), "acceleration instance struct sizes mismatch");
     CC_ASSERT(num_instances > 0 && "empty top-level accel_struct not allowed");
 
     handle::accel_struct res_handle;
     accel_struct_node& new_node = acquireAccelStruct(res_handle);
-    new_node.reset(mDynamicAllocator, num_instances);
+    new_node.reset(mDynamicAllocator, 0);
+    new_node.flags = flags;
 
     // Assemble the bottom level AS object
-    D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC as_create_info = {};
-    as_create_info.Inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
-    as_create_info.Inputs.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_NONE; // TODO
-    as_create_info.Inputs.NumDescs = num_instances;
-    as_create_info.Inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
-    as_create_info.Inputs.pGeometryDescs = nullptr;
+    D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS as_input_info = {};
+    as_input_info.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
+    as_input_info.Flags = util::to_native_flags(flags);
+    as_input_info.NumDescs = num_instances;
+    as_input_info.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+    as_input_info.pGeometryDescs = nullptr;
 
     // Query sizes for scratch and result buffers
     D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuild_info = {};
-    mDevice->GetRaytracingAccelerationStructurePrebuildInfo(&as_create_info.Inputs, &prebuild_info);
+    mDevice->GetRaytracingAccelerationStructurePrebuildInfo(&as_input_info, &prebuild_info);
     CC_ASSERT(prebuild_info.ResultDataMaxSizeInBytes > 0);
 
     // Create scratch and result buffers
@@ -124,10 +124,8 @@ phi::handle::accel_struct phi::d3d12::AccelStructPool::createTopLevelAS(unsigned
         = mResourcePool->createBufferInternal(prebuild_info.ResultDataMaxSizeInBytes, 0, true, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE);
     new_node.buffer_scratch = mResourcePool->createBufferInternal(
         cc::max<UINT64>(prebuild_info.ScratchDataSizeInBytes, prebuild_info.UpdateScratchDataSizeInBytes), 0, true, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-    new_node.buffer_instances = mResourcePool->createBuffer(sizeof(accel_struct_instance) * num_instances, sizeof(accel_struct_instance),
-                                                            resource_heap::upload, false, "phi-toplevel-as");
 
-    // query GPU address (raw native handle)
+    // query GPU VA ("raw native handle" in phi API naming)
     new_node.raw_as_handle = mResourcePool->getRawResource(new_node.buffer_as)->GetGPUVirtualAddress();
 
     return res_handle;
@@ -209,7 +207,7 @@ phi::d3d12::AccelStructPool::accel_struct_node& phi::d3d12::AccelStructPool::acq
 
 void phi::d3d12::AccelStructPool::internalFree(phi::d3d12::AccelStructPool::accel_struct_node& node)
 {
-    handle::resource buffers_to_free[] = {node.buffer_as, node.buffer_scratch, node.buffer_instances};
+    handle::resource buffers_to_free[] = {node.buffer_as, node.buffer_scratch};
     mResourcePool->free(buffers_to_free);
 }
 
@@ -218,7 +216,6 @@ void phi::d3d12::AccelStructPool::accel_struct_node::reset(cc::allocator* dyn_al
     raw_as_handle = 0;
     buffer_as = handle::null_resource;
     buffer_scratch = handle::null_resource;
-    buffer_instances = handle::null_resource;
     flags = {};
     geometries.reset_reserve(dyn_alloc, num_geom_reserve);
 }

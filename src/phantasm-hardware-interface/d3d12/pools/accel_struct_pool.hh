@@ -18,7 +18,7 @@ class AccelStructPool
 public:
     [[nodiscard]] handle::accel_struct createBottomLevelAS(cc::span<arg::blas_element const> elements, accel_struct_build_flags_t flags);
 
-    [[nodiscard]] handle::accel_struct createTopLevelAS(unsigned num_instances);
+    [[nodiscard]] handle::accel_struct createTopLevelAS(unsigned num_instances, accel_struct_build_flags_t flags);
 
     [[nodiscard]] shader_table_sizes calculateShaderTableSize(handle::accel_struct as,
                                                               arg::shader_table_records ray_gen_records,
@@ -36,10 +36,10 @@ public:
 public:
     struct accel_struct_node
     {
+        // d3d12 GPU VA, "raw native handle" in phi naming
         uint64_t raw_as_handle;
         handle::resource buffer_as;
         handle::resource buffer_scratch;
-        handle::resource buffer_instances;
         accel_struct_build_flags_t flags;
         cc::alloc_vector<D3D12_RAYTRACING_GEOMETRY_DESC> geometries;
 

@@ -290,10 +290,10 @@ phi::handle::pipeline_state phi::d3d12::BackendD3D12::createRaytracingPipelineSt
                                                    cc::system_allocator);
 }
 
-phi::handle::accel_struct phi::d3d12::BackendD3D12::createTopLevelAccelStruct(unsigned num_instances)
+phi::handle::accel_struct phi::d3d12::BackendD3D12::createTopLevelAccelStruct(unsigned num_instances, accel_struct_build_flags_t flags)
 {
     CC_ASSERT(isRaytracingEnabled() && "raytracing is not enabled");
-    return mPoolAccelStructs.createTopLevelAS(num_instances);
+    return mPoolAccelStructs.createTopLevelAS(num_instances, flags);
 }
 
 phi::handle::accel_struct phi::d3d12::BackendD3D12::createBottomLevelAccelStruct(cc::span<const phi::arg::blas_element> elements,
@@ -307,15 +307,6 @@ phi::handle::accel_struct phi::d3d12::BackendD3D12::createBottomLevelAccelStruct
         *out_native_handle = mPoolAccelStructs.getNode(res).raw_as_handle;
 
     return res;
-}
-
-void phi::d3d12::BackendD3D12::uploadTopLevelInstances(phi::handle::accel_struct as, cc::span<const phi::accel_struct_instance> instances)
-{
-    CC_ASSERT(isRaytracingEnabled() && "raytracing is not enabled");
-    auto const& node = mPoolAccelStructs.getNode(as);
-    std::byte* const map = mapBuffer(node.buffer_instances);
-    std::memcpy(map, instances.data(), instances.size_bytes());
-    unmapBuffer(node.buffer_instances);
 }
 
 phi::handle::resource phi::d3d12::BackendD3D12::getAccelStructBuffer(phi::handle::accel_struct as) { return mPoolAccelStructs.getNode(as).buffer_as; }

@@ -322,6 +322,7 @@ phi::handle::resource phi::d3d12::ResourcePool::acquireBuffer(
     new_node.type = resource_node::resource_type::buffer;
     new_node.heap = heap;
     new_node.master_state = initial_state;
+    new_node.buffer.gpu_va = new_node.resource->GetGPUVirtualAddress();
     new_node.buffer.width = unsigned(buffer_width);
     new_node.buffer.stride = buffer_stride;
 

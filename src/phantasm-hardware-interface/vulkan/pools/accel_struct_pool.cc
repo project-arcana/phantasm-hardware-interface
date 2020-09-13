@@ -159,7 +159,8 @@ phi::handle::accel_struct phi::vk::AccelStructPool::createTopLevelAS(unsigned nu
     auto const buffer_scratch = mResourcePool->createBufferInternal(buffer_size_scratch, 0, resource_heap::gpu, VK_BUFFER_USAGE_RAY_TRACING_BIT_NV);
 
     auto const buffer_size_instances = sizeof(accel_struct_instance) * num_instances;
-    auto const buffer_instances = mResourcePool->createBufferInternal(buffer_size_instances, 0, resource_heap::upload, VK_BUFFER_USAGE_RAY_TRACING_BIT_NV);
+
+    //auto const buffer_instances = mResourcePool->createBufferInternal(buffer_size_instances, 0, resource_heap::upload, VK_BUFFER_USAGE_RAY_TRACING_BIT_NV);
 
     // Bind the AS buffer's memory to the AS
     VkBindAccelerationStructureMemoryInfoNV bind_mem_info = {};
@@ -173,7 +174,7 @@ phi::handle::accel_struct phi::vk::AccelStructPool::createTopLevelAS(unsigned nu
 
     PHI_VK_VERIFY_SUCCESS(vkBindAccelerationStructureMemoryNV(mDevice, 1, &bind_mem_info));
 
-    return acquireAccelStruct(raw_as, {}, buffer_as, buffer_scratch, buffer_instances);
+    return acquireAccelStruct(raw_as, {}, buffer_as, buffer_scratch);
 }
 
 void phi::vk::AccelStructPool::free(phi::handle::accel_struct as)
@@ -239,8 +240,7 @@ phi::vk::AccelStructPool::accel_struct_node& phi::vk::AccelStructPool::getNode(p
 phi::handle::accel_struct phi::vk::AccelStructPool::acquireAccelStruct(VkAccelerationStructureNV raw_as,
                                                                        accel_struct_build_flags_t flags,
                                                                        handle::resource buffer_as,
-                                                                       handle::resource buffer_scratch,
-                                                                       handle::resource buffer_instances)
+                                                                       handle::resource buffer_scratch)
 {
     unsigned res;
     {
@@ -253,7 +253,6 @@ phi::handle::accel_struct phi::vk::AccelStructPool::acquireAccelStruct(VkAcceler
     new_node.raw_as_handle = 0;
     new_node.buffer_as = buffer_as;
     new_node.buffer_scratch = buffer_scratch;
-    new_node.buffer_instances = buffer_instances;
     new_node.flags = flags;
     new_node.geometries.clear();
 
@@ -270,7 +269,7 @@ void phi::vk::AccelStructPool::moveGeometriesToAS(phi::handle::accel_struct as, 
 
 void phi::vk::AccelStructPool::internalFree(phi::vk::AccelStructPool::accel_struct_node& node)
 {
-    cc::array const buffers_to_free = {node.buffer_as, node.buffer_scratch, node.buffer_instances};
+    cc::array const buffers_to_free = {node.buffer_as, node.buffer_scratch};
     mResourcePool->free(buffers_to_free);
 
     vkDestroyAccelerationStructureNV(mDevice, node.raw_as, nullptr);
