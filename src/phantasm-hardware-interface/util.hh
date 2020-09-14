@@ -56,4 +56,47 @@ constexpr unsigned get_hlsl_constant_buffer_offset(unsigned head_offset_bytes, u
         return head_aligned_4;
     }
 }
+
+struct shader_table_offsets
+{
+    shader_table_sizes record_sizes;
+
+    uint32_t num_ray_gen_stacks = 1;
+    uint32_t num_miss_stacks = 1;
+    uint32_t num_hit_group_stacks = 1;
+    uint32_t num_callable_stacks = 1;
+
+    uint32_t offset_ray_gen_base = 0;
+    uint32_t offset_miss_base = 0;
+    uint32_t offset_hit_group_base = 0;
+    uint32_t offset_callable_base = 0;
+
+    uint32_t total_size = 0;
+
+    void init(shader_table_sizes const& record_sizes, uint32_t num_ray_gen_stacks = 1, uint32_t num_miss_stacks = 1, uint32_t num_hit_group_stacks = 1, uint32_t num_callable_stacks = 1);
+
+    uint32_t get_ray_gen_offset(uint32_t stack_index = 0) const
+    {
+        CC_ASSERT(stack_index < num_ray_gen_stacks && "stack OOB");
+        return align_up(record_sizes.size_ray_gen * stack_index, 64);
+    }
+
+    uint32_t get_miss_offset(uint32_t stack_index = 0) const
+    {
+        CC_ASSERT(stack_index < num_miss_stacks && "stack OOB");
+        return align_up(record_sizes.size_miss * stack_index, 64);
+    }
+
+    uint32_t get_hitgroup_offset(uint32_t stack_index = 0) const
+    {
+        CC_ASSERT(stack_index < num_hit_group_stacks && "stack OOB");
+        return align_up(record_sizes.size_hit_group * stack_index, 64);
+    }
+
+    uint32_t get_callable_offset(uint32_t stack_index = 0) const
+    {
+        CC_ASSERT(stack_index < num_callable_stacks && "stack OOB");
+        return align_up(record_sizes.size_callable * stack_index, 64);
+    }
+};
 }

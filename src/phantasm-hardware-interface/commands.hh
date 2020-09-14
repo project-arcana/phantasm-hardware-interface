@@ -459,6 +459,46 @@ PHI_DEFINE_CMD(dispatch_rays)
         if (sizes.size_callable > 0)
             table_callable = {shader_table, sizes.offset_callable, sizes.size_callable, sizes.stride_callable};
     }
+
+    void set_strides_and_sizes(shader_table_sizes const& sizes)
+    {
+        table_ray_generation.size_bytes = sizes.size_ray_gen;
+
+        table_miss.stride_bytes = sizes.stride_miss;
+        table_miss.size_bytes = sizes.size_miss;
+
+        table_hit_groups.stride_bytes = sizes.stride_hit_group;
+        table_hit_groups.size_bytes = sizes.size_hit_group;
+
+        table_callable.stride_bytes = sizes.stride_callable;
+        table_callable.size_bytes = sizes.size_callable;
+    }
+
+    void set_single_buffer(handle::resource shader_table, bool include_callable)
+    {
+        table_ray_generation.buffer = shader_table;
+        table_miss.buffer = shader_table;
+        table_hit_groups.buffer = shader_table;
+
+        if (include_callable)
+            table_callable.buffer = shader_table;
+    }
+
+    void set_offsets(uint32_t offset_ray_gen, uint32_t offset_miss, uint32_t offset_hit_group, uint32_t offset_callable)
+    {
+        table_ray_generation.offset_bytes = offset_ray_gen;
+        table_miss.offset_bytes = offset_miss;
+        table_hit_groups.offset_bytes = offset_hit_group;
+        table_callable.offset_bytes = offset_callable;
+    }
+
+    void set_zero_sizes()
+    {
+        table_ray_generation.size_bytes = 0;
+        table_miss.size_bytes = 0;
+        table_hit_groups.size_bytes = 0;
+        table_callable.size_bytes = 0;
+    }
 };
 
 /// clear up to 4 textures to specified values - standalone (outside of begin/end_render_pass)
