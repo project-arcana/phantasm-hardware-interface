@@ -98,14 +98,15 @@ public:
 
     /// maps a buffer created on resource_heap::upload or ::readback to CPU-accessible memory and returns a pointer
     /// multiple (nested) maps are allowed, leaving a resource_heap::upload buffer persistently mapped is valid
-    /// begin and end specify the range of the mapping in bytes, end == -1 being the entire width
-    [[nodiscard]] virtual std::byte* mapBuffer(handle::resource res, int begin = 0, int end = -1) = 0;
+    /// begin and end specify the range of CPU-side read data in bytes, end == -1 being the entire width
+    /// NOTE: begin > 0 does not add an offset to the returned pointer
+    [[nodiscard]] virtual std::byte* mapBuffer(handle::resource res, int invalidate_begin = 0, int invalidate_end = -1) = 0;
 
     /// unmaps a buffer, must have been previously mapped using mapBuffer
     /// it is not necessary to unmap a buffer before destruction
     /// on non-desktop it might be required to unmap upload buffers for the writes to become visible
     /// begin and end specify the range of CPU-side modified data in bytes, end == -1 being the entire width
-    virtual void unmapBuffer(handle::resource res, int begin = 0, int end = -1) = 0;
+    virtual void unmapBuffer(handle::resource res, int flush_begin = 0, int flush_end = -1) = 0;
 
     /// destroy a resource
     virtual void free(handle::resource res) = 0;

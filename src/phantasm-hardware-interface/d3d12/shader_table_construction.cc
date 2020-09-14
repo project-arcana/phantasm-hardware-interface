@@ -85,7 +85,7 @@ void phi::d3d12::ShaderTableConstructor::writeShaderTable(std::byte* dest, handl
             // copy the CBV VA
             if (arg.constant_buffer.is_valid())
             {
-                D3D12_GPU_VIRTUAL_ADDRESS const cbv_va = pool_resources->getRawResource(arg.constant_buffer)->GetGPUVirtualAddress();
+                D3D12_GPU_VIRTUAL_ADDRESS const cbv_va = pool_resources->getRawResource(arg.constant_buffer)->GetGPUVirtualAddress() + arg.constant_buffer_offset;
                 std::memcpy(data_ptr_inner, &cbv_va, sizeof(D3D12_GPU_VIRTUAL_ADDRESS));
                 data_ptr_inner += sizeof(void*);
             }

@@ -216,7 +216,7 @@ std::byte* phi::vk::ResourcePool::mapBuffer(phi::handle::resource res, int begin
         vmaInvalidateAllocation(mAllocator, node.allocation, begin, end < 0 ? node.buffer.width : end);
     }
 
-    return reinterpret_cast<std::byte*>(data_start_void) + begin;
+    return reinterpret_cast<std::byte*>(data_start_void);
 }
 
 void phi::vk::ResourcePool::unmapBuffer(phi::handle::resource res, int begin, int end)
