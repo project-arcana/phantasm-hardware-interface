@@ -18,9 +18,9 @@
 #include "pools/shader_view_pool.hh"
 
 phi::shader_table_strides phi::d3d12::ShaderTableConstructor::calculateShaderTableSizes(const arg::shader_table_record& ray_gen_record,
-                                                                                      phi::arg::shader_table_records miss_records,
-                                                                                      phi::arg::shader_table_records hit_group_records,
-                                                                                      arg::shader_table_records callable_records)
+                                                                                        phi::arg::shader_table_records miss_records,
+                                                                                        phi::arg::shader_table_records hit_group_records,
+                                                                                        arg::shader_table_records callable_records)
 {
     shader_table_strides res = {};
     res.size_ray_gen = getShaderRecordSize(cc::span{ray_gen_record});
@@ -78,7 +78,9 @@ void phi::d3d12::ShaderTableConstructor::writeShaderTable(std::byte* dest, handl
             // copy the CBV VA
             if (arg.constant_buffer.is_valid())
             {
-                D3D12_GPU_VIRTUAL_ADDRESS const cbv_va = pool_resources->getRawResource(arg.constant_buffer)->GetGPUVirtualAddress() + arg.constant_buffer_offset;
+                CC_ASSERT(pool_resources->isBufferAccessInBounds(arg.constant_buffer, arg.constant_buffer_offset, 1) && "CBV offset OOB");
+
+                D3D12_GPU_VIRTUAL_ADDRESS const cbv_va = pool_resources->getBufferInfo(arg.constant_buffer).gpu_va + arg.constant_buffer_offset;
                 std::memcpy(data_ptr_inner, &cbv_va, sizeof(D3D12_GPU_VIRTUAL_ADDRESS));
                 data_ptr_inner += sizeof(void*);
             }

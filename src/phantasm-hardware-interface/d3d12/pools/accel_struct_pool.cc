@@ -30,7 +30,7 @@ phi::handle::accel_struct phi::d3d12::AccelStructPool::createBottomLevelAS(cc::s
         egeom = {};
         egeom.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
         egeom.Triangles.Transform3x4 = 0;
-        egeom.Triangles.VertexBuffer.StartAddress = mResourcePool->getRawResource(elem.vertex_buffer)->GetGPUVirtualAddress();
+        egeom.Triangles.VertexBuffer.StartAddress = mResourcePool->getBufferInfo(elem.vertex_buffer).gpu_va;
         egeom.Triangles.VertexBuffer.StrideInBytes = vert_info.stride;
         egeom.Triangles.VertexCount = elem.num_vertices;
         egeom.Triangles.VertexFormat = util::to_dxgi_format(elem.vertex_pos_format);
@@ -41,7 +41,7 @@ phi::handle::accel_struct phi::d3d12::AccelStructPool::createBottomLevelAS(cc::s
             auto const index_stride = mResourcePool->getBufferInfo(elem.index_buffer).stride;
             CC_ASSERT(index_stride > 0 && "index buffers used in bottom level accel struct elements must have been created with a specified stride");
 
-            egeom.Triangles.IndexBuffer = mResourcePool->getRawResource(elem.index_buffer)->GetGPUVirtualAddress();
+            egeom.Triangles.IndexBuffer = mResourcePool->getBufferInfo(elem.index_buffer).gpu_va;
             egeom.Triangles.IndexCount = elem.num_indices;
             egeom.Triangles.IndexFormat = index_stride == sizeof(uint16_t) ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT;
         }
@@ -57,7 +57,7 @@ phi::handle::accel_struct phi::d3d12::AccelStructPool::createBottomLevelAS(cc::s
             CC_ASSERT(elem.transform_buffer_offset_bytes + sizeof(float[3 * 4]) <= mResourcePool->getBufferInfo(elem.transform_buffer).width
                       && "BLAS element transform buffer offset out of bounds");
 
-            auto const transform_va = mResourcePool->getRawResource(elem.transform_buffer)->GetGPUVirtualAddress();
+            auto const transform_va = mResourcePool->getBufferInfo(elem.transform_buffer).gpu_va;
             egeom.Triangles.Transform3x4 = transform_va + elem.transform_buffer_offset_bytes;
 
             CC_ASSERT(phi::util::is_aligned(egeom.Triangles.Transform3x4, D3D12_RAYTRACING_TRANSFORM3X4_BYTE_ALIGNMENT)
@@ -91,7 +91,7 @@ phi::handle::accel_struct phi::d3d12::AccelStructPool::createBottomLevelAS(cc::s
         cc::max<UINT64>(prebuild_info.ScratchDataSizeInBytes, prebuild_info.UpdateScratchDataSizeInBytes), 0, true, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
     // query GPU VA ("raw native handle" in phi API naming)
-    new_node.raw_as_handle = mResourcePool->getRawResource(new_node.buffer_as)->GetGPUVirtualAddress();
+    new_node.raw_as_handle = mResourcePool->getBufferInfo(new_node.buffer_as).gpu_va;
 
     return res_handle;
 }
@@ -126,7 +126,7 @@ phi::handle::accel_struct phi::d3d12::AccelStructPool::createTopLevelAS(unsigned
         cc::max<UINT64>(prebuild_info.ScratchDataSizeInBytes, prebuild_info.UpdateScratchDataSizeInBytes), 0, true, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
     // query GPU VA ("raw native handle" in phi API naming)
-    new_node.raw_as_handle = mResourcePool->getRawResource(new_node.buffer_as)->GetGPUVirtualAddress();
+    new_node.raw_as_handle = mResourcePool->getBufferInfo(new_node.buffer_as).gpu_va;
 
     return res_handle;
 }

@@ -54,6 +54,8 @@ public:
             D3D12_GPU_VIRTUAL_ADDRESS gpu_va;
             uint32_t width;
             uint32_t stride; ///< vertex size or index size
+
+            bool is_access_in_bounds(uint32_t offset, uint32_t size) const { return offset + size <= width; }
         };
 
         struct image_info
@@ -94,6 +96,15 @@ public:
     [[nodiscard]] resource_node::image_info const& getImageInfo(handle::resource res) const { return internalGet(res).image; }
     [[nodiscard]] resource_node::buffer_info const& getBufferInfo(handle::resource res) const { return internalGet(res).buffer; }
 
+    bool isBufferAccessInBounds(handle::resource res, uint32_t offset, uint32_t size) const
+    {
+        auto const& internal = internalGet(res);
+        if (internal.type != resource_node::resource_type::buffer)
+            return false;
+
+        return internal.buffer.is_access_in_bounds(offset, size);
+    }
+
     //
     // Master state access
     //
@@ -116,21 +127,21 @@ public:
     {
         auto const& data = internalGet(res);
         CC_ASSERT(data.type == resource_node::resource_type::buffer);
-        return {data.resource->GetGPUVirtualAddress(), data.buffer.width, data.buffer.stride};
+        return {data.buffer.gpu_va, data.buffer.width, data.buffer.stride};
     }
 
     [[nodiscard]] D3D12_INDEX_BUFFER_VIEW getIndexBufferView(handle::resource res) const
     {
         auto const& data = internalGet(res);
         CC_ASSERT(data.type == resource_node::resource_type::buffer);
-        return {data.resource->GetGPUVirtualAddress(), data.buffer.width, (data.buffer.stride == 4) ? DXGI_FORMAT_R32_UINT : DXGI_FORMAT_R16_UINT};
+        return {data.buffer.gpu_va, data.buffer.width, (data.buffer.stride == 4) ? DXGI_FORMAT_R32_UINT : DXGI_FORMAT_R16_UINT};
     }
 
     [[nodiscard]] D3D12_CONSTANT_BUFFER_VIEW_DESC getConstantBufferView(handle::resource res) const
     {
         auto const& data = internalGet(res);
         CC_ASSERT(data.type == resource_node::resource_type::buffer);
-        return {data.resource->GetGPUVirtualAddress(), data.buffer.width};
+        return {data.buffer.gpu_va, data.buffer.width};
     }
 
     //

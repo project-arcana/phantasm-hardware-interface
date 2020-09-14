@@ -191,8 +191,10 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::draw& draw)
                 // Set the CBV / offset if it has changed
                 if (bound_arg.update_cbv(arg.constant_buffer, arg.constant_buffer_offset))
                 {
-                    auto const cbv = _globals.pool_resources->getConstantBufferView(arg.constant_buffer);
-                    _cmd_list->SetGraphicsRootConstantBufferView(map.cbv_param, cbv.BufferLocation + arg.constant_buffer_offset);
+                    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(arg.constant_buffer, arg.constant_buffer_offset, 1) && "CBV offset OOB");
+
+                    auto const cbv_va = _globals.pool_resources->getBufferInfo(arg.constant_buffer).gpu_va;
+                    _cmd_list->SetGraphicsRootConstantBufferView(map.cbv_param, cbv_va + arg.constant_buffer_offset);
                 }
             }
 
@@ -296,8 +298,10 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::draw_indirect&
                 // Set the CBV / offset if it has changed
                 if (bound_arg.update_cbv(arg.constant_buffer, arg.constant_buffer_offset))
                 {
-                    auto const cbv = _globals.pool_resources->getConstantBufferView(arg.constant_buffer);
-                    _cmd_list->SetGraphicsRootConstantBufferView(map.cbv_param, cbv.BufferLocation + arg.constant_buffer_offset);
+                    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(arg.constant_buffer, arg.constant_buffer_offset, 1) && "CBV offset OOB");
+
+                    auto const cbv_va = _globals.pool_resources->getBufferInfo(arg.constant_buffer).gpu_va;
+                    _cmd_list->SetGraphicsRootConstantBufferView(map.cbv_param, cbv_va + arg.constant_buffer_offset);
                 }
             }
 
@@ -373,8 +377,10 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::dispatch& disp
                 // Set the CBV / offset if it has changed
                 if (bound_arg.update_cbv(arg.constant_buffer, arg.constant_buffer_offset))
                 {
-                    auto const cbv = _globals.pool_resources->getConstantBufferView(arg.constant_buffer);
-                    _cmd_list->SetComputeRootConstantBufferView(map.cbv_param, cbv.BufferLocation + arg.constant_buffer_offset);
+                    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(arg.constant_buffer, arg.constant_buffer_offset, 1) && "CBV offset OOB");
+
+                    auto const cbv_va = _globals.pool_resources->getBufferInfo(arg.constant_buffer).gpu_va;
+                    _cmd_list->SetComputeRootConstantBufferView(map.cbv_param, cbv_va + arg.constant_buffer_offset);
                 }
             }
 
@@ -465,6 +471,9 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::barrier_uav& b
 
 void phi::d3d12::command_list_translator::execute(const phi::cmd::copy_buffer& copy_buf)
 {
+    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(copy_buf.source, copy_buf.source_offset, copy_buf.size) && "copy_buffer source OOB");
+    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(copy_buf.destination, copy_buf.dest_offset, copy_buf.size) && "copy_buffer dest OOB");
+
     _cmd_list->CopyBufferRegion(_globals.pool_resources->getRawResource(copy_buf.destination), copy_buf.dest_offset,
                                 _globals.pool_resources->getRawResource(copy_buf.source), copy_buf.source_offset, copy_buf.size);
 }
@@ -569,6 +578,8 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::end_debug_labe
 void phi::d3d12::command_list_translator::execute(const phi::cmd::update_bottom_level& blas_update)
 {
     auto& dest_node = _globals.pool_accel_structs->getNode(blas_update.dest);
+
+    auto const& dest_buffer = _globals.pool_resources->getBufferInfo(dest_node.buffer_as);
     ID3D12Resource* const dest_as_buffer = _globals.pool_resources->getRawResource(dest_node.buffer_as);
 
     // NOTE: this command is a strange CPU/GPU timeline hybrid - dest_node.geometries is required for both creation and this command,
@@ -589,8 +600,8 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::update_bottom_
     as_create_info.Inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
     as_create_info.Inputs.pGeometryDescs = dest_node.geometries.empty() ? nullptr : dest_node.geometries.data();
 
-    as_create_info.DestAccelerationStructureData = dest_as_buffer->GetGPUVirtualAddress();
-    as_create_info.ScratchAccelerationStructureData = _globals.pool_resources->getRawResource(dest_node.buffer_scratch)->GetGPUVirtualAddress();
+    as_create_info.DestAccelerationStructureData = dest_buffer.gpu_va;
+    as_create_info.ScratchAccelerationStructureData = _globals.pool_resources->getBufferInfo(dest_node.buffer_scratch).gpu_va;
 
     if (blas_update.source.is_valid())
     {
@@ -599,8 +610,8 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::update_bottom_
         as_create_info.Inputs.Flags |= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PERFORM_UPDATE;
 
         auto& src_node = _globals.pool_accel_structs->getNode(blas_update.source);
-        ID3D12Resource* const src_as_buffer = _globals.pool_resources->getRawResource(src_node.buffer_as);
-        as_create_info.SourceAccelerationStructureData = src_as_buffer->GetGPUVirtualAddress();
+        auto const src_va = _globals.pool_resources->getBufferInfo(src_node.buffer_as).gpu_va;
+        as_create_info.SourceAccelerationStructureData = src_va;
     }
 
     _cmd_list->BuildRaytracingAccelerationStructure(&as_create_info, 0, nullptr);
@@ -620,11 +631,10 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::update_top_lev
     as_create_info.Inputs.NumDescs = tlas_update.num_instances;
 
     as_create_info.Inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
-    as_create_info.Inputs.InstanceDescs
-        = _globals.pool_resources->getRawResource(tlas_update.source_buffer_instances)->GetGPUVirtualAddress() + tlas_update.source_buffer_offset_bytes;
+    as_create_info.Inputs.InstanceDescs = _globals.pool_resources->getBufferInfo(tlas_update.source_buffer_instances).gpu_va + tlas_update.source_buffer_offset_bytes;
 
     as_create_info.DestAccelerationStructureData = dest_node.raw_as_handle;
-    as_create_info.ScratchAccelerationStructureData = _globals.pool_resources->getRawResource(dest_node.buffer_scratch)->GetGPUVirtualAddress();
+    as_create_info.ScratchAccelerationStructureData = _globals.pool_resources->getBufferInfo(dest_node.buffer_scratch).gpu_va;
 
     _cmd_list->BuildRaytracingAccelerationStructure(&as_create_info, 0, nullptr);
 
