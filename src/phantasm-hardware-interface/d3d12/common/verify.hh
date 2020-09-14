@@ -13,8 +13,8 @@ namespace phi::d3d12::detail
 
 [[noreturn]] CC_COLD_FUNC CC_DONT_INLINE void dred_assert_handler(void* device_child, char const* expression, char const* filename, int line);
 
-[[nodiscard]] inline constexpr bool hr_failed(HRESULT hr) { return hr < 0; }
-[[nodiscard]] inline constexpr bool hr_succeeded(HRESULT hr) { return hr >= 0; }
+[[nodiscard]] CC_FORCE_INLINE constexpr bool hr_failed(HRESULT hr) { return hr < 0; }
+[[nodiscard]] CC_FORCE_INLINE constexpr bool hr_succeeded(HRESULT hr) { return hr >= 0; }
 }
 
 // TODO: option to disable verify in release builds
@@ -27,17 +27,15 @@ namespace phi::d3d12::detail
     (CC_UNLIKELY(!(_expr_)) ? ::phi::d3d12::detail::dred_assert_handler(_device_child_, #_expr_, __FILE__, __LINE__) : void(0))
 
 /// Terminates with a detailed error message if the given HRESULT lvalue indicates failure
-#define PHI_D3D12_ASSERT(_val_)                                                                                                                                  \
-    static_assert(PHI_IS_LVALUE_EXPRESSION(_val_), "Use PHI_D3D12_VERIFY for prvalue expressions");                                                              \
-    (CC_UNLIKELY(::phi::d3d12::detail::hr_failed(_val_)) ? ::phi::d3d12::detail::verify_failure_handler(_val_, #_val_ " is failed", __FILE__, __LINE__, nullptr) \
-                                                         : void(0))
+#define PHI_D3D12_ASSERT(_val_)                                                                     \
+    static_assert(PHI_IS_LVALUE_EXPRESSION(_val_), "Use PHI_D3D12_VERIFY for prvalue expressions"); \
+    (CC_UNLIKELY(::phi::d3d12::detail::hr_failed(_val_)) ? ::phi::d3d12::detail::verify_failure_handler(_val_, "", __FILE__, __LINE__, nullptr) : void(0))
 
 
 /// Terminates with a detailed error message if the given HRESULT lvalue indicates failure, takes the current ID3D12 Device for further information
-#define PHI_D3D12_ASSERT_FULL(_val_, _device_ptr_)                                                                                                                    \
-    static_assert(PHI_IS_LVALUE_EXPRESSION(_val_), "Use PHI_D3D12_VERIFY_FULL for prvalue expressions");                                                              \
-    (CC_UNLIKELY(::phi::d3d12::detail::hr_failed(_val_)) ? ::phi::d3d12::detail::verify_failure_handler(_val_, #_val_ " is failed", __FILE__, __LINE__, _device_ptr_) \
-                                                         : void(0))
+#define PHI_D3D12_ASSERT_FULL(_val_, _device_ptr_)                                                       \
+    static_assert(PHI_IS_LVALUE_EXPRESSION(_val_), "Use PHI_D3D12_VERIFY_FULL for prvalue expressions"); \
+    (CC_UNLIKELY(::phi::d3d12::detail::hr_failed(_val_)) ? ::phi::d3d12::detail::verify_failure_handler(_val_, "", __FILE__, __LINE__, _device_ptr_) : void(0))
 
 /// Executes the given expression and terminates with a detailed error message if the HRESULT indicates failure
 #define PHI_D3D12_VERIFY(_expr_)                                                                        \
