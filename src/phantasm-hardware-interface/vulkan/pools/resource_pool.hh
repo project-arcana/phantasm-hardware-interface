@@ -65,7 +65,7 @@ public:
             int num_vma_maps; ///< VMA requires all maps to be followed by unmaps before destruction, so track maps/unmaps
             uint64_t width;
 
-            bool is_access_in_bounds(uint32_t offset, uint32_t size) const { return offset + size <= width; }
+            bool is_access_in_bounds(uint64_t offset, uint64_t size) const { return offset + size <= width; }
         };
 
         struct image_info
@@ -128,7 +128,7 @@ public:
     [[nodiscard]] resource_node::image_info const& getImageInfo(handle::resource res) const { return internalGet(res).image; }
     [[nodiscard]] resource_node::buffer_info const& getBufferInfo(handle::resource res) const { return internalGet(res).buffer; }
 
-    bool isBufferAccessInBounds(handle::resource res, uint32_t offset, uint32_t size) const
+    bool isBufferAccessInBounds(handle::resource res, uint64_t offset, uint64_t size) const
     {
         auto const& internal = internalGet(res);
         if (internal.type != resource_node::resource_type::buffer)
