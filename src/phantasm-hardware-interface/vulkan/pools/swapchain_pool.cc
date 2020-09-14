@@ -3,8 +3,8 @@
 #include <clean-core/assert.hh>
 #include <clean-core/utility.hh>
 
-#include <phantasm-hardware-interface/config.hh>
 #include <phantasm-hardware-interface/common/log.hh>
+#include <phantasm-hardware-interface/config.hh>
 
 #include <phantasm-hardware-interface/vulkan/Device.hh>
 #include <phantasm-hardware-interface/vulkan/common/util.hh>
@@ -24,6 +24,11 @@ phi::handle::swapchain phi::vk::SwapchainPool::createSwapchain(const window_hand
     {
         auto lg = std::lock_guard(mMutex);
         res = mPool.acquire();
+    }
+
+    if (mode == present_mode::synced_2nd_vblank)
+    {
+        PHI_LOG_WARN("present_mode::synced_2nd_vblank falls back to synced on vulkan");
     }
 
     swapchain& new_node = mPool.get(res);

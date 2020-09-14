@@ -55,12 +55,13 @@ enum class queue_type : uint8_t
     copy
 };
 
-/// the swapchain presentation mode (note: synced does not mean refreshrate-limited)
-/// Also note: under some circumstances, synced might force a refreshrate limit (Nvidia optimus + windowed on d3d12, etc.)
+/// the swapchain presentation mode
 enum class present_mode : uint8_t
 {
-    allow_tearing,
-    synced
+    synced,                 // synchronize presentation every vblank
+    synced_2nd_vblank,      // synchronize presentation every second vblank (effectively halves refreshrate)
+    unsynced,               // do not synchronize presentation
+    unsynced_allow_tearing, // do not synchronize presentation and allow tearing, required for variable refresh rate displays
 };
 
 /// state of a handle::resource, determining legal operations
@@ -726,9 +727,9 @@ struct buffer_range_and_stride
 /// the sizes required for the four sections of a raytracing shader table
 struct shader_table_sizes
 {
-    // ray_gen: size
+    // ray_gen: record size
     uint32_t size_ray_gen = 0;
-    // miss, hitgroup, callable: sizes and strides
+    // miss, hitgroup, callable: full sizes and strides (record sizes)
     uint32_t size_miss = 0;
     uint32_t stride_miss = 0;
     uint32_t size_hit_group = 0;

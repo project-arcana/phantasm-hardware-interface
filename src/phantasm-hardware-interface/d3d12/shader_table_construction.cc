@@ -34,6 +34,9 @@ phi::shader_table_sizes phi::d3d12::ShaderTableConstructor::calculateShaderTable
     res.stride_callable = getShaderRecordSize(callable_records);
     res.size_callable = res.stride_callable * unsigned(callable_records.size());
 
+    // any individual table must start at a 64B-aligned address
+    static_assert(D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT == 64, "shader table alignment wrong");
+
     res.offset_ray_gen = 0;
     res.offset_miss = phi::util::align_up(res.offset_ray_gen + res.size_ray_gen, 64);
     res.offset_hit_group = phi::util::align_up(res.offset_miss + res.size_miss, 64);

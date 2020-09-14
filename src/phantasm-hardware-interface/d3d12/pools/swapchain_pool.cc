@@ -2,8 +2,8 @@
 
 #include <clean-core/assert.hh>
 
-#include <phantasm-hardware-interface/d3d12/common/util.hh>
 #include <phantasm-hardware-interface/common/log.hh>
+#include <phantasm-hardware-interface/d3d12/common/util.hh>
 
 namespace
 {
@@ -12,7 +12,22 @@ constexpr auto gc_pool_backbuffer_format = DXGI_FORMAT_B8G8R8A8_UNORM;
 
 DXGI_SWAP_CHAIN_FLAG get_pool_swapchain_flags(phi::present_mode mode)
 {
-    return mode == phi::present_mode::allow_tearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : DXGI_SWAP_CHAIN_FLAG(0);
+    return mode == phi::present_mode::unsynced_allow_tearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : DXGI_SWAP_CHAIN_FLAG(0);
+}
+
+unsigned get_sync_interval(phi::present_mode mode)
+{
+    switch (mode)
+    {
+    case phi::present_mode::synced:
+        return 1;
+    case phi::present_mode::synced_2nd_vblank:
+        return 2;
+    case phi::present_mode::unsynced:
+    case phi::present_mode::unsynced_allow_tearing:
+    default:
+        return 0;
+    }
 }
 }
 
@@ -148,9 +163,11 @@ void phi::d3d12::SwapchainPool::setFullscreen(phi::handle::swapchain handle, boo
 void phi::d3d12::SwapchainPool::present(phi::handle::swapchain handle)
 {
     swapchain& node = mPool.get(handle._value);
-    PHI_D3D12_VERIFY_FULL(node.swapchain_com->Present(node.mode == present_mode::synced ? 1 : 0, //
-                                                      node.mode == present_mode::allow_tearing ? DXGI_PRESENT_ALLOW_TEARING : 0),
-                          mParentDevice);
+
+    UINT sync_interval = get_sync_interval(node.mode);
+    UINT flags = node.mode == present_mode::unsynced_allow_tearing ? DXGI_PRESENT_ALLOW_TEARING : 0;
+
+    PHI_D3D12_VERIFY_FULL(node.swapchain_com->Present(sync_interval, flags), mParentDevice);
 
     auto const backbuffer_i = node.swapchain_com->GetCurrentBackBufferIndex();
     node.backbuffers[backbuffer_i].fence.issueFence(*mParentQueue);
