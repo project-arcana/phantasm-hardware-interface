@@ -69,6 +69,14 @@ PHI_DEFINE_CMD(end_render_pass){
 
 PHI_DEFINE_CMD(transition_resources)
 {
+    // Transition resources to a new state
+
+    // Resource state transitions are simplified - only the after-state is given
+    // the before state is internally managed, and submit-order-safe
+    // NOTE: the first transition of each resource in a commandlist is implicit,
+    // it is inserted last-minute at submission - thus, that resource is in that state
+    // not just after the transition, but right away from the beginning of the cmdlist
+
     cmd_vector<transition_info, limits::max_resource_transitions> transitions;
 
 public:

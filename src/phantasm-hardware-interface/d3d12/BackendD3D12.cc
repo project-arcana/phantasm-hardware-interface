@@ -249,11 +249,11 @@ void phi::d3d12::BackendD3D12::submit(cc::span<const phi::handle::command_list> 
 
         if (!barriers.empty())
         {
-            ID3D12GraphicsCommandList5* t_cmd_list;
-            barrier_lists.push_back(mPoolCmdLists.create(t_cmd_list, thread_comp.cmd_list_allocator, queue));
-            t_cmd_list->ResourceBarrier(UINT(barriers.size()), barriers.size() > 0 ? barriers.data() : nullptr);
-            t_cmd_list->Close();
-            cmd_bufs_to_submit.push_back(t_cmd_list);
+            ID3D12GraphicsCommandList5* inserted_barrier_cmdlist;
+            barrier_lists.push_back(mPoolCmdLists.create(inserted_barrier_cmdlist, thread_comp.cmd_list_allocator, queue));
+            inserted_barrier_cmdlist->ResourceBarrier(UINT(barriers.size()), barriers.data());
+            inserted_barrier_cmdlist->Close();
+            cmd_bufs_to_submit.push_back(inserted_barrier_cmdlist);
         }
 
         cmd_bufs_to_submit.push_back(mPoolCmdLists.getRawList(cl));
