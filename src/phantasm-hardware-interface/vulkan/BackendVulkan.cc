@@ -414,7 +414,7 @@ uint64_t phi::vk::BackendVulkan::getAccelStructNativeHandle(phi::handle::accel_s
     return 0;
 }
 
-phi::shader_table_sizes phi::vk::BackendVulkan::calculateShaderTableSize(const arg::shader_table_record& ray_gen_record,
+phi::shader_table_strides phi::vk::BackendVulkan::calculateShaderTableSize(const arg::shader_table_record& ray_gen_record,
                                                                          phi::arg::shader_table_records miss_records,
                                                                          phi::arg::shader_table_records hit_group_records,
                                                                          phi::arg::shader_table_records callable_records)

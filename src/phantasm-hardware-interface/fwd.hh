@@ -32,7 +32,7 @@ struct blend_state;
 struct gpu_indirect_command_draw;
 struct gpu_indirect_command_draw_indexed;
 struct accel_struct_instance;
-struct shader_table_sizes;
+struct shader_table_strides;
 
 // data enums
 enum class format : uint8_t;

@@ -725,7 +725,7 @@ struct buffer_range_and_stride
 };
 
 /// the sizes required for the four sections of a raytracing shader table
-struct shader_table_sizes
+struct shader_table_strides
 {
     // ray_gen: record size
     uint32_t size_ray_gen = 0;
@@ -736,13 +736,5 @@ struct shader_table_sizes
     uint32_t stride_hit_group = 0;
     uint32_t size_callable = 0;
     uint32_t stride_callable = 0;
-
-    // offsets to the four sections if they were allocated in a single buffer (up-aligned to 64B)
-    uint32_t offset_ray_gen = 0;
-    uint32_t offset_miss = 0;
-    uint32_t offset_hit_group = 0;
-    uint32_t offset_callable = 0;
-    // size of a single buffer to accomodate all four sections
-    uint32_t total_size = 0;
 };
 }

@@ -465,28 +465,18 @@ PHI_DEFINE_CMD(dispatch_rays)
     unsigned height = 1;
     unsigned depth = 1;
 
-    void set_single_shader_table(handle::resource shader_table, shader_table_sizes const& sizes)
+    void set_strides(shader_table_strides const& strides)
     {
-        table_ray_generation = {shader_table, sizes.offset_ray_gen, sizes.size_ray_gen};
-        table_miss = {shader_table, sizes.offset_miss, sizes.size_miss, sizes.stride_miss};
-        table_hit_groups = {shader_table, sizes.offset_hit_group, sizes.size_hit_group, sizes.stride_hit_group};
+        table_ray_generation.size_bytes = strides.size_ray_gen;
 
-        if (sizes.size_callable > 0)
-            table_callable = {shader_table, sizes.offset_callable, sizes.size_callable, sizes.stride_callable};
-    }
+        table_miss.stride_bytes = strides.stride_miss;
+        table_miss.size_bytes = strides.size_miss;
 
-    void set_strides_and_sizes(shader_table_sizes const& sizes)
-    {
-        table_ray_generation.size_bytes = sizes.size_ray_gen;
+        table_hit_groups.stride_bytes = strides.stride_hit_group;
+        table_hit_groups.size_bytes = strides.size_hit_group;
 
-        table_miss.stride_bytes = sizes.stride_miss;
-        table_miss.size_bytes = sizes.size_miss;
-
-        table_hit_groups.stride_bytes = sizes.stride_hit_group;
-        table_hit_groups.size_bytes = sizes.size_hit_group;
-
-        table_callable.stride_bytes = sizes.stride_callable;
-        table_callable.size_bytes = sizes.size_callable;
+        table_callable.stride_bytes = strides.stride_callable;
+        table_callable.size_bytes = strides.size_callable;
     }
 
     void set_single_buffer(handle::resource shader_table, bool include_callable)
@@ -507,7 +497,7 @@ PHI_DEFINE_CMD(dispatch_rays)
         table_callable.offset_bytes = offset_callable;
     }
 
-    void set_zero_sizes()
+    [[deprecated("debug only")]] void set_zero_sizes()
     {
         table_ray_generation.size_bytes = 0;
         table_miss.size_bytes = 0;

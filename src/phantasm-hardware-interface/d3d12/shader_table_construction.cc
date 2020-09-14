@@ -17,12 +17,12 @@
 #include "pools/resource_pool.hh"
 #include "pools/shader_view_pool.hh"
 
-phi::shader_table_sizes phi::d3d12::ShaderTableConstructor::calculateShaderTableSizes(const arg::shader_table_record& ray_gen_record,
+phi::shader_table_strides phi::d3d12::ShaderTableConstructor::calculateShaderTableSizes(const arg::shader_table_record& ray_gen_record,
                                                                                       phi::arg::shader_table_records miss_records,
                                                                                       phi::arg::shader_table_records hit_group_records,
                                                                                       arg::shader_table_records callable_records)
 {
-    shader_table_sizes res = {};
+    shader_table_strides res = {};
     res.size_ray_gen = getShaderRecordSize(cc::span{ray_gen_record});
 
     res.stride_miss = getShaderRecordSize(miss_records);
@@ -36,13 +36,6 @@ phi::shader_table_sizes phi::d3d12::ShaderTableConstructor::calculateShaderTable
 
     // any individual table must start at a 64B-aligned address
     static_assert(D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT == 64, "shader table alignment wrong");
-
-    res.offset_ray_gen = 0;
-    res.offset_miss = phi::util::align_up(res.offset_ray_gen + res.size_ray_gen, 64);
-    res.offset_hit_group = phi::util::align_up(res.offset_miss + res.size_miss, 64);
-    res.offset_callable = phi::util::align_up(res.offset_hit_group + res.size_hit_group, 64);
-
-    res.total_size = res.offset_callable + res.size_callable;
 
     return res;
 }

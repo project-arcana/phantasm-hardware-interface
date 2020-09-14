@@ -15,7 +15,7 @@ class AccelStructPool;
 class ShaderTableConstructor
 {
 public:
-    [[nodiscard]] phi::shader_table_sizes calculateShaderTableSizes(arg::shader_table_record const& ray_gen_record,
+    [[nodiscard]] phi::shader_table_strides calculateShaderTableSizes(arg::shader_table_record const& ray_gen_record,
                                                                     arg::shader_table_records miss_records,
                                                                     arg::shader_table_records hit_group_records,
                                                                     arg::shader_table_records callable_records);
