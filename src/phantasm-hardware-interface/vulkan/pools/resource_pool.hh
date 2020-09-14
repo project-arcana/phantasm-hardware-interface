@@ -64,6 +64,8 @@ public:
             uint32_t stride;  ///< vertex size or index size
             int num_vma_maps; ///< VMA requires all maps to be followed by unmaps before destruction, so track maps/unmaps
             uint64_t width;
+
+            bool is_access_in_bounds(uint32_t offset, uint32_t size) const { return offset + size <= width; }
         };
 
         struct image_info
@@ -94,7 +96,7 @@ public:
 public:
     // internal API
 
-    void initialize(VkPhysicalDevice physical, VkDevice device, unsigned max_num_resources, unsigned max_num_swapchains, cc::allocator *static_alloc);
+    void initialize(VkPhysicalDevice physical, VkDevice device, unsigned max_num_resources, unsigned max_num_swapchains, cc::allocator* static_alloc);
     void destroy();
 
     //
@@ -125,6 +127,15 @@ public:
 
     [[nodiscard]] resource_node::image_info const& getImageInfo(handle::resource res) const { return internalGet(res).image; }
     [[nodiscard]] resource_node::buffer_info const& getBufferInfo(handle::resource res) const { return internalGet(res).buffer; }
+
+    bool isBufferAccessInBounds(handle::resource res, uint32_t offset, uint32_t size) const
+    {
+        auto const& internal = internalGet(res);
+        if (internal.type != resource_node::resource_type::buffer)
+            return false;
+
+        return internal.buffer.is_access_in_bounds(offset, size);
+    }
 
     //
     // Master state access

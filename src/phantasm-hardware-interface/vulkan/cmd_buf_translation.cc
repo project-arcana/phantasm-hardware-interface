@@ -410,6 +410,9 @@ void phi::vk::command_list_translator::execute(const phi::cmd::barrier_uav& barr
 
 void phi::vk::command_list_translator::execute(const phi::cmd::copy_buffer& copy_buf)
 {
+    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(copy_buf.source, copy_buf.source_offset, copy_buf.size) && "copy_buffer source OOB");
+    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(copy_buf.destination, copy_buf.dest_offset, copy_buf.size) && "copy_buffer dest OOB");
+
     auto const src_buffer = _globals.pool_resources->getRawBuffer(copy_buf.source);
     auto const dest_buffer = _globals.pool_resources->getRawBuffer(copy_buf.destination);
 
@@ -690,6 +693,8 @@ void phi::vk::command_list_translator::bind_shader_arguments(phi::handle::pipeli
         {
             if (bound_arg.update_cbv(arg.constant_buffer, arg.constant_buffer_offset))
             {
+                CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(arg.constant_buffer, arg.constant_buffer_offset, 1) && "CBV offset OOB");
+
                 auto const cbv_desc_set = bind_point == VK_PIPELINE_BIND_POINT_GRAPHICS
                                               ? _globals.pool_resources->getRawCBVDescriptorSet(arg.constant_buffer)
                                               : _globals.pool_resources->getRawCBVDescriptorSetCompute(arg.constant_buffer);
