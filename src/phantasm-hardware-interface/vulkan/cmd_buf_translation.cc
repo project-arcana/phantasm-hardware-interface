@@ -402,6 +402,12 @@ void phi::vk::command_list_translator::execute(const phi::cmd::transition_image_
     barriers.record(_cmd_list);
 }
 
+void phi::vk::command_list_translator::execute(const phi::cmd::barrier_uav& barrier)
+{
+    (void)barrier;
+    PHI_LOG_WARN("cmd::barrier_uav is not supported on vulkan");
+}
+
 void phi::vk::command_list_translator::execute(const phi::cmd::copy_buffer& copy_buf)
 {
     auto const src_buffer = _globals.pool_resources->getRawBuffer(copy_buf.source);

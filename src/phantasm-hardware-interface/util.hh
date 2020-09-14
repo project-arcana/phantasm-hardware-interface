@@ -78,25 +78,25 @@ struct shader_table_offsets
     uint32_t get_ray_gen_offset(uint32_t stack_index = 0) const
     {
         CC_ASSERT(stack_index < num_ray_gen_stacks && "stack OOB");
-        return align_up(record_sizes.size_ray_gen * stack_index, 64);
+        return offset_ray_gen_base + align_up(record_sizes.size_ray_gen * stack_index, 64);
     }
 
     uint32_t get_miss_offset(uint32_t stack_index = 0) const
     {
         CC_ASSERT(stack_index < num_miss_stacks && "stack OOB");
-        return align_up(record_sizes.size_miss * stack_index, 64);
+        return offset_miss_base + align_up(record_sizes.size_miss * stack_index, 64);
     }
 
     uint32_t get_hitgroup_offset(uint32_t stack_index = 0) const
     {
         CC_ASSERT(stack_index < num_hit_group_stacks && "stack OOB");
-        return align_up(record_sizes.size_hit_group * stack_index, 64);
+        return offset_hit_group_base + align_up(record_sizes.size_hit_group * stack_index, 64);
     }
 
     uint32_t get_callable_offset(uint32_t stack_index = 0) const
     {
         CC_ASSERT(stack_index < num_callable_stacks && "stack OOB");
-        return align_up(record_sizes.size_callable * stack_index, 64);
+        return offset_callable_base + align_up(record_sizes.size_callable * stack_index, 64);
     }
 };
 }

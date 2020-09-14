@@ -64,6 +64,8 @@ struct command_list_translator
 
     void execute(cmd::transition_image_slices const& transition_images);
 
+    void execute(cmd::barrier_uav const& barrier);
+
     void execute(cmd::copy_buffer const& copy_buf);
 
     void execute(cmd::copy_texture const& copy_tex);

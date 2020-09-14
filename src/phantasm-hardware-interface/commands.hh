@@ -119,6 +119,13 @@ public:
     }
 };
 
+PHI_DEFINE_CMD(barrier_uav)
+{
+    // explicitly record UAV barriers on the spot (currently D3D12 only)
+
+    cmd_vector<handle::resource, limits::max_uav_barriers> resources;
+};
+
 
 PHI_DEFINE_CMD(draw)
 {

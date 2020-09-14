@@ -106,6 +106,9 @@ void print_dred_information(ID3D12Device* device)
 
         if (SUCCEEDED(hr1))
         {
+            PHI_LOG_ASSERT("");
+            PHI_LOG_ASSERT("DRED breadcrumbs:");
+
             D3D12_AUTO_BREADCRUMB_NODE const* bc_node = DredAutoBreadcrumbsOutput.pHeadAutoBreadcrumbNode;
             auto num_breadcrumbs = 0u;
             while (bc_node != nullptr && num_breadcrumbs < 10)
@@ -120,20 +123,30 @@ void print_dred_information(ID3D12Device* device)
 
 
                 auto logger = PHI_LOG_ASSERT;
+                logger.set_separator("");
                 logger << "    ";
 
                 unsigned const last_executed_i = *bc_node->pLastBreadcrumbValue;
+                unsigned num_logged_contiguous = 0;
                 for (auto i = 0u; i < bc_node->BreadcrumbCount; ++i)
                 {
+                    if (num_logged_contiguous == 6)
+                    {
+                        logger << ",\n                                          ";
+                        num_logged_contiguous = 0;
+                    }
+
                     if (i == last_executed_i)
-                        logger << "[[>  " << get_breadcrumb_op_literal(bc_node->pCommandHistory[i]) << " <]]";
+                        logger << "[[> " << get_breadcrumb_op_literal(bc_node->pCommandHistory[i]) << " <]] ";
                     else
-                        logger << "[" << get_breadcrumb_op_literal(bc_node->pCommandHistory[i]) << "]";
+                        logger << "[" << get_breadcrumb_op_literal(bc_node->pCommandHistory[i]) << "] ";
+                    ++num_logged_contiguous;
                 }
+
                 if (last_executed_i == bc_node->BreadcrumbCount)
                     logger << "  (fully executed)";
                 else
-                    logger << "  (last executed: " << last_executed_i << ")";
+                    logger << "  (execution halted at #" << last_executed_i << ")";
 
                 bc_node = bc_node->pNext;
                 ++num_breadcrumbs;

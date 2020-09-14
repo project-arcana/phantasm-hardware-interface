@@ -450,6 +450,19 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::transition_ima
     }
 }
 
+void phi::d3d12::command_list_translator::execute(const phi::cmd::barrier_uav& barrier)
+{
+    cc::capped_vector<D3D12_RESOURCE_BARRIER, limits::max_uav_barriers> barriers;
+
+    for (auto const res : barrier.resources)
+    {
+        auto const raw_res = _globals.pool_resources->getRawResource(res);
+        barriers.push_back(CD3DX12_RESOURCE_BARRIER::UAV(raw_res));
+    }
+
+    _cmd_list->ResourceBarrier(UINT(barriers.size()), barriers.data());
+}
+
 void phi::d3d12::command_list_translator::execute(const phi::cmd::copy_buffer& copy_buf)
 {
     _cmd_list->CopyBufferRegion(_globals.pool_resources->getRawResource(copy_buf.destination), copy_buf.dest_offset,

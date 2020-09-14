@@ -10,6 +10,10 @@ inline constexpr unsigned max_render_targets = 8u;
 /// configurable
 inline constexpr unsigned max_resource_transitions = 4u;
 
+/// the maximum amount of UAV barriers per command
+/// configurable
+inline constexpr unsigned max_uav_barriers = 8u;
+
 /// the maximum amount of shader arguments per draw- or compute dispatch command
 /// NOTE: The Vulkan backend requires (2 * max_shader_arguments) descriptor sets,
 /// most non-desktop GPUs only support a maximum of 8.
