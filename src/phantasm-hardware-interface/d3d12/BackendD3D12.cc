@@ -184,6 +184,8 @@ phi::handle::swapchain phi::d3d12::BackendD3D12::createSwapchain(const phi::wind
     return mPoolSwapchains.createSwapchain(native_hwnd, initial_size.width, initial_size.height, num_backbuffers, mode);
 }
 
+void phi::d3d12::BackendD3D12::free(phi::handle::swapchain sc) { mPoolSwapchains.free(sc); }
+
 phi::handle::resource phi::d3d12::BackendD3D12::acquireBackbuffer(handle::swapchain sc)
 {
     auto const swapchain_index = mPoolSwapchains.getSwapchainIndex(sc);
@@ -191,6 +193,8 @@ phi::handle::resource phi::d3d12::BackendD3D12::acquireBackbuffer(handle::swapch
     auto const& backbuffer = mPoolSwapchains.get(sc).backbuffers[backbuffer_i];
     return mPoolResources.injectBackbufferResource(swapchain_index, backbuffer.resource, backbuffer.state);
 }
+
+void phi::d3d12::BackendD3D12::present(phi::handle::swapchain sc) { mPoolSwapchains.present(sc); }
 
 void phi::d3d12::BackendD3D12::onResize(handle::swapchain sc, tg::isize2 size)
 {
@@ -203,6 +207,73 @@ phi::format phi::d3d12::BackendD3D12::getBackbufferFormat(handle::swapchain /*sc
     return util::to_pr_format(mPoolSwapchains.getBackbufferFormat());
 }
 
+phi::handle::resource phi::d3d12::BackendD3D12::createTexture(
+    phi::format format, tg::isize2 size, unsigned mips, phi::texture_dimension dim, unsigned depth_or_array_size, bool allow_uav, const char* debug_name)
+{
+    return mPoolResources.createTexture(format, unsigned(size.width), unsigned(size.height), mips, dim, depth_or_array_size, allow_uav, debug_name);
+}
+
+phi::handle::resource phi::d3d12::BackendD3D12::createRenderTarget(
+    phi::format format, tg::isize2 size, unsigned samples, unsigned array_size, const phi::rt_clear_value* optimized_clear_val, const char* debug_name)
+{
+    return mPoolResources.createRenderTarget(format, unsigned(size.width), unsigned(size.height), samples, array_size, optimized_clear_val, debug_name);
+}
+
+phi::handle::resource phi::d3d12::BackendD3D12::createBuffer(unsigned int size_bytes, unsigned int stride_bytes, phi::resource_heap heap, bool allow_uav, const char* debug_name)
+{
+    return mPoolResources.createBuffer(size_bytes, stride_bytes, heap, allow_uav, debug_name);
+}
+
+phi::handle::resource phi::d3d12::BackendD3D12::createUploadBuffer(unsigned size_bytes, unsigned stride_bytes)
+{
+    return createBuffer(size_bytes, stride_bytes, resource_heap::upload, false);
+}
+
+std::byte* phi::d3d12::BackendD3D12::mapBuffer(phi::handle::resource res, int begin, int end) { return mPoolResources.mapBuffer(res, begin, end); }
+
+void phi::d3d12::BackendD3D12::unmapBuffer(phi::handle::resource res, int begin, int end) { return mPoolResources.unmapBuffer(res, begin, end); }
+
+void phi::d3d12::BackendD3D12::free(phi::handle::resource res) { mPoolResources.free(res); }
+
+void phi::d3d12::BackendD3D12::freeRange(cc::span<const phi::handle::resource> resources) { mPoolResources.free(resources); }
+
+phi::handle::shader_view phi::d3d12::BackendD3D12::createShaderView(cc::span<const phi::resource_view> srvs,
+                                                                    cc::span<const phi::resource_view> uavs,
+                                                                    cc::span<const phi::sampler_config> samplers,
+                                                                    bool)
+{
+    return mPoolShaderViews.create(srvs, uavs, samplers);
+}
+
+void phi::d3d12::BackendD3D12::free(phi::handle::shader_view sv) { mPoolShaderViews.free(sv); }
+
+void phi::d3d12::BackendD3D12::freeRange(cc::span<const phi::handle::shader_view> svs) { mPoolShaderViews.free(svs); }
+
+phi::handle::pipeline_state phi::d3d12::BackendD3D12::createPipelineState(phi::arg::vertex_format vertex_format,
+                                                                          const phi::arg::framebuffer_config& framebuffer_conf,
+                                                                          phi::arg::shader_arg_shapes shader_arg_shapes,
+                                                                          bool has_root_constants,
+                                                                          phi::arg::graphics_shaders shaders,
+                                                                          const phi::pipeline_config& primitive_config)
+{
+    return mPoolPSOs.createPipelineState(vertex_format, framebuffer_conf, shader_arg_shapes, has_root_constants, shaders, primitive_config);
+}
+
+phi::handle::pipeline_state phi::d3d12::BackendD3D12::createPipelineState(const phi::arg::graphics_pipeline_state_desc& description)
+{
+    return mPoolPSOs.createPipelineState(description.vertices, description.framebuffer, description.shader_arg_shapes, description.has_root_constants,
+                                         description.shader_binaries, description.config);
+}
+
+phi::handle::pipeline_state phi::d3d12::BackendD3D12::createComputePipelineState(phi::arg::shader_arg_shapes shader_arg_shapes,
+                                                                                 phi::arg::shader_binary shader,
+                                                                                 bool has_root_constants)
+{
+    return mPoolPSOs.createComputePipelineState(shader_arg_shapes, shader, has_root_constants);
+}
+
+void phi::d3d12::BackendD3D12::free(phi::handle::pipeline_state ps) { mPoolPSOs.free(ps); }
+
 phi::handle::command_list phi::d3d12::BackendD3D12::recordCommandList(std::byte* buffer, size_t size, queue_type queue)
 {
     auto& thread_comp = getCurrentThreadComponent();
@@ -211,6 +282,8 @@ phi::handle::command_list phi::d3d12::BackendD3D12::recordCommandList(std::byte*
     thread_comp.translator.translateCommandList(raw_list5, queue, mPoolCmdLists.getStateCache(res), buffer, size);
     return res;
 }
+
+void phi::d3d12::BackendD3D12::discard(cc::span<const phi::handle::command_list> cls) { mPoolCmdLists.freeOnDiscard(cls); }
 
 void phi::d3d12::BackendD3D12::submit(cc::span<const phi::handle::command_list> cls,
                                       queue_type queue,
@@ -277,6 +350,33 @@ void phi::d3d12::BackendD3D12::submit(cc::span<const phi::handle::command_list> 
     mPoolCmdLists.freeOnSubmit(barrier_lists, target_queue);
     mPoolCmdLists.freeOnSubmit(cls, target_queue);
 }
+
+phi::handle::fence phi::d3d12::BackendD3D12::createFence() { return mPoolFences.createFence(); }
+
+uint64_t phi::d3d12::BackendD3D12::getFenceValue(phi::handle::fence fence) { return mPoolFences.getValue(fence); }
+
+void phi::d3d12::BackendD3D12::signalFenceCPU(phi::handle::fence fence, uint64_t new_value) { mPoolFences.signalCPU(fence, new_value); }
+
+void phi::d3d12::BackendD3D12::waitFenceCPU(phi::handle::fence fence, uint64_t wait_value) { mPoolFences.waitCPU(fence, wait_value); }
+
+void phi::d3d12::BackendD3D12::signalFenceGPU(phi::handle::fence fence, uint64_t new_value, phi::queue_type queue)
+{
+    mPoolFences.signalGPU(fence, new_value, getQueueByType(queue));
+}
+
+void phi::d3d12::BackendD3D12::waitFenceGPU(phi::handle::fence fence, uint64_t wait_value, phi::queue_type queue)
+{
+    mPoolFences.waitGPU(fence, wait_value, getQueueByType(queue));
+}
+
+void phi::d3d12::BackendD3D12::free(cc::span<const phi::handle::fence> fences) { mPoolFences.free(fences); }
+
+phi::handle::query_range phi::d3d12::BackendD3D12::createQueryRange(phi::query_type type, unsigned int size)
+{
+    return mPoolQueries.create(type, size);
+}
+
+void phi::d3d12::BackendD3D12::free(phi::handle::query_range query_range) { mPoolQueries.free(query_range); }
 
 phi::handle::pipeline_state phi::d3d12::BackendD3D12::createRaytracingPipelineState(const arg::raytracing_pipeline_state_desc& description)
 {
@@ -347,6 +447,13 @@ void phi::d3d12::BackendD3D12::printInformation(phi::handle::resource res) const
 bool phi::d3d12::BackendD3D12::startForcedDiagnosticCapture() { return mDiagnostics.start_capture(); }
 
 bool phi::d3d12::BackendD3D12::endForcedDiagnosticCapture() { return mDiagnostics.end_capture(); }
+
+uint64_t phi::d3d12::BackendD3D12::getGPUTimestampFrequency() const
+{
+    uint64_t res;
+    mDirectQueue.command_queue->GetTimestampFrequency(&res);
+    return res;
+}
 
 bool phi::d3d12::BackendD3D12::isRaytracingEnabled() const { return mDevice.hasRaytracing(); }
 

@@ -42,10 +42,12 @@ public:
                                                     present_mode mode = present_mode::synced,
                                                     unsigned num_backbuffers = 3) override;
 
-    void free(handle::swapchain sc) override { mPoolSwapchains.free(sc); }
+    void free(handle::swapchain sc) override;
 
     [[nodiscard]] handle::resource acquireBackbuffer(handle::swapchain sc) override;
-    void present(handle::swapchain sc) override { mPoolSwapchains.present(sc); }
+
+    void present(handle::swapchain sc) override;
+
     void onResize(handle::swapchain sc, tg::isize2 size) override;
 
     tg::isize2 getBackbufferSize(handle::swapchain sc) const override
@@ -53,7 +55,9 @@ public:
         auto const& node = mPoolSwapchains.get(sc);
         return {node.backbuf_width, node.backbuf_height};
     }
+
     format getBackbufferFormat(handle::swapchain sc) const override;
+
     unsigned getNumBackbuffers(handle::swapchain sc) const override { return unsigned(mPoolSwapchains.get(sc).backbuffers.size()); }
 
     [[nodiscard]] bool clearPendingResize(handle::swapchain sc) override { return mPoolSwapchains.clearResizeFlag(sc); }
@@ -64,36 +68,21 @@ public:
     //
 
     [[nodiscard]] handle::resource createTexture(
-        phi::format format, tg::isize2 size, unsigned mips, texture_dimension dim, unsigned depth_or_array_size, bool allow_uav, char const* debug_name = nullptr) override
-    {
-        return mPoolResources.createTexture(format, unsigned(size.width), unsigned(size.height), mips, dim, depth_or_array_size, allow_uav, debug_name);
-    }
+        phi::format format, tg::isize2 size, unsigned mips, texture_dimension dim, unsigned depth_or_array_size, bool allow_uav, char const* debug_name = nullptr) override;
 
     [[nodiscard]] handle::resource createRenderTarget(
-        phi::format format, tg::isize2 size, unsigned samples, unsigned array_size, rt_clear_value const* = nullptr, char const* debug_name = nullptr) override
-    {
-        return mPoolResources.createRenderTarget(format, unsigned(size.width), unsigned(size.height), samples, array_size, debug_name);
-    }
+        phi::format format, tg::isize2 size, unsigned samples, unsigned array_size, rt_clear_value const* = nullptr, char const* debug_name = nullptr) override;
 
-    [[nodiscard]] handle::resource createBuffer(unsigned int size_bytes, unsigned int stride_bytes, resource_heap heap, bool allow_uav, char const* debug_name = nullptr) override
-    {
-        return mPoolResources.createBuffer(size_bytes, stride_bytes, heap, allow_uav, debug_name);
-    }
+    [[nodiscard]] handle::resource createBuffer(unsigned int size_bytes, unsigned int stride_bytes, resource_heap heap, bool allow_uav, char const* debug_name = nullptr) override;
 
-    [[nodiscard]] handle::resource createUploadBuffer(unsigned size_bytes, unsigned stride_bytes = 0) override
-    {
-        return createBuffer(size_bytes, stride_bytes, resource_heap::upload, false);
-    }
+    [[nodiscard]] handle::resource createUploadBuffer(unsigned size_bytes, unsigned stride_bytes = 0) override;
 
-    [[nodiscard]] std::byte* mapBuffer(handle::resource res, int begin = 0, int end = -1) override
-    {
-        return mPoolResources.mapBuffer(res, begin, end);
-    }
+    [[nodiscard]] std::byte* mapBuffer(handle::resource res, int begin = 0, int end = -1) override;
 
-    void unmapBuffer(handle::resource res, int begin = 0, int end = -1) override { return mPoolResources.unmapBuffer(res, begin, end); }
+    void unmapBuffer(handle::resource res, int begin = 0, int end = -1) override;
 
-    void free(handle::resource res) override { mPoolResources.free(res); }
-    void freeRange(cc::span<handle::resource const> resources) override { mPoolResources.free(resources); }
+    void free(handle::resource res) override;
+    void freeRange(cc::span<handle::resource const> resources) override;
 
 
     //
@@ -103,14 +92,11 @@ public:
     [[nodiscard]] handle::shader_view createShaderView(cc::span<resource_view const> srvs,
                                                        cc::span<resource_view const> uavs,
                                                        cc::span<sampler_config const> samplers,
-                                                       bool usage_compute) override
-    {
-        return mPoolShaderViews.create(srvs, uavs, samplers, usage_compute);
-    }
+                                                       bool usage_compute) override;
 
-    void free(handle::shader_view sv) override { mPoolShaderViews.free(sv); }
+    void free(handle::shader_view sv) override;
 
-    void freeRange(cc::span<handle::shader_view const> svs) override { mPoolShaderViews.free(svs); }
+    void freeRange(cc::span<handle::shader_view const> svs) override;
 
     //
     // Pipeline state interface
@@ -121,25 +107,20 @@ public:
                                                              arg::shader_arg_shapes shader_arg_shapes,
                                                              bool has_root_constants,
                                                              arg::graphics_shaders shaders,
-                                                             phi::pipeline_config const& primitive_config) override
-    {
-        return mPoolPipelines.createPipelineState(vertex_format, framebuffer_conf, shader_arg_shapes, has_root_constants, shaders, primitive_config,
-                                                  cc::system_allocator);
-    }
+                                                             phi::pipeline_config const& primitive_config) override;
 
-    [[nodiscard]] handle::pipeline_state createComputePipelineState(arg::shader_arg_shapes shader_arg_shapes, arg::shader_binary shader, bool has_root_constants) override
-    {
-        return mPoolPipelines.createComputePipelineState(shader_arg_shapes, shader, has_root_constants, cc::system_allocator);
-    }
+    [[nodiscard]] handle::pipeline_state createPipelineState(arg::graphics_pipeline_state_desc const& description) override;
 
-    void free(handle::pipeline_state ps) override { mPoolPipelines.free(ps); }
+    [[nodiscard]] handle::pipeline_state createComputePipelineState(arg::shader_arg_shapes shader_arg_shapes, arg::shader_binary shader, bool has_root_constants) override;
+
+    void free(handle::pipeline_state ps) override;
 
     //
     // Command list interface
     //
 
     [[nodiscard]] handle::command_list recordCommandList(std::byte* buffer, size_t size, queue_type queue = queue_type::direct) override;
-    void discard(cc::span<handle::command_list const> cls) override { mPoolCmdLists.freeAndDiscard(cls); }
+    void discard(cc::span<handle::command_list const> cls) override;
 
     void submit(cc::span<handle::command_list const> cls,
                 queue_type queue = queue_type::direct,
@@ -151,24 +132,24 @@ public:
     //
 
     /// create a fence, starts out with value 0
-    [[nodiscard]] handle::fence createFence() override { return mPoolFences.createFence(); }
+    [[nodiscard]] handle::fence createFence() override;
 
-    [[nodiscard]] uint64_t getFenceValue(handle::fence fence) override { return mPoolFences.getValue(fence); }
+    [[nodiscard]] uint64_t getFenceValue(handle::fence fence) override;
 
-    void signalFenceCPU(handle::fence fence, uint64_t new_value) override { mPoolFences.signalCPU(fence, new_value); }
+    void signalFenceCPU(handle::fence fence, uint64_t new_value) override;
 
-    void waitFenceCPU(handle::fence fence, uint64_t wait_value) override { mPoolFences.waitCPU(fence, wait_value); }
+    void waitFenceCPU(handle::fence fence, uint64_t wait_value) override;
 
-    void free(cc::span<handle::fence const> fences) override { mPoolFences.free(fences); }
+    void free(cc::span<handle::fence const> fences) override;
 
 
     //
     // Query interface
     //
 
-    [[nodiscard]] handle::query_range createQueryRange(query_type type, unsigned int size) override { return mPoolQueries.create(type, size); }
+    [[nodiscard]] handle::query_range createQueryRange(query_type type, unsigned int size) override;
 
-    void free(handle::query_range query_range) override { mPoolQueries.free(query_range); }
+    void free(handle::query_range query_range) override;
 
     //
     // Raytracing interface
@@ -187,9 +168,9 @@ public:
     [[nodiscard]] uint64_t getAccelStructNativeHandle(handle::accel_struct as) override;
 
     [[nodiscard]] shader_table_strides calculateShaderTableStrides(arg::shader_table_record const& ray_gen_record,
-                                                              arg::shader_table_records miss_records,
-                                                              arg::shader_table_records hit_group_records,
-                                                              arg::shader_table_records callable_records = {}) override;
+                                                                   arg::shader_table_records miss_records,
+                                                                   arg::shader_table_records hit_group_records,
+                                                                   arg::shader_table_records callable_records = {}) override;
 
     void writeShaderTable(std::byte* dest, handle::pipeline_state pso, unsigned stride, arg::shader_table_records records) override;
 
@@ -202,25 +183,22 @@ public:
     //
 
     void setDebugName(handle::resource res, cc::string_view name) override;
+
     void printInformation(handle::resource res) const override;
+
     bool startForcedDiagnosticCapture() override;
+
     bool endForcedDiagnosticCapture() override;
 
     //
     // GPU info interface
     //
 
-    uint64_t getGPUTimestampFrequency() const override
-    {
-        float const nanoseconds_per_timestamp = mDevice.getDeviceProperties().limits.timestampPeriod;
-        uint64_t const timestamps_per_microsecond = uint64_t(1000.f / nanoseconds_per_timestamp);
-        // us -> ms -> s (Hz)
-        return timestamps_per_microsecond * 1000 * 1000;
-    }
+    uint64_t getGPUTimestampFrequency() const override;
 
-    bool isRaytracingEnabled() const override { return mDevice.hasRaytracing(); }
+    bool isRaytracingEnabled() const override;
 
-    backend_type getBackendType() const override { return backend_type::vulkan; }
+    backend_type getBackendType() const override;
 
 public:
     // backend-internal
@@ -231,10 +209,7 @@ public:
 private:
     void createDebugMessenger();
 
-    VkQueue getQueueByType(queue_type type) const
-    {
-        return (type == queue_type::direct ? mDevice.getQueueDirect() : (type == queue_type::compute ? mDevice.getQueueCompute() : mDevice.getQueueCopy()));
-    }
+    VkQueue getQueueByType(queue_type type) const;
 
     struct per_thread_component;
     per_thread_component& getCurrentThreadComponent();

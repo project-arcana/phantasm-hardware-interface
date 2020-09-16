@@ -210,6 +210,8 @@ phi::handle::swapchain phi::vk::BackendVulkan::createSwapchain(const phi::window
     return mPoolSwapchains.createSwapchain(window_handle, initial_size.width, initial_size.height, num_backbuffers, mode);
 }
 
+void phi::vk::BackendVulkan::free(phi::handle::swapchain sc) { mPoolSwapchains.free(sc); }
+
 phi::handle::resource phi::vk::BackendVulkan::acquireBackbuffer(handle::swapchain sc)
 {
     auto const swapchain_index = mPoolSwapchains.getSwapchainIndex(sc);
@@ -233,16 +235,87 @@ phi::handle::resource phi::vk::BackendVulkan::acquireBackbuffer(handle::swapchai
     }
 }
 
+void phi::vk::BackendVulkan::present(phi::handle::swapchain sc) { mPoolSwapchains.present(sc); }
+
 void phi::vk::BackendVulkan::onResize(handle::swapchain sc, tg::isize2 size)
 {
     flushGPU();
     mPoolSwapchains.onResize(sc, size.width, size.height);
 }
 
-phi::format phi::vk::BackendVulkan::getBackbufferFormat(handle::swapchain sc) const
+phi::format phi::vk::BackendVulkan::getBackbufferFormat(phi::handle::swapchain sc) const
 {
     return util::to_pr_format(mPoolSwapchains.get(sc).backbuf_format.format);
 }
+
+
+
+
+
+phi::handle::resource phi::vk::BackendVulkan::createTexture(
+    phi::format format, tg::isize2 size, unsigned mips, phi::texture_dimension dim, unsigned depth_or_array_size, bool allow_uav, const char* debug_name)
+{
+    return mPoolResources.createTexture(format, unsigned(size.width), unsigned(size.height), mips, dim, depth_or_array_size, allow_uav, debug_name);
+}
+
+phi::handle::resource phi::vk::BackendVulkan::createRenderTarget(
+    phi::format format, tg::isize2 size, unsigned samples, unsigned array_size, const phi::rt_clear_value*, const char* debug_name)
+{
+    return mPoolResources.createRenderTarget(format, unsigned(size.width), unsigned(size.height), samples, array_size, debug_name);
+}
+
+phi::handle::resource phi::vk::BackendVulkan::createBuffer(unsigned int size_bytes, unsigned int stride_bytes, phi::resource_heap heap, bool allow_uav, const char* debug_name)
+{
+    return mPoolResources.createBuffer(size_bytes, stride_bytes, heap, allow_uav, debug_name);
+}
+
+phi::handle::resource phi::vk::BackendVulkan::createUploadBuffer(unsigned size_bytes, unsigned stride_bytes)
+{
+    return createBuffer(size_bytes, stride_bytes, resource_heap::upload, false);
+}
+
+std::byte* phi::vk::BackendVulkan::mapBuffer(phi::handle::resource res, int begin, int end) { return mPoolResources.mapBuffer(res, begin, end); }
+
+void phi::vk::BackendVulkan::unmapBuffer(phi::handle::resource res, int begin, int end) { return mPoolResources.unmapBuffer(res, begin, end); }
+
+void phi::vk::BackendVulkan::free(phi::handle::resource res) { mPoolResources.free(res); }
+
+void phi::vk::BackendVulkan::freeRange(cc::span<const phi::handle::resource> resources) { mPoolResources.free(resources); }
+
+phi::handle::shader_view phi::vk::BackendVulkan::createShaderView(cc::span<const phi::resource_view> srvs,
+                                                                  cc::span<const phi::resource_view> uavs,
+                                                                  cc::span<const phi::sampler_config> samplers,
+                                                                  bool usage_compute)
+{
+    return mPoolShaderViews.create(srvs, uavs, samplers, usage_compute);
+}
+
+void phi::vk::BackendVulkan::free(phi::handle::shader_view sv) { mPoolShaderViews.free(sv); }
+
+void phi::vk::BackendVulkan::freeRange(cc::span<const phi::handle::shader_view> svs) { mPoolShaderViews.free(svs); }
+
+phi::handle::pipeline_state phi::vk::BackendVulkan::createPipelineState(phi::arg::vertex_format vertex_format,
+                                                                        const phi::arg::framebuffer_config& framebuffer_conf,
+                                                                        phi::arg::shader_arg_shapes shader_arg_shapes,
+                                                                        bool has_root_constants,
+                                                                        phi::arg::graphics_shaders shaders,
+                                                                        const phi::pipeline_config& primitive_config)
+{
+    return mPoolPipelines.createPipelineState(vertex_format, framebuffer_conf, shader_arg_shapes, has_root_constants, shaders, primitive_config, cc::system_allocator);
+}
+
+phi::handle::pipeline_state phi::vk::BackendVulkan::createPipelineState(const phi::arg::graphics_pipeline_state_desc& description)
+{
+    return mPoolPipelines.createPipelineState(description.vertices, description.framebuffer, description.shader_arg_shapes,
+                                              description.has_root_constants, description.shader_binaries, description.config, cc::system_allocator);
+}
+
+phi::handle::pipeline_state phi::vk::BackendVulkan::createComputePipelineState(phi::arg::shader_arg_shapes shader_arg_shapes, phi::arg::shader_binary shader, bool has_root_constants)
+{
+    return mPoolPipelines.createComputePipelineState(shader_arg_shapes, shader, has_root_constants, cc::system_allocator);
+}
+
+void phi::vk::BackendVulkan::free(phi::handle::pipeline_state ps) { mPoolPipelines.free(ps); }
 
 phi::handle::command_list phi::vk::BackendVulkan::recordCommandList(std::byte* buffer, size_t size, queue_type queue)
 {
@@ -253,6 +326,8 @@ phi::handle::command_list phi::vk::BackendVulkan::recordCommandList(std::byte* b
     thread_comp.translator.translateCommandList(raw_list, res, mPoolCmdLists.getStateCache(res), buffer, size);
     return res;
 }
+
+void phi::vk::BackendVulkan::discard(cc::span<const phi::handle::command_list> cls) { mPoolCmdLists.freeAndDiscard(cls); }
 
 void phi::vk::BackendVulkan::submit(cc::span<const phi::handle::command_list> cls,
                                     phi::queue_type queue,
@@ -371,6 +446,20 @@ void phi::vk::BackendVulkan::submit(cc::span<const phi::handle::command_list> cl
     mPoolCmdLists.freeOnSubmit(submit_spans, submit_fence_index);
 }
 
+phi::handle::fence phi::vk::BackendVulkan::createFence() { return mPoolFences.createFence(); }
+
+uint64_t phi::vk::BackendVulkan::getFenceValue(phi::handle::fence fence) { return mPoolFences.getValue(fence); }
+
+void phi::vk::BackendVulkan::signalFenceCPU(phi::handle::fence fence, uint64_t new_value) { mPoolFences.signalCPU(fence, new_value); }
+
+void phi::vk::BackendVulkan::waitFenceCPU(phi::handle::fence fence, uint64_t wait_value) { mPoolFences.waitCPU(fence, wait_value); }
+
+void phi::vk::BackendVulkan::free(cc::span<const phi::handle::fence> fences) { mPoolFences.free(fences); }
+
+phi::handle::query_range phi::vk::BackendVulkan::createQueryRange(phi::query_type type, unsigned int size) { return mPoolQueries.create(type, size); }
+
+void phi::vk::BackendVulkan::free(phi::handle::query_range query_range) { mPoolQueries.free(query_range); }
+
 phi::handle::pipeline_state phi::vk::BackendVulkan::createRaytracingPipelineState(const arg::raytracing_pipeline_state_desc& description)
 {
     CC_ASSERT(isRaytracingEnabled() && "raytracing is not enabled");
@@ -467,6 +556,18 @@ bool phi::vk::BackendVulkan::startForcedDiagnosticCapture() { return mDiagnostic
 
 bool phi::vk::BackendVulkan::endForcedDiagnosticCapture() { return mDiagnostics.end_capture(); }
 
+uint64_t phi::vk::BackendVulkan::getGPUTimestampFrequency() const
+{
+    float const nanoseconds_per_timestamp = mDevice.getDeviceProperties().limits.timestampPeriod;
+    uint64_t const timestamps_per_microsecond = uint64_t(1000.f / nanoseconds_per_timestamp);
+    // us -> ms -> s (Hz)
+    return timestamps_per_microsecond * 1000 * 1000;
+}
+
+bool phi::vk::BackendVulkan::isRaytracingEnabled() const { return mDevice.hasRaytracing(); }
+
+phi::backend_type phi::vk::BackendVulkan::getBackendType() const { return backend_type::vulkan; }
+
 void phi::vk::BackendVulkan::flushGPU() { vkDeviceWaitIdle(mDevice.getDevice()); }
 
 void phi::vk::BackendVulkan::createDebugMessenger()
@@ -480,6 +581,11 @@ void phi::vk::BackendVulkan::createDebugMessenger()
     createInfo.pfnUserCallback = detail::debug_callback;
     createInfo.pUserData = this;
     PHI_VK_VERIFY_SUCCESS(vkCreateDebugUtilsMessengerEXT(mInstance, &createInfo, nullptr, &mDebugMessenger));
+}
+
+VkQueue phi::vk::BackendVulkan::getQueueByType(phi::queue_type type) const
+{
+    return (type == queue_type::direct ? mDevice.getQueueDirect() : (type == queue_type::compute ? mDevice.getQueueCompute() : mDevice.getQueueCopy()));
 }
 
 phi::vk::BackendVulkan::per_thread_component& phi::vk::BackendVulkan::getCurrentThreadComponent()

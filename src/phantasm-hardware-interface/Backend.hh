@@ -132,6 +132,7 @@ public:
     // Pipeline state interface
     //
 
+    /// create a graphics pipeline state
     [[nodiscard]] virtual handle::pipeline_state createPipelineState(arg::vertex_format vertex_format,
                                                                      arg::framebuffer_config const& framebuffer_conf,
                                                                      arg::shader_arg_shapes shader_arg_shapes,
@@ -139,6 +140,9 @@ public:
                                                                      arg::graphics_shaders shaders,
                                                                      phi::pipeline_config const& primitive_config)
         = 0;
+
+    /// create a graphics pipeline state from a compact description struct
+    [[nodiscard]] virtual handle::pipeline_state createPipelineState(arg::graphics_pipeline_state_desc const& description) = 0;
 
     [[nodiscard]] virtual handle::pipeline_state createComputePipelineState(arg::shader_arg_shapes shader_arg_shapes, arg::shader_binary shader, bool has_root_constants = false)
         = 0;

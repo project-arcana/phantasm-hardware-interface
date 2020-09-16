@@ -70,6 +70,7 @@ struct vertex_format;
 struct shader_arg_shape;
 struct shader_binary;
 struct graphics_shader;
+struct graphics_pipeline_state_desc;
 
 using shader_arg_shapes = cc::span<shader_arg_shape const>;
 using graphics_shaders = cc::span<graphics_shader const>;
