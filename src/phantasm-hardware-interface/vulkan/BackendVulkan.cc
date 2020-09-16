@@ -371,16 +371,11 @@ void phi::vk::BackendVulkan::submit(cc::span<const phi::handle::command_list> cl
     mPoolCmdLists.freeOnSubmit(submit_spans, submit_fence_index);
 }
 
-phi::handle::pipeline_state phi::vk::BackendVulkan::createRaytracingPipelineState(phi::arg::raytracing_shader_libraries libraries,
-                                                                                  arg::raytracing_argument_associations arg_assocs,
-                                                                                  phi::arg::raytracing_hit_groups hit_groups,
-                                                                                  unsigned max_recursion,
-                                                                                  unsigned max_payload_size_bytes,
-                                                                                  unsigned max_attribute_size_bytes)
+phi::handle::pipeline_state phi::vk::BackendVulkan::createRaytracingPipelineState(const arg::raytracing_pipeline_state_desc& description)
 {
     CC_ASSERT(isRaytracingEnabled() && "raytracing is not enabled");
-    return mPoolPipelines.createRaytracingPipelineState(libraries, arg_assocs, hit_groups, max_recursion, max_payload_size_bytes,
-                                                        max_attribute_size_bytes, cc::system_allocator);
+    return mPoolPipelines.createRaytracingPipelineState(description.libraries, description.argument_associations, description.hit_groups, description.max_recursion,
+                                                        description.max_payload_size_bytes, description.max_attribute_size_bytes, cc::system_allocator);
 }
 
 phi::handle::accel_struct phi::vk::BackendVulkan::createTopLevelAccelStruct(unsigned num_instances, accel_struct_build_flags_t flags)
@@ -414,10 +409,10 @@ uint64_t phi::vk::BackendVulkan::getAccelStructNativeHandle(phi::handle::accel_s
     return 0;
 }
 
-phi::shader_table_strides phi::vk::BackendVulkan::calculateShaderTableSize(const arg::shader_table_record& ray_gen_record,
-                                                                         phi::arg::shader_table_records miss_records,
-                                                                         phi::arg::shader_table_records hit_group_records,
-                                                                         phi::arg::shader_table_records callable_records)
+phi::shader_table_strides phi::vk::BackendVulkan::calculateShaderTableStrides(const arg::shader_table_record& ray_gen_record,
+                                                                              phi::arg::shader_table_records miss_records,
+                                                                              phi::arg::shader_table_records hit_group_records,
+                                                                              phi::arg::shader_table_records callable_records)
 {
     PHI_LOG_ERROR("calculateShaderTableSize unimplemented");
     return {};

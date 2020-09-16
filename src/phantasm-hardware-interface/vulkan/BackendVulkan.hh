@@ -174,12 +174,7 @@ public:
     // Raytracing interface
     //
 
-    [[nodiscard]] handle::pipeline_state createRaytracingPipelineState(arg::raytracing_shader_libraries libraries,
-                                                                       arg::raytracing_argument_associations arg_assocs,
-                                                                       arg::raytracing_hit_groups hit_groups,
-                                                                       unsigned max_recursion,
-                                                                       unsigned max_payload_size_bytes,
-                                                                       unsigned max_attribute_size_bytes) override;
+    [[nodiscard]] handle::pipeline_state createRaytracingPipelineState(arg::raytracing_pipeline_state_desc const& description) override;
 
     handle::accel_struct createTopLevelAccelStruct(unsigned num_instances, accel_struct_build_flags_t flags) override;
 
@@ -191,7 +186,7 @@ public:
 
     [[nodiscard]] uint64_t getAccelStructNativeHandle(handle::accel_struct as) override;
 
-    [[nodiscard]] shader_table_strides calculateShaderTableSize(arg::shader_table_record const& ray_gen_record,
+    [[nodiscard]] shader_table_strides calculateShaderTableStrides(arg::shader_table_record const& ray_gen_record,
                                                               arg::shader_table_records miss_records,
                                                               arg::shader_table_records hit_group_records,
                                                               arg::shader_table_records callable_records = {}) override;

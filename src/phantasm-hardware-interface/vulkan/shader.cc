@@ -31,7 +31,7 @@ void phi::vk::initialize_shader(phi::vk::shader& s, VkDevice device, const std::
     PHI_VK_VERIFY_SUCCESS(vkCreateShaderModule(device, &shader_info, nullptr, &s.module));
 }
 
-void phi::vk::patched_shader_intermediates::initialize_from_libraries(VkDevice device, phi::arg::raytracing_shader_libraries libraries, cc::allocator* alloc)
+void phi::vk::patched_shader_intermediates::initialize_from_libraries(VkDevice device, cc::span<const arg::raytracing_shader_library> libraries, cc::allocator* alloc)
 {
     patched_spirv.reset_reserve(alloc, libraries.size());
     shader_modules.reset_reserve(alloc, libraries.size() * 16);

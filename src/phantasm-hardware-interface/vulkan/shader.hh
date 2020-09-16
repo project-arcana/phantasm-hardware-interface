@@ -30,7 +30,7 @@ struct patched_shader_intermediates
     bool has_root_constants = false;
     cc::alloc_vector<util::spirv_desc_info> sorted_merged_descriptor_infos;
 
-    void initialize_from_libraries(VkDevice device, phi::arg::raytracing_shader_libraries libraries, cc::allocator* alloc);
+    void initialize_from_libraries(VkDevice device, cc::span<phi::arg::raytracing_shader_library const> libraries, cc::allocator* alloc);
 
     void free(VkDevice device);
 };

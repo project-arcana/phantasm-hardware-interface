@@ -4,7 +4,7 @@
 
 #include <typed-geometry/types/size.hh>
 
-#include <phantasm-hardware-interface/common/container/trivial_capped_vector.hh>
+#include <phantasm-hardware-interface/common/container/flat_vector.hh>
 
 #include "limits.hh"
 #include "types.hh"
@@ -14,7 +14,7 @@ namespace phi::arg
 struct framebuffer_config
 {
     /// configs of the render targets, [0, n]
-    detail::trivial_capped_vector<render_target_config, limits::max_render_targets> render_targets;
+    flat_vector<render_target_config, limits::max_render_targets> render_targets;
 
     bool logic_op_enable = false;
     blend_logic_op logic_op = blend_logic_op::no_op;
@@ -37,7 +37,7 @@ public:
 struct vertex_format
 {
     cc::span<vertex_attribute_info const> attributes;
-    unsigned vertex_size_bytes;
+    unsigned vertex_size_bytes = 0;
 };
 
 /// A shader argument consists of SRVs, UAVs, an optional CBV, and an offset into it
@@ -74,6 +74,18 @@ struct graphics_shader
 {
     shader_binary binary;
     shader_stage stage;
+};
+
+
+struct graphics_pipeline_state_desc
+{
+    pipeline_config config;
+    framebuffer_config framebuffer;
+    vertex_format vertices;
+
+    flat_vector<graphics_shader, limits::num_graphics_shader_stages> shader_binaries;
+    flat_vector<shader_arg_shape, limits::max_shader_arguments> shader_arg_shapes;
+    bool has_root_constants = false;
 };
 
 /// A graphics shader bundle consists of up to 1 shader per graphics stage
@@ -116,15 +128,15 @@ struct raytracing_library_export
 struct raytracing_shader_library
 {
     shader_binary binary;
-    detail::trivial_capped_vector<raytracing_library_export, 16> shader_exports;
+    flat_vector<raytracing_library_export, 16> shader_exports;
 };
 
 /// associates exports from libraries with their argument shapes
 struct raytracing_argument_association
 {
-    unsigned library_index = 0;                                 ///< the library containing the exports referenced below
-    detail::trivial_capped_vector<unsigned, 16> export_indices; ///< indices into raytracing_shader_library::exports of the specified library
-    detail::trivial_capped_vector<shader_arg_shape, limits::max_shader_arguments> argument_shapes;
+    unsigned library_index = 0;               ///< the library containing the exports referenced below
+    flat_vector<unsigned, 16> export_indices; ///< indices into raytracing_shader_library::exports of the specified library
+    flat_vector<shader_arg_shape, limits::max_shader_arguments> argument_shapes;
     bool has_root_constants = false;
 };
 
@@ -135,6 +147,17 @@ struct raytracing_hit_group
     char const* closest_hit_name = nullptr;
     char const* any_hit_name = nullptr;      ///< optional
     char const* intersection_name = nullptr; ///< optional
+};
+
+struct raytracing_pipeline_state_desc
+{
+    cc::span<raytracing_shader_library const> libraries;
+    cc::span<raytracing_argument_association const> argument_associations;
+    cc::span<raytracing_hit_group const> hit_groups;
+
+    unsigned max_recursion = 0;
+    unsigned max_payload_size_bytes = 0;
+    unsigned max_attribute_size_bytes;
 };
 
 struct shader_table_record
@@ -153,7 +176,7 @@ struct shader_table_record
 
     void const* root_arg_data = nullptr; ///< optional, data of the root constant data
     uint32_t root_arg_size = 0;          ///< size of the root constant data
-    detail::trivial_capped_vector<shader_argument, limits::max_shader_arguments> shader_arguments;
+    flat_vector<shader_argument, limits::max_shader_arguments> shader_arguments;
 
     void set_shader(uint8_t index)
     {
@@ -172,11 +195,6 @@ struct shader_table_record
         shader_arguments.push_back(shader_argument{cbv, sv, cbv_off});
     }
 };
-
-using raytracing_shader_libraries = cc::span<raytracing_shader_library const>;
-using raytracing_argument_associations = cc::span<raytracing_argument_association const>;
-using raytracing_hit_groups = cc::span<raytracing_hit_group const>;
-using shader_table_records = cc::span<shader_table_record const>;
 
 // resource creation info
 

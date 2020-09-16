@@ -131,9 +131,9 @@ phi::handle::pipeline_state phi::vk::PipelinePool::createComputePipelineState(ph
     return {pool_index};
 }
 
-phi::handle::pipeline_state phi::vk::PipelinePool::createRaytracingPipelineState(phi::arg::raytracing_shader_libraries libraries,
-                                                                                 phi::arg::raytracing_argument_associations arg_assocs,
-                                                                                 phi::arg::raytracing_hit_groups hit_groups,
+phi::handle::pipeline_state phi::vk::PipelinePool::createRaytracingPipelineState(cc::span<const arg::raytracing_shader_library> libraries,
+                                                                                 cc::span<const arg::raytracing_argument_association> arg_assocs,
+                                                                                 cc::span<const arg::raytracing_hit_group> hit_groups,
                                                                                  unsigned max_recursion,
                                                                                  unsigned max_payload_size_bytes,
                                                                                  unsigned max_attribute_size_bytes,

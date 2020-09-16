@@ -78,11 +78,9 @@ struct blas_element;
 struct raytracing_shader_library;
 struct raytracing_argument_association;
 struct raytracing_hit_group;
+struct raytracing_pipeline_state_desc;
 struct shader_table_record;
 
-using raytracing_shader_libraries = cc::span<raytracing_shader_library const>;
-using raytracing_argument_associations = cc::span<raytracing_argument_association const>;
-using raytracing_hit_groups = cc::span<raytracing_hit_group const>;
 using shader_table_records = cc::span<shader_table_record const>;
 
 struct create_render_target_info;

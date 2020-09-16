@@ -193,13 +193,7 @@ public:
     // Raytracing interface
     //
 
-    [[nodiscard]] virtual handle::pipeline_state createRaytracingPipelineState(arg::raytracing_shader_libraries libraries,
-                                                                               arg::raytracing_argument_associations arg_assocs,
-                                                                               arg::raytracing_hit_groups hit_groups,
-                                                                               unsigned max_recursion,
-                                                                               unsigned max_payload_size_bytes,
-                                                                               unsigned max_attribute_size_bytes)
-        = 0;
+    [[nodiscard]] virtual handle::pipeline_state createRaytracingPipelineState(arg::raytracing_pipeline_state_desc const& description) = 0;
 
     /// create a bottom level acceleration structure (BLAS) holding geometry elements
     /// out_native_handle receives the value to be written to accel_struct_instance::native_bottom_level_as_handle
@@ -219,10 +213,10 @@ public:
     [[nodiscard]] virtual uint64_t getAccelStructNativeHandle(handle::accel_struct as) = 0;
 
     /// calculate the buffer sizes and strides to accomodate the given shader table records
-    [[nodiscard]] virtual shader_table_strides calculateShaderTableSize(arg::shader_table_record const& ray_gen_record,
-                                                                        arg::shader_table_records miss_records,
-                                                                        arg::shader_table_records hit_group_records,
-                                                                        arg::shader_table_records callable_records = {})
+    [[nodiscard]] virtual shader_table_strides calculateShaderTableStrides(arg::shader_table_record const& ray_gen_record,
+                                                                           arg::shader_table_records miss_records,
+                                                                           arg::shader_table_records hit_group_records,
+                                                                           arg::shader_table_records callable_records = {})
         = 0;
 
     /// write shader table records to memory - usually a mapped buffer

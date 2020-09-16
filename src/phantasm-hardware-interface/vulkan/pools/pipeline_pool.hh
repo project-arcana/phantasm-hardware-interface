@@ -36,9 +36,9 @@ public:
                                                                     bool should_have_push_constants,
                                                                     cc::allocator* scratch_alloc);
 
-    [[nodiscard]] handle::pipeline_state createRaytracingPipelineState(arg::raytracing_shader_libraries libraries,
-                                                                       arg::raytracing_argument_associations arg_assocs,
-                                                                       arg::raytracing_hit_groups hit_groups,
+    [[nodiscard]] handle::pipeline_state createRaytracingPipelineState(cc::span<arg::raytracing_shader_library const> libraries,
+                                                                       cc::span<arg::raytracing_argument_association const> arg_assocs,
+                                                                       cc::span<arg::raytracing_hit_group const> hit_groups,
                                                                        unsigned max_recursion,
                                                                        unsigned max_payload_size_bytes,
                                                                        unsigned max_attribute_size_bytes,

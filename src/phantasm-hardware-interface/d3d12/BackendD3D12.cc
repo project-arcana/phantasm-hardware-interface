@@ -278,16 +278,11 @@ void phi::d3d12::BackendD3D12::submit(cc::span<const phi::handle::command_list> 
     mPoolCmdLists.freeOnSubmit(cls, target_queue);
 }
 
-phi::handle::pipeline_state phi::d3d12::BackendD3D12::createRaytracingPipelineState(arg::raytracing_shader_libraries libraries,
-                                                                                    arg::raytracing_argument_associations arg_assocs,
-                                                                                    arg::raytracing_hit_groups hit_groups,
-                                                                                    unsigned max_recursion,
-                                                                                    unsigned max_payload_size_bytes,
-                                                                                    unsigned max_attribute_size_bytes)
+phi::handle::pipeline_state phi::d3d12::BackendD3D12::createRaytracingPipelineState(const arg::raytracing_pipeline_state_desc& description)
 {
     CC_ASSERT(isRaytracingEnabled() && "raytracing is not enabled");
-    return mPoolPSOs.createRaytracingPipelineState(libraries, arg_assocs, hit_groups, max_recursion, max_payload_size_bytes, max_attribute_size_bytes,
-                                                   cc::system_allocator);
+    return mPoolPSOs.createRaytracingPipelineState(description.libraries, description.argument_associations, description.hit_groups, description.max_recursion,
+                                                   description.max_payload_size_bytes, description.max_attribute_size_bytes, cc::system_allocator);
 }
 
 phi::handle::accel_struct phi::d3d12::BackendD3D12::createTopLevelAccelStruct(unsigned num_instances, accel_struct_build_flags_t flags)
@@ -313,10 +308,10 @@ phi::handle::resource phi::d3d12::BackendD3D12::getAccelStructBuffer(phi::handle
 
 uint64_t phi::d3d12::BackendD3D12::getAccelStructNativeHandle(phi::handle::accel_struct as) { return mPoolAccelStructs.getNode(as).raw_as_handle; }
 
-phi::shader_table_strides phi::d3d12::BackendD3D12::calculateShaderTableSize(arg::shader_table_record const& ray_gen_record,
-                                                                           arg::shader_table_records miss_records,
-                                                                           arg::shader_table_records hit_group_records,
-                                                                           arg::shader_table_records callable_records)
+phi::shader_table_strides phi::d3d12::BackendD3D12::calculateShaderTableStrides(arg::shader_table_record const& ray_gen_record,
+                                                                                arg::shader_table_records miss_records,
+                                                                                arg::shader_table_records hit_group_records,
+                                                                                arg::shader_table_records callable_records)
 {
     return mShaderTableCtor.calculateShaderTableSizes(ray_gen_record, miss_records, hit_group_records, callable_records);
 }

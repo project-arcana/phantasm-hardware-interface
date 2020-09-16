@@ -6,7 +6,7 @@
 #include <typed-geometry/types/size.hh>
 
 #include <phantasm-hardware-interface/common/command_base.hh>
-#include <phantasm-hardware-interface/common/container/trivial_capped_vector.hh>
+#include <phantasm-hardware-interface/common/container/flat_vector.hh>
 #include <phantasm-hardware-interface/limits.hh>
 #include <phantasm-hardware-interface/types.hh>
 
@@ -14,9 +14,6 @@ namespace phi
 {
 namespace cmd
 {
-template <class T, uint8_t N>
-using cmd_vector = phi::detail::trivial_capped_vector<T, N>;
-
 PHI_DEFINE_CMD(begin_render_pass)
 {
     struct render_target_info
@@ -34,7 +31,7 @@ PHI_DEFINE_CMD(begin_render_pass)
         rt_clear_type clear_type;
     };
 
-    cmd_vector<render_target_info, limits::max_render_targets> render_targets;
+    flat_vector<render_target_info, limits::max_render_targets> render_targets;
     depth_stencil_info depth_target;
     tg::isize2 viewport = {0, 0};       ///< viewport dimensions being rendered to, in pixels
     tg::ivec2 viewport_offset = {0, 0}; ///< offset of the viewport, in pixels from the top left corner
@@ -77,7 +74,7 @@ PHI_DEFINE_CMD(transition_resources)
     // it is inserted last-minute at submission - thus, that resource is in that state
     // not just after the transition, but right away from the beginning of the cmdlist
 
-    cmd_vector<transition_info, limits::max_resource_transitions> transitions;
+    flat_vector<transition_info, limits::max_resource_transitions> transitions;
 
 public:
     // convenience
@@ -106,7 +103,7 @@ PHI_DEFINE_CMD(transition_image_slices)
         int array_slice;
     };
 
-    cmd_vector<slice_transition_info, limits::max_resource_transitions> transitions;
+    flat_vector<slice_transition_info, limits::max_resource_transitions> transitions;
 
 public:
     // convenience
@@ -131,7 +128,7 @@ PHI_DEFINE_CMD(barrier_uav)
 {
     // explicitly record UAV barriers on the spot (currently D3D12 only)
 
-    cmd_vector<handle::resource, limits::max_uav_barriers> resources;
+    flat_vector<handle::resource, limits::max_uav_barriers> resources;
 };
 
 
@@ -139,8 +136,8 @@ PHI_DEFINE_CMD(draw)
 {
     static_assert(limits::max_root_constant_bytes > 0, "root constant size must be nonzero");
 
-    std::byte root_constants[limits::max_root_constant_bytes];                  // optional
-    cmd_vector<shader_argument, limits::max_shader_arguments> shader_arguments; // optional
+    std::byte root_constants[limits::max_root_constant_bytes];                   // optional
+    flat_vector<shader_argument, limits::max_shader_arguments> shader_arguments; // optional
     handle::pipeline_state pipeline_state = handle::null_pipeline_state;
     handle::resource vertex_buffer = handle::null_resource; // optional
     handle::resource index_buffer = handle::null_resource;  // optional
@@ -185,8 +182,8 @@ public:
 
 PHI_DEFINE_CMD(draw_indirect)
 {
-    std::byte root_constants[limits::max_root_constant_bytes];                  // optional
-    cmd_vector<shader_argument, limits::max_shader_arguments> shader_arguments; // optional
+    std::byte root_constants[limits::max_root_constant_bytes];                   // optional
+    flat_vector<shader_argument, limits::max_shader_arguments> shader_arguments; // optional
     handle::pipeline_state pipeline_state = handle::null_pipeline_state;
 
     handle::resource indirect_argument_buffer = handle::null_resource;
@@ -219,7 +216,7 @@ PHI_DEFINE_CMD(dispatch)
     static_assert(limits::max_root_constant_bytes > 0, "root constant size must be nonzero");
 
     std::byte root_constants[limits::max_root_constant_bytes];
-    cmd_vector<shader_argument, limits::max_shader_arguments> shader_arguments;
+    flat_vector<shader_argument, limits::max_shader_arguments> shader_arguments;
     unsigned dispatch_x = 0;
     unsigned dispatch_y = 0;
     unsigned dispatch_z = 0;
@@ -518,7 +515,7 @@ PHI_DEFINE_CMD(clear_textures)
         rt_clear_value value;
     };
 
-    cmd_vector<clear_info, 4> clear_ops;
+    flat_vector<clear_info, 4> clear_ops;
 };
 
 #undef PHI_DEFINE_CMD
