@@ -249,9 +249,6 @@ phi::format phi::vk::BackendVulkan::getBackbufferFormat(phi::handle::swapchain s
 }
 
 
-
-
-
 phi::handle::resource phi::vk::BackendVulkan::createTexture(
     phi::format format, tg::isize2 size, unsigned mips, phi::texture_dimension dim, unsigned depth_or_array_size, bool allow_uav, const char* debug_name)
 {
@@ -313,6 +310,11 @@ phi::handle::pipeline_state phi::vk::BackendVulkan::createPipelineState(const ph
 phi::handle::pipeline_state phi::vk::BackendVulkan::createComputePipelineState(phi::arg::shader_arg_shapes shader_arg_shapes, phi::arg::shader_binary shader, bool has_root_constants)
 {
     return mPoolPipelines.createComputePipelineState(shader_arg_shapes, shader, has_root_constants, cc::system_allocator);
+}
+
+phi::handle::pipeline_state phi::vk::BackendVulkan::createComputePipelineState(const phi::arg::compute_pipeline_state_desc& description)
+{
+    return mPoolPipelines.createComputePipelineState(description.shader_arg_shapes, description.shader, description.has_root_constants, cc::system_allocator);
 }
 
 void phi::vk::BackendVulkan::free(phi::handle::pipeline_state ps) { mPoolPipelines.free(ps); }

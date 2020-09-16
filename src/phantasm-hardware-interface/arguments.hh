@@ -66,8 +66,8 @@ using shader_arg_shapes = cc::span<shader_arg_shape const>;
 
 struct shader_binary
 {
-    std::byte const* data; ///< pointer to the (backend-dependent) shader binary data
-    size_t size;
+    std::byte const* data = nullptr; ///< pointer to the (backend-dependent) shader binary data
+    size_t size = 0;
 };
 
 struct graphics_shader
@@ -76,6 +76,8 @@ struct graphics_shader
     shader_stage stage;
 };
 
+/// A graphics shader bundle consists of up to 1 shader per graphics stage
+using graphics_shaders = cc::span<graphics_shader const>;
 
 struct graphics_pipeline_state_desc
 {
@@ -88,22 +90,12 @@ struct graphics_pipeline_state_desc
     bool has_root_constants = false;
 };
 
-/// A graphics shader bundle consists of up to 1 shader per graphics stage
-using graphics_shaders = cc::span<graphics_shader const>;
-
-inline bool operator==(shader_arg_shapes const& lhs, shader_arg_shapes const& rhs) noexcept
+struct compute_pipeline_state_desc
 {
-    if (lhs.size() != rhs.size())
-        return false;
-
-    for (auto i = 0u; i < lhs.size(); ++i)
-    {
-        if (!(lhs[i] == rhs[i]))
-            return false;
-    }
-
-    return true;
-}
+    shader_binary shader;
+    flat_vector<shader_arg_shape, limits::max_shader_arguments> shader_arg_shapes;
+    bool has_root_constants = false;
+};
 
 /// an element in a bottom-level acceleration strucutre
 struct blas_element

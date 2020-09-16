@@ -147,6 +147,8 @@ public:
     [[nodiscard]] virtual handle::pipeline_state createComputePipelineState(arg::shader_arg_shapes shader_arg_shapes, arg::shader_binary shader, bool has_root_constants = false)
         = 0;
 
+    [[nodiscard]] virtual handle::pipeline_state createComputePipelineState(arg::compute_pipeline_state_desc const& description) = 0;
+
     virtual void free(handle::pipeline_state ps) = 0;
 
     //

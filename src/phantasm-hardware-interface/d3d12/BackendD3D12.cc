@@ -272,6 +272,11 @@ phi::handle::pipeline_state phi::d3d12::BackendD3D12::createComputePipelineState
     return mPoolPSOs.createComputePipelineState(shader_arg_shapes, shader, has_root_constants);
 }
 
+phi::handle::pipeline_state phi::d3d12::BackendD3D12::createComputePipelineState(const phi::arg::compute_pipeline_state_desc& description)
+{
+    return mPoolPSOs.createComputePipelineState(description.shader_arg_shapes, description.shader, description.has_root_constants);
+}
+
 void phi::d3d12::BackendD3D12::free(phi::handle::pipeline_state ps) { mPoolPSOs.free(ps); }
 
 phi::handle::command_list phi::d3d12::BackendD3D12::recordCommandList(std::byte* buffer, size_t size, queue_type queue)
