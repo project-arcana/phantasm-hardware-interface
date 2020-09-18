@@ -121,7 +121,7 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg)
         volkLoadDevice(mDevice.getDevice());
 
         print_startup_message(gpu_infos, chosen_index, config, false);
-        PHI_LOG("   vulkan sdk v{}.{}.{}", VK_VERSION_MAJOR(VK_HEADER_VERSION_COMPLETE), VK_VERSION_MINOR(VK_HEADER_VERSION_COMPLETE),
+        PHI_LOG("   compiled with vulkan sdk v{}.{}.{}", VK_VERSION_MAJOR(VK_HEADER_VERSION_COMPLETE), VK_VERSION_MINOR(VK_HEADER_VERSION_COMPLETE),
                 VK_VERSION_PATCH(VK_HEADER_VERSION_COMPLETE));
     }
 

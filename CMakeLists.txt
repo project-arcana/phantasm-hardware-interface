@@ -24,6 +24,14 @@ option(PHI_ENABLE_SDL2 "enable SDL2 integration" ON)
 # =========================================
 # post-process options
 
+macro(_get_vulkan_sdk_version_number_from_folder path_to_check out_version)
+    string ( REGEX MATCH ".*([0-9]+)\\.([0-9]+)\\.([0-9]+)\\.([0-9]+)" result "${path_to_check}" )
+    if (result)
+        # path has a version number
+        SET (${out_version} "${CMAKE_MATCH_1}.${CMAKE_MATCH_2}.${CMAKE_MATCH_3}.${CMAKE_MATCH_4}" )
+    endif()
+endmacro()
+
 if (PHI_BACKEND_VULKAN)
     # use provided .cmake modules in ./cmake/ with the latest FindVulkan.cmake, which is broken out of the box on older CMake versions
     set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
@@ -31,7 +39,12 @@ if (PHI_BACKEND_VULKAN)
     find_package(Vulkan)
 
     if (NOT Vulkan_FOUND)
+        message(WARNING "Failed to find Vulkan SDK, ensure Vulkan SDK is installed, and environment variable VULKAN_SDK is set correctly")
         set(PHI_BACKEND_VULKAN OFF)
+    else()
+        set(phi_found_vulkan_sdk_version "")
+        _get_vulkan_sdk_version_number_from_folder(${Vulkan_INCLUDE_DIRS}, phi_found_vulkan_sdk_version)
+        message(STATUS "[phantasm hardware interface] found Vulkan SDK ${phi_found_vulkan_sdk_version}")
     endif()
 endif()
 
