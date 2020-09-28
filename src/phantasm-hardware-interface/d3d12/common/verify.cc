@@ -73,6 +73,69 @@ char const* get_breadcrumb_op_literal(D3D12_AUTO_BREADCRUMB_OP op)
 #undef PHI_D3D12_BC_SWITCH_RETURN
 }
 
+char const* get_hresult_literal(HRESULT hr)
+{
+#define PHI_D3D12_HR_SWITCH_RETURN(_opname_) \
+    case _opname_:                           \
+        return #_opname_
+
+    switch (hr)
+    {
+        // common win32
+        PHI_D3D12_HR_SWITCH_RETURN(E_UNEXPECTED);
+        PHI_D3D12_HR_SWITCH_RETURN(E_NOTIMPL);
+        PHI_D3D12_HR_SWITCH_RETURN(E_OUTOFMEMORY);
+        PHI_D3D12_HR_SWITCH_RETURN(E_INVALIDARG);
+        PHI_D3D12_HR_SWITCH_RETURN(E_NOINTERFACE);
+        PHI_D3D12_HR_SWITCH_RETURN(E_POINTER);
+        PHI_D3D12_HR_SWITCH_RETURN(E_HANDLE);
+        PHI_D3D12_HR_SWITCH_RETURN(E_ABORT);
+        PHI_D3D12_HR_SWITCH_RETURN(E_FAIL);
+        PHI_D3D12_HR_SWITCH_RETURN(E_ACCESSDENIED);
+        PHI_D3D12_HR_SWITCH_RETURN(E_PENDING);
+        PHI_D3D12_HR_SWITCH_RETURN(E_BOUNDS);
+        PHI_D3D12_HR_SWITCH_RETURN(E_CHANGED_STATE);
+        PHI_D3D12_HR_SWITCH_RETURN(E_ILLEGAL_STATE_CHANGE);
+        PHI_D3D12_HR_SWITCH_RETURN(S_FALSE);
+
+        // d3d12
+        PHI_D3D12_HR_SWITCH_RETURN(D3D12_ERROR_ADAPTER_NOT_FOUND);
+        PHI_D3D12_HR_SWITCH_RETURN(D3D12_ERROR_DRIVER_VERSION_MISMATCH);
+        // PHI_D3D12_HR_SWITCH_RETURN(D3DERR_INVALIDCALL);
+        // PHI_D3D12_HR_SWITCH_RETURN(D3DERR_WASSTILLDRAWING);
+
+        // dxgi
+        PHI_D3D12_HR_SWITCH_RETURN(DXGI_ERROR_ACCESS_DENIED);
+        PHI_D3D12_HR_SWITCH_RETURN(DXGI_ERROR_ACCESS_LOST);
+        PHI_D3D12_HR_SWITCH_RETURN(DXGI_ERROR_ALREADY_EXISTS);
+        PHI_D3D12_HR_SWITCH_RETURN(DXGI_ERROR_DEVICE_HUNG);
+        PHI_D3D12_HR_SWITCH_RETURN(DXGI_ERROR_DEVICE_REMOVED);
+        PHI_D3D12_HR_SWITCH_RETURN(DXGI_ERROR_DEVICE_RESET);
+        PHI_D3D12_HR_SWITCH_RETURN(DXGI_ERROR_DRIVER_INTERNAL_ERROR);
+        PHI_D3D12_HR_SWITCH_RETURN(DXGI_ERROR_FRAME_STATISTICS_DISJOINT);
+        PHI_D3D12_HR_SWITCH_RETURN(DXGI_ERROR_GRAPHICS_VIDPN_SOURCE_IN_USE);
+        PHI_D3D12_HR_SWITCH_RETURN(DXGI_ERROR_INVALID_CALL);
+        PHI_D3D12_HR_SWITCH_RETURN(DXGI_ERROR_MORE_DATA);
+        PHI_D3D12_HR_SWITCH_RETURN(DXGI_ERROR_NAME_ALREADY_EXISTS);
+        PHI_D3D12_HR_SWITCH_RETURN(DXGI_ERROR_NONEXCLUSIVE);
+        PHI_D3D12_HR_SWITCH_RETURN(DXGI_ERROR_NOT_CURRENTLY_AVAILABLE);
+        PHI_D3D12_HR_SWITCH_RETURN(DXGI_ERROR_NOT_FOUND);
+        PHI_D3D12_HR_SWITCH_RETURN(DXGI_ERROR_REMOTE_CLIENT_DISCONNECTED);
+        PHI_D3D12_HR_SWITCH_RETURN(DXGI_ERROR_REMOTE_OUTOFMEMORY);
+        PHI_D3D12_HR_SWITCH_RETURN(DXGI_ERROR_RESTRICT_TO_OUTPUT_STALE);
+        PHI_D3D12_HR_SWITCH_RETURN(DXGI_ERROR_SDK_COMPONENT_MISSING);
+        PHI_D3D12_HR_SWITCH_RETURN(DXGI_ERROR_SESSION_DISCONNECTED);
+        PHI_D3D12_HR_SWITCH_RETURN(DXGI_ERROR_UNSUPPORTED);
+        PHI_D3D12_HR_SWITCH_RETURN(DXGI_ERROR_WAIT_TIMEOUT);
+        PHI_D3D12_HR_SWITCH_RETURN(DXGI_ERROR_WAS_STILL_DRAWING);
+
+    default:
+        return "[unrecognized HRESULT code]";
+    }
+
+#undef PHI_D3D12_HR_SWITCH_RETURN
+}
+
 /// outputs a HRESULT's error message to a buffer, returns amount of characters
 DWORD get_hresult_error_message(HRESULT error_code, char* out_string, DWORD out_length)
 {
@@ -94,7 +157,7 @@ void print_dred_information(ID3D12Device* device)
     get_hresult_error_message(removal_reason, removal_reason_string, sizeof(removal_reason_string));
 
     PHI_LOG_ASSERT("device removal reason:");
-    PHI_LOG_ASSERT(R"(  "{}")", static_cast<char const*>(removal_reason_string));
+    PHI_LOG_ASSERT(R"(  {}: "{}")", get_hresult_literal(removal_reason), static_cast<char const*>(removal_reason_string));
 
     phi::d3d12::shared_com_ptr<ID3D12DeviceRemovedExtendedData> dred;
     if (SUCCEEDED(device->QueryInterface(PHI_COM_WRITE(dred))))
@@ -212,7 +275,7 @@ void phi::d3d12::detail::verify_failure_handler(HRESULT hr, const char* expressi
 
     PHI_LOG_ASSERT("D3D12 call {} failed", expression);
     PHI_LOG_ASSERT("  error:");
-    PHI_LOG_ASSERT("    \"{}\"", static_cast<char const*>(error_string));
+    PHI_LOG_ASSERT("    {}: \"{}\"", get_hresult_literal(hr), static_cast<char const*>(error_string));
     PHI_LOG_ASSERT("  in file {}:{}", filename, line);
 
     if (hr == DXGI_ERROR_DEVICE_REMOVED && device)
