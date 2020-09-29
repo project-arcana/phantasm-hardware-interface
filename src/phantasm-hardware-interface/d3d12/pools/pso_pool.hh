@@ -53,7 +53,7 @@ public:
     struct rt_pso_node
     {
         ID3D12StateObject* raw_state_object;
-        ID3D12StateObjectProperties* raw_state_object_props;
+        ID3D12StateObjectProperties* raw_state_object_props; // currently unused after creation, could be removed
         cc::capped_vector<root_signature*, limits::max_raytracing_argument_assocs> associated_root_signatures;
 
         struct export_info

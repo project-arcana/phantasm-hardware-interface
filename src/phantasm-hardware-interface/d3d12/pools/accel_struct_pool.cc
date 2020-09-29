@@ -85,10 +85,11 @@ phi::handle::accel_struct phi::d3d12::AccelStructPool::createBottomLevelAS(cc::s
     CC_ASSERT(prebuild_info.ResultDataMaxSizeInBytes > 0);
 
     // Create scratch and result buffers
-    new_node.buffer_as
-        = mResourcePool->createBufferInternal(prebuild_info.ResultDataMaxSizeInBytes, 0, true, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE);
-    new_node.buffer_scratch = mResourcePool->createBufferInternal(
-        cc::max<UINT64>(prebuild_info.ScratchDataSizeInBytes, prebuild_info.UpdateScratchDataSizeInBytes), 0, true, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    new_node.buffer_as = mResourcePool->createBufferInternal(prebuild_info.ResultDataMaxSizeInBytes, 0, true,
+                                                             D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, "pool BLAS buffer");
+    new_node.buffer_scratch
+        = mResourcePool->createBufferInternal(cc::max<UINT64>(prebuild_info.ScratchDataSizeInBytes, prebuild_info.UpdateScratchDataSizeInBytes), 0,
+                                              true, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, "pool BLAS scratch");
 
     // query GPU VA ("raw native handle" in phi API naming)
     new_node.raw_as_handle = mResourcePool->getBufferInfo(new_node.buffer_as).gpu_va;
@@ -120,10 +121,11 @@ phi::handle::accel_struct phi::d3d12::AccelStructPool::createTopLevelAS(unsigned
     CC_ASSERT(prebuild_info.ResultDataMaxSizeInBytes > 0);
 
     // Create scratch and result buffers
-    new_node.buffer_as
-        = mResourcePool->createBufferInternal(prebuild_info.ResultDataMaxSizeInBytes, 0, true, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE);
-    new_node.buffer_scratch = mResourcePool->createBufferInternal(
-        cc::max<UINT64>(prebuild_info.ScratchDataSizeInBytes, prebuild_info.UpdateScratchDataSizeInBytes), 0, true, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    new_node.buffer_as = mResourcePool->createBufferInternal(prebuild_info.ResultDataMaxSizeInBytes, 0, true,
+                                                             D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, "pool TLAS buffer");
+    new_node.buffer_scratch
+        = mResourcePool->createBufferInternal(cc::max<UINT64>(prebuild_info.ScratchDataSizeInBytes, prebuild_info.UpdateScratchDataSizeInBytes), 0,
+                                              true, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, "pool TLAS scratch");
 
     // query GPU VA ("raw native handle" in phi API naming)
     new_node.raw_as_handle = mResourcePool->getBufferInfo(new_node.buffer_as).gpu_va;

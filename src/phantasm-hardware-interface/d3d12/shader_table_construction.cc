@@ -43,9 +43,9 @@ phi::shader_table_strides phi::d3d12::ShaderTableConstructor::calculateShaderTab
 void phi::d3d12::ShaderTableConstructor::writeShaderTable(std::byte* dest, handle::pipeline_state pso, unsigned stride_bytes, cc::span<arg::shader_table_record const> records)
 {
     CC_ASSERT(pool_pipeline_states->isRaytracingPipeline(pso) && "invalid or non-raytracing PSO given");
-    auto const& pso_info = pool_pipeline_states->getRaytrace(pso);
+    CC_ASSERT(PHI_IMPLIES(stride_bytes == 0, records.size() == 1) && "if no stride is specified, no more than a single record is allowed");
 
-    CC_ASSERT(stride_bytes == 0 ? records.size() == 1 : true && "if no stride is specified, no more than a single record is allowed");
+    auto const& pso_info = pool_pipeline_states->getRaytrace(pso);
 
     std::byte* data_ptr_outer = dest;
     for (auto const& rec : records)

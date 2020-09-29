@@ -32,7 +32,8 @@ public:
 
     void unmapBuffer(handle::resource res, int begin = 0, int end = -1);
 
-    [[nodiscard]] handle::resource createBufferInternal(uint64_t size_bytes, unsigned stride_bytes, bool allow_uav, D3D12_RESOURCE_STATES initial_state);
+    [[nodiscard]] handle::resource createBufferInternal(
+        uint64_t size_bytes, unsigned stride_bytes, bool allow_uav, D3D12_RESOURCE_STATES initial_state, const char* debug_name = "unnamed internal buffer");
 
     void free(handle::resource res);
     void free(cc::span<handle::resource const> resources);

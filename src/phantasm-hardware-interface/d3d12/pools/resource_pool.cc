@@ -254,7 +254,8 @@ void phi::d3d12::ResourcePool::unmapBuffer(phi::handle::resource res, int begin,
     node.resource->Unmap(0, &range);
 }
 
-phi::handle::resource phi::d3d12::ResourcePool::createBufferInternal(uint64_t size_bytes, unsigned stride_bytes, bool allow_uav, D3D12_RESOURCE_STATES initial_state)
+phi::handle::resource phi::d3d12::ResourcePool::createBufferInternal(
+    uint64_t size_bytes, unsigned stride_bytes, bool allow_uav, D3D12_RESOURCE_STATES initial_state, char const* debug_name)
 {
     auto desc = CD3DX12_RESOURCE_DESC::Buffer(size_bytes);
 
@@ -262,7 +263,7 @@ phi::handle::resource phi::d3d12::ResourcePool::createBufferInternal(uint64_t si
         desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
     auto* const alloc = mAllocator.allocate(desc, initial_state);
-    util::set_object_name(alloc->GetResource(), "respool internal buffer");
+    util::set_object_name(alloc->GetResource(), debug_name);
     return acquireBuffer(alloc, initial_state, size_bytes, stride_bytes, resource_heap::gpu);
 }
 
