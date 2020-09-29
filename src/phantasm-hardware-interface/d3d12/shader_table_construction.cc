@@ -18,9 +18,9 @@
 #include "pools/shader_view_pool.hh"
 
 phi::shader_table_strides phi::d3d12::ShaderTableConstructor::calculateShaderTableSizes(const arg::shader_table_record& ray_gen_record,
-                                                                                        phi::arg::shader_table_records miss_records,
-                                                                                        phi::arg::shader_table_records hit_group_records,
-                                                                                        arg::shader_table_records callable_records)
+                                                                                        cc::span<arg::shader_table_record const> miss_records,
+                                                                                        cc::span<arg::shader_table_record const> hit_group_records,
+                                                                                        cc::span<arg::shader_table_record const> callable_records)
 {
     shader_table_strides res = {};
     res.size_ray_gen = getShaderRecordSize(cc::span{ray_gen_record});
@@ -34,13 +34,13 @@ phi::shader_table_strides phi::d3d12::ShaderTableConstructor::calculateShaderTab
     res.stride_callable = getShaderRecordSize(callable_records);
     res.size_callable = res.stride_callable * unsigned(callable_records.size());
 
-    // any individual table must start at a 64B-aligned address
+    // any individual table record must start at a 64B-aligned address
     static_assert(D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT == 64, "shader table alignment wrong");
 
     return res;
 }
 
-void phi::d3d12::ShaderTableConstructor::writeShaderTable(std::byte* dest, handle::pipeline_state pso, unsigned stride_bytes, arg::shader_table_records records)
+void phi::d3d12::ShaderTableConstructor::writeShaderTable(std::byte* dest, handle::pipeline_state pso, unsigned stride_bytes, cc::span<arg::shader_table_record const> records)
 {
     CC_ASSERT(pool_pipeline_states->isRaytracingPipeline(pso) && "invalid or non-raytracing PSO given");
     auto const& pso_info = pool_pipeline_states->getRaytrace(pso);
@@ -67,10 +67,11 @@ void phi::d3d12::ShaderTableConstructor::writeShaderTable(std::byte* dest, handl
         data_ptr_inner += D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
 
         // copy the root constants
-        if (rec.root_arg_size > 0)
+        if (rec.root_arg_size_bytes > 0)
         {
-            std::memcpy(data_ptr_inner, rec.root_arg_data, rec.root_arg_size);
-            data_ptr_inner += rec.root_arg_size;
+            std::memcpy(data_ptr_inner, rec.root_arg_data, rec.root_arg_size_bytes);
+            // root constants must fill a multiple of 8 bytes
+            data_ptr_inner += phi::util::align_up(rec.root_arg_size_bytes, 8u);
         }
 
         for (auto const& arg : rec.shader_arguments)
@@ -82,7 +83,7 @@ void phi::d3d12::ShaderTableConstructor::writeShaderTable(std::byte* dest, handl
 
                 D3D12_GPU_VIRTUAL_ADDRESS const cbv_va = pool_resources->getBufferInfo(arg.constant_buffer).gpu_va + arg.constant_buffer_offset;
                 std::memcpy(data_ptr_inner, &cbv_va, sizeof(D3D12_GPU_VIRTUAL_ADDRESS));
-                data_ptr_inner += sizeof(void*);
+                data_ptr_inner += sizeof(D3D12_GPU_VIRTUAL_ADDRESS);
             }
 
             if (arg.shader_view.is_valid())
@@ -92,7 +93,7 @@ void phi::d3d12::ShaderTableConstructor::writeShaderTable(std::byte* dest, handl
                 {
                     D3D12_GPU_DESCRIPTOR_HANDLE const srv_uav_start = pool_shader_views->getSRVUAVGPUHandle(arg.shader_view);
                     std::memcpy(data_ptr_inner, &srv_uav_start, sizeof(D3D12_GPU_DESCRIPTOR_HANDLE));
-                    data_ptr_inner += sizeof(void*);
+                    data_ptr_inner += sizeof(D3D12_GPU_VIRTUAL_ADDRESS);
                 }
 
                 // copy the sampler GPU descriptor
@@ -100,7 +101,7 @@ void phi::d3d12::ShaderTableConstructor::writeShaderTable(std::byte* dest, handl
                 {
                     D3D12_GPU_DESCRIPTOR_HANDLE const sampler_start = pool_shader_views->getSamplerGPUHandle(arg.shader_view);
                     std::memcpy(data_ptr_inner, &sampler_start, sizeof(D3D12_GPU_DESCRIPTOR_HANDLE));
-                    data_ptr_inner += sizeof(void*);
+                    data_ptr_inner += sizeof(D3D12_GPU_VIRTUAL_ADDRESS);
                 }
             }
         }
@@ -123,38 +124,46 @@ void phi::d3d12::ShaderTableConstructor::initialize(ID3D12Device5* device,
 }
 
 
-unsigned phi::d3d12::ShaderTableConstructor::getShaderRecordSize(phi::arg::shader_table_records records)
+unsigned phi::d3d12::ShaderTableConstructor::getShaderRecordSize(cc::span<arg::shader_table_record const> records)
 {
-    unsigned max_num_args = 0;
+    unsigned max_num_8byte_blocks = 0;
+
     for (auto const& rec : records)
     {
-        CC_ASSERT(rec.root_arg_size % sizeof(DWORD32) == 0 && "non-round dword amount");
+        unsigned num_8byte_blocks = 0;
 
         // root constants in the beginning
-        unsigned num_args = (rec.root_arg_size / uint32_t(sizeof(DWORD32)));
+        // the root constant section must be packed into 8 byte blocks, ceil the given size to a multiple of 8
+        // (effectively 'align_up(size, 8) / 8')
+        num_8byte_blocks += cc::int_div_ceil(rec.root_arg_size_bytes, 8u);
 
         for (auto const& arg : rec.shader_arguments)
         {
             // CBV adds a single GPU VA
             if (arg.constant_buffer.is_valid())
-                ++num_args;
+                ++num_8byte_blocks;
 
             if (arg.shader_view.is_valid())
             {
                 // Any SRVs / UAVs add a single descriptor heap pointer
                 if (pool_shader_views->hasSRVsUAVs(arg.shader_view))
-                    ++num_args;
+                    ++num_8byte_blocks;
 
                 // Same for any samplers
                 if (pool_shader_views->hasSamplers(arg.shader_view))
-                    ++num_args;
+                    ++num_8byte_blocks;
             }
         }
 
-        max_num_args = cc::max<uint32_t>(max_num_args, num_args);
+        max_num_8byte_blocks = cc::max<uint32_t>(max_num_8byte_blocks, num_8byte_blocks);
     }
 
 
     // size of the program identifier, plus 8 bytes per maximum over the record's arguments, aligned to shader record alignment alignment
-    return phi::util::align_up(D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES + 8u * max_num_args, D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT);
+
+    auto const size_unaligned = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES // sign of the program identifier
+                                + 8u * max_num_8byte_blocks; // all records use as much space for arguments as the largest one: 8 byte per pointer / root constant
+
+    // align correctly
+    return phi::util::align_up(size_unaligned, D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT);
 }

@@ -21,9 +21,9 @@ public:
     [[nodiscard]] handle::accel_struct createTopLevelAS(unsigned num_instances, accel_struct_build_flags_t flags);
 
     [[nodiscard]] shader_table_strides calculateShaderTableSize(handle::accel_struct as,
-                                                              arg::shader_table_records ray_gen_records,
-                                                              arg::shader_table_records miss_records,
-                                                              arg::shader_table_records hit_group_records);
+                                                                cc::span<arg::shader_table_record const> ray_gen_records,
+                                                                cc::span<arg::shader_table_record const> miss_records,
+                                                                cc::span<arg::shader_table_record const> hit_group_records);
 
     void free(handle::accel_struct as);
     void free(cc::span<handle::accel_struct const> as);

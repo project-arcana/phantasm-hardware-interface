@@ -132,6 +132,7 @@ struct raytracing_argument_association
     bool has_root_constants = false;
 };
 
+/// a triangle hit group, has a closest hit shader, and optionally an any hit and intersection shader
 struct raytracing_hit_group
 {
     // TODO: instead of names, indices into library exports? (D3D12 / Vk Tradeoff)
@@ -167,7 +168,7 @@ struct shader_table_record
     unsigned target_index = 0;
 
     void const* root_arg_data = nullptr; ///< optional, data of the root constant data
-    uint32_t root_arg_size = 0;          ///< size of the root constant data
+    uint32_t root_arg_size_bytes = 0;    ///< size of the root constant data
     flat_vector<shader_argument, limits::max_shader_arguments> shader_arguments;
 
     void set_shader(uint8_t index)

@@ -126,6 +126,8 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracin
         rt_pso_node& new_node = mPoolRaytracing.get(pool_index);
         new_node.associated_root_signatures.clear();
 
+        // each argument association constitutes a local root signature
+        // (the global root signature is empty and shared across all RT PSOs)
         for (auto const& aa : arg_assocs)
         {
             new_node.associated_root_signatures.push_back(
@@ -225,29 +227,30 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracin
     }
 
     // shader config + association
-    D3D12_RAYTRACING_SHADER_CONFIG shader_config;
+    D3D12_RAYTRACING_SHADER_CONFIG shader_config = {};
     shader_config.MaxPayloadSizeInBytes = max_payload_size_bytes;
     shader_config.MaxAttributeSizeInBytes = max_attribute_size_bytes;
 
-    D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION shader_config_association;
+    D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION shader_config_association = {};
     shader_config_association.NumExports = UINT(all_export_symbols_contiguous.size());
     shader_config_association.pExports = all_export_symbols_contiguous.data();
 
     // pipeline config
-    D3D12_RAYTRACING_PIPELINE_CONFIG pipeline_config;
+    D3D12_RAYTRACING_PIPELINE_CONFIG pipeline_config = {};
     pipeline_config.MaxTraceRecursionDepth = max_recursion;
 
     // global empty root sig
-    D3D12_GLOBAL_ROOT_SIGNATURE global_root_sig;
+    D3D12_GLOBAL_ROOT_SIGNATURE global_root_sig = {};
     global_root_sig.pGlobalRootSignature = mEmptyRaytraceRootSignature;
 
     rt_pso_node& new_node = mPoolRaytracing.get(pool_index);
 
     cc::alloc_vector<D3D12_STATE_SUBOBJECT> subobjects(scratch_alloc);
     {
-        // 1 per library
-        // 2 per arg assoc: local root signature, subobject association
-        // constant: shader config + association, pipeline config, global empty root sig
+        // create "subobjects" which finally compose into the PSO
+        // 1 per shader library
+        // 2 per argument association: local rootsig and subobject association
+        // always: shader config + association, pipeline config, global empty rootsig
         subobjects.reserve(library_descs.size() + arg_assocs.size() * 2 + hit_group_descs.size() + 4);
 
         for (auto i = 0u; i < library_descs.size(); ++i)
@@ -260,7 +263,7 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracin
 
         for (auto i = 0u; i < arg_assocs.size(); ++i)
         {
-            // subobject for root signature
+            // subobject for local root signature
             auto& subobj_rootsig = subobjects.emplace_back();
             subobj_rootsig.Type = D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE;
             subobj_rootsig.pDesc = &new_node.associated_root_signatures[i]->raw_root_sig;
@@ -304,7 +307,7 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracin
             subobj.pDesc = &pipeline_config;
         }
 
-        // empty global root sig
+        // empty global rootsig
         {
             auto& subobj = subobjects.emplace_back();
             subobj.Type = D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE;
