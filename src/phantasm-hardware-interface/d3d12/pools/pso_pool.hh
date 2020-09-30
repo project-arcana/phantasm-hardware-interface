@@ -66,9 +66,9 @@ public:
         flag_t flags = 0;
 
         void initialize(arg::shader_arg_shapes shapes, bool root_consts_present);
-        void initialize_no_info();
+        void initialize_no_rootsig();
 
-        bool has_no_info() const { return cc::has_bit(flags, eb_no_rootsig_available); }
+        bool has_no_rootsig() const { return cc::has_bit(flags, eb_no_rootsig_available); }
         bool has_root_consts() const { return cc::has_bit(flags, eb_has_root_constants); }
 
         bool has_cbv(unsigned arg_index) const { return cc::has_bit(flags, eb_arg_stride * arg_index + eb_has_cbv); }

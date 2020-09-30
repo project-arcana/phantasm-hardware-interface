@@ -41,7 +41,7 @@ void unswizzle_bgra_texture_data(cc::span<std::byte> in_out_texture_data);
 /// where head_offset_bytes is the amount of bytes already in use
 constexpr unsigned get_hlsl_constant_buffer_offset(unsigned head_offset_bytes, unsigned next_size_bytes)
 {
-    // ref: https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/dx-graphics-hlsl-packing-rule
+    // ref: https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/dx-graphics-hlsl-packing-rules
     CC_ASSERT(next_size_bytes <= 16 && "unexpectedly large element");
 
     // head is always aligned up to a 4-byte boundary

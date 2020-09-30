@@ -424,8 +424,18 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracin
             {
                 if (identifiable_info.rootsig_index == -1)
                 {
-                    // this is a valid case (ie. trivial miss shader)
-                    export_info.arg_info.initialize_no_info();
+                    // no associated rootsig - this is valid but rarely intentional
+                    // tools like PIX will warn as if it were an error, however it's not strictly wrong
+                    //
+                    // Austin Kinross (MS):
+                    //      It's valid for a shader to not be associated with any local root signature.
+                    //      This is often unintended though (and therefore a bug), which is why PIX calls attention to it.
+
+                    PHI_LOG_WARN("createRayTracingPipelineState: identifiable shader #{} (\"{}\") has no argument association. this is valid but "
+                                 "possibly unintended",
+                                 i, par_export_symbols[identifiable_info.linear_index]);
+
+                    export_info.arg_info.initialize_no_rootsig();
                 }
                 else
                 {
@@ -453,8 +463,13 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracin
 
                 if (rootsig_i == -1)
                 {
-                    PHI_LOG_ASSERT("hitgroup {} has no root signature / argument association", hit_groups[i].name);
-                    export_info.arg_info.initialize_no_info();
+                    // no associated rootsig - see above
+
+                    PHI_LOG_WARN("createRayTracingPipelineState: hitgroup #{} (\"{}\") has no argument association. this is valid but "
+                                 "possibly unintended",
+                                 i, hit_groups[i].name);
+
+                    export_info.arg_info.initialize_no_rootsig();
                 }
                 else
                 {
@@ -589,7 +604,7 @@ void phi::d3d12::PipelineStateObjectPool::pso_argument_info::initialize(phi::arg
     }
 }
 
-void phi::d3d12::PipelineStateObjectPool::pso_argument_info::initialize_no_info()
+void phi::d3d12::PipelineStateObjectPool::pso_argument_info::initialize_no_rootsig()
 {
     flags = 0;
     cc::set_bit(flags, eb_no_rootsig_available);
@@ -597,7 +612,7 @@ void phi::d3d12::PipelineStateObjectPool::pso_argument_info::initialize_no_info(
 
 bool phi::d3d12::PipelineStateObjectPool::pso_argument_info::is_matching_inputs(phi::arg::shader_arg_shapes shapes, unsigned root_constant_bytes) const
 {
-    if (has_no_info())
+    if (has_no_rootsig())
     {
         bool are_params_empty = shapes.empty() && root_constant_bytes == 0;
 

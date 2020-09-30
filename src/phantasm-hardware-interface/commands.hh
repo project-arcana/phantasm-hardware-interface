@@ -499,6 +499,7 @@ PHI_DEFINE_CMD(dispatch_rays)
         // NOTE: sizes are functionally irrelevant, setting them to 0 has no effects for D3D12, even with GBV.
         // Vulkan doesn't even have an option to specify them
         // However according to Adam Miles, they might be used by some tooling (like PIX)
+        // of course, we can validate based on the sizes as well
         table_ray_generation.size_bytes = 0;
         table_miss.size_bytes = 0;
         table_hit_groups.size_bytes = 0;
