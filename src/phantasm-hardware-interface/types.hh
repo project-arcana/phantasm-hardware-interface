@@ -47,6 +47,7 @@ inline constexpr shader_stage_flags_t shader_stage_mask_all_ray = shader_stage::
                                                                   | shader_stage::ray_intersect | shader_stage::ray_any_hit | shader_stage::ray_callable;
 
 inline constexpr shader_stage_flags_t shader_stage_mask_ray_identifiable = shader_stage::ray_gen | shader_stage::ray_miss | shader_stage::ray_callable;
+inline constexpr shader_stage_flags_t shader_stage_mask_ray_hitgroup = shader_stage::ray_closest_hit | shader_stage::ray_any_hit | shader_stage::ray_intersect;
 
 enum class queue_type : uint8_t
 {

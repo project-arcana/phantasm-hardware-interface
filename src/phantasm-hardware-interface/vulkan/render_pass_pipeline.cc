@@ -371,23 +371,13 @@ VkPipeline phi::vk::create_raytracing_pipeline(VkDevice device,
                                                unsigned max_attribute_size_bytes,
                                                cc::allocator* scratch_alloc)
 {
-    // NOTE: N^2 string compares! could be remedied by indices instead of names in hitgroup struct
-    auto const f_get_shader_index_by_symbol = [&](char const* symbol, shader_stage stage) -> uint32_t {
-        if (!symbol)
+    auto const f_get_shader_index_or_unused = [&](int index, shader_stage stage_verification) -> uint32_t {
+        if (index < 0)
             return VK_SHADER_UNUSED_NV;
 
-        for (uint32_t i = 0u; i < shader_intermediates.shader_modules.size(); ++i)
-        {
-            if (shader_intermediates.shader_modules[i].stage != stage)
-                continue;
-
-            if (std::strcmp(shader_intermediates.shader_modules[i].entrypoint, symbol) == 0)
-            {
-                return i;
-            }
-        }
-        PHI_LOG_WARN("createRaytracingPipeline: Failed to find export symbol {} in provided libraries");
-        return VK_SHADER_UNUSED_NV;
+        CC_ASSERT(index < int(shader_intermediates.shader_modules.size()) && "hitgroup shader index OOB");
+        CC_ASSERT(shader_intermediates.shader_modules[index].stage == stage_verification && "hitgroup shader index targets the wrong stage");
+        return uint32_t(index);
     };
 
     cc::alloc_vector<VkRayTracingShaderGroupCreateInfoNV> group_infos(scratch_alloc);
@@ -399,9 +389,10 @@ VkPipeline phi::vk::create_raytracing_pipeline(VkDevice device,
         new_info.sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_NV;
         new_info.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_NV;
         new_info.generalShader = VK_SHADER_UNUSED_NV; // always unused in triangle hit groups
-        new_info.anyHitShader = f_get_shader_index_by_symbol(hg.any_hit_name, shader_stage::ray_any_hit);
-        new_info.closestHitShader = f_get_shader_index_by_symbol(hg.closest_hit_name, shader_stage::ray_closest_hit);
-        new_info.intersectionShader = f_get_shader_index_by_symbol(hg.intersection_name, shader_stage::ray_intersect);
+
+        new_info.closestHitShader = f_get_shader_index_or_unused(hg.closest_hit_export_index, shader_stage::ray_closest_hit);
+        new_info.anyHitShader = f_get_shader_index_or_unused(hg.any_hit_export_index, shader_stage::ray_any_hit);
+        new_info.intersectionShader = f_get_shader_index_or_unused(hg.intersection_export_index, shader_stage::ray_intersect);
     }
 
     VkRayTracingPipelineCreateInfoNV pso_info = {};

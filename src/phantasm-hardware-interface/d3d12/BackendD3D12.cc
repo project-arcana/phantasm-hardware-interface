@@ -224,9 +224,9 @@ phi::handle::resource phi::d3d12::BackendD3D12::createBuffer(unsigned int size_b
     return mPoolResources.createBuffer(size_bytes, stride_bytes, heap, allow_uav, debug_name);
 }
 
-phi::handle::resource phi::d3d12::BackendD3D12::createUploadBuffer(unsigned size_bytes, unsigned stride_bytes)
+phi::handle::resource phi::d3d12::BackendD3D12::createUploadBuffer(unsigned size_bytes, unsigned stride_bytes, const char* debug_name)
 {
-    return createBuffer(size_bytes, stride_bytes, resource_heap::upload, false);
+    return createBuffer(size_bytes, stride_bytes, resource_heap::upload, false, debug_name);
 }
 
 std::byte* phi::d3d12::BackendD3D12::mapBuffer(phi::handle::resource res, int begin, int end) { return mPoolResources.mapBuffer(res, begin, end); }

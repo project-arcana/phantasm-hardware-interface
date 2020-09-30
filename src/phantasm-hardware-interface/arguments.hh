@@ -126,20 +126,40 @@ struct raytracing_shader_library
 /// associates exports from libraries with their argument shapes
 struct raytracing_argument_association
 {
-    unsigned library_index = 0;               ///< the library containing the exports referenced below
-    flat_vector<unsigned, 16> export_indices; ///< indices into raytracing_shader_library::exports of the specified library
+    enum e_arg_association_target : uint8_t
+    {
+        e_target_identifiable_shader,
+        e_target_hitgroup
+    };
+
+    /// an argument association targets an identifiable shader (identfiable: ray_gen, ray_miss or ray_callable), or a hitgroup
+    e_arg_association_target target_type = e_target_identifiable_shader;
+    /// order corresponds to the order of exports/hitgroups at PSO creation
+    /// NOTE: identifiable shaders are indexed contiguously across libraries, and non-identifiable shaders are skipped
+    flat_vector<unsigned, 16> target_indices;
+
     flat_vector<shader_arg_shape, limits::max_shader_arguments> argument_shapes;
     bool has_root_constants = false;
+
+public:
+    void set_target_identifiable() { target_type = e_target_identifiable_shader; }
+    void set_target_hitgroup() { target_type = e_target_hitgroup; }
+
+    void add_shader_arg(unsigned num_srvs, unsigned num_uavs, unsigned num_samplers, bool has_cbv)
+    {
+        argument_shapes.push_back(shader_arg_shape{num_srvs, num_uavs, num_samplers, has_cbv});
+    }
 };
 
 /// a triangle hit group, has a closest hit shader, and optionally an any hit and intersection shader
 struct raytracing_hit_group
 {
-    // TODO: instead of names, indices into library exports? (D3D12 / Vk Tradeoff)
     char const* name = nullptr;
-    char const* closest_hit_name = nullptr;
-    char const* any_hit_name = nullptr;      ///< optional
-    char const* intersection_name = nullptr; ///< optional
+
+    /// order corresponds to the order of exports, flat across all libraries
+    int closest_hit_export_index = -1;
+    int any_hit_export_index = -1;      ///< optional
+    int intersection_export_index = -1; ///< optional
 };
 
 struct raytracing_pipeline_state_desc
@@ -155,29 +175,29 @@ struct raytracing_pipeline_state_desc
 
 struct shader_table_record
 {
-    enum e_shader_table_target : uint8_t
+    enum e_table_record_target : uint8_t
     {
         e_target_identifiable_shader,
         e_target_hitgroup
     };
 
     /// a shader table record targets an identifiable shader (identfiable: ray_gen, ray_miss or ray_callable), or a hitgroup
-    e_shader_table_target target_type = e_target_identifiable_shader;
+    e_table_record_target target_type = e_target_identifiable_shader;
     /// order corresponds to the order of exports/hitgroups at PSO creation
-    /// NOTE: shaders are indexed contiguously across libraries, and non-identifiable shaders are skipped
+    /// NOTE: identifiable shaders are indexed contiguously across libraries, and non-identifiable shaders are skipped
     unsigned target_index = 0;
 
     void const* root_arg_data = nullptr; ///< optional, data of the root constant data
-    uint32_t root_arg_size_bytes = 0;    ///< size of the root constant data
+    unsigned root_arg_size_bytes = 0;    ///< size of the root constant data
     flat_vector<shader_argument, limits::max_shader_arguments> shader_arguments;
 
-    void set_shader(uint8_t index)
+    void set_shader(unsigned index)
     {
         target_type = e_target_identifiable_shader;
         target_index = index;
     }
 
-    void set_hitgroup(uint8_t index)
+    void set_hitgroup(unsigned index)
     {
         target_type = e_target_hitgroup;
         target_index = index;

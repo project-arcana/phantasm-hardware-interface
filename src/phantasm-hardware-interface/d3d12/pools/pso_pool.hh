@@ -43,6 +43,42 @@ public:
     void free(handle::pipeline_state ps);
 
 public:
+    struct pso_argument_info
+    {
+        // when writing RT shader tables, it does not matter how many SRV/UAVs or Samplers any argument has,
+        // only if it has any at all (writes a single descriptor table pointer, 8 byte)
+        // the info in this struct is purely for verification when writing shader table records, to match inputs against argument assocs
+        // one per identifiable shader, and one per hitgroup
+
+        using flag_t = uint16_t;
+
+        enum e_bitmasks
+        {
+            eb_has_cbv,
+            eb_has_srv_uav,
+            eb_has_sampler,
+            eb_arg_stride,
+
+            eb_no_rootsig_available = sizeof(flag_t) * 8 - 2,
+            eb_has_root_constants = sizeof(flag_t) * 8 - 1
+        };
+
+        flag_t flags = 0;
+
+        void initialize(arg::shader_arg_shapes shapes, bool root_consts_present);
+        void initialize_no_info();
+
+        bool has_no_info() const { return cc::has_bit(flags, eb_no_rootsig_available); }
+        bool has_root_consts() const { return cc::has_bit(flags, eb_has_root_constants); }
+
+        bool has_cbv(unsigned arg_index) const { return cc::has_bit(flags, eb_arg_stride * arg_index + eb_has_cbv); }
+        bool has_srv_uav(unsigned arg_index) const { return cc::has_bit(flags, eb_arg_stride * arg_index + eb_has_srv_uav); }
+        bool has_sampler(unsigned arg_index) const { return cc::has_bit(flags, eb_arg_stride * arg_index + eb_has_sampler); }
+
+        bool is_matching_inputs(arg::shader_arg_shapes shapes, unsigned root_constant_bytes) const;
+    };
+
+
     struct pso_node
     {
         ID3D12PipelineState* raw_pso;
@@ -59,10 +95,11 @@ public:
         struct export_info
         {
             std::byte shader_identifier[D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES];
+            pso_argument_info arg_info;
         };
 
-        cc::alloc_array<export_info> export_infos;
-        cc::alloc_array<export_info> hitgroup_infos;
+        cc::alloc_array<export_info> identifiable_shader_infos; // infos about the identifiable shaders of this PSO (in order)
+        cc::alloc_array<export_info> hitgroup_infos;            // infos about the hitgroups of this PSO (in order)
     };
 
 public:

@@ -266,9 +266,9 @@ phi::handle::resource phi::vk::BackendVulkan::createBuffer(unsigned int size_byt
     return mPoolResources.createBuffer(size_bytes, stride_bytes, heap, allow_uav, debug_name);
 }
 
-phi::handle::resource phi::vk::BackendVulkan::createUploadBuffer(unsigned size_bytes, unsigned stride_bytes)
+phi::handle::resource phi::vk::BackendVulkan::createUploadBuffer(unsigned size_bytes, unsigned stride_bytes, const char* debug_name)
 {
-    return createBuffer(size_bytes, stride_bytes, resource_heap::upload, false);
+    return createBuffer(size_bytes, stride_bytes, resource_heap::upload, false, debug_name);
 }
 
 std::byte* phi::vk::BackendVulkan::mapBuffer(phi::handle::resource res, int begin, int end) { return mPoolResources.mapBuffer(res, begin, end); }

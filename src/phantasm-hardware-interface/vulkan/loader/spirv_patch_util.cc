@@ -269,21 +269,21 @@ bool phi::vk::util::is_consistent_with_reflection(cc::span<const phi::vk::util::
 
         if (ri.num_cbvs != (shape.has_cbv ? 1 : 0))
         {
-            PHI_LOG_ERROR << "SPIR-V reflection inconsistent - CBVs: " << ri.num_cbvs << " reflected, vs " << (shape.has_cbv ? 1 : 0) << " in shape #" << i;
+            PHI_LOG_ERROR << "SPIR-V reflection inconsistent - CBVs: " << ri.num_cbvs << " reflected, vs " << (shape.has_cbv ? 1 : 0) << " in argument #" << i;
             return false;
         }
 
         if (ri.num_srvs != shape.num_srvs)
         {
-            PHI_LOG_ERROR << "SPIR-V reflection inconsistent - SRVs: " << ri.num_srvs << " reflected, vs " << shape.num_srvs << " in shape #" << i;
+            PHI_LOG_ERROR << "SPIR-V reflection inconsistent - SRVs: " << ri.num_srvs << " reflected, vs " << shape.num_srvs << " in argument #" << i;
         }
         if (ri.num_uavs != shape.num_uavs)
         {
-            PHI_LOG_ERROR << "SPIR-V reflection inconsistent - UAVs: " << ri.num_uavs << " reflected, vs " << shape.num_uavs << " in shape #" << i;
+            PHI_LOG_ERROR << "SPIR-V reflection inconsistent - UAVs: " << ri.num_uavs << " reflected, vs " << shape.num_uavs << " in argument #" << i;
         }
         if (ri.num_samplers != shape.num_samplers)
         {
-            PHI_LOG_ERROR << "SPIR-V reflection inconsistent - Samplers: " << ri.num_samplers << " reflected, vs " << shape.num_samplers << " in shape #" << i;
+            PHI_LOG_ERROR << "SPIR-V reflection inconsistent - Samplers: " << ri.num_samplers << " reflected, vs " << shape.num_samplers << " in argument #" << i;
         }
     }
     return true;

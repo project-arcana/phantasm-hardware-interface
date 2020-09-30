@@ -222,7 +222,9 @@ phi::handle::resource phi::d3d12::ResourcePool::createBuffer(uint64_t size_bytes
     auto* const alloc = mAllocator.allocate(desc, initial_state, nullptr, util::to_native(heap));
     util::set_object_name(alloc->GetResource(), "pool buf %s (%uB, %uB stride, %s heap)", dbg_name ? dbg_name : "", unsigned(size_bytes),
                           stride_bytes, d3d12_get_heap_type_literal(heap));
-    return acquireBuffer(alloc, initial_state, size_bytes, stride_bytes, heap);
+
+    auto const res = acquireBuffer(alloc, initial_state, size_bytes, stride_bytes, heap);
+    return res;
 }
 
 std::byte* phi::d3d12::ResourcePool::mapBuffer(phi::handle::resource res, int begin, int end)

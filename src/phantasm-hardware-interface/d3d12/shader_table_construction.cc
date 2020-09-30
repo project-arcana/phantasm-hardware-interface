@@ -1,11 +1,14 @@
 #include "shader_table_construction.hh"
 
+#include <cstdio>
+
 #include <clean-core/native/wchar_conversion.hh>
 #include <clean-core/utility.hh>
 #include <clean-core/vector.hh>
 
 #include <phantasm-hardware-interface/common/byte_util.hh>
 #include <phantasm-hardware-interface/common/log.hh>
+#include <phantasm-hardware-interface/common/log_util.hh>
 
 #include <phantasm-hardware-interface/d3d12/common/native_enum.hh>
 #include <phantasm-hardware-interface/d3d12/common/util.hh>
@@ -43,7 +46,7 @@ phi::shader_table_strides phi::d3d12::ShaderTableConstructor::calculateShaderTab
 void phi::d3d12::ShaderTableConstructor::writeShaderTable(std::byte* dest, handle::pipeline_state pso, unsigned stride_bytes, cc::span<arg::shader_table_record const> records)
 {
     CC_ASSERT(pool_pipeline_states->isRaytracingPipeline(pso) && "invalid or non-raytracing PSO given");
-    CC_ASSERT(PHI_IMPLIES(stride_bytes == 0, records.size() == 1) && "if no stride is specified, no more than a single record is allowed");
+    CC_ASSERT(PHI_IMPLICATION(stride_bytes == 0, records.size() == 1) && "if no stride is specified, no more than a single record is allowed");
 
     auto const& pso_info = pool_pipeline_states->getRaytrace(pso);
 
@@ -52,61 +55,106 @@ void phi::d3d12::ShaderTableConstructor::writeShaderTable(std::byte* dest, handl
     {
         std::byte* data_ptr_inner = data_ptr_outer;
 
-        // copy the shader identifier
+        PipelineStateObjectPool::pso_argument_info arg_info_verification;
+
+        // write the shader identifier
         if (rec.target_type == arg::shader_table_record::e_target_identifiable_shader)
         {
-            CC_ASSERT(rec.target_index < pso_info.export_infos.size() && "shader table record - shader index OOB");
-            std::memcpy(data_ptr_inner, pso_info.export_infos[rec.target_index].shader_identifier, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
+            CC_ASSERT(rec.target_index < pso_info.identifiable_shader_infos.size() && "shader table record - identifiable shader index OOB");
+
+            auto const& identifiable_info = pso_info.identifiable_shader_infos[rec.target_index];
+            std::memcpy(data_ptr_inner, identifiable_info.shader_identifier, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
+
+            arg_info_verification = identifiable_info.arg_info;
         }
         else // (e_target_hitgroup)
         {
             CC_ASSERT(rec.target_index < pso_info.hitgroup_infos.size() && "shader table record - hitgroup index OOB");
-            std::memcpy(data_ptr_inner, pso_info.hitgroup_infos[rec.target_index].shader_identifier, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
+
+            auto const& hitgroup_info = pso_info.hitgroup_infos[rec.target_index];
+            std::memcpy(data_ptr_inner, hitgroup_info.shader_identifier, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
+
+            arg_info_verification = hitgroup_info.arg_info;
         }
 
         data_ptr_inner += D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
 
-        // copy the root constants
+
+        // write the root constants
         if (rec.root_arg_size_bytes > 0)
         {
+            CC_ASSERT(arg_info_verification.has_root_consts() && "shader table write invalid - writing root constants where none are required");
+
             std::memcpy(data_ptr_inner, rec.root_arg_data, rec.root_arg_size_bytes);
             // root constants must fill a multiple of 8 bytes
             data_ptr_inner += phi::util::align_up(rec.root_arg_size_bytes, 8u);
         }
-
-        for (auto const& arg : rec.shader_arguments)
+        else
         {
-            // copy the CBV VA
+            CC_ASSERT(!arg_info_verification.has_root_consts() && "shader table write invalid - omitting root constants where they are required");
+        }
+
+        for (auto i = 0u; i < rec.shader_arguments.size(); ++i)
+        {
+            auto const& arg = rec.shader_arguments[i];
+
+            // write the CBV VA
             if (arg.constant_buffer.is_valid())
             {
-                CC_ASSERT(pool_resources->isBufferAccessInBounds(arg.constant_buffer, arg.constant_buffer_offset, 1) && "CBV offset OOB");
+                CC_ASSERT(pool_resources->isBufferAccessInBounds(arg.constant_buffer, arg.constant_buffer_offset, 1) && "CBV offset would cause an OOB access on GPU");
+                CC_ASSERT(arg_info_verification.has_cbv(i) && "shader table write invalid - writing CBV where none is required");
 
                 D3D12_GPU_VIRTUAL_ADDRESS const cbv_va = pool_resources->getBufferInfo(arg.constant_buffer).gpu_va + arg.constant_buffer_offset;
                 std::memcpy(data_ptr_inner, &cbv_va, sizeof(D3D12_GPU_VIRTUAL_ADDRESS));
                 data_ptr_inner += sizeof(D3D12_GPU_VIRTUAL_ADDRESS);
             }
+            else
+            {
+                CC_ASSERT(!arg_info_verification.has_cbv(i) && "shader table write invalid - omitting CBV where its required");
+            }
 
             if (arg.shader_view.is_valid())
             {
-                // copy the SRV/UAV GPU descriptor
+                // write the SRV/UAV GPU descriptor
                 if (pool_shader_views->hasSRVsUAVs(arg.shader_view))
                 {
+                    CC_ASSERT(arg_info_verification.has_srv_uav(i) && "shader table write invalid - writing shader_view with SRVs/UAVs where none are required");
+
                     D3D12_GPU_DESCRIPTOR_HANDLE const srv_uav_start = pool_shader_views->getSRVUAVGPUHandle(arg.shader_view);
                     std::memcpy(data_ptr_inner, &srv_uav_start, sizeof(D3D12_GPU_DESCRIPTOR_HANDLE));
-                    data_ptr_inner += sizeof(D3D12_GPU_VIRTUAL_ADDRESS);
+                    data_ptr_inner += sizeof(D3D12_GPU_DESCRIPTOR_HANDLE);
+                }
+                else
+                {
+                    CC_ASSERT(!arg_info_verification.has_srv_uav(i) && "shader table write invalid - writing shader_view without SRVs/UAVs where they are required");
                 }
 
-                // copy the sampler GPU descriptor
+                // write the sampler GPU descriptor
                 if (pool_shader_views->hasSamplers(arg.shader_view))
                 {
+                    CC_ASSERT(arg_info_verification.has_sampler(i) && "shader table write invalid - writing shader_view with samplers where none are required");
+
                     D3D12_GPU_DESCRIPTOR_HANDLE const sampler_start = pool_shader_views->getSamplerGPUHandle(arg.shader_view);
                     std::memcpy(data_ptr_inner, &sampler_start, sizeof(D3D12_GPU_DESCRIPTOR_HANDLE));
-                    data_ptr_inner += sizeof(D3D12_GPU_VIRTUAL_ADDRESS);
+                    data_ptr_inner += sizeof(D3D12_GPU_DESCRIPTOR_HANDLE);
                 }
+                else
+                {
+                    CC_ASSERT(!arg_info_verification.has_sampler(i) && "shader table write invalid - writing shader_view without samplers where they are required");
+                }
+            }
+            else
+            {
+                CC_ASSERT(!arg_info_verification.has_srv_uav(i) && !arg_info_verification.has_sampler(i)
+                          && "shader table write invalid - omitting shader_view where its required");
             }
         }
 
         data_ptr_outer += stride_bytes;
+
+        // if these are multiple records (and thus stride is > 0), ptr_outer must be advanced at least enough to not
+        // override the current entries in the next iteration
+        CC_ASSERT(PHI_IMPLICATION(stride_bytes > 0, data_ptr_inner <= data_ptr_outer) && "stride too small for shader table record");
     }
 }
 

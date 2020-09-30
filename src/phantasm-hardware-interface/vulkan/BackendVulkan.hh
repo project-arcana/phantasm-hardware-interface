@@ -75,7 +75,7 @@ public:
 
     [[nodiscard]] handle::resource createBuffer(unsigned int size_bytes, unsigned int stride_bytes, resource_heap heap, bool allow_uav, char const* debug_name = nullptr) override;
 
-    [[nodiscard]] handle::resource createUploadBuffer(unsigned size_bytes, unsigned stride_bytes = 0) override;
+    [[nodiscard]] handle::resource createUploadBuffer(unsigned size_bytes, unsigned stride_bytes = 0, char const* debug_name = nullptr) override;
 
     [[nodiscard]] std::byte* mapBuffer(handle::resource res, int begin = 0, int end = -1) override;
 
