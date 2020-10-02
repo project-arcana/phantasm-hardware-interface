@@ -324,6 +324,16 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::draw_indirect&
     }
 
 
+    auto const gpu_command_size_bytes
+        = draw_indirect.index_buffer.is_valid() ? uint32_t(sizeof(gpu_indirect_command_draw_indexed)) : uint32_t(sizeof(gpu_indirect_command_draw));
+
+    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(draw_indirect.indirect_argument_buffer, draw_indirect.argument_buffer_offset_bytes,
+                                                              draw_indirect.num_arguments * gpu_command_size_bytes)
+              && "indirect argument buffer accessed OOB on GPU");
+
+    static_assert(sizeof(D3D12_DRAW_ARGUMENTS) == sizeof(gpu_indirect_command_draw), "gpu argument compiles to incorrect size");
+    static_assert(sizeof(D3D12_DRAW_INDEXED_ARGUMENTS) == sizeof(gpu_indirect_command_draw_indexed), "gpu argument compiles to incorrect size");
+
     ID3D12Resource* const raw_arg_buffer = _globals.pool_resources->getRawResource(draw_indirect.indirect_argument_buffer);
     ID3D12CommandSignature* const comsig = draw_indirect.index_buffer.is_valid() ? _globals.pool_pipeline_states->getGlobalComSigDrawIndexed()
                                                                                  : _globals.pool_pipeline_states->getGlobalComSigDraw();
@@ -333,7 +343,7 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::draw_indirect&
     // as only those two arg types are used, they require no association with a rootsig making things a lot simpler
     // the amount of arguments configured in those rootsigs is more or less arbitrary, could be increased possibly by a lot without cost
     CC_ASSERT(draw_indirect.num_arguments <= 256 && "Too many indirect arguments, contact maintainers");
-    _cmd_list->ExecuteIndirect(comsig, draw_indirect.num_arguments, raw_arg_buffer, draw_indirect.argument_buffer_offset, nullptr, 0);
+    _cmd_list->ExecuteIndirect(comsig, draw_indirect.num_arguments, raw_arg_buffer, draw_indirect.argument_buffer_offset_bytes, nullptr, 0);
 }
 
 void phi::d3d12::command_list_translator::execute(const phi::cmd::dispatch& dispatch)
@@ -471,11 +481,11 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::barrier_uav& b
 
 void phi::d3d12::command_list_translator::execute(const phi::cmd::copy_buffer& copy_buf)
 {
-    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(copy_buf.source, copy_buf.source_offset, copy_buf.size) && "copy_buffer source OOB");
-    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(copy_buf.destination, copy_buf.dest_offset, copy_buf.size) && "copy_buffer dest OOB");
+    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(copy_buf.source, copy_buf.source_offset_bytes, copy_buf.size) && "copy_buffer source OOB");
+    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(copy_buf.destination, copy_buf.dest_offset_bytes, copy_buf.size) && "copy_buffer dest OOB");
 
-    _cmd_list->CopyBufferRegion(_globals.pool_resources->getRawResource(copy_buf.destination), copy_buf.dest_offset,
-                                _globals.pool_resources->getRawResource(copy_buf.source), copy_buf.source_offset, copy_buf.size);
+    _cmd_list->CopyBufferRegion(_globals.pool_resources->getRawResource(copy_buf.destination), copy_buf.dest_offset_bytes,
+                                _globals.pool_resources->getRawResource(copy_buf.source), copy_buf.source_offset_bytes, copy_buf.size);
 }
 
 void phi::d3d12::command_list_translator::execute(const phi::cmd::copy_texture& copy_text)
@@ -508,7 +518,7 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::copy_buffer_to
     footprint.RowPitch = phi::util::align_up(pixel_bytes * copy_text.dest_width, 256);
 
     D3D12_PLACED_SUBRESOURCE_FOOTPRINT placed_footprint;
-    placed_footprint.Offset = copy_text.source_offset;
+    placed_footprint.Offset = copy_text.source_offset_bytes;
     placed_footprint.Footprint = footprint;
 
     auto const subres_index = copy_text.dest_mip_index + copy_text.dest_array_index * dest_info.num_mips;
@@ -567,8 +577,10 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::resolve_querie
     ID3D12QueryHeap* heap;
     UINT const query_index_start = _globals.pool_queries->getQuery(resolve.src_query_range, resolve.query_start, heap, type);
 
+    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(resolve.dest_buffer, resolve.num_queries * sizeof(UINT64), resolve.dest_offset_bytes)
+              && "resolve query destination buffer accessed OOB");
     ID3D12Resource* const raw_dest_buffer = _globals.pool_resources->getRawResource(resolve.dest_buffer);
-    _cmd_list->ResolveQueryData(heap, util::to_query_type(type), query_index_start, resolve.num_queries, raw_dest_buffer, resolve.dest_offset);
+    _cmd_list->ResolveQueryData(heap, util::to_query_type(type), query_index_start, resolve.num_queries, raw_dest_buffer, resolve.dest_offset_bytes);
 }
 
 void phi::d3d12::command_list_translator::execute(const phi::cmd::begin_debug_label& label) { util::begin_pix_marker(_cmd_list, 0, label.string); }

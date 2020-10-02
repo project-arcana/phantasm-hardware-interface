@@ -22,11 +22,6 @@
 #include "pools/swapchain_pool.hh"
 #include "shader_table_construction.hh"
 
-namespace phi::device
-{
-class Window;
-};
-
 namespace phi::d3d12
 {
 class BackendD3D12 final : public Backend

@@ -54,7 +54,7 @@ public:
         {
             D3D12_GPU_VIRTUAL_ADDRESS gpu_va;
             uint32_t width;
-            uint32_t stride; ///< vertex size or index size
+            uint32_t stride; // vertex/index size, structured buffer stride
 
             bool is_access_in_bounds(uint32_t offset, uint32_t size) const { return offset + size <= width; }
         };

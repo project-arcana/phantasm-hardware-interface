@@ -288,18 +288,24 @@ void phi::vk::command_list_translator::execute(const phi::cmd::draw_indirect& dr
     bind_shader_arguments(draw_indirect.pipeline_state, draw_indirect.root_constants, draw_indirect.shader_arguments, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
     // Indirect draw command
+
+    auto const gpu_command_size_bytes = draw_indirect.index_buffer.is_valid() ? sizeof(gpu_indirect_command_draw_indexed) : sizeof(gpu_indirect_command_draw);
+    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(draw_indirect.indirect_argument_buffer, draw_indirect.argument_buffer_offset_bytes,
+                                                              draw_indirect.num_arguments * gpu_command_size_bytes)
+              && "indirect argument buffer accessed OOB on GPU");
+
     auto const raw_argument_buffer = _globals.pool_resources->getRawBuffer(draw_indirect.indirect_argument_buffer);
     if (draw_indirect.index_buffer.is_valid())
     {
         static_assert(sizeof(VkDrawIndexedIndirectCommand) == sizeof(gpu_indirect_command_draw_indexed), "gpu argument type compiles to incorrect "
                                                                                                          "size");
-        vkCmdDrawIndexedIndirect(_cmd_list, raw_argument_buffer, VkDeviceSize(draw_indirect.argument_buffer_offset), draw_indirect.num_arguments,
-                                 sizeof(VkDrawIndexedIndirectCommand));
+        vkCmdDrawIndexedIndirect(_cmd_list, raw_argument_buffer, VkDeviceSize(draw_indirect.argument_buffer_offset_bytes),
+                                 draw_indirect.num_arguments, sizeof(VkDrawIndexedIndirectCommand));
     }
     else
     {
         static_assert(sizeof(VkDrawIndirectCommand) == sizeof(gpu_indirect_command_draw), "gpu argument type compiles to incorrect size");
-        vkCmdDrawIndirect(_cmd_list, raw_argument_buffer, VkDeviceSize(draw_indirect.argument_buffer_offset), draw_indirect.num_arguments,
+        vkCmdDrawIndirect(_cmd_list, raw_argument_buffer, VkDeviceSize(draw_indirect.argument_buffer_offset_bytes), draw_indirect.num_arguments,
                           sizeof(VkDrawIndirectCommand));
     }
 }
@@ -410,16 +416,16 @@ void phi::vk::command_list_translator::execute(const phi::cmd::barrier_uav& barr
 
 void phi::vk::command_list_translator::execute(const phi::cmd::copy_buffer& copy_buf)
 {
-    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(copy_buf.source, copy_buf.source_offset, copy_buf.size) && "copy_buffer source OOB");
-    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(copy_buf.destination, copy_buf.dest_offset, copy_buf.size) && "copy_buffer dest OOB");
+    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(copy_buf.source, copy_buf.source_offset_bytes, copy_buf.size) && "copy_buffer source OOB");
+    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(copy_buf.destination, copy_buf.dest_offset_bytes, copy_buf.size) && "copy_buffer dest OOB");
 
     auto const src_buffer = _globals.pool_resources->getRawBuffer(copy_buf.source);
     auto const dest_buffer = _globals.pool_resources->getRawBuffer(copy_buf.destination);
 
     VkBufferCopy region = {};
     region.size = copy_buf.size;
-    region.srcOffset = copy_buf.source_offset;
-    region.dstOffset = copy_buf.dest_offset;
+    region.srcOffset = copy_buf.source_offset_bytes;
+    region.dstOffset = copy_buf.dest_offset_bytes;
     vkCmdCopyBuffer(_cmd_list, src_buffer, dest_buffer, 1, &region);
 }
 
@@ -451,7 +457,7 @@ void phi::vk::command_list_translator::execute(const phi::cmd::copy_buffer_to_te
     auto const& dest_image_info = _globals.pool_resources->getImageInfo(copy_text.destination);
 
     VkBufferImageCopy region = {};
-    region.bufferOffset = uint32_t(copy_text.source_offset);
+    region.bufferOffset = uint32_t(copy_text.source_offset_bytes);
     region.imageSubresource.aspectMask = util::to_native_image_aspect(dest_image_info.pixel_format);
     region.imageSubresource.baseArrayLayer = copy_text.dest_array_index;
     region.imageSubresource.layerCount = 1;
@@ -533,8 +539,10 @@ void phi::vk::command_list_translator::execute(const phi::cmd::resolve_queries& 
 
     VkBuffer const raw_dest_buffer = _globals.pool_resources->getRawBuffer(resolve.dest_buffer);
 
+    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(resolve.dest_buffer, resolve.num_queries * sizeof(uint64_t), resolve.dest_offset_bytes)
+              && "resolve query destination buffer accessed OOB");
     VkQueryResultFlags flags = VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT;
-    vkCmdCopyQueryPoolResults(_cmd_list, raw_pool, query_index_start, resolve.num_queries, raw_dest_buffer, resolve.dest_offset, sizeof(uint64_t), flags);
+    vkCmdCopyQueryPoolResults(_cmd_list, raw_pool, query_index_start, resolve.num_queries, raw_dest_buffer, resolve.dest_offset_bytes, sizeof(uint64_t), flags);
 }
 
 void phi::vk::command_list_translator::execute(const phi::cmd::begin_debug_label& label)

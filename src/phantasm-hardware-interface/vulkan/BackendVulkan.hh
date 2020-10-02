@@ -16,11 +16,6 @@
 #include "pools/shader_view_pool.hh"
 #include "pools/swapchain_pool.hh"
 
-namespace phi::device
-{
-class Window;
-};
-
 namespace phi::vk
 {
 class BackendVulkan final : public Backend

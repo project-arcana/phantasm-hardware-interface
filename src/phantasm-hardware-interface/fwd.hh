@@ -9,6 +9,15 @@ namespace phi
 // backends
 class Backend;
 
+namespace d3d12
+{
+class BackendD3D12;
+}
+namespace vk
+{
+class BackendVulkan;
+}
+
 // config structs
 struct backend_config;
 struct window_handle;

@@ -57,6 +57,20 @@ constexpr unsigned get_hlsl_constant_buffer_offset(unsigned head_offset_bytes, u
     }
 }
 
+/// returns the difference between two GPU timestamp values in milliseconds
+/// timestamp_frequency can be obtained from Backend::getGPUTimestampFrequency
+inline double get_timestamp_difference_milliseconds(uint64_t start, uint64_t end, uint64_t timestamp_frequency)
+{
+    return (double(end - start) / timestamp_frequency) * 1000.;
+}
+
+/// returns the difference between two GPU timestamp values in microseconds
+/// timestamp_frequency can be obtained from Backend::getGPUTimestampFrequency
+inline uint64_t get_timestamp_difference_microseconds(uint64_t start, uint64_t end, uint64_t timestamp_frequency)
+{
+    return (end - start) / (timestamp_frequency / 1'000'000);
+}
+
 struct shader_table_offsets
 {
     shader_table_strides strides;
