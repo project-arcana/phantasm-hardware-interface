@@ -42,8 +42,6 @@ PHI_DEFINE_CMD(begin_render_pass)
     tg::ivec2 viewport_offset = {0, 0}; ///< offset of the viewport, in pixels from the top left corner
 
 public:
-    // convenience
-
     void add_backbuffer_rt(handle::resource res, bool clear = true)
     {
         render_targets.push_back(render_target_info{{}, {0.f, 0.f, 0.f, 1.f}, clear ? rt_clear_type::clear : rt_clear_type::load});
@@ -82,8 +80,6 @@ PHI_DEFINE_CMD(transition_resources)
     flat_vector<transition_info, limits::max_resource_transitions> transitions;
 
 public:
-    // convenience
-
     /// add a barrier for resource [res] into new state [target]
     /// if the target state is a CBV/SRV/UAV, depending_shader must be
     /// the union of shaders depending upon this resource next (can be omitted on d3d12)
@@ -111,8 +107,6 @@ PHI_DEFINE_CMD(transition_image_slices)
     flat_vector<slice_transition_info, limits::max_resource_transitions> transitions;
 
 public:
-    // convenience
-
     /// add a barrier for image [res] subresource at [mip_level] and [array_slice] from state [source] into new state [target]
     /// if the source/target state is a CBV/SRV/UAV, source/target_dep
     /// must be the union of shaders {previously accessing the resource (source) / depending upon this resource next (target)}
@@ -157,8 +151,6 @@ PHI_DEFINE_CMD(draw)
     tg::iaabb2 scissor = tg::iaabb2(-1, -1);
 
 public:
-    // convenience
-
     void init(handle::pipeline_state pso, unsigned num_ind, handle::resource vb = handle::null_resource, handle::resource ib = handle::null_resource,
               unsigned ind_offset = 0, unsigned vert_offset = 0)
     {
@@ -209,8 +201,6 @@ PHI_DEFINE_CMD(draw_indirect)
     handle::resource index_buffer = handle::null_resource;  ///< optional
 
 public:
-    // convenience
-
     void add_shader_arg(handle::resource cbv, unsigned cbv_off = 0, handle::shader_view sv = handle::null_shader_view)
     {
         shader_arguments.push_back(shader_argument{cbv, sv, cbv_off});
@@ -239,8 +229,6 @@ PHI_DEFINE_CMD(dispatch)
     unsigned dispatch_z = 0;
 
 public:
-    // convenience
-
     void init(handle::pipeline_state pso, unsigned x, unsigned y = 1, unsigned z = 1)
     {
         pipeline_state = pso;
@@ -275,8 +263,6 @@ PHI_DEFINE_CMD(copy_buffer)
     size_t size = 0;
 
 public:
-    // convenience
-
     copy_buffer() = default;
     copy_buffer(handle::resource dest, size_t dest_offset, handle::resource src, size_t src_offset, size_t size)
       : source(src), destination(dest), dest_offset_bytes(dest_offset), source_offset_bytes(src_offset), size(size)
@@ -308,8 +294,6 @@ PHI_DEFINE_CMD(copy_texture)
     unsigned num_array_slices = 0; ///< amount of array slices to copy, all other parameters staying equal (usually: 1)
 
 public:
-    // convenience
-
     void init_symmetric(handle::resource src, handle::resource dest, unsigned width, unsigned height, unsigned mip_index,
                         unsigned first_array_index = 0, unsigned num_array_slices = 1)
     {
@@ -389,8 +373,6 @@ PHI_DEFINE_CMD(resolve_texture)
     unsigned height = 0; ///< height of the destination texture (in the specified MIP map and array element) (ignored on d3d12)
 
 public:
-    // convenience
-
     void init_symmetric(handle::resource src, handle::resource dest, unsigned width, unsigned height, unsigned mip_index = 0, unsigned array_index = 0)
     {
         source = src;
@@ -413,6 +395,7 @@ PHI_DEFINE_CMD(write_timestamp)
     handle::query_range query_range = handle::null_query_range; ///< the query_range in which to write a timestamp query
     unsigned index = 0;                                         ///< relative index into the query_range, element to write to
 
+public:
     write_timestamp() = default;
     write_timestamp(handle::query_range qr, unsigned index = 0) : query_range(qr), index(index) {}
 };
@@ -431,7 +414,7 @@ PHI_DEFINE_CMD(resolve_queries)
     unsigned num_queries = 1;                                       ///< amount of elements to resolve
     unsigned dest_offset_bytes = 0;                                 ///< offset into the destination buffer
 
-
+public:
     void init(handle::resource dest, handle::query_range qr, unsigned start = 0, unsigned num = 1, unsigned dest_offset = 0)
     {
         dest_buffer = dest;
@@ -451,6 +434,7 @@ PHI_DEFINE_CMD(begin_debug_label)
 
     char const* string = "UNLABELED_DEBUG_MARKER";
 
+public:
     begin_debug_label() = default;
     begin_debug_label(char const* s) : string(s) {}
 };
@@ -505,6 +489,7 @@ PHI_DEFINE_CMD(dispatch_rays)
     unsigned height = 1;
     unsigned depth = 1;
 
+public:
     void set_strides(shader_table_strides const& strides)
     {
         table_ray_generation.size_bytes = strides.size_ray_gen;
