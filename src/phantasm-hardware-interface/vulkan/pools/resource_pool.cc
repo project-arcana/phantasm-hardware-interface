@@ -213,7 +213,8 @@ std::byte* phi::vk::ResourcePool::mapBuffer(phi::handle::resource res, int begin
 
     if (node.heap == resource_heap::readback)
     {
-        vmaInvalidateAllocation(mAllocator, node.allocation, begin, end < 0 ? node.buffer.width : end);
+        CC_ASSERT(begin >= 0 && "negative invalidation begin specified");
+        vmaInvalidateAllocation(mAllocator, node.allocation, unsigned(begin), end < 0 ? node.buffer.width : unsigned(end));
     }
 
     return reinterpret_cast<std::byte*>(data_start_void);
@@ -253,7 +254,7 @@ phi::handle::resource phi::vk::ResourcePool::createBufferInternal(uint64_t size_
     VmaAllocation res_alloc;
     VkBuffer res_buffer;
     PHI_VK_VERIFY_SUCCESS(vmaCreateBuffer(mAllocator, &buffer_info, &alloc_info, &res_buffer, &res_alloc, nullptr));
-    util::set_object_name(mDevice, res_buffer, debug_name);
+    util::set_object_name(mDevice, res_buffer, "%s", debug_name);
     return acquireBuffer(res_alloc, res_buffer, buffer_info.usage, size_bytes, stride_bytes, heap);
 }
 

@@ -95,7 +95,6 @@ public:
 
     void reset()
     {
-        auto const size = _values.size();
         for (auto& val : _values)
             val = ValueT();
         for (auto& key : _keys)

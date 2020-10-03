@@ -138,7 +138,7 @@ namespace phi::vk::util
 
     case phi::shader_stage::none:
     case phi::shader_stage::MAX_SHADER_STAGE_RANGE:
-        CC_UNREACHABLE("invalid shader stage given");
+        CC_ASSERT(false && "invalid shader stage given");
         return 0;
     }
 
@@ -320,6 +320,11 @@ namespace phi::vk::util
         return VK_SHADER_STAGE_ANY_HIT_BIT_NV;
     case phi::shader_stage::ray_callable:
         return VK_SHADER_STAGE_CALLABLE_BIT_NV;
+
+    case phi::shader_stage::none:
+    case phi::shader_stage::MAX_SHADER_STAGE_RANGE:
+        CC_ASSERT(false && "invalid shader stage");
+        return VK_SHADER_STAGE_ALL;
     }
 
     CC_UNREACHABLE_SWITCH_WORKAROUND(stage);
