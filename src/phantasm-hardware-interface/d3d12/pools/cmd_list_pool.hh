@@ -9,8 +9,8 @@
 #include <clean-core/capped_array.hh>
 
 #include <phantasm-hardware-interface/arguments.hh>
-#include <phantasm-hardware-interface/common/incomplete_state_cache.hh>
 #include <phantasm-hardware-interface/common/container/linked_pool.hh>
+#include <phantasm-hardware-interface/common/incomplete_state_cache.hh>
 
 #include <phantasm-hardware-interface/d3d12/Fence.hh>
 #include <phantasm-hardware-interface/d3d12/common/d3d12_sanitized.hh>

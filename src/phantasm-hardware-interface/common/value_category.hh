@@ -36,4 +36,3 @@ struct value_category<T&&>
 
 #define PHI_IMPLICATION(_premise_, _conclusion_) ((_premise_) ? (_conclusion_) : true)
 #define PHI_EQUIVALENCE(_lhs_, _rhs_) (bool(_lhs_) == bool(_rhs_))
-

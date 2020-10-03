@@ -133,7 +133,7 @@ public:
 public:
     // internal API
 
-    void initialize(VkDevice dev, unsigned num_timestamp, unsigned num_occlusion, unsigned num_pipeline_stats, cc::allocator *static_alloc);
+    void initialize(VkDevice dev, unsigned num_timestamp, unsigned num_occlusion, unsigned num_pipeline_stats, cc::allocator* static_alloc);
 
     void destroy(VkDevice dev);
 

@@ -3,8 +3,8 @@
 #include <clean-core/capped_vector.hh>
 
 #include <phantasm-hardware-interface/arguments.hh>
-#include <phantasm-hardware-interface/common/hash.hh>
 #include <phantasm-hardware-interface/common/container/stable_map.hh>
+#include <phantasm-hardware-interface/common/hash.hh>
 
 #include <phantasm-hardware-interface/d3d12/common/d3d12_fwd.hh>
 #include <phantasm-hardware-interface/d3d12/root_signature.hh>
@@ -16,7 +16,7 @@ namespace phi::d3d12
 class RootSignatureCache
 {
 public:
-    void initialize(unsigned max_num_root_sigs, cc::allocator *alloc);
+    void initialize(unsigned max_num_root_sigs, cc::allocator* alloc);
     void destroy();
 
     /// receive an existing root signature matching the shape, or create a new one

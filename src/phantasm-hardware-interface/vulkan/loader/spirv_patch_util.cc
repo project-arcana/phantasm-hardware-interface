@@ -283,7 +283,8 @@ bool phi::vk::util::is_consistent_with_reflection(cc::span<const phi::vk::util::
         }
         if (ri.num_samplers != shape.num_samplers)
         {
-            PHI_LOG_ERROR << "SPIR-V reflection inconsistent - Samplers: " << ri.num_samplers << " reflected, vs " << shape.num_samplers << " in argument #" << i;
+            PHI_LOG_ERROR << "SPIR-V reflection inconsistent - Samplers: " << ri.num_samplers << " reflected, vs " << shape.num_samplers
+                          << " in argument #" << i;
         }
     }
     return true;

@@ -6,8 +6,8 @@
 #include <clean-core/alloc_array.hh>
 #include <clean-core/alloc_vector.hh>
 
-#include <phantasm-hardware-interface/common/incomplete_state_cache.hh>
 #include <phantasm-hardware-interface/common/container/linked_pool.hh>
+#include <phantasm-hardware-interface/common/incomplete_state_cache.hh>
 #include <phantasm-hardware-interface/vulkan/common/verify.hh>
 #include <phantasm-hardware-interface/vulkan/common/vk_incomplete_state_cache.hh>
 #include <phantasm-hardware-interface/vulkan/loader/volk.hh>
@@ -161,7 +161,13 @@ private:
 class CommandAllocatorBundle
 {
 public:
-    void initialize(VkDevice device, unsigned num_allocators, unsigned num_cmdlists_per_allocator, unsigned queue_family_index, FenceRingbuffer* fence_ring, cc::allocator* static_alloc, cc::allocator *dynamic_alloc);
+    void initialize(VkDevice device,
+                    unsigned num_allocators,
+                    unsigned num_cmdlists_per_allocator,
+                    unsigned queue_family_index,
+                    FenceRingbuffer* fence_ring,
+                    cc::allocator* static_alloc,
+                    cc::allocator* dynamic_alloc);
     void destroy(VkDevice device);
 
     /// Resets the given command list to use memory by an appropriate allocator
@@ -274,7 +280,8 @@ public:
                     int num_copy_allocs,
                     int num_copy_lists_per_alloc,
                     cc::span<CommandAllocatorsPerThread*> thread_allocators,
-                    cc::allocator* static_alloc, cc::allocator *dynamic_alloc);
+                    cc::allocator* static_alloc,
+                    cc::allocator* dynamic_alloc);
     void destroy();
 
 private:
