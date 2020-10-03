@@ -4,7 +4,7 @@
 
 #include <emmintrin.h>
 
-namespace phi
+namespace phi::util
 {
 using SSEVec = __m128;
 using SSEVecInt = __m128i;
