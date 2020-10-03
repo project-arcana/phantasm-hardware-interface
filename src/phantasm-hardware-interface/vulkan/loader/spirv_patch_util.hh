@@ -3,7 +3,6 @@
 #include <cstddef>
 
 #include <clean-core/alloc_vector.hh>
-#include <clean-core/capped_vector.hh>
 #include <clean-core/string.hh>
 
 #include <phantasm-hardware-interface/arguments.hh>

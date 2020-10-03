@@ -107,14 +107,15 @@ phi::handle::accel_struct phi::vk::AccelStructPool::createBottomLevelAS(cc::span
 
     VkAccelerationStructureNV raw_as = nullptr;
     PHI_VK_VERIFY_SUCCESS(vkCreateAccelerationStructureNV(mDevice, &as_create_info, nullptr, &raw_as));
-    util::set_object_name(mDevice, raw_as, "pool bottom-level accel struct s%u", static_cast<unsigned>(element_geometries.size()));
+    util::set_object_name(mDevice, raw_as, "pool BLAS s%u", static_cast<unsigned>(element_geometries.size()));
 
     // Allocate AS and scratch buffers in the required sizes
     VkDeviceSize buffer_size_as = 0, buffer_size_scratch = 0;
     query_accel_struct_buffer_sizes(mDevice, raw_as, buffer_size_as, buffer_size_scratch);
 
-    auto const buffer_as = mResourcePool->createBufferInternal(buffer_size_as, 0, resource_heap::gpu, VK_BUFFER_USAGE_RAY_TRACING_BIT_NV);
-    auto const buffer_scratch = mResourcePool->createBufferInternal(buffer_size_scratch, 0, resource_heap::gpu, VK_BUFFER_USAGE_RAY_TRACING_BIT_NV);
+    auto const buffer_as = mResourcePool->createBufferInternal(buffer_size_as, 0, resource_heap::gpu, VK_BUFFER_USAGE_RAY_TRACING_BIT_NV, "pool BLAS buffer");
+    auto const buffer_scratch
+        = mResourcePool->createBufferInternal(buffer_size_scratch, 0, resource_heap::gpu, VK_BUFFER_USAGE_RAY_TRACING_BIT_NV, "pool BLAS scratch");
 
     // Bind the AS buffer's memory to the AS
     VkBindAccelerationStructureMemoryInfoNV bind_mem_info = {};
@@ -160,7 +161,7 @@ phi::handle::accel_struct phi::vk::AccelStructPool::createTopLevelAS(unsigned nu
 
     auto const buffer_size_instances = sizeof(accel_struct_instance) * num_instances;
 
-    //auto const buffer_instances = mResourcePool->createBufferInternal(buffer_size_instances, 0, resource_heap::upload, VK_BUFFER_USAGE_RAY_TRACING_BIT_NV);
+    // auto const buffer_instances = mResourcePool->createBufferInternal(buffer_size_instances, 0, resource_heap::upload, VK_BUFFER_USAGE_RAY_TRACING_BIT_NV);
 
     // Bind the AS buffer's memory to the AS
     VkBindAccelerationStructureMemoryInfoNV bind_mem_info = {};

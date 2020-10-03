@@ -53,7 +53,7 @@ public:
         pipeline_layout* associated_pipeline_layout;
 
         // info stored which is required for creating render passes on the fly / cached
-        cc::capped_vector<format, limits::max_render_targets> rt_formats;
+        flat_vector<format, limits::max_render_targets> rt_formats;
         unsigned num_msaa_samples;
     };
 

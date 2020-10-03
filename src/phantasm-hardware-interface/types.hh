@@ -17,6 +17,8 @@ struct shader_argument
 /// the type of a single shader
 enum class shader_stage : uint8_t
 {
+    none = 0,
+
     // graphics
     vertex,
     hull,
@@ -33,7 +35,10 @@ enum class shader_stage : uint8_t
     ray_closest_hit,
     ray_intersect,
     ray_any_hit,
-    ray_callable
+    ray_callable,
+
+    MAX_SHADER_STAGE_RANGE,
+    NUM_SHADER_STAGES = MAX_SHADER_STAGE_RANGE - 1
 };
 
 /// 0 to N shader_stages

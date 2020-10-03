@@ -166,7 +166,7 @@ phi::handle::resource phi::vk::ResourcePool::createBuffer(uint64_t size_bytes, u
     // it might be required down the line to restrict this (as in, make it part of API)
     buffer_info.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
                         | VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT
-                        | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
+                        | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_RAY_TRACING_BIT_NV;
 
     // NOTE: we currently do not make use of allow_uav or the heap type to restrict usage flags at all
     // allow_uav might have been a poor API decision, we might need something more finegrained instead, and have the default be allowing everything
@@ -240,7 +240,7 @@ void phi::vk::ResourcePool::unmapBuffer(phi::handle::resource res, int begin, in
     }
 }
 
-phi::handle::resource phi::vk::ResourcePool::createBufferInternal(uint64_t size_bytes, unsigned stride_bytes, resource_heap heap, VkBufferUsageFlags usage)
+phi::handle::resource phi::vk::ResourcePool::createBufferInternal(uint64_t size_bytes, unsigned stride_bytes, resource_heap heap, VkBufferUsageFlags usage, char const* debug_name)
 {
     VkBufferCreateInfo buffer_info = {};
     buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -253,7 +253,7 @@ phi::handle::resource phi::vk::ResourcePool::createBufferInternal(uint64_t size_
     VmaAllocation res_alloc;
     VkBuffer res_buffer;
     PHI_VK_VERIFY_SUCCESS(vmaCreateBuffer(mAllocator, &buffer_info, &alloc_info, &res_buffer, &res_alloc, nullptr));
-    util::set_object_name(mDevice, res_buffer, "respool internal buffer");
+    util::set_object_name(mDevice, res_buffer, debug_name);
     return acquireBuffer(res_alloc, res_buffer, buffer_info.usage, size_bytes, stride_bytes, heap);
 }
 

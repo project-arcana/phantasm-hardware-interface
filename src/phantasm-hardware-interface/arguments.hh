@@ -73,7 +73,7 @@ struct shader_binary
 struct graphics_shader
 {
     shader_binary binary;
-    shader_stage stage;
+    shader_stage stage = shader_stage::none;
 };
 
 /// A graphics shader bundle consists of up to 1 shader per graphics stage
@@ -112,8 +112,8 @@ struct blas_element
 
 struct raytracing_library_export
 {
-    shader_stage stage;
-    char const* entrypoint;
+    shader_stage stage = shader_stage::none;
+    char const* entrypoint = nullptr;
 };
 
 /// a shader library lists the symbol names it exports
@@ -170,7 +170,7 @@ struct raytracing_pipeline_state_desc
 
     unsigned max_recursion = 0;
     unsigned max_payload_size_bytes = 0;
-    unsigned max_attribute_size_bytes;
+    unsigned max_attribute_size_bytes = 0;
 };
 
 struct shader_table_record

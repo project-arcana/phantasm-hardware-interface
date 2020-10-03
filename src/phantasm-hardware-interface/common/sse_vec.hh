@@ -10,7 +10,6 @@ using SSEVec = __m128;
 using SSEVecInt = __m128i;
 using SSEVecDouble = __m128d;
 
-
 //
 // creation and access
 

@@ -371,7 +371,7 @@ VkPipeline phi::vk::create_raytracing_pipeline(VkDevice device,
                                                unsigned max_attribute_size_bytes,
                                                cc::allocator* scratch_alloc)
 {
-    auto const f_get_shader_index_or_unused = [&](int index, shader_stage stage_verification) -> uint32_t {
+    auto f_get_shader_index_or_unused = [&](int index, shader_stage stage_verification) -> uint32_t {
         if (index < 0)
             return VK_SHADER_UNUSED_NV;
 

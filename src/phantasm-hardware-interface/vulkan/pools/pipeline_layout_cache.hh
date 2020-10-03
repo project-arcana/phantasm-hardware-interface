@@ -1,8 +1,11 @@
 #pragma once
 
+#include <clean-core/vector.hh>
+
 #include <phantasm-hardware-interface/arguments.hh>
 #include <phantasm-hardware-interface/common/container/stable_map.hh>
 
+#include <phantasm-hardware-interface/vulkan/loader/spirv_patch_util.hh>
 #include <phantasm-hardware-interface/vulkan/loader/vulkan_fwd.hh>
 #include <phantasm-hardware-interface/vulkan/pipeline_layout.hh>
 

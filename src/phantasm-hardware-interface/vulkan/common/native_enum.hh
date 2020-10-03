@@ -135,6 +135,11 @@ namespace phi::vk::util
     case phi::shader_stage::ray_any_hit:
     case phi::shader_stage::ray_callable:
         return VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV;
+
+    case phi::shader_stage::none:
+    case phi::shader_stage::MAX_SHADER_STAGE_RANGE:
+        CC_UNREACHABLE("invalid shader stage given");
+        return 0;
     }
 
     CC_UNREACHABLE_SWITCH_WORKAROUND(stage);
