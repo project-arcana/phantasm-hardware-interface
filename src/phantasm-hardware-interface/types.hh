@@ -4,6 +4,10 @@
 
 #include <phantasm-hardware-interface/handles.hh>
 
+#define PHI_DEFINE_FLAG_TYPE(_flags_t_, _enum_t_, _max_num_)    \
+    using _flags_t_ = cc::flags<_enum_t_, unsigned(_max_num_)>; \
+    CC_FLAGS_ENUM_SIZED(_enum_t_, unsigned(_max_num_));
+
 namespace phi
 {
 /// resources bound to a shader, up to 4 per draw or dispatch command
@@ -41,9 +45,9 @@ enum class shader_stage : uint8_t
     NUM_SHADER_STAGES = MAX_SHADER_STAGE_RANGE - 1
 };
 
-/// 0 to N shader_stages
-using shader_stage_flags_t = cc::flags<shader_stage, 16>;
-CC_FLAGS_ENUM_SIZED(shader_stage, 16);
+constexpr bool is_valid_shader_stage(shader_stage s) { return s > shader_stage::none && s < shader_stage::MAX_SHADER_STAGE_RANGE; }
+
+PHI_DEFINE_FLAG_TYPE(shader_stage_flags_t, shader_stage, shader_stage::NUM_SHADER_STAGES);
 
 inline constexpr shader_stage_flags_t shader_stage_mask_all_graphics
     = shader_stage::vertex | shader_stage::hull | shader_stage::domain | shader_stage::geometry | shader_stage::pixel;
@@ -52,6 +56,7 @@ inline constexpr shader_stage_flags_t shader_stage_mask_all_ray = shader_stage::
                                                                   | shader_stage::ray_intersect | shader_stage::ray_any_hit | shader_stage::ray_callable;
 
 inline constexpr shader_stage_flags_t shader_stage_mask_ray_identifiable = shader_stage::ray_gen | shader_stage::ray_miss | shader_stage::ray_callable;
+
 inline constexpr shader_stage_flags_t shader_stage_mask_ray_hitgroup = shader_stage::ray_closest_hit | shader_stage::ray_any_hit | shader_stage::ray_intersect;
 
 enum class queue_type : uint8_t
@@ -672,14 +677,13 @@ enum class accel_struct_build_flags : uint8_t
     minimize_memory
 };
 
-CC_FLAGS_ENUM(accel_struct_build_flags);
-using accel_struct_build_flags_t = cc::flags<accel_struct_build_flags>;
+PHI_DEFINE_FLAG_TYPE(accel_struct_build_flags_t, accel_struct_build_flags, 8);
 
 // these flags align exactly with both vulkan and d3d12, and are not translated
 using accel_struct_instance_flags_t = uint32_t;
 namespace accel_struct_instance_flags
 {
-enum accel_struct_instance_flags_e : accel_struct_instance_flags_t
+enum accel_struct_instance_flags_e : uint32_t
 {
     none = 0x0000,
     triangle_cull_disable = 0x0001,
