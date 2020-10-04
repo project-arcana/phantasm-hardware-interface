@@ -58,9 +58,11 @@ struct spirv_desc_info
     VkShaderStageFlagBits visible_stage;
     VkPipelineStageFlags visible_pipeline_stage;
 
-    constexpr bool operator==(spirv_desc_info const& rhs) const noexcept
+    bool operator==(spirv_desc_info const& rhs) const noexcept
     {
-        return set == rhs.set && binding == rhs.binding && binding_array_size == rhs.binding_array_size && type == rhs.type && visible_stage == rhs.visible_stage;
+        static_assert(std::has_unique_object_representations_v<spirv_desc_info>, "spirv_desc_info cannot be memcmp'd");
+        return std::memcmp(this, &rhs, sizeof(*this)) == 0;
+        //        return set == rhs.set && binding == rhs.binding && binding_array_size == rhs.binding_array_size && type == rhs.type && visible_stage == rhs.visible_stage;
     }
 };
 
@@ -93,5 +95,22 @@ void print_spirv_info(cc::span<spirv_desc_info const> info);
 /// returns true if the reflected descriptors are consistent with the passed arguments
 /// currently only checks if the amounts are equal
 [[nodiscard]] bool is_consistent_with_reflection(cc::span<spirv_desc_info const> spirv_ranges, arg::shader_arg_shapes arg_shapes);
+
+//
+// serialization of fully processed SPIR-V
+
+bool write_patched_spirv(patched_spirv_stage const& spirv, cc::span<spirv_desc_info const> merged_descriptor_info, bool has_root_consts, char const* out_path);
+
+struct patched_spirv_data_nonowning
+{
+    std::byte const* binary_data;
+    size_t binary_size_bytes;
+    char const* entrypoint_name;
+    cc::span<spirv_desc_info const> descriptor_infos;
+    shader_stage stage;
+    bool has_root_constants;
+};
+
+bool parse_patched_spirv(cc::span<std::byte const> data, patched_spirv_data_nonowning& out_parsed);
 
 }

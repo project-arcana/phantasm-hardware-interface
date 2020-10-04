@@ -1,6 +1,7 @@
 #include "spirv_patch_util.hh"
 
 #include <algorithm>
+#include <fstream>
 
 #include <clean-core/alloc_array.hh>
 #include <clean-core/array.hh>
@@ -8,6 +9,7 @@
 #include <clean-core/bit_cast.hh>
 #include <clean-core/utility.hh>
 
+#include <phantasm-hardware-interface/common/byte_reader.hh>
 #include <phantasm-hardware-interface/common/container/unique_buffer.hh>
 #include <phantasm-hardware-interface/common/lib/spirv_reflect.hh>
 #include <phantasm-hardware-interface/common/log.hh>
@@ -131,6 +133,8 @@ void patchSpvReflectShader(SpvReflectShaderModule& module,
     return;
 }
 
+
+constexpr unsigned gc_patched_spirv_binary_version = 0xDEAD0001;
 }
 
 phi::vk::util::patched_spirv_stage phi::vk::util::create_patched_spirv(std::byte const* bytecode, size_t bytecode_size, spirv_refl_info& out_info, cc::allocator* scratch_alloc)
@@ -298,4 +302,80 @@ void phi::vk::util::print_spirv_info(cc::span<const phi::vk::util::spirv_desc_in
     {
         log_obj << "  set " << i.set << ", binding " << i.binding << ", array size " << i.binding_array_size << ", VkDescriptorType " << i.type << '\n';
     }
+}
+
+bool phi::vk::util::write_patched_spirv(const phi::vk::util::patched_spirv_stage& spirv,
+                                        cc::span<const phi::vk::util::spirv_desc_info> merged_descriptor_info,
+                                        bool has_root_consts,
+                                        const char* out_path)
+{
+    if (!out_path)
+        return false;
+
+    auto outfile = std::fstream(out_path, std::ios::out | std::ios::binary);
+    if (!outfile.good())
+        return false;
+
+    outfile.write((char const*)&gc_patched_spirv_binary_version, sizeof(gc_patched_spirv_binary_version));
+
+    // write patched SPIR-V
+    outfile.write((char const*)&spirv.size, sizeof(spirv.size)); // size of patched SPIR-V
+    outfile.write((char const*)spirv.data, spirv.size);          // patched SPIR-V
+
+    // write entrypoint string
+    size_t const entrypoint_size = spirv.entrypoint_name.size();
+    outfile.write((char const*)&entrypoint_size, sizeof(entrypoint_size)); // size of entrypoint string
+    outfile.write(spirv.entrypoint_name.c_str(), entrypoint_size);         // entrypoint string
+
+    // write shader stage
+    outfile.write((char const*)&spirv.stage, sizeof(spirv.stage));
+
+    // write descriptor infos
+    size_t const num_descriptor_infos = merged_descriptor_info.size();
+    outfile.write((char const*)&num_descriptor_infos, sizeof(num_descriptor_infos));                // num of descriptor infos
+    outfile.write((char const*)merged_descriptor_info.data(), merged_descriptor_info.size_bytes()); // descriptor info data
+
+    // has root constants
+    outfile.write((char const*)&has_root_consts, sizeof(bool));
+
+    return true;
+}
+
+bool phi::vk::util::parse_patched_spirv(cc::span<const std::byte> data, phi::vk::util::patched_spirv_data_nonowning& out_parsed)
+{
+    if (data.empty())
+        return false;
+
+    auto reader = byte_reader{data};
+
+    unsigned version_number = 0;
+    reader.read_t(version_number);
+
+    if (version_number != gc_patched_spirv_binary_version)
+        return false;
+
+    // read patched SPIR-V
+    reader.read_t(out_parsed.binary_size_bytes);
+    out_parsed.binary_data = reader.head();
+    reader.skip(out_parsed.binary_size_bytes);
+
+    // read entrypoint string
+    size_t string_length = 0;
+    reader.read_t(string_length);
+    out_parsed.entrypoint_name = reinterpret_cast<char const*>(reader.head());
+    reader.skip(string_length);
+
+    // read shader stage
+    reader.read_t(out_parsed.stage);
+
+    // read descriptor infos
+    size_t num_descriptor_infos = 0u;
+    reader.read_t(num_descriptor_infos);
+    out_parsed.descriptor_infos = {reinterpret_cast<spirv_desc_info const*>(reader.head()), num_descriptor_infos};
+    reader.skip(out_parsed.descriptor_infos.size_bytes());
+
+    // read root constant flag
+    reader.read_t(out_parsed.has_root_constants);
+
+    return true;
 }
