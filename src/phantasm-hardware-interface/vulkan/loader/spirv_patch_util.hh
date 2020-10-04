@@ -13,27 +13,38 @@
 
 namespace phi::vk::spv
 {
-// We will configure DXC to shift registers (per space) in the following way to match our bindings:
-// CBVs (b): 0          - Starts first
-// SRVs (t): 1000       - Shifted by 1k
-// UAVs (u): 2000       - Shifted by 2k
-// Samplers (s): 3000   - Shifted by 3k
+enum spv_constants_e : unsigned
+{
+    // SPIR-V accepted by PHI Vulkan backends expects bindings by HLSL type as such:
 
-// Additionally, in order to be able to create and update VkDescriptorSets independently
-// for handle::shader_view and the single one required for the CBV, we shift CBVs up in their _set_
-// So shader arguments map as follows to sets:
-// Arg 0        SRV, UAV, Sampler: 0,   CBV: 4
-// Arg 1        SRV, UAV, Sampler: 1,   CBV: 5
-// Arg 2        SRV, UAV, Sampler: 2,   CBV: 6
-// Arg 3        SRV, UAV, Sampler: 3,   CBV: 7
-// (this is required as there are no "root descriptors" in vulkan, we do
-// it using spirv-reflect, see loader/spirv_patch_util for details)
+    // CBVs (b): 0 - 999            - Starts first
+    cbv_binding_start = 0u,
 
-inline constexpr auto cbv_binding_start = 0u;
-inline constexpr auto srv_binding_start = 1000u;
-inline constexpr auto uav_binding_start = 2000u;
-inline constexpr auto sampler_binding_start = 3000u;
+    // SRVs (t): 1000 - 1999        - Shifted by 1k
+    srv_binding_start = 1000u,
 
+    // UAVs (u): 2000 - 2999        - Shifted by 2k
+    uav_binding_start = 2000u,
+
+    // Samplers (s): 3000 - X       - Shifted by 3k
+    sampler_binding_start = 3000u
+
+    // This is assuming a HLSL -> SPIR-V path via DXC, and is done at shader compile time
+    // using the -fvk-[x]-shift flags (see dxc-wrapper compiler.cc for the specific flags)
+
+    // Additionally, in order to be able to create and update VkDescriptorSets independently
+    // for A) handle::shader_view and B) the single one required for the CBV, we shift CBVs up in their _set_
+    // So shader arguments map as follows to sets:
+    // Arg 0 (space0)        SRV, UAV, Sampler: set 0,   CBV: set 4
+    // Arg 1 (space1)        SRV, UAV, Sampler: set 1,   CBV: set 5
+    // Arg 2 (space2)        SRV, UAV, Sampler: set 2,   CBV: set 6
+    // Arg 3 (space3)        SRV, UAV, Sampler: set 3,   CBV: set 7
+    // (this is required as there are no "root descriptors" in vulkan)
+
+    // Unlike the binding offsets, these set shifts cannot be caused by DXC and must be patched post-compile
+    // (currently always online, but this would eventually be part of asset bake)
+    // this is currently done using spirv-reflect, see loader/spirv_patch_util for details
+};
 }
 
 namespace phi::vk::util
