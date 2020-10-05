@@ -17,7 +17,7 @@ phi::handle::accel_struct phi::d3d12::AccelStructPool::createBottomLevelAS(cc::s
 {
     handle::accel_struct res_handle;
     accel_struct_node& new_node = acquireAccelStruct(res_handle);
-    new_node.reset(mDynamicAllocator, elements.size());
+    new_node.reset(mDynamicAllocator, unsigned(elements.size()));
     new_node.flags = flags;
 
     // build the D3D12_RAYTRACING_GEOMETRY_DESCs from the vertex/index buffer pairs
