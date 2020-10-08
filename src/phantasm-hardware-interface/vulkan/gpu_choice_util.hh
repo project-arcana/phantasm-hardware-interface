@@ -4,7 +4,7 @@
 #include <clean-core/capped_array.hh>
 #include <clean-core/vector.hh>
 
-#include <phantasm-hardware-interface/detail/gpu_info.hh>
+#include <phantasm-hardware-interface/features/gpu_info.hh>
 #include <phantasm-hardware-interface/types.hh>
 
 #include "layer_extension_util.hh"

@@ -7,7 +7,7 @@
 #include <clean-core/vector.hh>
 
 #include <phantasm-hardware-interface/arguments.hh>
-#include <phantasm-hardware-interface/detail/linked_pool.hh>
+#include <phantasm-hardware-interface/common/container/linked_pool.hh>
 #include <phantasm-hardware-interface/limits.hh>
 
 
@@ -31,7 +31,7 @@ public:
 
 public:
     // internal API
-    void initialize(VkDevice device, ResourcePool* res_pool, unsigned num_cbvs, unsigned num_srvs, unsigned num_uavs, unsigned num_samplers);
+    void initialize(VkDevice device, ResourcePool* res_pool, unsigned num_cbvs, unsigned num_srvs, unsigned num_uavs, unsigned num_samplers, cc::allocator* static_alloc);
     void destroy();
 
     [[nodiscard]] VkDescriptorSet get(handle::shader_view sv) const { return mPool.get(sv._value).raw_desc_set; }
@@ -67,7 +67,7 @@ private:
     ResourcePool* mResourcePool;
 
     /// The main pool data
-    phi::detail::linked_pool<shader_view_node> mPool;
+    phi::linked_pool<shader_view_node> mPool;
 
     /// "Backing" allocator
     DescriptorAllocator mAllocator;

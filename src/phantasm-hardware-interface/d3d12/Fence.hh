@@ -13,35 +13,24 @@ class SimpleFence
 public:
     void initialize(ID3D12Device& device);
     void destroy();
-    ~SimpleFence() { destroy(); }
 
-    SimpleFence() = default;
-    SimpleFence(SimpleFence const&) = delete;
-    SimpleFence& operator=(SimpleFence const&) = delete;
-    SimpleFence(SimpleFence&&) noexcept = delete;
-    SimpleFence& operator=(SimpleFence&&) noexcept = delete;
-
-    void signalCPU(uint64_t new_val) { mFence->Signal(new_val); }
-    void signalGPU(uint64_t new_val, ID3D12CommandQueue& queue) { queue.Signal(mFence, new_val); }
+    void signalCPU(uint64_t new_val) { fence->Signal(new_val); }
+    void signalGPU(uint64_t new_val, ID3D12CommandQueue& queue) { queue.Signal(fence, new_val); }
 
     void waitCPU(uint64_t val);
     void waitGPU(uint64_t val, ID3D12CommandQueue& queue);
 
     [[nodiscard]] uint64_t getCurrentValue() const
     {
-        auto const res = mFence->GetCompletedValue();
+        auto const res = fence->GetCompletedValue();
 #ifdef CC_ENABLE_ASSERTIONS
-        PHI_D3D12_DRED_ASSERT(res != UINT64_MAX, mFence);
+        PHI_D3D12_DRED_ASSERT(res != UINT64_MAX, fence);
 #endif
         return res;
     }
 
-    [[nodiscard]] ID3D12Fence* getRawFence() const { return mFence.get(); }
-    [[nodiscard]] HANDLE getRawEvent() const { return mEvent; }
-
-private:
-    shared_com_ptr<ID3D12Fence> mFence;
-    ::HANDLE mEvent;
+    ID3D12Fence* fence = nullptr;
+    ::HANDLE event;
 };
 
 class Fence
@@ -66,7 +55,7 @@ public:
 
     void waitOnGPU(ID3D12CommandQueue& queue) { mFence.waitGPU(mCounter, queue); }
 
-    [[nodiscard]] ID3D12Fence* getRawFence() const { return mFence.getRawFence(); }
+    [[nodiscard]] ID3D12Fence* getRawFence() const { return mFence.fence; }
 
 private:
     SimpleFence mFence;

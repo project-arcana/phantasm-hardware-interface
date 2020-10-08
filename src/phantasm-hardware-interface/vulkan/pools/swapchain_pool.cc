@@ -3,8 +3,8 @@
 #include <clean-core/assert.hh>
 #include <clean-core/utility.hh>
 
+#include <phantasm-hardware-interface/common/log.hh>
 #include <phantasm-hardware-interface/config.hh>
-#include <phantasm-hardware-interface/detail/log.hh>
 
 #include <phantasm-hardware-interface/vulkan/Device.hh>
 #include <phantasm-hardware-interface/vulkan/common/util.hh>
@@ -24,6 +24,11 @@ phi::handle::swapchain phi::vk::SwapchainPool::createSwapchain(const window_hand
     {
         auto lg = std::lock_guard(mMutex);
         res = mPool.acquire();
+    }
+
+    if (mode == present_mode::synced_2nd_vblank)
+    {
+        PHI_LOG_WARN("present_mode::synced_2nd_vblank falls back to synced on vulkan");
     }
 
     swapchain& new_node = mPool.get(res);
@@ -205,7 +210,7 @@ void phi::vk::SwapchainPool::initialize(VkInstance instance, const phi::vk::Devi
     mPresentQueue = config.present_from_compute_queue ? device.getQueueCompute() : device.getQueueDirect();
     mPresentQueueFamilyIndex = config.present_from_compute_queue ? device.getQueueFamilyCompute() : device.getQueueFamilyDirect();
 
-    mPool.initialize(config.max_num_swapchains);
+    mPool.initialize(config.max_num_swapchains, config.static_allocator);
 
     // Create render pass
     {

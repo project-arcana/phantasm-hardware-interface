@@ -5,8 +5,8 @@
 #include <typed-geometry/types/objects/aabb.hh>
 #include <typed-geometry/types/size.hh>
 
-#include <phantasm-hardware-interface/detail/command_base.hh>
-#include <phantasm-hardware-interface/detail/trivial_capped_vector.hh>
+#include <phantasm-hardware-interface/common/command_base.hh>
+#include <phantasm-hardware-interface/common/container/flat_vector.hh>
 #include <phantasm-hardware-interface/limits.hh>
 #include <phantasm-hardware-interface/types.hh>
 
@@ -14,11 +14,13 @@ namespace phi
 {
 namespace cmd
 {
-template <class T, uint8_t N>
-using cmd_vector = phi::detail::trivial_capped_vector<T, N>;
-
 PHI_DEFINE_CMD(begin_render_pass)
 {
+    // Start a render pass into the given render targets
+
+    // draw calls are only possibly inside a render pass
+    // ends with cmd::end_render_pass
+
     struct render_target_info
     {
         resource_view rv;
@@ -34,14 +36,12 @@ PHI_DEFINE_CMD(begin_render_pass)
         rt_clear_type clear_type;
     };
 
-    cmd_vector<render_target_info, limits::max_render_targets> render_targets;
+    flat_vector<render_target_info, limits::max_render_targets> render_targets;
     depth_stencil_info depth_target;
     tg::isize2 viewport = {0, 0};       ///< viewport dimensions being rendered to, in pixels
     tg::ivec2 viewport_offset = {0, 0}; ///< offset of the viewport, in pixels from the top left corner
 
 public:
-    // convenience
-
     void add_backbuffer_rt(handle::resource res, bool clear = true)
     {
         render_targets.push_back(render_target_info{{}, {0.f, 0.f, 0.f, 1.f}, clear ? rt_clear_type::clear : rt_clear_type::load});
@@ -64,16 +64,22 @@ public:
 };
 
 PHI_DEFINE_CMD(end_render_pass){
-    // NOTE: Anything useful to pass here?
+    // End a render pass previously begun with cmd::begin_render_pass
 };
 
 PHI_DEFINE_CMD(transition_resources)
 {
-    cmd_vector<transition_info, limits::max_resource_transitions> transitions;
+    // Transition resources to a new state
+
+    // Resource state transitions are simplified - only the after-state is given
+    // the before state is internally managed, and submit-order-safe
+    // NOTE: the first transition of each resource in a commandlist is implicit,
+    // it is inserted last-minute at submission - thus, that resource is in that state
+    // not just after the transition, but right away from the beginning of the cmdlist
+
+    flat_vector<transition_info, limits::max_resource_transitions> transitions;
 
 public:
-    // convenience
-
     /// add a barrier for resource [res] into new state [target]
     /// if the target state is a CBV/SRV/UAV, depending_shader must be
     /// the union of shaders depending upon this resource next (can be omitted on d3d12)
@@ -98,11 +104,9 @@ PHI_DEFINE_CMD(transition_image_slices)
         int array_slice;
     };
 
-    cmd_vector<slice_transition_info, limits::max_resource_transitions> transitions;
+    flat_vector<slice_transition_info, limits::max_resource_transitions> transitions;
 
 public:
-    // convenience
-
     /// add a barrier for image [res] subresource at [mip_level] and [array_slice] from state [source] into new state [target]
     /// if the source/target state is a CBV/SRV/UAV, source/target_dep
     /// must be the union of shaders {previously accessing the resource (source) / depending upon this resource next (target)}
@@ -119,13 +123,22 @@ public:
     }
 };
 
+PHI_DEFINE_CMD(barrier_uav)
+{
+    // Explicitly record UAV barriers on the spot (currently D3D12 only)
+
+    flat_vector<handle::resource, limits::max_uav_barriers> resources;
+};
+
 
 PHI_DEFINE_CMD(draw)
 {
-    static_assert(limits::max_root_constant_bytes > 0, "root constant size must be nonzero");
+    // Execute a draw call
 
-    std::byte root_constants[limits::max_root_constant_bytes];                  // optional
-    cmd_vector<shader_argument, limits::max_shader_arguments> shader_arguments; // optional
+    // must occur inside of a render pass
+
+    std::byte root_constants[limits::max_root_constant_bytes];                   // optional
+    flat_vector<shader_argument, limits::max_shader_arguments> shader_arguments; // optional
     handle::pipeline_state pipeline_state = handle::null_pipeline_state;
     handle::resource vertex_buffer = handle::null_resource; // optional
     handle::resource index_buffer = handle::null_resource;  // optional
@@ -138,8 +151,6 @@ PHI_DEFINE_CMD(draw)
     tg::iaabb2 scissor = tg::iaabb2(-1, -1);
 
 public:
-    // convenience
-
     void init(handle::pipeline_state pso, unsigned num_ind, handle::resource vb = handle::null_resource, handle::resource ib = handle::null_resource,
               unsigned ind_offset = 0, unsigned vert_offset = 0)
     {
@@ -170,20 +181,26 @@ public:
 
 PHI_DEFINE_CMD(draw_indirect)
 {
-    std::byte root_constants[limits::max_root_constant_bytes];                  // optional
-    cmd_vector<shader_argument, limits::max_shader_arguments> shader_arguments; // optional
+    // Execute draw calls based on data in a GPU buffer
+
+    // vertex/index ranges are specified by an array of structs in indirect_argument_buffer
+    // if an index buffer is provided, the arg type is phi::gpu_indirect_command_draw_indexed
+    // otherwise, the arg type is phi::gpu_indirect_command_draw
+    // num_arguments specifies the amount of these arguments to read from indirect_argument_buffer
+    // indirect_argument_buffer must be in state indirect_argument
+
+    std::byte root_constants[limits::max_root_constant_bytes];
+    flat_vector<shader_argument, limits::max_shader_arguments> shader_arguments;
     handle::pipeline_state pipeline_state = handle::null_pipeline_state;
 
-    handle::resource indirect_argument_buffer = handle::null_resource;
-    unsigned argument_buffer_offset = 0;
-    unsigned num_arguments = 0;
+    handle::resource indirect_argument_buffer = handle::null_resource; ///< the buffer from which to read arguments
+    unsigned argument_buffer_offset_bytes = 0;                         ///< offset in bytes into the argument buffer
+    unsigned num_arguments = 0;                                        ///< amount of arguments to read from the buffer
 
-    handle::resource vertex_buffer = handle::null_resource; // optional
-    handle::resource index_buffer = handle::null_resource;  // optional
+    handle::resource vertex_buffer = handle::null_resource; ///< optional
+    handle::resource index_buffer = handle::null_resource;  ///< optional
 
 public:
-    // convenience
-
     void add_shader_arg(handle::resource cbv, unsigned cbv_off = 0, handle::shader_view sv = handle::null_shader_view)
     {
         shader_arguments.push_back(shader_argument{cbv, sv, cbv_off});
@@ -201,19 +218,18 @@ public:
 
 PHI_DEFINE_CMD(dispatch)
 {
-    static_assert(limits::max_root_constant_bytes > 0, "root constant size must be nonzero");
+    // Execute a compute dispatch
 
     std::byte root_constants[limits::max_root_constant_bytes];
-    cmd_vector<shader_argument, limits::max_shader_arguments> shader_arguments;
+    flat_vector<shader_argument, limits::max_shader_arguments> shader_arguments;
+    handle::pipeline_state pipeline_state = handle::null_pipeline_state;
+
     unsigned dispatch_x = 0;
     unsigned dispatch_y = 0;
     unsigned dispatch_z = 0;
-    handle::pipeline_state pipeline_state = handle::null_pipeline_state;
 
 public:
-    // convenience
-
-    void init(handle::pipeline_state pso, unsigned x, unsigned y, unsigned z)
+    void init(handle::pipeline_state pso, unsigned x, unsigned y = 1, unsigned z = 1)
     {
         pipeline_state = pso;
         dispatch_x = x;
@@ -238,18 +254,18 @@ public:
 
 PHI_DEFINE_CMD(copy_buffer)
 {
-    handle::resource source;
-    handle::resource destination;
-    size_t dest_offset;
-    size_t source_offset;
-    size_t size;
+    // Copy data between buffers
+
+    handle::resource source = handle::null_resource;
+    handle::resource destination = handle::null_resource;
+    size_t dest_offset_bytes = 0;
+    size_t source_offset_bytes = 0;
+    size_t size = 0;
 
 public:
-    // convenience
-
     copy_buffer() = default;
     copy_buffer(handle::resource dest, size_t dest_offset, handle::resource src, size_t src_offset, size_t size)
-      : source(src), destination(dest), dest_offset(dest_offset), source_offset(src_offset), size(size)
+      : source(src), destination(dest), dest_offset_bytes(dest_offset), source_offset_bytes(src_offset), size(size)
     {
     }
 
@@ -258,26 +274,26 @@ public:
         source = src;
         destination = dest;
         this->size = size;
-        source_offset = src_offset;
-        dest_offset = dst_offset;
+        source_offset_bytes = src_offset;
+        dest_offset_bytes = dst_offset;
     }
 };
 
 PHI_DEFINE_CMD(copy_texture)
 {
-    handle::resource source;
-    handle::resource destination;
-    unsigned src_mip_index;    ///< index of the MIP level to read from
-    unsigned src_array_index;  ///< index of the first array element to read from (usually: 0)
-    unsigned dest_mip_index;   ///< index of the MIP level to write to
-    unsigned dest_array_index; ///< index of the first array element to write to (usually: 0)
-    unsigned width;            ///< width of the destination texture (in the specified MIP map and array element(s))
-    unsigned height;           ///< height of the destination texture (in the specified MIP map and array element(s))
-    unsigned num_array_slices; ///< amount of array slices to copy, all other parameters staying equal (usually: 1)
+    // Copy data between textures
+
+    handle::resource source = handle::null_resource;
+    handle::resource destination = handle::null_resource;
+    unsigned src_mip_index = 0;    ///< index of the MIP level to read from
+    unsigned src_array_index = 0;  ///< index of the first array element to read from (usually: 0)
+    unsigned dest_mip_index = 0;   ///< index of the MIP level to write to
+    unsigned dest_array_index = 0; ///< index of the first array element to write to (usually: 0)
+    unsigned width = 0;            ///< width of the destination texture (in the specified MIP map and array element(s))
+    unsigned height = 0;           ///< height of the destination texture (in the specified MIP map and array element(s))
+    unsigned num_array_slices = 0; ///< amount of array slices to copy, all other parameters staying equal (usually: 1)
 
 public:
-    // convenience
-
     void init_symmetric(handle::resource src, handle::resource dest, unsigned width, unsigned height, unsigned mip_index,
                         unsigned first_array_index = 0, unsigned num_array_slices = 1)
     {
@@ -295,20 +311,22 @@ public:
 
 PHI_DEFINE_CMD(copy_buffer_to_texture)
 {
-    handle::resource source;
-    handle::resource destination;
-    size_t source_offset;
-    unsigned dest_width;       ///< width of the destination texture (in the specified MIP level and array element)
-    unsigned dest_height;      ///< height of the destination texture (in the specified MIP level and array element)
-    unsigned dest_mip_index;   ///< index of the MIP level to copy
-    unsigned dest_array_index; ///< index of the array element to copy (usually: 0)
+    // Copy data from a buffer to a texture
+
+    handle::resource source = handle::null_resource;
+    handle::resource destination = handle::null_resource;
+    size_t source_offset_bytes = 0;
+    unsigned dest_width = 0;       ///< width of the destination texture (in the specified MIP level and array element)
+    unsigned dest_height = 0;      ///< height of the destination texture (in the specified MIP level and array element)
+    unsigned dest_mip_index = 0;   ///< index of the MIP level to copy
+    unsigned dest_array_index = 0; ///< index of the array element to copy (usually: 0)
 
 public:
     void init(handle::resource src, handle::resource dest, unsigned dest_w, unsigned dest_h, size_t src_offset = 0, unsigned dest_mip_i = 0, unsigned dest_arr_i = 0)
     {
         source = src;
         destination = dest;
-        source_offset = src_offset;
+        source_offset_bytes = src_offset;
         dest_width = dest_w;
         dest_height = dest_h;
         dest_mip_index = dest_mip_i;
@@ -318,13 +336,15 @@ public:
 
 PHI_DEFINE_CMD(copy_texture_to_buffer)
 {
-    handle::resource source;
-    handle::resource destination;
-    size_t dest_offset;
-    unsigned src_width;       ///< width of the source texture (in the specified MIP level and array element)
-    unsigned src_height;      ///< height of the destination texture (in the specified MIP level and array element)
-    unsigned src_mip_index;   ///< index of the MIP level to copy
-    unsigned src_array_index; ///< index of the array element to copy (usually: 0)
+    // Copy data from a texture to a buffer
+
+    handle::resource source = handle::null_resource;
+    handle::resource destination = handle::null_resource;
+    size_t dest_offset = 0;
+    unsigned src_width = 0;       ///< width of the source texture (in the specified MIP level and array element)
+    unsigned src_height = 0;      ///< height of the destination texture (in the specified MIP level and array element)
+    unsigned src_mip_index = 0;   ///< index of the MIP level to copy
+    unsigned src_array_index = 0; ///< index of the array element to copy (usually: 0)
 
 public:
     void init(handle::resource src, handle::resource dest, unsigned src_w, unsigned src_h, size_t dest_off = 0, unsigned src_mip_i = 0, unsigned src_arr_i = 0)
@@ -341,18 +361,18 @@ public:
 
 PHI_DEFINE_CMD(resolve_texture)
 {
-    handle::resource source;      ///< the multisampled source texture
-    handle::resource destination; ///< the non-multisampled destination texture
-    unsigned src_mip_index;       ///< index of the MIP level to read from (usually: 0)
-    unsigned src_array_index;     ///< index of the array element to read from (usually: 0)
-    unsigned dest_mip_index;      ///< index of the MIP level to write to (usually: 0)
-    unsigned dest_array_index;    ///< index of the array element to write to (usually: 0)
-    unsigned width;               ///< width of the destination texture (in the specified MIP map and array element) (ignored on d3d12)
-    unsigned height;              ///< height of the destination texture (in the specified MIP map and array element) (ignored on d3d12)
+    // Resolve MSAA render targets or textures
+
+    handle::resource source = handle::null_resource;      ///< the multisampled source texture
+    handle::resource destination = handle::null_resource; ///< the non-multisampled destination texture
+    unsigned src_mip_index = 0;                           ///< index of the MIP level to read from (usually: 0)
+    unsigned src_array_index = 0;                         ///< index of the array element to read from (usually: 0)
+    unsigned dest_mip_index = 0;                          ///< index of the MIP level to write to (usually: 0)
+    unsigned dest_array_index = 0;                        ///< index of the array element to write to (usually: 0)
+    unsigned width = 0;  ///< width of the destination texture (in the specified MIP map and array element) (ignored on d3d12)
+    unsigned height = 0; ///< height of the destination texture (in the specified MIP map and array element) (ignored on d3d12)
 
 public:
-    // convenience
-
     void init_symmetric(handle::resource src, handle::resource dest, unsigned width, unsigned height, unsigned mip_index = 0, unsigned array_index = 0)
     {
         source = src;
@@ -368,83 +388,164 @@ public:
 
 PHI_DEFINE_CMD(write_timestamp)
 {
+    // Write the current GPU queue timestamp into a slot of a query range
+
+    // see cmd::resolve_queries to receive the data afterwards
+
     handle::query_range query_range = handle::null_query_range; ///< the query_range in which to write a timestamp query
     unsigned index = 0;                                         ///< relative index into the query_range, element to write to
 
+public:
     write_timestamp() = default;
     write_timestamp(handle::query_range qr, unsigned index = 0) : query_range(qr), index(index) {}
 };
 
 PHI_DEFINE_CMD(resolve_queries)
 {
+    // Write a uint64 value per query in a given query range to a buffer
+
+    // this allows usage of the data contained in queries
+    // typically dest_buffer would be a readback buffer
+    // to interpret timestamp results, see get_timestamp_difference_microseconds in util.hh
+
     handle::resource dest_buffer = handle::null_resource;           ///< the buffer in which to write the resolve data
     handle::query_range src_query_range = handle::null_query_range; ///< the query_range from which to read
     unsigned query_start = 0;                                       ///< relative index into the query_range, element to start the resolve from
     unsigned num_queries = 1;                                       ///< amount of elements to resolve
-    unsigned dest_offset = 0;                                       ///< offset into the destination buffer
+    unsigned dest_offset_bytes = 0;                                 ///< offset into the destination buffer
 
-
+public:
     void init(handle::resource dest, handle::query_range qr, unsigned start = 0, unsigned num = 1, unsigned dest_offset = 0)
     {
         dest_buffer = dest;
         src_query_range = qr;
         query_start = start;
         num_queries = num;
-        this->dest_offset = dest_offset;
+        this->dest_offset_bytes = dest_offset;
     }
 };
 
-/// begin a debug label on the cmdlist
-/// for diagnostic tools like renderdoc, nsight, gpa, pix
-/// close it using cmd::end_debug_label
 PHI_DEFINE_CMD(begin_debug_label)
 {
+    // Begin a debug label on the cmdlist
+
+    // for diagnostic tools like renderdoc, nsight, gpa, pix
+    // close it using cmd::end_debug_label
+
     char const* string = "UNLABELED_DEBUG_MARKER";
 
+public:
     begin_debug_label() = default;
     begin_debug_label(char const* s) : string(s) {}
 };
 
 PHI_DEFINE_CMD(end_debug_label){
-    // empty
+    // Close a debug label started with cmd::begin_debug_label
 };
 
-/// update a bottom level raytracing acceleration structure (BLAS)
+
 PHI_DEFINE_CMD(update_bottom_level)
 {
+    // Update or build a bottom level raytracing acceleration structure (BLAS)
+
+    /// the bottom level accel struct to build
     handle::accel_struct dest = handle::null_accel_struct;
+
+    /// the bottom level accel struct to update from (optional)
+    /// if specified, dest must have been created with accel_struct_build_flags::allow_update
+    /// can be the same as dest for an in-place update
     handle::accel_struct source = handle::null_accel_struct;
 };
 
-/// update a top level raytracing acceleration structure (TLAS)
 PHI_DEFINE_CMD(update_top_level)
 {
-    handle::accel_struct dest = handle::null_accel_struct;
+    // Update or build a top level raytracing acceleration structure (TLAS),
+    // filling it with instances of bottom level accel structs (BLAS)
+
+    /// amount of instances to write
     unsigned num_instances = 0;
+
+    /// a buffer holding an array of accel_struct_instance structs (at least num_instances)
+    handle::resource source_buffer_instances = handle::null_resource;
+    unsigned source_buffer_offset_bytes = 0;
+
+    /// the top level accel struct to update
+    handle::accel_struct dest_accel_struct = handle::null_accel_struct;
 };
 
-/// dispatch rays given a raytracing pipeline state and shader tables for ray generation, ray miss and the involved hitgroups
+
 PHI_DEFINE_CMD(dispatch_rays)
 {
+    // Dispatch rays given a raytracing pipeline state and shader tables for ray generation, ray miss and the involved hitgroups
+
     handle::pipeline_state pso = handle::null_pipeline_state;
-    handle::resource table_raygen = handle::null_resource;
-    handle::resource table_miss = handle::null_resource;
-    handle::resource table_hitgroups = handle::null_resource;
-    unsigned width = 0;
-    unsigned height = 0;
-    unsigned depth = 0;
+
+    buffer_range table_ray_generation;
+    buffer_range_and_stride table_miss;
+    buffer_range_and_stride table_hit_groups;
+    buffer_range_and_stride table_callable; ///< optional
+
+    unsigned width = 1;
+    unsigned height = 1;
+    unsigned depth = 1;
+
+public:
+    void set_strides(shader_table_strides const& strides)
+    {
+        table_ray_generation.size_bytes = strides.size_ray_gen;
+
+        table_miss.stride_bytes = strides.stride_miss;
+        table_miss.size_bytes = strides.size_miss;
+
+        table_hit_groups.stride_bytes = strides.stride_hit_group;
+        table_hit_groups.size_bytes = strides.size_hit_group;
+
+        table_callable.stride_bytes = strides.stride_callable;
+        table_callable.size_bytes = strides.size_callable;
+    }
+
+    void set_single_buffer(handle::resource shader_table, bool include_callable)
+    {
+        table_ray_generation.buffer = shader_table;
+        table_miss.buffer = shader_table;
+        table_hit_groups.buffer = shader_table;
+
+        if (include_callable)
+            table_callable.buffer = shader_table;
+    }
+
+    void set_offsets(uint32_t offset_ray_gen, uint32_t offset_miss, uint32_t offset_hit_group, uint32_t offset_callable)
+    {
+        table_ray_generation.offset_bytes = offset_ray_gen;
+        table_miss.offset_bytes = offset_miss;
+        table_hit_groups.offset_bytes = offset_hit_group;
+        table_callable.offset_bytes = offset_callable;
+    }
+
+    [[deprecated("debug only")]] void set_zero_sizes()
+    {
+        // NOTE: sizes are functionally irrelevant, setting them to 0 has no effects for D3D12, even with GBV.
+        // Vulkan doesn't even have an option to specify them
+        // However according to Adam Miles, they might be used by some tooling (like PIX)
+        // of course, we can validate based on the sizes as well
+        table_ray_generation.size_bytes = 0;
+        table_miss.size_bytes = 0;
+        table_hit_groups.size_bytes = 0;
+        table_callable.size_bytes = 0;
+    }
 };
 
-/// clear up to 4 textures to specified values - standalone (outside of begin/end_render_pass)
 PHI_DEFINE_CMD(clear_textures)
 {
+    // Clear up to 4 textures to specified values - standalone (outside of begin/end_render_pass)
+
     struct clear_info
     {
         resource_view rv;
         rt_clear_value value;
     };
 
-    cmd_vector<clear_info, 4> clear_ops;
+    flat_vector<clear_info, 4> clear_ops;
 };
 
 #undef PHI_DEFINE_CMD

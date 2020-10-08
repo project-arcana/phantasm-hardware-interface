@@ -1,6 +1,6 @@
 #include "debug_callback.hh"
 
-#include <phantasm-hardware-interface/detail/log.hh>
+#include <phantasm-hardware-interface/common/log.hh>
 
 #include <clean-core/breakpoint.hh>
 
@@ -45,8 +45,8 @@ VkBool32 phi::vk::detail::debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT 
 {
     if (severity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT)
     {
-        // cc::breakpoint(); // NOTE: setting a breakpoint here sometimes doesn't suffice, this does
         RICH_LOG_IMPL(phi::detail::vulkan_log)("{}", callback_data->pMessage);
+        // cc::breakpoint(); // NOTE: setting a breakpoint here sometimes doesn't suffice, this does
     }
     return VK_FALSE;
 }

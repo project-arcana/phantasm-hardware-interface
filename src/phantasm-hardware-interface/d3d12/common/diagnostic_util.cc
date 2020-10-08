@@ -10,8 +10,8 @@
 
 #include <renderdoc_app/renderdoc_app.h>
 
-#include <phantasm-hardware-interface/detail/renderdoc_loader.hh>
-#include <phantasm-hardware-interface/detail/log.hh>
+#include <phantasm-hardware-interface/features/renderdoc_loader.hh>
+#include <phantasm-hardware-interface/common/log.hh>
 
 #include "verify.hh"
 

@@ -16,12 +16,16 @@ void phi::d3d12::cmd_allocator_node::initialize(ID3D12Device5& device, D3D12_COM
     _full_and_waiting = false;
 
     _fence.initialize(device);
-    util::set_object_name(_fence.getRawFence(), "cmd_allocator_node fence for %zx", this);
+    util::set_object_name(_fence.fence, "cmd_allocator_node fence for %zx", this);
 
     PHI_D3D12_VERIFY(device.CreateCommandAllocator(type, IID_PPV_ARGS(&_allocator)));
 }
 
-void phi::d3d12::cmd_allocator_node::destroy() { _allocator->Release(); }
+void phi::d3d12::cmd_allocator_node::destroy()
+{
+    _allocator->Release();
+    _fence.destroy();
+}
 
 void phi::d3d12::cmd_allocator_node::acquire(ID3D12GraphicsCommandList5* cmd_list)
 {

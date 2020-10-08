@@ -2,8 +2,8 @@
 
 #include <renderdoc_app/renderdoc_app.h>
 
-#include <phantasm-hardware-interface/detail/log.hh>
-#include <phantasm-hardware-interface/detail/renderdoc_loader.hh>
+#include <phantasm-hardware-interface/common/log.hh>
+#include <phantasm-hardware-interface/features/renderdoc_loader.hh>
 
 void phi::vk::util::diagnostic_state::init()
 {

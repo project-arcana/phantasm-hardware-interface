@@ -51,7 +51,7 @@ ID3D12PipelineState* phi::d3d12::create_pipeline_state(ID3D12Device& device,
     pso_desc.RasterizerState.ConservativeRaster = config.conservative_raster ? D3D12_CONSERVATIVE_RASTERIZATION_MODE_ON : D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
 
     pso_desc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
-    pso_desc.DepthStencilState.DepthEnable = config.depth != phi::depth_function::none && !framebuffer_format.depth_target.empty();
+    pso_desc.DepthStencilState.DepthEnable = config.depth != phi::depth_function::none && framebuffer_format.depth_target != format::none;
     pso_desc.DepthStencilState.DepthFunc = util::to_native(config.depth);
     pso_desc.DepthStencilState.DepthWriteMask = config.depth_readonly ? D3D12_DEPTH_WRITE_MASK_ZERO : D3D12_DEPTH_WRITE_MASK_ALL;
 
@@ -84,7 +84,7 @@ ID3D12PipelineState* phi::d3d12::create_pipeline_state(ID3D12Device& device,
         }
     }
 
-    pso_desc.DSVFormat = pso_desc.DepthStencilState.DepthEnable ? util::to_dxgi_format(framebuffer_format.depth_target[0]) : DXGI_FORMAT_UNKNOWN;
+    pso_desc.DSVFormat = pso_desc.DepthStencilState.DepthEnable ? util::to_dxgi_format(framebuffer_format.depth_target) : DXGI_FORMAT_UNKNOWN;
 
     pso_desc.SampleDesc.Count = UINT(config.samples);
     pso_desc.SampleDesc.Quality = config.samples != 1 ? DXGI_STANDARD_MULTISAMPLE_QUALITY_PATTERN : 0;

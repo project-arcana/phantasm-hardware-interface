@@ -4,6 +4,10 @@
 
 #include <phantasm-hardware-interface/handles.hh>
 
+#define PHI_DEFINE_FLAG_TYPE(_flags_t_, _enum_t_, _max_num_)    \
+    using _flags_t_ = cc::flags<_enum_t_, unsigned(_max_num_)>; \
+    CC_FLAGS_ENUM_SIZED(_enum_t_, unsigned(_max_num_));
+
 namespace phi
 {
 /// resources bound to a shader, up to 4 per draw or dispatch command
@@ -17,6 +21,8 @@ struct shader_argument
 /// the type of a single shader
 enum class shader_stage : uint8_t
 {
+    none = 0,
+
     // graphics
     vertex,
     hull,
@@ -33,17 +39,25 @@ enum class shader_stage : uint8_t
     ray_closest_hit,
     ray_intersect,
     ray_any_hit,
+    ray_callable,
+
+    MAX_SHADER_STAGE_RANGE,
+    NUM_SHADER_STAGES = MAX_SHADER_STAGE_RANGE - 1
 };
 
-/// 0 to N shader_stages
-using shader_stage_flags_t = cc::flags<shader_stage, 16>;
-CC_FLAGS_ENUM_SIZED(shader_stage, 16);
+constexpr bool is_valid_shader_stage(shader_stage s) { return s > shader_stage::none && s < shader_stage::MAX_SHADER_STAGE_RANGE; }
+
+PHI_DEFINE_FLAG_TYPE(shader_stage_flags_t, shader_stage, shader_stage::NUM_SHADER_STAGES);
 
 inline constexpr shader_stage_flags_t shader_stage_mask_all_graphics
     = shader_stage::vertex | shader_stage::hull | shader_stage::domain | shader_stage::geometry | shader_stage::pixel;
 
-inline constexpr shader_stage_flags_t shader_stage_mask_all_ray
-    = shader_stage::ray_gen | shader_stage::ray_miss | shader_stage::ray_closest_hit | shader_stage::ray_intersect | shader_stage::ray_any_hit;
+inline constexpr shader_stage_flags_t shader_stage_mask_all_ray = shader_stage::ray_gen | shader_stage::ray_miss | shader_stage::ray_closest_hit
+                                                                  | shader_stage::ray_intersect | shader_stage::ray_any_hit | shader_stage::ray_callable;
+
+inline constexpr shader_stage_flags_t shader_stage_mask_ray_identifiable = shader_stage::ray_gen | shader_stage::ray_miss | shader_stage::ray_callable;
+
+inline constexpr shader_stage_flags_t shader_stage_mask_ray_hitgroup = shader_stage::ray_closest_hit | shader_stage::ray_any_hit | shader_stage::ray_intersect;
 
 enum class queue_type : uint8_t
 {
@@ -52,12 +66,13 @@ enum class queue_type : uint8_t
     copy
 };
 
-/// the swapchain presentation mode (note: synced does not mean refreshrate-limited)
-/// Also note: under some circumstances, synced might force a refreshrate limit (Nvidia optimus + windowed on d3d12, etc.)
+/// the swapchain presentation mode
 enum class present_mode : uint8_t
 {
-    allow_tearing,
-    synced
+    synced,                 // synchronize presentation every vblank
+    synced_2nd_vblank,      // synchronize presentation every second vblank (effectively halves refreshrate)
+    unsynced,               // do not synchronize presentation
+    unsynced_allow_tearing, // do not synchronize presentation and allow tearing, required for variable refresh rate displays
 };
 
 /// state of a handle::resource, determining legal operations
@@ -113,6 +128,8 @@ enum class resource_heap : uint8_t
 /// [f]loat, [i]nt, [u]int, [un]orm, [uf]loat, [t]ypeless
 enum class format : uint8_t
 {
+    none = 0,
+
     // regular formats
     rgba32f,
     rgb32f,
@@ -164,16 +181,21 @@ enum class format : uint8_t
     // depth stencil formats
     depth32f_stencil8u,
     depth24un_stencil8u,
+
+    MAX_FORMAT_RANGE,
+    NUM_FORMATS = MAX_FORMAT_RANGE - 1
 };
 
+constexpr bool is_valid_format(format fmt) { return fmt > format::none && fmt < format::MAX_FORMAT_RANGE; }
+
 /// returns true if the format is a view-only format
-[[nodiscard]] constexpr bool is_view_format(format fmt) { return fmt >= format::r24un_g8t && fmt < format::depth32f; }
+constexpr bool is_view_format(format fmt) { return fmt >= format::r24un_g8t && fmt < format::depth32f; }
 
 /// returns true if the format is a depth OR depth stencil format
-[[nodiscard]] constexpr bool is_depth_format(format fmt) { return fmt >= format::depth32f; }
+constexpr bool is_depth_format(format fmt) { return fmt >= format::depth32f; }
 
 /// returns true if the format is a depth stencil format
-[[nodiscard]] constexpr bool is_depth_stencil_format(format fmt) { return fmt >= format::depth32f_stencil8u; }
+constexpr bool is_depth_stencil_format(format fmt) { return fmt >= format::depth32f_stencil8u; }
 
 /// information about a single vertex attribute
 struct vertex_attribute_info
@@ -619,6 +641,13 @@ enum class query_type : uint8_t
     pipeline_stats
 };
 
+/// a single signal- or wait operation on a fence
+struct fence_operation
+{
+    handle::fence fence;
+    uint64_t value;
+};
+
 /// indirect draw command, as it is laid out in a GPU buffer
 struct gpu_indirect_command_draw
 {
@@ -648,33 +677,13 @@ enum class accel_struct_build_flags : uint8_t
     minimize_memory
 };
 
-CC_FLAGS_ENUM(accel_struct_build_flags);
-using accel_struct_build_flags_t = cc::flags<accel_struct_build_flags>;
-
-/// geometry instance within a top level acceleration structure (layout dictated by DXR/Vulkan RT Extension)
-struct accel_struct_geometry_instance
-{
-    /// Transform matrix, containing only the top 3 rows
-    float transform[12];
-    /// Instance index
-    uint32_t instance_id : 24;
-    /// Visibility mask
-    uint32_t mask : 8;
-    /// Index of the hit group which will be invoked when a ray hits the instance
-    uint32_t instance_offset : 24;
-    /// Instance flags, such as culling
-    uint32_t flags : 8;
-    /// Opaque handle of the bottom-level acceleration structure
-    uint64_t native_accel_struct_handle;
-};
-
-static_assert(sizeof(accel_struct_geometry_instance) == 64, "accel_struct_geometry_instance compiles to incorrect size");
+PHI_DEFINE_FLAG_TYPE(accel_struct_build_flags_t, accel_struct_build_flags, 8);
 
 // these flags align exactly with both vulkan and d3d12, and are not translated
 using accel_struct_instance_flags_t = uint32_t;
 namespace accel_struct_instance_flags
 {
-enum accel_struct_instance_flags_e : accel_struct_instance_flags_t
+enum accel_struct_instance_flags_e : uint32_t
 {
     none = 0x0000,
     triangle_cull_disable = 0x0001,
@@ -684,11 +693,58 @@ enum accel_struct_instance_flags_e : accel_struct_instance_flags_t
 };
 }
 
-/// the size and element-strides of a raytracing shader table
-struct shader_table_sizes
+/// bottom level accel struct instance within a top level accel struct (layout dictated by DXR/Vulkan RT Extension)
+struct accel_struct_instance
 {
-    uint32_t ray_gen_stride_bytes = 0;
-    uint32_t miss_stride_bytes = 0;
-    uint32_t hit_group_stride_bytes = 0;
+    /// Transposed transform matrix, containing only the top 3 rows (laid out as three 4-vectors)
+    float transposed_transform[12];
+
+    /// Instance id - arbitrary value, accessed in shaders via `InstanceID()` (HLSL)
+    uint32_t instance_id : 24;
+
+    /// Visibility mask - matched against `InstanceInclusionMask` parameter in `TraceRays(..)` (HLSL)
+    uint32_t visibility_mask : 8;
+
+    /// Index of the hit group which will be invoked when a ray hits the instance
+    uint32_t hit_group_index : 24;
+
+    /// Instance flags, such as culling
+    accel_struct_instance_flags_t flags : 8;
+
+    /// Opaque handle of the bottom-level acceleration structure,
+    /// as received from `out_native_handle` in `createBottomLevelAccelStruct` (phi Backend)
+    uint64_t native_bottom_level_as_handle;
+};
+
+static_assert(sizeof(accel_struct_instance) == 64, "accel_struct_instance compiles to incorrect size");
+
+
+struct buffer_range
+{
+    handle::resource buffer = handle::null_resource;
+    uint32_t offset_bytes = 0;
+    uint32_t size_bytes = 0;
+};
+
+struct buffer_range_and_stride
+{
+    handle::resource buffer = handle::null_resource;
+    uint32_t offset_bytes = 0;
+    uint32_t size_bytes = 0;
+    uint32_t stride_bytes = 0;
+};
+
+/// the sizes required for the four sections of a raytracing shader table
+struct shader_table_strides
+{
+    // ray_gen: record size
+    uint32_t size_ray_gen = 0;
+    // miss, hitgroup, callable: full sizes and strides (record sizes)
+    uint32_t size_miss = 0;
+    uint32_t stride_miss = 0;
+    uint32_t size_hit_group = 0;
+    uint32_t stride_hit_group = 0;
+    uint32_t size_callable = 0;
+    uint32_t stride_callable = 0;
 };
 }

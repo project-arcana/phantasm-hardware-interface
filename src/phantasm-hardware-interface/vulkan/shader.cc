@@ -4,7 +4,7 @@
 
 #include <clean-core/bit_cast.hh>
 
-#include <phantasm-hardware-interface/detail/unique_buffer.hh>
+#include <phantasm-hardware-interface/common/container/unique_buffer.hh>
 
 #include "common/native_enum.hh"
 #include "common/verify.hh"
@@ -29,4 +29,43 @@ void phi::vk::initialize_shader(phi::vk::shader& s, VkDevice device, const std::
     s.stage = stage;
     s.entrypoint = entrypoint;
     PHI_VK_VERIFY_SUCCESS(vkCreateShaderModule(device, &shader_info, nullptr, &s.module));
+}
+
+void phi::vk::patched_shader_intermediates::initialize_from_libraries(VkDevice device, cc::span<const arg::raytracing_shader_library> libraries, cc::allocator* alloc)
+{
+    patched_spirv.reset_reserve(alloc, libraries.size());
+    shader_modules.reset_reserve(alloc, libraries.size() * 16);
+    shader_create_infos.reset_reserve(alloc, libraries.size() * 16);
+
+    util::spirv_refl_info spirv_info;
+
+    for (auto const& lib : libraries)
+    {
+        // patch SPIR-V
+        patched_spirv.push_back(util::create_patched_spirv(lib.binary.data, lib.binary.size, spirv_info, alloc));
+
+        // create a shader per export
+        for (auto const& exp : lib.shader_exports)
+        {
+            shader& new_shader = shader_modules.emplace_back();
+            initialize_shader(new_shader, device, lib.binary.data, lib.binary.size, exp.entrypoint, exp.stage);
+            shader_create_infos.push_back(get_shader_create_info(new_shader));
+        }
+    }
+
+    sorted_merged_descriptor_infos = util::merge_spirv_descriptors(spirv_info.descriptor_infos, alloc);
+    has_root_constants = spirv_info.has_push_constants;
+}
+
+void phi::vk::patched_shader_intermediates::free(VkDevice device)
+{
+    patched_spirv = {};
+    shader_modules = {};
+    shader_create_infos = {};
+
+    for (auto& module : shader_modules)
+        module.free(device);
+
+    for (auto const& ps : patched_spirv)
+        util::free_patched_spirv(ps);
 }

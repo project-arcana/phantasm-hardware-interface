@@ -2,6 +2,8 @@
 
 #include <cstdint>
 
+#include <clean-core/fwd.hh>
+
 namespace phi
 {
 enum class adapter_preference : uint8_t
@@ -15,6 +17,7 @@ enum class adapter_preference : uint8_t
 
 enum class validation_level : uint8_t
 {
+    // No validation, fastest
     off,
 
     // D3D12: Whether to enable debug layers, requires installed D3D12 SDK
@@ -53,10 +56,11 @@ struct backend_config
         native_feature_none = 0,
         native_feature_vk_api_dump = 1 << 0,
         native_feature_d3d12_break_on_warn = 1 << 1,
+        native_feature_d3d12_workaround_device_release_crash = 1 << 2
     };
 
     /// native features to enable
-    native_feature_flags native_features = native_feature_none;
+    uint8_t native_features = native_feature_none;
 
     /// whether to enable DXR / VK raytracing features if available
     bool enable_raytracing = true;
@@ -70,6 +74,11 @@ struct backend_config
     /// amount of threads to accomodate
     /// backend calls must only be made from <= [num_threads] unique OS threads
     unsigned num_threads = 1;
+
+    /// allocator for init-time allocations, only hit during init and shutdown
+    cc::allocator* static_allocator = cc::system_allocator;
+    /// allocator for runtime allocations, must be thread-safe
+    cc::allocator* dynamic_allocator = cc::system_allocator;
 
     /// resource limits
     unsigned max_num_swapchains = 32;

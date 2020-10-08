@@ -10,12 +10,12 @@
 #include <clean-core/move.hh>
 #include <clean-core/new.hh>
 
-namespace phi::detail
+namespace phi
 {
 /// cc::capped_vector, but trivial (no move/copy, no dtor)
 /// For serialization purposes
 template <class T, uint8_t N>
-struct trivial_capped_vector
+struct flat_vector
 {
     static_assert(std::is_trivially_copyable_v<T>, "T not trivial enough");
     static_assert(N > 0, "empty capped vector not allowed");
@@ -94,9 +94,11 @@ public:
 
     void clear() { _size = 0; }
 
+    void resize(uint8_t size) { _size = size; }
+
 public:
-    trivial_capped_vector() = default;
-    trivial_capped_vector(std::initializer_list<T> data)
+    flat_vector() = default;
+    flat_vector(std::initializer_list<T> data)
     {
         CC_ASSERT(data.size() <= N && "initializer list too large");
         std::memcpy(_vals, data.begin(), sizeof(T) * data.size());
@@ -108,9 +110,9 @@ private:
     uint8_t _size = 0;
 };
 
-static_assert(std::is_trivially_copyable_v<trivial_capped_vector<int, 5>>);
-static_assert(std::is_trivially_destructible_v<trivial_capped_vector<int, 5>>);
-static_assert(std::is_trivially_copy_assignable_v<trivial_capped_vector<int, 5>>);
-static_assert(std::is_trivially_move_assignable_v<trivial_capped_vector<int, 5>>);
+static_assert(std::is_trivially_copyable_v<flat_vector<int, 5>>);
+static_assert(std::is_trivially_destructible_v<flat_vector<int, 5>>);
+static_assert(std::is_trivially_copy_assignable_v<flat_vector<int, 5>>);
+static_assert(std::is_trivially_move_assignable_v<flat_vector<int, 5>>);
 
 }

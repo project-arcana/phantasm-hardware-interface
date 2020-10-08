@@ -19,6 +19,7 @@
 #include <dxgi1_6.h>
 #include <combaseapi.h>
 #include <dxgidebug.h>
+#include <comdef.h> // for _com_error(hr)
 
 #include <clean-core/native/detail/win32_sanitize_after.inl>
 // clang-format on

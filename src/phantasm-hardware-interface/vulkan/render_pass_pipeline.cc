@@ -1,7 +1,10 @@
 #include "render_pass_pipeline.hh"
 
+#include <clean-core/alloc_array.hh>
+#include <clean-core/alloc_vector.hh>
 #include <clean-core/array.hh>
 
+#include <phantasm-hardware-interface/common/log.hh>
 #include <phantasm-hardware-interface/limits.hh>
 
 #include "common/native_enum.hh"
@@ -40,11 +43,11 @@ VkRenderPass phi::vk::create_render_pass(VkDevice device, arg::framebuffer_confi
             ref.layout = util::to_image_layout(resource_state::render_target);
         }
 
-        for (format ds : framebuffer.depth_target)
+        if (framebuffer.depth_target != format::none)
         {
             auto& desc = attachments.emplace_back();
             desc = {};
-            desc.format = util::to_vk_format(ds);
+            desc.format = util::to_vk_format(framebuffer.depth_target);
             desc.samples = sample_bits;
             desc.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
             desc.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -298,7 +301,7 @@ VkPipeline phi::vk::create_pipeline(VkDevice device,
 
     VkPipelineDynamicStateCreateInfo dynamicState = {};
     dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-    dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
+    dynamicState.dynamicStateCount = uint32_t(dynamicStates.size());
     dynamicState.pDynamicStates = dynamicStates.data();
 
     VkPipelineDepthStencilStateCreateInfo depthStencil = {};
@@ -353,7 +356,61 @@ VkPipeline phi::vk::create_compute_pipeline(VkDevice device, VkPipelineLayout pi
     pipeline_info.stage = get_shader_create_info(shader_stage);
 
     VkPipeline res;
-    vkCreateComputePipelines(device, nullptr, 1, &pipeline_info, nullptr, &res);
+    PHI_VK_VERIFY_SUCCESS(vkCreateComputePipelines(device, nullptr, 1, &pipeline_info, nullptr, &res));
     shader_stage.free(device);
+    return res;
+}
+
+VkPipeline phi::vk::create_raytracing_pipeline(VkDevice device,
+                                               patched_shader_intermediates const& shader_intermediates,
+                                               VkPipelineLayout pipeline_layout,
+                                               cc::span<const arg::raytracing_argument_association> arg_assocs,
+                                               cc::span<const arg::raytracing_hit_group> hit_groups,
+                                               unsigned max_recursion,
+                                               unsigned max_payload_size_bytes,
+                                               unsigned max_attribute_size_bytes,
+                                               cc::allocator* scratch_alloc)
+{
+    auto f_get_shader_index_or_unused = [&](int index, shader_stage stage_verification) -> uint32_t {
+        if (index < 0)
+            return VK_SHADER_UNUSED_NV;
+
+        CC_ASSERT(index < int(shader_intermediates.shader_modules.size()) && "hitgroup shader index OOB");
+        CC_ASSERT(shader_intermediates.shader_modules[index].stage == stage_verification && "hitgroup shader index targets the wrong stage");
+        return uint32_t(index);
+    };
+
+    cc::alloc_vector<VkRayTracingShaderGroupCreateInfoNV> group_infos(scratch_alloc);
+    group_infos.reserve(hit_groups.size()); // exact
+
+    for (auto const& hg : hit_groups)
+    {
+        VkRayTracingShaderGroupCreateInfoNV& new_info = group_infos.emplace_back();
+        new_info.sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_NV;
+        new_info.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_NV;
+        new_info.generalShader = VK_SHADER_UNUSED_NV; // always unused in triangle hit groups
+
+        new_info.closestHitShader = f_get_shader_index_or_unused(hg.closest_hit_export_index, shader_stage::ray_closest_hit);
+        new_info.anyHitShader = f_get_shader_index_or_unused(hg.any_hit_export_index, shader_stage::ray_any_hit);
+        new_info.intersectionShader = f_get_shader_index_or_unused(hg.intersection_export_index, shader_stage::ray_intersect);
+    }
+
+    VkRayTracingPipelineCreateInfoNV pso_info = {};
+    pso_info.sType = VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_NV;
+
+    pso_info.flags = 0; // TODO
+    pso_info.stageCount = uint32_t(shader_intermediates.shader_create_infos.size());
+    pso_info.pStages = shader_intermediates.shader_create_infos.data();
+    pso_info.groupCount = uint32_t(group_infos.size());
+    pso_info.pGroups = group_infos.data();
+    pso_info.maxRecursionDepth = max_recursion;
+    pso_info.layout = pipeline_layout;
+    // not deriving
+    pso_info.basePipelineHandle = VK_NULL_HANDLE;
+    pso_info.basePipelineIndex = -1;
+
+    VkPipeline res;
+    PHI_VK_VERIFY_SUCCESS(vkCreateRayTracingPipelinesNV(device, nullptr, 1, &pso_info, nullptr, &res));
+
     return res;
 }

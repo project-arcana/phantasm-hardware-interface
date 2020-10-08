@@ -1,17 +1,17 @@
 #pragma once
 
-#include <clean-core/array.hh>
+#include <clean-core/alloc_array.hh>
 #include <clean-core/utility.hh>
 
-namespace phi::detail
+namespace phi
 {
 struct page_allocator
 {
-    void initialize(unsigned num_elements, unsigned num_elems_per_page)
+    void initialize(unsigned num_elements, unsigned num_elems_per_page, cc::allocator* static_alloc)
     {
         auto const num_pages = cc::int_div_ceil(num_elements, num_elems_per_page);
         _page_size = static_cast<int>(num_elems_per_page);
-        _pages = cc::array<int>::filled(num_pages, 0);
+        _pages = cc::alloc_array<int>::filled(num_pages, 0, static_alloc);
     }
 
     /// allocate a block of the given size, returns the resulting page or -1
@@ -54,7 +54,7 @@ struct page_allocator
             _pages[unsigned(page)] = 0;
     }
 
-    void free_all() { cc::fill(_pages, 0); }
+    void free_all() { std::memset(_pages.data(), 0, _pages.size_bytes()); }
 
 public:
     [[nodiscard]] int get_page_size() const { return _page_size; }
@@ -66,7 +66,7 @@ private:
     // pages, each element is a natural number n
     // n > 0: this and the following n-1 pages are allocated
     // each page not allocated is free (free implies 0, but 0 does not imply free)
-    cc::array<int> _pages;
+    cc::alloc_array<int> _pages;
     int _page_size; // the amount of elements per page
 };
 

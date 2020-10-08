@@ -1,6 +1,6 @@
 #include "root_signature.hh"
 
-#include <phantasm-hardware-interface/detail/log.hh>
+#include <phantasm-hardware-interface/common/log.hh>
 #include <phantasm-hardware-interface/limits.hh>
 
 #include <phantasm-hardware-interface/d3d12/common/native_enum.hh>

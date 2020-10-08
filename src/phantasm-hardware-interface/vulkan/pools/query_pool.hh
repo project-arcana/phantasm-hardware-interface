@@ -2,8 +2,8 @@
 
 #include <mutex>
 
-#include <phantasm-hardware-interface/detail/linked_pool.hh>
-#include <phantasm-hardware-interface/detail/page_allocator.hh>
+#include <phantasm-hardware-interface/common/container/linked_pool.hh>
+#include <phantasm-hardware-interface/common/page_allocator.hh>
 #include <phantasm-hardware-interface/types.hh>
 
 #include <phantasm-hardware-interface/vulkan/loader/volk.hh>
@@ -18,7 +18,7 @@ public:
     constexpr static int sc_page_size = 2;
 
 public:
-    void initialize(VkDevice device, VkQueryType type, unsigned max_num_queries)
+    void initialize(VkDevice device, VkQueryType type, unsigned max_num_queries, cc::allocator* static_alloc)
     {
         mType = type;
 
@@ -29,7 +29,7 @@ public:
 
         vkCreateQueryPool(device, &info, nullptr, &mHeap);
 
-        mPageAllocator.initialize(max_num_queries, sc_page_size);
+        mPageAllocator.initialize(max_num_queries, sc_page_size, static_alloc);
     }
 
     void destroy(VkDevice dev) { vkDestroyQueryPool(dev, mHeap, nullptr); }
@@ -58,7 +58,7 @@ public:
 
 private:
     VkQueryPool mHeap;
-    phi::detail::page_allocator mPageAllocator;
+    phi::page_allocator mPageAllocator;
     VkQueryType mType;
 };
 
@@ -133,7 +133,7 @@ public:
 public:
     // internal API
 
-    void initialize(VkDevice dev, unsigned num_timestamp, unsigned num_occlusion, unsigned num_pipeline_stats);
+    void initialize(VkDevice dev, unsigned num_timestamp, unsigned num_occlusion, unsigned num_pipeline_stats, cc::allocator* static_alloc);
 
     void destroy(VkDevice dev);
 

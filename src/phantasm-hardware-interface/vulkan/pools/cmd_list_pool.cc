@@ -4,13 +4,14 @@
 
 #include <clean-core/utility.hh>
 
-#include <phantasm-hardware-interface/detail/log.hh>
+#include <phantasm-hardware-interface/common/log.hh>
 
-#include <phantasm-hardware-interface/detail/flat_map.hh>
+#include <phantasm-hardware-interface/common/container/flat_map.hh>
 #include <phantasm-hardware-interface/vulkan/BackendVulkan.hh>
 #include <phantasm-hardware-interface/vulkan/common/util.hh>
 
-void phi::vk::cmd_allocator_node::initialize(VkDevice device, unsigned num_cmd_lists, unsigned queue_family_index, FenceRingbuffer* fence_ring)
+void phi::vk::cmd_allocator_node::initialize(
+    VkDevice device, unsigned num_cmd_lists, unsigned queue_family_index, FenceRingbuffer* fence_ring, cc::allocator* static_alloc, cc::allocator* dynamic_alloc)
 {
     _fence_ring = fence_ring;
 
@@ -24,7 +25,7 @@ void phi::vk::cmd_allocator_node::initialize(VkDevice device, unsigned num_cmd_l
     }
     // allocate buffers
     {
-        _cmd_buffers = _cmd_buffers.uninitialized(num_cmd_lists);
+        _cmd_buffers = _cmd_buffers.uninitialized(num_cmd_lists, static_alloc);
 
         VkCommandBufferAllocateInfo info = {};
         info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -35,8 +36,11 @@ void phi::vk::cmd_allocator_node::initialize(VkDevice device, unsigned num_cmd_l
         PHI_VK_VERIFY_SUCCESS(vkAllocateCommandBuffers(device, &info, _cmd_buffers.data()));
     }
 
-    _associated_framebuffers.reserve(num_cmd_lists * 3);                                                            // arbitrary
-    _associated_framebuffer_image_views.resize(_associated_framebuffers.size() * (limits::max_render_targets + 1)); // num render targets + depthstencil
+    _associated_framebuffers.reset_reserve(dynamic_alloc, num_cmd_lists * 3); // arbitrary
+
+    auto const num_frambuffer_img_views = _associated_framebuffers.size() * (limits::max_render_targets + 1); // num render targets + depthstencil
+    _associated_framebuffer_image_views.reset_reserve(dynamic_alloc, num_frambuffer_img_views);
+    _associated_framebuffer_image_views.resize(num_frambuffer_img_views);
 
     _latest_fence.store(unsigned(-1));
 }
@@ -178,9 +182,9 @@ void phi::vk::cmd_allocator_node::do_reset(VkDevice device)
     _num_pending_execution = 0;
 }
 
-void phi::vk::FenceRingbuffer::initialize(VkDevice device, unsigned num_fences)
+void phi::vk::FenceRingbuffer::initialize(VkDevice device, unsigned num_fences, cc::allocator* static_alloc)
 {
-    mFences = mFences.defaulted(num_fences);
+    mFences = mFences.defaulted(num_fences, static_alloc);
 
     VkFenceCreateInfo fence_info = {};
     fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
@@ -258,15 +262,20 @@ void phi::vk::FenceRingbuffer::waitForFence(VkDevice device, unsigned index) con
     CC_ASSERT(vkres == VK_SUCCESS); // other cases are TIMEOUT (2^64 ns > 584 years) or DEVICE_LOST (dead anyway)
 }
 
-void phi::vk::CommandAllocatorBundle::initialize(
-    VkDevice device, unsigned num_allocators, unsigned num_cmdlists_per_allocator, unsigned queue_family_index, phi::vk::FenceRingbuffer* fence_ring)
+void phi::vk::CommandAllocatorBundle::initialize(VkDevice device,
+                                                 unsigned num_allocators,
+                                                 unsigned num_cmdlists_per_allocator,
+                                                 unsigned queue_family_index,
+                                                 phi::vk::FenceRingbuffer* fence_ring,
+                                                 cc::allocator* static_alloc,
+                                                 cc::allocator* dynamic_alloc)
 {
-    mAllocators = mAllocators.defaulted(num_allocators);
+    mAllocators = mAllocators.defaulted(num_allocators, static_alloc);
     mActiveAllocator = 0u;
 
     for (cmd_allocator_node& alloc_node : mAllocators)
     {
-        alloc_node.initialize(device, num_cmdlists_per_allocator, queue_family_index, fence_ring);
+        alloc_node.initialize(device, num_cmdlists_per_allocator, queue_family_index, fence_ring, static_alloc, dynamic_alloc);
     }
 }
 
@@ -440,7 +449,9 @@ void phi::vk::CommandListPool::initialize(phi::vk::Device& device,
                                           int num_compute_lists_per_alloc,
                                           int num_copy_allocs,
                                           int num_copy_lists_per_alloc,
-                                          cc::span<CommandAllocatorsPerThread*> thread_allocators)
+                                          cc::span<CommandAllocatorsPerThread*> thread_allocators,
+                                          cc::allocator* static_alloc,
+                                          cc::allocator* dynamic_alloc)
 {
     mDevice = device.getDevice();
 
@@ -452,12 +463,12 @@ void phi::vk::CommandListPool::initialize(phi::vk::Device& device,
     auto const num_compute_lists_total = num_compute_lists_per_thread * thread_allocators.size();
     auto const num_copy_lists_total = num_copy_lists_per_thread * thread_allocators.size();
 
-    mPoolDirect.initialize(num_direct_lists_total);
-    mPoolCompute.initialize(num_compute_lists_total);
-    mPoolCopy.initialize(num_copy_lists_total);
-    mPool.initialize(num_direct_lists_total + num_compute_lists_total + num_copy_lists_total);
+    mPoolDirect.initialize(num_direct_lists_total, static_alloc);
+    mPoolCompute.initialize(num_compute_lists_total, static_alloc);
+    mPoolCopy.initialize(num_copy_lists_total, static_alloc);
+    mPool.initialize(num_direct_lists_total + num_compute_lists_total + num_copy_lists_total, static_alloc);
 
-    mFenceRing.initialize(mDevice, thread_allocators.size() * (num_direct_allocs + num_compute_allocs + num_copy_allocs) + 5); // arbitrary safety buffer, should never be required
+    mFenceRing.initialize(mDevice, unsigned(thread_allocators.size()) * (num_direct_allocs + num_compute_allocs + num_copy_allocs) + 5, static_alloc); // arbitrary safety buffer, should never be required
 
 
     auto const direct_queue_family = unsigned(device.getQueueFamilyDirect());
@@ -466,9 +477,11 @@ void phi::vk::CommandListPool::initialize(phi::vk::Device& device,
 
     for (auto i = 0u; i < thread_allocators.size(); ++i)
     {
-        thread_allocators[i]->bundle_direct.initialize(mDevice, num_direct_allocs, num_direct_lists_per_alloc, direct_queue_family, &mFenceRing);
-        thread_allocators[i]->bundle_compute.initialize(mDevice, num_compute_allocs, num_compute_lists_per_alloc, compute_queue_family, &mFenceRing);
-        thread_allocators[i]->bundle_copy.initialize(mDevice, num_copy_allocs, num_copy_lists_per_alloc, copy_queue_family, &mFenceRing);
+        thread_allocators[i]->bundle_direct.initialize(mDevice, num_direct_allocs, num_direct_lists_per_alloc, direct_queue_family, &mFenceRing,
+                                                       static_alloc, dynamic_alloc);
+        thread_allocators[i]->bundle_compute.initialize(mDevice, num_compute_allocs, num_compute_lists_per_alloc, compute_queue_family, &mFenceRing,
+                                                        static_alloc, dynamic_alloc);
+        thread_allocators[i]->bundle_copy.initialize(mDevice, num_copy_allocs, num_copy_lists_per_alloc, copy_queue_family, &mFenceRing, static_alloc, dynamic_alloc);
     }
 }
 

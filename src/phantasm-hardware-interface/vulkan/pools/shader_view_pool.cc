@@ -2,7 +2,7 @@
 
 #include <clean-core/capped_vector.hh>
 
-#include <phantasm-hardware-interface/detail/log.hh>
+#include <phantasm-hardware-interface/common/log.hh>
 
 #include <phantasm-hardware-interface/vulkan/common/native_enum.hh>
 #include <phantasm-hardware-interface/vulkan/common/vk_format.hh>
@@ -201,14 +201,15 @@ void phi::vk::ShaderViewPool::free(cc::span<const phi::handle::shader_view> svs)
     }
 }
 
-void phi::vk::ShaderViewPool::initialize(VkDevice device, ResourcePool* res_pool, unsigned num_cbvs, unsigned num_srvs, unsigned num_uavs, unsigned num_samplers)
+void phi::vk::ShaderViewPool::initialize(
+    VkDevice device, ResourcePool* res_pool, unsigned num_cbvs, unsigned num_srvs, unsigned num_uavs, unsigned num_samplers, cc::allocator* static_alloc)
 {
     mDevice = device;
     mResourcePool = res_pool;
 
     mAllocator.initialize(mDevice, num_cbvs, num_srvs, num_uavs, num_samplers);
     // Due to the fact that each shader argument represents up to one CBV, this is the upper limit for the amount of shader_view handles
-    mPool.initialize(num_cbvs);
+    mPool.initialize(num_cbvs, static_alloc);
 }
 
 void phi::vk::ShaderViewPool::destroy()
@@ -243,11 +244,14 @@ VkImageView phi::vk::ShaderViewPool::makeImageView(const resource_view& sve, boo
     info.subresourceRange.baseArrayLayer = sve.texture_info.array_start;
     info.subresourceRange.layerCount = sve.texture_info.array_size;
 
-    // for UAVs, cubemaps are represented as 2D arrays of size 6 instead
-    if (is_uav && info.viewType == VK_IMAGE_VIEW_TYPE_CUBE)
+    if (info.viewType == VK_IMAGE_VIEW_TYPE_CUBE)
     {
-        info.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
-        info.subresourceRange.layerCount = 6;
+        info.subresourceRange.layerCount = 6; // cubes always require 6 layers
+        if (is_uav)
+        {
+            // UAVs explicitly represent cubes as 2D arrays of size 6
+            info.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+        }
     }
 
     VkImageView res;

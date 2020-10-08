@@ -1,5 +1,7 @@
 #pragma once
 
+#include <clean-core/span.hh>
+
 #include <typed-geometry/types/size.hh>
 
 #include <phantasm-hardware-interface/fwd.hh>
@@ -92,16 +94,19 @@ public:
         = 0;
 
     /// create a buffer with optional element stride on resource_heap::upload (shorthand function)
-    [[nodiscard]] virtual handle::resource createUploadBuffer(unsigned size_bytes, unsigned stride_bytes = 0) = 0;
+    [[nodiscard]] virtual handle::resource createUploadBuffer(unsigned size_bytes, unsigned stride_bytes = 0, char const* debug_name = nullptr) = 0;
 
     /// maps a buffer created on resource_heap::upload or ::readback to CPU-accessible memory and returns a pointer
-    /// multiple (nested) maps are allowed, leaving a resource_heap::upload buffer persistently mapped is validW
-    [[nodiscard]] virtual std::byte* mapBuffer(handle::resource res) = 0;
+    /// multiple (nested) maps are allowed, leaving a resource_heap::upload buffer persistently mapped is valid
+    /// begin and end specify the range of CPU-side read data in bytes, end == -1 being the entire width
+    /// NOTE: begin > 0 does not add an offset to the returned pointer
+    [[nodiscard]] virtual std::byte* mapBuffer(handle::resource res, int invalidate_begin = 0, int invalidate_end = -1) = 0;
 
     /// unmaps a buffer, must have been previously mapped using mapBuffer
     /// it is not necessary to unmap a buffer before destruction
     /// on non-desktop it might be required to unmap upload buffers for the writes to become visible
-    virtual void unmapBuffer(handle::resource res) = 0;
+    /// begin and end specify the range of CPU-side modified data in bytes, end == -1 being the entire width
+    virtual void unmapBuffer(handle::resource res, int flush_begin = 0, int flush_end = -1) = 0;
 
     /// destroy a resource
     virtual void free(handle::resource res) = 0;
@@ -127,6 +132,7 @@ public:
     // Pipeline state interface
     //
 
+    /// create a graphics pipeline state
     [[nodiscard]] virtual handle::pipeline_state createPipelineState(arg::vertex_format vertex_format,
                                                                      arg::framebuffer_config const& framebuffer_conf,
                                                                      arg::shader_arg_shapes shader_arg_shapes,
@@ -135,8 +141,13 @@ public:
                                                                      phi::pipeline_config const& primitive_config)
         = 0;
 
+    /// create a graphics pipeline state from a compact description struct
+    [[nodiscard]] virtual handle::pipeline_state createPipelineState(arg::graphics_pipeline_state_desc const& description) = 0;
+
     [[nodiscard]] virtual handle::pipeline_state createComputePipelineState(arg::shader_arg_shapes shader_arg_shapes, arg::shader_binary shader, bool has_root_constants = false)
         = 0;
+
+    [[nodiscard]] virtual handle::pipeline_state createComputePipelineState(arg::compute_pipeline_state_desc const& description) = 0;
 
     virtual void free(handle::pipeline_state ps) = 0;
 
@@ -150,8 +161,13 @@ public:
     /// destroy the given command list handles
     virtual void discard(cc::span<handle::command_list const> cls) = 0;
 
-    /// submit and destroy the given command list handles
-    virtual void submit(cc::span<handle::command_list const> cls, queue_type queue = queue_type::direct) = 0;
+    /// submit and destroy the given command list handles on a specified queue
+    /// waiting on GPU for given fences before execution, and signalling fences on GPU after the commandlists have completed
+    virtual void submit(cc::span<handle::command_list const> cls,
+                        queue_type queue = queue_type::direct,
+                        cc::span<fence_operation const> fence_waits_before = {},
+                        cc::span<fence_operation const> fence_signals_after = {})
+        = 0;
 
     //
     // Fence interface
@@ -169,12 +185,6 @@ public:
     /// block on CPU until a fence reaches a given value
     virtual void waitFenceCPU(handle::fence fence, uint64_t wait_value) = 0;
 
-    /// signal a fence to a given value from a specified GPU queue
-    virtual void signalFenceGPU(handle::fence fence, uint64_t new_value, queue_type queue) = 0;
-
-    /// block on a specified GPU queue until a fence reaches a given value
-    virtual void waitFenceGPU(handle::fence fence, uint64_t wait_value, queue_type queue) = 0;
-
     virtual void free(cc::span<handle::fence const> fences) = 0;
 
     //
@@ -189,30 +199,33 @@ public:
     // Raytracing interface
     //
 
-    [[nodiscard]] virtual handle::pipeline_state createRaytracingPipelineState(arg::raytracing_shader_libraries libraries,
-                                                                               arg::raytracing_argument_associations arg_assocs,
-                                                                               arg::raytracing_hit_groups hit_groups,
-                                                                               unsigned max_recursion,
-                                                                               unsigned max_payload_size_bytes,
-                                                                               unsigned max_attribute_size_bytes)
-        = 0;
+    [[nodiscard]] virtual handle::pipeline_state createRaytracingPipelineState(arg::raytracing_pipeline_state_desc const& description) = 0;
 
-    [[nodiscard]] virtual handle::accel_struct createTopLevelAccelStruct(unsigned num_instances) = 0;
-
+    /// create a bottom level acceleration structure (BLAS) holding geometry elements
+    /// out_native_handle receives the value to be written to accel_struct_instance::native_bottom_level_as_handle
     [[nodiscard]] virtual handle::accel_struct createBottomLevelAccelStruct(cc::span<arg::blas_element const> elements,
                                                                             accel_struct_build_flags_t flags,
                                                                             uint64_t* out_native_handle = nullptr)
         = 0;
 
-    virtual void uploadTopLevelInstances(handle::accel_struct as, cc::span<accel_struct_geometry_instance const> instances) = 0;
+    /// create a top level acceleration structure (TLAS) holding BLAS instances
+    [[nodiscard]] virtual handle::accel_struct createTopLevelAccelStruct(unsigned num_instances, accel_struct_build_flags_t flags) = 0;
 
+    /// receive the internal accel struct buffer for use in shader arguments and resource views
+    /// NOTE: do not free this resource or transition its resource state
     [[nodiscard]] virtual handle::resource getAccelStructBuffer(handle::accel_struct as) = 0;
 
-    [[nodiscard]] virtual shader_table_sizes calculateShaderTableSize(arg::shader_table_records ray_gen_records,
-                                                                      arg::shader_table_records miss_records,
-                                                                      arg::shader_table_records hit_group_records)
+    /// receive the native acceleration struct handle to be written to accel_struct_instance::native_bottom_level_as_handle
+    [[nodiscard]] virtual uint64_t getAccelStructNativeHandle(handle::accel_struct as) = 0;
+
+    /// calculate the buffer sizes and strides to accomodate the given shader table records
+    [[nodiscard]] virtual shader_table_strides calculateShaderTableStrides(arg::shader_table_record const& ray_gen_record,
+                                                                           arg::shader_table_records miss_records,
+                                                                           arg::shader_table_records hit_group_records,
+                                                                           arg::shader_table_records callable_records = {})
         = 0;
 
+    /// write shader table records to memory - usually a mapped buffer
     virtual void writeShaderTable(std::byte* dest, handle::pipeline_state pso, unsigned stride, arg::shader_table_records records) = 0;
 
     virtual void free(handle::accel_struct as) = 0;

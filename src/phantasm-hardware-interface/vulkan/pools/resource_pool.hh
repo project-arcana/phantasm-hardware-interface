@@ -2,9 +2,9 @@
 
 #include <mutex>
 
-#include <clean-core/array.hh>
+#include <clean-core/alloc_array.hh>
 
-#include <phantasm-hardware-interface/detail/linked_pool.hh>
+#include <phantasm-hardware-interface/common/container/linked_pool.hh>
 #include <phantasm-hardware-interface/types.hh>
 
 #include <phantasm-hardware-interface/vulkan/resources/descriptor_allocator.hh>
@@ -32,11 +32,12 @@ public:
     /// create a buffer, with an element stride if its an index or vertex buffer
     [[nodiscard]] handle::resource createBuffer(uint64_t size_bytes, unsigned stride_bytes, resource_heap heap, bool allow_uav, char const* dbg_name);
 
-    std::byte* mapBuffer(handle::resource res);
+    std::byte* mapBuffer(handle::resource res, int begin = 0, int end = -1);
 
-    void unmapBuffer(handle::resource res);
+    void unmapBuffer(handle::resource res, int begin = 0, int end = -1);
 
-    [[nodiscard]] handle::resource createBufferInternal(uint64_t size_bytes, unsigned stride_bytes, resource_heap heap, VkBufferUsageFlags usage);
+    [[nodiscard]] handle::resource createBufferInternal(
+        uint64_t size_bytes, unsigned stride_bytes, resource_heap heap, VkBufferUsageFlags usage, const char* debug_name = "PHI internal buffer");
 
     void free(handle::resource res);
     void free(cc::span<handle::resource const> resources);
@@ -64,6 +65,8 @@ public:
             uint32_t stride;  ///< vertex size or index size
             int num_vma_maps; ///< VMA requires all maps to be followed by unmaps before destruction, so track maps/unmaps
             uint64_t width;
+
+            bool is_access_in_bounds(uint64_t offset, uint64_t size) const { return offset + size <= width; }
         };
 
         struct image_info
@@ -94,7 +97,7 @@ public:
 public:
     // internal API
 
-    void initialize(VkPhysicalDevice physical, VkDevice device, unsigned max_num_resources, unsigned max_num_swapchains);
+    void initialize(VkPhysicalDevice physical, VkDevice device, unsigned max_num_resources, unsigned max_num_swapchains, cc::allocator* static_alloc);
     void destroy();
 
     //
@@ -125,6 +128,15 @@ public:
 
     [[nodiscard]] resource_node::image_info const& getImageInfo(handle::resource res) const { return internalGet(res).image; }
     [[nodiscard]] resource_node::buffer_info const& getBufferInfo(handle::resource res) const { return internalGet(res).buffer; }
+
+    bool isBufferAccessInBounds(handle::resource res, uint64_t offset, uint64_t size) const
+    {
+        auto const& internal = internalGet(res);
+        if (internal.type != resource_node::resource_type::buffer)
+            return false;
+
+        return internal.buffer.is_access_in_bounds(offset, size);
+    }
 
     //
     // Master state access
@@ -171,13 +183,13 @@ private:
 
 private:
     /// The main pool data
-    phi::detail::linked_pool<resource_node> mPool;
+    phi::linked_pool<resource_node> mPool;
 
     /// Amount of handles (from the start) reserved for backbuffer injection
     unsigned mNumReservedBackbuffers;
     /// The image view of the currently injected backbuffer, stored separately to
     /// not take up space in resource_node, there is always just a single injected backbuffer
-    cc::array<VkImageView> mInjectedBackbufferViews;
+    cc::alloc_array<VkImageView> mInjectedBackbufferViews;
 
     /// Descriptor set layouts for buffer dynamic UBO descriptor sets
     /// permanently kept alive (a: no recreation required, b: drivers can crash

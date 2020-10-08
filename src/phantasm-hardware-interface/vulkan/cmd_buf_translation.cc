@@ -1,9 +1,9 @@
 #include "cmd_buf_translation.hh"
 
-#include <phantasm-hardware-interface/detail/byte_util.hh>
-#include <phantasm-hardware-interface/detail/command_reading.hh>
-#include <phantasm-hardware-interface/detail/incomplete_state_cache.hh>
-#include <phantasm-hardware-interface/detail/log.hh>
+#include <phantasm-hardware-interface/common/byte_util.hh>
+#include <phantasm-hardware-interface/common/command_reading.hh>
+#include <phantasm-hardware-interface/common/incomplete_state_cache.hh>
+#include <phantasm-hardware-interface/common/log.hh>
 #include <phantasm-hardware-interface/util.hh>
 
 #include "common/native_enum.hh"
@@ -48,6 +48,7 @@ void phi::vk::command_list_translator::translateCommandList(
 void phi::vk::command_list_translator::execute(const phi::cmd::begin_render_pass& begin_rp)
 {
     CC_ASSERT(_bound.raw_render_pass == nullptr && "double cmd::begin_render_pass - missing cmd::end_render_pass?");
+    CC_ASSERT(begin_rp.viewport.width + begin_rp.viewport.height != 0 && "recording begin_render_pass with empty viewport");
 
     // the image views used in this framebuffer
     cc::capped_vector<VkImageView, limits::max_render_targets + 1> fb_image_views;
@@ -287,18 +288,24 @@ void phi::vk::command_list_translator::execute(const phi::cmd::draw_indirect& dr
     bind_shader_arguments(draw_indirect.pipeline_state, draw_indirect.root_constants, draw_indirect.shader_arguments, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
     // Indirect draw command
+
+    auto const gpu_command_size_bytes = draw_indirect.index_buffer.is_valid() ? sizeof(gpu_indirect_command_draw_indexed) : sizeof(gpu_indirect_command_draw);
+    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(draw_indirect.indirect_argument_buffer, draw_indirect.argument_buffer_offset_bytes,
+                                                              draw_indirect.num_arguments * gpu_command_size_bytes)
+              && "indirect argument buffer accessed OOB on GPU");
+
     auto const raw_argument_buffer = _globals.pool_resources->getRawBuffer(draw_indirect.indirect_argument_buffer);
     if (draw_indirect.index_buffer.is_valid())
     {
         static_assert(sizeof(VkDrawIndexedIndirectCommand) == sizeof(gpu_indirect_command_draw_indexed), "gpu argument type compiles to incorrect "
                                                                                                          "size");
-        vkCmdDrawIndexedIndirect(_cmd_list, raw_argument_buffer, VkDeviceSize(draw_indirect.argument_buffer_offset), draw_indirect.num_arguments,
-                                 sizeof(VkDrawIndexedIndirectCommand));
+        vkCmdDrawIndexedIndirect(_cmd_list, raw_argument_buffer, VkDeviceSize(draw_indirect.argument_buffer_offset_bytes),
+                                 draw_indirect.num_arguments, sizeof(VkDrawIndexedIndirectCommand));
     }
     else
     {
         static_assert(sizeof(VkDrawIndirectCommand) == sizeof(gpu_indirect_command_draw), "gpu argument type compiles to incorrect size");
-        vkCmdDrawIndirect(_cmd_list, raw_argument_buffer, VkDeviceSize(draw_indirect.argument_buffer_offset), draw_indirect.num_arguments,
+        vkCmdDrawIndirect(_cmd_list, raw_argument_buffer, VkDeviceSize(draw_indirect.argument_buffer_offset_bytes), draw_indirect.num_arguments,
                           sizeof(VkDrawIndirectCommand));
     }
 }
@@ -401,15 +408,24 @@ void phi::vk::command_list_translator::execute(const phi::cmd::transition_image_
     barriers.record(_cmd_list);
 }
 
+void phi::vk::command_list_translator::execute(const phi::cmd::barrier_uav& barrier)
+{
+    (void)barrier;
+    PHI_LOG_WARN("cmd::barrier_uav is not supported on vulkan");
+}
+
 void phi::vk::command_list_translator::execute(const phi::cmd::copy_buffer& copy_buf)
 {
+    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(copy_buf.source, copy_buf.source_offset_bytes, copy_buf.size) && "copy_buffer source OOB");
+    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(copy_buf.destination, copy_buf.dest_offset_bytes, copy_buf.size) && "copy_buffer dest OOB");
+
     auto const src_buffer = _globals.pool_resources->getRawBuffer(copy_buf.source);
     auto const dest_buffer = _globals.pool_resources->getRawBuffer(copy_buf.destination);
 
     VkBufferCopy region = {};
     region.size = copy_buf.size;
-    region.srcOffset = copy_buf.source_offset;
-    region.dstOffset = copy_buf.dest_offset;
+    region.srcOffset = copy_buf.source_offset_bytes;
+    region.dstOffset = copy_buf.dest_offset_bytes;
     vkCmdCopyBuffer(_cmd_list, src_buffer, dest_buffer, 1, &region);
 }
 
@@ -441,7 +457,7 @@ void phi::vk::command_list_translator::execute(const phi::cmd::copy_buffer_to_te
     auto const& dest_image_info = _globals.pool_resources->getImageInfo(copy_text.destination);
 
     VkBufferImageCopy region = {};
-    region.bufferOffset = uint32_t(copy_text.source_offset);
+    region.bufferOffset = uint32_t(copy_text.source_offset_bytes);
     region.imageSubresource.aspectMask = util::to_native_image_aspect(dest_image_info.pixel_format);
     region.imageSubresource.baseArrayLayer = copy_text.dest_array_index;
     region.imageSubresource.layerCount = 1;
@@ -523,8 +539,10 @@ void phi::vk::command_list_translator::execute(const phi::cmd::resolve_queries& 
 
     VkBuffer const raw_dest_buffer = _globals.pool_resources->getRawBuffer(resolve.dest_buffer);
 
+    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(resolve.dest_buffer, resolve.num_queries * sizeof(uint64_t), resolve.dest_offset_bytes)
+              && "resolve query destination buffer accessed OOB");
     VkQueryResultFlags flags = VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT;
-    vkCmdCopyQueryPoolResults(_cmd_list, raw_pool, query_index_start, resolve.num_queries, raw_dest_buffer, resolve.dest_offset, sizeof(uint64_t), flags);
+    vkCmdCopyQueryPoolResults(_cmd_list, raw_pool, query_index_start, resolve.num_queries, raw_dest_buffer, resolve.dest_offset_bytes, sizeof(uint64_t), flags);
 }
 
 void phi::vk::command_list_translator::execute(const phi::cmd::begin_debug_label& label)
@@ -575,7 +593,7 @@ void phi::vk::command_list_translator::execute(const phi::cmd::update_bottom_lev
 
 void phi::vk::command_list_translator::execute(const phi::cmd::update_top_level& tlas_update)
 {
-    auto& dest_node = _globals.pool_accel_structs->getNode(tlas_update.dest);
+    auto& dest_node = _globals.pool_accel_structs->getNode(tlas_update.dest_accel_struct);
     auto const dest_scratch = _globals.pool_resources->getRawBuffer(dest_node.buffer_scratch);
 
     VkAccelerationStructureInfoNV build_info = {};
@@ -587,8 +605,8 @@ void phi::vk::command_list_translator::execute(const phi::cmd::update_top_level&
     build_info.pGeometries = nullptr;
     build_info.instanceCount = tlas_update.num_instances;
 
-    vkCmdBuildAccelerationStructureNV(_cmd_list, &build_info, _globals.pool_resources->getRawBuffer(dest_node.buffer_instances), 0, VK_FALSE,
-                                      dest_node.raw_as, nullptr, dest_scratch, 0);
+    vkCmdBuildAccelerationStructureNV(_cmd_list, &build_info, _globals.pool_resources->getRawBuffer(tlas_update.source_buffer_instances),
+                                      tlas_update.source_buffer_offset_bytes, VK_FALSE, dest_node.raw_as, nullptr, dest_scratch, 0);
 
     VkMemoryBarrier mem_barrier = {};
     mem_barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
@@ -599,7 +617,29 @@ void phi::vk::command_list_translator::execute(const phi::cmd::update_top_level&
                          1, &mem_barrier, 0, nullptr, 0, nullptr);
 }
 
-void phi::vk::command_list_translator::execute(const cmd::dispatch_rays& dispatch_rays) {}
+void phi::vk::command_list_translator::execute(const cmd::dispatch_rays& dispatch_rays)
+{
+    auto const& pso_node = _globals.pool_pipeline_states->get(dispatch_rays.pso);
+
+    if (_bound.update_pso(dispatch_rays.pso))
+    {
+        _bound.update_pipeline_layout(pso_node.associated_pipeline_layout->raw_layout);
+        vkCmdBindPipeline(_cmd_list, VK_PIPELINE_BIND_POINT_RAY_TRACING_NV, pso_node.raw_pipeline);
+    }
+
+    VkBuffer const raygen_buf = get_buffer_or_null(dispatch_rays.table_ray_generation.buffer);
+    VkBuffer const miss_buf = get_buffer_or_null(dispatch_rays.table_miss.buffer);
+    VkBuffer const hitgrp_buf = get_buffer_or_null(dispatch_rays.table_hit_groups.buffer);
+    VkBuffer const callable_buf = get_buffer_or_null(dispatch_rays.table_callable.buffer);
+
+
+    vkCmdTraceRaysNV(_cmd_list,                                                                                            //
+                     raygen_buf, dispatch_rays.table_ray_generation.offset_bytes,                                          //
+                     miss_buf, dispatch_rays.table_miss.offset_bytes, dispatch_rays.table_miss.stride_bytes,               //
+                     hitgrp_buf, dispatch_rays.table_hit_groups.offset_bytes, dispatch_rays.table_hit_groups.stride_bytes, //
+                     callable_buf, dispatch_rays.table_callable.offset_bytes, dispatch_rays.table_callable.stride_bytes,   //
+                     dispatch_rays.width, dispatch_rays.height, dispatch_rays.depth);
+}
 
 void phi::vk::command_list_translator::execute(const phi::cmd::clear_textures& clear_tex)
 {
@@ -661,6 +701,8 @@ void phi::vk::command_list_translator::bind_shader_arguments(phi::handle::pipeli
         {
             if (bound_arg.update_cbv(arg.constant_buffer, arg.constant_buffer_offset))
             {
+                CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(arg.constant_buffer, arg.constant_buffer_offset, 1) && "CBV offset OOB");
+
                 auto const cbv_desc_set = bind_point == VK_PIPELINE_BIND_POINT_GRAPHICS
                                               ? _globals.pool_resources->getRawCBVDescriptorSet(arg.constant_buffer)
                                               : _globals.pool_resources->getRawCBVDescriptorSetCompute(arg.constant_buffer);
@@ -679,4 +721,12 @@ void phi::vk::command_list_translator::bind_shader_arguments(phi::handle::pipeli
             }
         }
     }
+}
+
+VkBuffer phi::vk::command_list_translator::get_buffer_or_null(phi::handle::resource buf) const
+{
+    if (!buf.is_valid())
+        return nullptr;
+
+    return _globals.pool_resources->getRawBuffer(buf);
 }

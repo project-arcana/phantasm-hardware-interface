@@ -6,8 +6,8 @@
 #include <clean-core/span.hh>
 
 #include <phantasm-hardware-interface/arguments.hh>
-#include <phantasm-hardware-interface/detail/linked_pool.hh>
-#include <phantasm-hardware-interface/detail/page_allocator.hh>
+#include <phantasm-hardware-interface/common/container/linked_pool.hh>
+#include <phantasm-hardware-interface/common/page_allocator.hh>
 #include <phantasm-hardware-interface/types.hh>
 
 #include <phantasm-hardware-interface/d3d12/common/d3d12_sanitized.hh>
@@ -37,7 +37,9 @@ public:
     using handle_t = int;
 
 public:
-    void initialize(ID3D12Device& device, D3D12_DESCRIPTOR_HEAP_TYPE type, unsigned num_descriptors, unsigned page_size = 8);
+    void initialize(ID3D12Device& device, D3D12_DESCRIPTOR_HEAP_TYPE type, unsigned num_descriptors, unsigned page_size, cc::allocator* static_alloc);
+
+    void destroy();
 
     [[nodiscard]] handle_t allocate(int num_descriptors)
     {
@@ -83,10 +85,10 @@ public:
     [[nodiscard]] ID3D12DescriptorHeap* getHeap() const { return mHeap; }
 
 private:
-    shared_com_ptr<ID3D12DescriptorHeap> mHeap;
+    ID3D12DescriptorHeap* mHeap;
     D3D12_CPU_DESCRIPTOR_HANDLE mHeapStartCPU;
     D3D12_GPU_DESCRIPTOR_HANDLE mHeapStartGPU;
-    phi::detail::page_allocator mPageAllocator;
+    phi::page_allocator mPageAllocator;
     unsigned mDescriptorSize = 0;
 };
 
@@ -107,7 +109,7 @@ public:
 public:
     // internal API
 
-    void initialize(ID3D12Device* device, ResourcePool* res_pool, unsigned num_shader_views, unsigned num_srvs_uavs, unsigned num_samplers);
+    void initialize(ID3D12Device* device, ResourcePool* res_pool, unsigned num_shader_views, unsigned num_srvs_uavs, unsigned num_samplers, cc::allocator* static_alloc);
     void destroy();
 
     [[nodiscard]] D3D12_GPU_DESCRIPTOR_HANDLE getSRVUAVGPUHandle(handle::shader_view sv) const
@@ -156,7 +158,7 @@ private:
     ID3D12Device* mDevice;
     ResourcePool* mResourcePool;
 
-    phi::detail::linked_pool<shader_view_data> mPool;
+    phi::linked_pool<shader_view_data> mPool;
     DescriptorPageAllocator mSRVUAVAllocator;
     DescriptorPageAllocator mSamplerAllocator;
     std::mutex mMutex;

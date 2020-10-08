@@ -7,7 +7,8 @@
 
 void phi::d3d12::CPUDescriptorLinearAllocator::initialize(ID3D12Device& device, D3D12_DESCRIPTOR_HEAP_TYPE type, unsigned size)
 {
-    CC_RUNTIME_ASSERT(((type == D3D12_DESCRIPTOR_HEAP_TYPE_RTV) || (type == D3D12_DESCRIPTOR_HEAP_TYPE_DSV)) && "Only use this class for CPU-visible descriptors");
+    CC_ASSERT(mHeap == nullptr && "double init");
+    CC_ASSERT(((type == D3D12_DESCRIPTOR_HEAP_TYPE_RTV) || (type == D3D12_DESCRIPTOR_HEAP_TYPE_DSV)) && "Only use this class for CPU-visible descriptors");
 
     mNumDescriptors = size;
     mDescriptorSize = device.GetDescriptorHandleIncrementSize(type);
@@ -18,10 +19,12 @@ void phi::d3d12::CPUDescriptorLinearAllocator::initialize(ID3D12Device& device, 
     desc.Type = type;
     desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
     desc.NodeMask = 0;
-    PHI_D3D12_VERIFY(device.CreateDescriptorHeap(&desc, PHI_COM_WRITE(mHeap)));
+    PHI_D3D12_VERIFY(device.CreateDescriptorHeap(&desc, IID_PPV_ARGS(&mHeap)));
     util::set_object_name(mHeap, "linear cpu desc heap, size %d", int(mNumDescriptors));
     mHandleCPU = mHeap->GetCPUDescriptorHandleForHeapStart();
 }
+
+void phi::d3d12::CPUDescriptorLinearAllocator::destroy() { PHI_D3D12_SAFE_RELEASE(mHeap); }
 
 phi::d3d12::resource_view_cpu_only phi::d3d12::CPUDescriptorLinearAllocator::allocate(unsigned num)
 {

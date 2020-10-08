@@ -5,7 +5,7 @@
 #include <clean-core/capped_vector.hh>
 
 #include <phantasm-hardware-interface/arguments.hh>
-#include <phantasm-hardware-interface/detail/linked_pool.hh>
+#include <phantasm-hardware-interface/common/container/linked_pool.hh>
 #include <phantasm-hardware-interface/types.hh>
 
 #include <phantasm-hardware-interface/vulkan/loader/volk.hh>
@@ -28,9 +28,21 @@ public:
                                                              arg::shader_arg_shapes shader_arg_shapes,
                                                              bool should_have_push_constants,
                                                              arg::graphics_shaders shader_stages,
-                                                             phi::pipeline_config const& primitive_config);
+                                                             phi::pipeline_config const& primitive_config,
+                                                             cc::allocator* scratch_alloc);
 
-    [[nodiscard]] handle::pipeline_state createComputePipelineState(arg::shader_arg_shapes shader_arg_shapes, arg::shader_binary compute_shader, bool should_have_push_constants);
+    [[nodiscard]] handle::pipeline_state createComputePipelineState(arg::shader_arg_shapes shader_arg_shapes,
+                                                                    arg::shader_binary compute_shader,
+                                                                    bool should_have_push_constants,
+                                                                    cc::allocator* scratch_alloc);
+
+    [[nodiscard]] handle::pipeline_state createRaytracingPipelineState(cc::span<arg::raytracing_shader_library const> libraries,
+                                                                       cc::span<arg::raytracing_argument_association const> arg_assocs,
+                                                                       cc::span<arg::raytracing_hit_group const> hit_groups,
+                                                                       unsigned max_recursion,
+                                                                       unsigned max_payload_size_bytes,
+                                                                       unsigned max_attribute_size_bytes,
+                                                                       cc::allocator* scratch_alloc);
 
     void free(handle::pipeline_state ps);
 
@@ -41,14 +53,14 @@ public:
         pipeline_layout* associated_pipeline_layout;
 
         // info stored which is required for creating render passes on the fly / cached
-        cc::capped_vector<format, limits::max_render_targets> rt_formats;
+        flat_vector<format, limits::max_render_targets> rt_formats;
         unsigned num_msaa_samples;
     };
 
 public:
     // internal API
 
-    void initialize(VkDevice device, unsigned max_num_psos);
+    void initialize(VkDevice device, unsigned max_num_psos, cc::allocator* static_alloc);
     void destroy();
 
     [[nodiscard]] pso_node const& get(handle::pipeline_state ps) const { return mPool.get(ps._value); }
@@ -60,7 +72,7 @@ private:
     PipelineLayoutCache mLayoutCache;
     RenderPassCache mRenderPassCache;
     DescriptorAllocator mDescriptorAllocator;
-    phi::detail::linked_pool<pso_node> mPool;
+    phi::linked_pool<pso_node> mPool;
     std::mutex mMutex;
 };
 

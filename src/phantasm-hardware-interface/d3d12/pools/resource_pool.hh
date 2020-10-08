@@ -2,7 +2,7 @@
 
 #include <mutex>
 
-#include <phantasm-hardware-interface/detail/linked_pool.hh>
+#include <phantasm-hardware-interface/common/container/linked_pool.hh>
 #include <phantasm-hardware-interface/types.hh>
 
 #include <phantasm-hardware-interface/d3d12/memory/ResourceAllocator.hh>
@@ -28,11 +28,12 @@ public:
     /// create a buffer, with an element stride if its an index or vertex buffer
     [[nodiscard]] handle::resource createBuffer(uint64_t size_bytes, unsigned stride_bytes, resource_heap heap, bool allow_uav, char const* dbg_name);
 
-    [[nodiscard]] std::byte* mapBuffer(handle::resource res);
+    [[nodiscard]] std::byte* mapBuffer(handle::resource res, int begin = 0, int end = -1);
 
-    void unmapBuffer(handle::resource res);
+    void unmapBuffer(handle::resource res, int begin = 0, int end = -1);
 
-    [[nodiscard]] handle::resource createBufferInternal(uint64_t size_bytes, unsigned stride_bytes, bool allow_uav, D3D12_RESOURCE_STATES initial_state);
+    [[nodiscard]] handle::resource createBufferInternal(
+        uint64_t size_bytes, unsigned stride_bytes, bool allow_uav, D3D12_RESOURCE_STATES initial_state, const char* debug_name = "unnamed internal buffer");
 
     void free(handle::resource res);
     void free(cc::span<handle::resource const> resources);
@@ -51,8 +52,11 @@ public:
 
         struct buffer_info
         {
+            D3D12_GPU_VIRTUAL_ADDRESS gpu_va;
             uint32_t width;
-            uint32_t stride; ///< vertex size or index size
+            uint32_t stride; // vertex/index size, structured buffer stride
+
+            bool is_access_in_bounds(size_t offset, size_t size) const { return offset + size <= size_t(width); }
         };
 
         struct image_info
@@ -79,7 +83,7 @@ public:
 public:
     // internal API
 
-    void initialize(ID3D12Device& device, unsigned max_num_resources, unsigned max_num_swapchains);
+    void initialize(ID3D12Device* device, unsigned max_num_resources, unsigned max_num_swapchains, cc::allocator* static_alloc, cc::allocator* dynamic_alloc);
     void destroy();
 
     //
@@ -92,6 +96,15 @@ public:
     [[nodiscard]] bool isImage(handle::resource res) const { return internalGet(res).type == resource_node::resource_type::image; }
     [[nodiscard]] resource_node::image_info const& getImageInfo(handle::resource res) const { return internalGet(res).image; }
     [[nodiscard]] resource_node::buffer_info const& getBufferInfo(handle::resource res) const { return internalGet(res).buffer; }
+
+    bool isBufferAccessInBounds(handle::resource res, size_t offset, size_t size) const
+    {
+        auto const& internal = internalGet(res);
+        if (internal.type != resource_node::resource_type::buffer)
+            return false;
+
+        return internal.buffer.is_access_in_bounds(offset, size);
+    }
 
     //
     // Master state access
@@ -115,21 +128,21 @@ public:
     {
         auto const& data = internalGet(res);
         CC_ASSERT(data.type == resource_node::resource_type::buffer);
-        return {data.resource->GetGPUVirtualAddress(), data.buffer.width, data.buffer.stride};
+        return {data.buffer.gpu_va, data.buffer.width, data.buffer.stride};
     }
 
     [[nodiscard]] D3D12_INDEX_BUFFER_VIEW getIndexBufferView(handle::resource res) const
     {
         auto const& data = internalGet(res);
         CC_ASSERT(data.type == resource_node::resource_type::buffer);
-        return {data.resource->GetGPUVirtualAddress(), data.buffer.width, (data.buffer.stride == 4) ? DXGI_FORMAT_R32_UINT : DXGI_FORMAT_R16_UINT};
+        return {data.buffer.gpu_va, data.buffer.width, (data.buffer.stride == 4) ? DXGI_FORMAT_R32_UINT : DXGI_FORMAT_R16_UINT};
     }
 
     [[nodiscard]] D3D12_CONSTANT_BUFFER_VIEW_DESC getConstantBufferView(handle::resource res) const
     {
         auto const& data = internalGet(res);
         CC_ASSERT(data.type == resource_node::resource_type::buffer);
-        return {data.resource->GetGPUVirtualAddress(), data.buffer.width};
+        return {data.buffer.gpu_va, data.buffer.width};
     }
 
     //
@@ -162,7 +175,7 @@ private:
 
 private:
     /// The main pool data
-    phi::detail::linked_pool<resource_node> mPool;
+    phi::linked_pool<resource_node> mPool;
     /// Amount of handles (from the start) reserved for backbuffer injection
     unsigned mNumReservedBackbuffers;
 

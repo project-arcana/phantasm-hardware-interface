@@ -5,7 +5,7 @@
 
 #include <clean-core/bit_cast.hh>
 
-namespace phi::detail
+namespace phi
 {
 struct unique_buffer
 {

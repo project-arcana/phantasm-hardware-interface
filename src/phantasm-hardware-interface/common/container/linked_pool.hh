@@ -9,7 +9,7 @@
 #include <clean-core/bits.hh>
 #include <clean-core/new.hh>
 
-namespace phi::detail
+namespace phi
 {
 void radix_sort(uint32_t* a, uint32_t* temp, size_t n);
 
@@ -120,21 +120,21 @@ struct linked_pool
         _first_free_node = node;
     }
 
-    T& get(handle_t handle)
+    CC_FORCE_INLINE T& get(handle_t handle)
     {
         uint32_t index = _read_index(handle);
         CC_CONTRACT(index < _pool_size);
         return _pool[index];
     }
 
-    T const& get(handle_t handle) const
+    CC_FORCE_INLINE T const& get(handle_t handle) const
     {
         uint32_t index = _read_index(handle);
         CC_CONTRACT(index < _pool_size);
         return _pool[index];
     }
 
-    uint32_t get_node_index(T const* node) const
+    CC_FORCE_INLINE uint32_t get_node_index(T const* node) const
     {
         CC_ASSERT(node >= &_pool[0] && node < &_pool[_pool_size] && "node outside of pool");
         return node - _pool;
@@ -268,7 +268,7 @@ private:
         }
     }
 
-    handle_t _read_index(uint32_t handle) const
+    CC_FORCE_INLINE handle_t _read_index(uint32_t handle) const
     {
         if constexpr (sc_enable_gen_check)
         {

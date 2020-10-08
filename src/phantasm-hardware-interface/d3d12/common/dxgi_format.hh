@@ -105,9 +105,12 @@ namespace phi::d3d12::util
         return DXGI_FORMAT_D32_FLOAT_S8X24_UINT;
     case af::depth24un_stencil8u:
         return DXGI_FORMAT_D24_UNORM_S8_UINT;
+
+    case af::none:
+    case af::MAX_FORMAT_RANGE:
+        return DXGI_FORMAT_UNKNOWN;
     }
-    CC_ASSERT(false && "unknown format");
-    return DXGI_FORMAT_UNKNOWN;
+    CC_UNREACHABLE_SWITCH_WORKAROUND(format);
 }
 
 /// Viewing some formats requires special DXGI_FORMATs

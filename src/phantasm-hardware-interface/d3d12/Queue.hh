@@ -9,24 +9,12 @@ namespace phi::d3d12
 {
 class Queue
 {
-    // reference type
 public:
-    Queue() = default;
-    Queue(Queue const&) = delete;
-    Queue(Queue&&) noexcept = delete;
-    Queue& operator=(Queue const&) = delete;
-    Queue& operator=(Queue&&) noexcept = delete;
+    void initialize(ID3D12Device* device, queue_type type);
+    void destroy();
 
-    void initialize(ID3D12Device& device, queue_type type = queue_type::direct);
-
-    [[nodiscard]] ID3D12CommandQueue& getQueue() const { return *mQueue.get(); }
-    [[nodiscard]] shared_com_ptr<ID3D12CommandQueue> const& getQueueShared() const { return mQueue; }
-
-    ID3D12Fence& getFence() const { return *mInternalFence.get(); }
-
-private:
-    shared_com_ptr<ID3D12CommandQueue> mQueue;
-    shared_com_ptr<ID3D12Fence> mInternalFence;
+    ID3D12CommandQueue* command_queue = nullptr;
+    ID3D12Fence* fence = nullptr;
 };
 
 }

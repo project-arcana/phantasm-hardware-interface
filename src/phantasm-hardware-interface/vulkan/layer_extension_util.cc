@@ -3,8 +3,8 @@
 #include <clean-core/utility.hh>
 #include <clean-core/vector.hh>
 
+#include <phantasm-hardware-interface/common/log.hh>
 #include <phantasm-hardware-interface/config.hh>
-#include <phantasm-hardware-interface/detail/log.hh>
 
 #include "common/unique_name_set.hh"
 #include "common/verify.hh"
@@ -230,7 +230,7 @@ phi::vk::lay_ext_array phi::vk::get_used_device_lay_ext(const phi::vk::lay_ext_s
 {
     lay_ext_array used_res;
 
-    [[maybe_unused]] auto const add_layer = [&](char const* layer_name) {
+    [[maybe_unused]] auto const f_add_layer = [&](char const* layer_name) {
         if (available.layers.contains(layer_name))
         {
             used_res.layers.push_back(layer_name);
@@ -239,7 +239,7 @@ phi::vk::lay_ext_array phi::vk::get_used_device_lay_ext(const phi::vk::lay_ext_s
         return false;
     };
 
-    auto const add_ext = [&](char const* ext_name) {
+    auto const f_add_ext = [&](char const* ext_name) {
         if (available.extensions.contains(ext_name))
         {
             used_res.extensions.push_back(ext_name);
@@ -248,12 +248,12 @@ phi::vk::lay_ext_array phi::vk::get_used_device_lay_ext(const phi::vk::lay_ext_s
         return false;
     };
 
-    if (!add_ext(VK_KHR_SWAPCHAIN_EXTENSION_NAME))
+    if (!f_add_ext(VK_KHR_SWAPCHAIN_EXTENSION_NAME))
     {
         PHI_LOG_ERROR << "missing swapchain extension";
     }
 
-    if (!add_ext(VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME))
+    if (!f_add_ext(VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME))
     {
         PHI_LOG_ERROR << "missing timeline semaphore extension, try updating GPU drivers";
     }
@@ -262,14 +262,14 @@ phi::vk::lay_ext_array phi::vk::get_used_device_lay_ext(const phi::vk::lay_ext_s
     // prevents debug layers from warning about non-std430 layouts,
     // which occur ie. with the -fvk-use-dx-layout DXC flag
     // spec: https://www.khronos.org/registry/vulkan/specs/1.2-extensions/man/html/VK_KHR_relaxed_block_layout.html
-    if (!add_ext(VK_KHR_RELAXED_BLOCK_LAYOUT_EXTENSION_NAME))
+    if (!f_add_ext(VK_KHR_RELAXED_BLOCK_LAYOUT_EXTENSION_NAME))
     {
         PHI_LOG_WARN("missing relaxed block layout extension");
     }
 
     // additional extensions
     has_conservative_raster = false;
-    if (add_ext(VK_EXT_CONSERVATIVE_RASTERIZATION_EXTENSION_NAME))
+    if (f_add_ext(VK_EXT_CONSERVATIVE_RASTERIZATION_EXTENSION_NAME))
     {
         has_conservative_raster = true;
     }
@@ -277,16 +277,31 @@ phi::vk::lay_ext_array phi::vk::get_used_device_lay_ext(const phi::vk::lay_ext_s
     has_raytracing = false;
     if (config.enable_raytracing)
     {
-        if (add_ext(VK_NV_RAY_TRACING_EXTENSION_NAME))
+        // Note on Vk Ray tracing extensions:
+        // as of 08.09.2020, VK_KHR_ray_tracing is still only available in beta Nvidia drivers
+        // thus we use NV. API differences are not major
+        if (f_add_ext("VK_NV_ray_tracing"))
         {
-            if (add_ext(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME))
-            {
+            bool all_dependencies_present = true;
+            auto f_add_rt_dependency = [&](char const* name) {
+                if (!f_add_ext(name))
+                {
+                    all_dependencies_present = false;
+                    PHI_LOG_ERROR("missing raytracing extension dependency {}, try updating GPU drivers", name);
+                }
+            };
+
+            // f_add_rt_dependency(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME); part of Vulkan 1.1
+            f_add_rt_dependency(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME);
+
+            // extensions below are required for KHR, but not NV
+            // f_add_rt_dependency(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME);
+            // f_add_rt_dependency(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME);
+            // f_add_rt_dependency("VK_KHR_deferred_host_operations");
+            // f_add_rt_dependency("VK_KHR_pipeline_library");
+
+            if (all_dependencies_present)
                 has_raytracing = true;
-            }
-            else
-            {
-                PHI_LOG_ERROR("missing raytracing extension dependency {}, try updating GPU drivers", VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME);
-            }
         }
     }
 

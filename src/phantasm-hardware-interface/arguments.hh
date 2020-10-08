@@ -4,7 +4,7 @@
 
 #include <typed-geometry/types/size.hh>
 
-#include <phantasm-hardware-interface/detail/trivial_capped_vector.hh>
+#include <phantasm-hardware-interface/common/container/flat_vector.hh>
 
 #include "limits.hh"
 #include "types.hh"
@@ -14,13 +14,13 @@ namespace phi::arg
 struct framebuffer_config
 {
     /// configs of the render targets, [0, n]
-    detail::trivial_capped_vector<render_target_config, limits::max_render_targets> render_targets;
+    flat_vector<render_target_config, limits::max_render_targets> render_targets;
 
     bool logic_op_enable = false;
     blend_logic_op logic_op = blend_logic_op::no_op;
 
-    /// format of the depth stencil target, [0, 1]
-    detail::trivial_capped_vector<format, 1> depth_target;
+    /// format of the depth stencil target, or format::none
+    format depth_target = format::none;
 
 public:
     void add_render_target(format fmt)
@@ -30,15 +30,14 @@ public:
         render_targets.push_back(new_rt);
     }
 
-    void add_depth_target(format fmt) { depth_target.push_back(fmt); }
-
-    void remove_depth_target() { depth_target.clear(); }
+    void set_depth_target(format fmt) { depth_target = fmt; }
+    void remove_depth_target() { depth_target = format::none; }
 };
 
 struct vertex_format
 {
     cc::span<vertex_attribute_info const> attributes;
-    unsigned vertex_size_bytes;
+    unsigned vertex_size_bytes = 0;
 };
 
 /// A shader argument consists of SRVs, UAVs, an optional CBV, and an offset into it
@@ -67,32 +66,36 @@ using shader_arg_shapes = cc::span<shader_arg_shape const>;
 
 struct shader_binary
 {
-    std::byte const* data; ///< pointer to the (backend-dependent) shader binary data
-    size_t size;
+    std::byte const* data = nullptr; ///< pointer to the (backend-dependent) shader binary data
+    size_t size = 0;
 };
 
 struct graphics_shader
 {
     shader_binary binary;
-    shader_stage stage;
+    shader_stage stage = shader_stage::none;
 };
 
 /// A graphics shader bundle consists of up to 1 shader per graphics stage
 using graphics_shaders = cc::span<graphics_shader const>;
 
-inline bool operator==(shader_arg_shapes const& lhs, shader_arg_shapes const& rhs) noexcept
+struct graphics_pipeline_state_desc
 {
-    if (lhs.size() != rhs.size())
-        return false;
+    pipeline_config config;
+    framebuffer_config framebuffer;
+    vertex_format vertices;
 
-    for (auto i = 0u; i < lhs.size(); ++i)
-    {
-        if (!(lhs[i] == rhs[i]))
-            return false;
-    }
+    flat_vector<graphics_shader, limits::num_graphics_shader_stages> shader_binaries;
+    flat_vector<shader_arg_shape, limits::max_shader_arguments> shader_arg_shapes;
+    bool has_root_constants = false;
+};
 
-    return true;
-}
+struct compute_pipeline_state_desc
+{
+    shader_binary shader;
+    flat_vector<shader_arg_shape, limits::max_shader_arguments> shader_arg_shapes;
+    bool has_root_constants = false;
+};
 
 /// an element in a bottom-level acceleration strucutre
 struct blas_element
@@ -101,44 +104,110 @@ struct blas_element
     handle::resource index_buffer = handle::null_resource; ///< optional
     unsigned num_vertices = 0;
     unsigned num_indices = 0;
+    handle::resource transform_buffer = handle::null_resource; ///< optional
+    unsigned transform_buffer_offset_bytes = 0;
+    format vertex_pos_format = format::rgb32f;
     bool is_opaque = true;
+};
+
+struct raytracing_library_export
+{
+    shader_stage stage = shader_stage::none;
+    char const* entrypoint = nullptr;
 };
 
 /// a shader library lists the symbol names it exports
 struct raytracing_shader_library
 {
     shader_binary binary;
-    detail::trivial_capped_vector<wchar_t const*, 16> symbols;
+    flat_vector<raytracing_library_export, 16> shader_exports;
 };
 
-/// associates symbols exported from libraries with their argument shapes
+/// associates exports from libraries with their argument shapes
 struct raytracing_argument_association
 {
-    detail::trivial_capped_vector<wchar_t const*, 16> symbols;
-    detail::trivial_capped_vector<shader_arg_shape, limits::max_shader_arguments> argument_shapes;
+    enum e_arg_association_target : uint8_t
+    {
+        e_target_identifiable_shader,
+        e_target_hitgroup
+    };
+
+    /// an argument association targets an identifiable shader (identfiable: ray_gen, ray_miss or ray_callable), or a hitgroup
+    e_arg_association_target target_type = e_target_identifiable_shader;
+    /// order corresponds to the order of exports/hitgroups at PSO creation
+    /// NOTE: identifiable shaders are indexed contiguously across libraries, and non-identifiable shaders are skipped
+    flat_vector<unsigned, 16> target_indices;
+
+    flat_vector<shader_arg_shape, limits::max_shader_arguments> argument_shapes;
     bool has_root_constants = false;
+
+public:
+    void set_target_identifiable() { target_type = e_target_identifiable_shader; }
+    void set_target_hitgroup() { target_type = e_target_hitgroup; }
+
+    void add_shader_arg(unsigned num_srvs, unsigned num_uavs, unsigned num_samplers, bool has_cbv)
+    {
+        argument_shapes.push_back(shader_arg_shape{num_srvs, num_uavs, num_samplers, has_cbv});
+    }
 };
 
+/// a triangle hit group, has a closest hit shader, and optionally an any hit and intersection shader
 struct raytracing_hit_group
 {
-    wchar_t const* name = nullptr;
-    wchar_t const* closest_hit_symbol = nullptr;
-    wchar_t const* any_hit_symbol = nullptr;      ///< optional
-    wchar_t const* intersection_symbol = nullptr; ///< optional
+    char const* name = nullptr;
+
+    /// order corresponds to the order of exports, flat across all libraries
+    int closest_hit_export_index = -1;
+    int any_hit_export_index = -1;      ///< optional
+    int intersection_export_index = -1; ///< optional
+};
+
+struct raytracing_pipeline_state_desc
+{
+    cc::span<raytracing_shader_library const> libraries;
+    cc::span<raytracing_argument_association const> argument_associations;
+    cc::span<raytracing_hit_group const> hit_groups;
+
+    unsigned max_recursion = 0;
+    unsigned max_payload_size_bytes = 0;
+    unsigned max_attribute_size_bytes = 0;
 };
 
 struct shader_table_record
 {
-    wchar_t const* symbol = nullptr;     ///< name of the shader or hit group
-    void const* root_arg_data = nullptr; ///< optional, data of the root constant data
-    uint32_t root_arg_size = 0;          ///< size of the root constant data
-    detail::trivial_capped_vector<shader_argument, limits::max_shader_arguments> shader_arguments;
-};
+    enum e_table_record_target : uint8_t
+    {
+        e_target_identifiable_shader,
+        e_target_hitgroup
+    };
 
-using raytracing_shader_libraries = cc::span<raytracing_shader_library const>;
-using raytracing_argument_associations = cc::span<raytracing_argument_association const>;
-using raytracing_hit_groups = cc::span<raytracing_hit_group const>;
-using shader_table_records = cc::span<shader_table_record const>;
+    /// a shader table record targets an identifiable shader (identfiable: ray_gen, ray_miss or ray_callable), or a hitgroup
+    e_table_record_target target_type = e_target_identifiable_shader;
+    /// order corresponds to the order of exports/hitgroups at PSO creation
+    /// NOTE: identifiable shaders are indexed contiguously across libraries, and non-identifiable shaders are skipped
+    unsigned target_index = 0;
+
+    void const* root_arg_data = nullptr; ///< optional, data of the root constant data
+    unsigned root_arg_size_bytes = 0;    ///< size of the root constant data
+    flat_vector<shader_argument, limits::max_shader_arguments> shader_arguments;
+
+    void set_shader(unsigned index)
+    {
+        target_type = e_target_identifiable_shader;
+        target_index = index;
+    }
+
+    void set_hitgroup(unsigned index)
+    {
+        target_type = e_target_hitgroup;
+        target_index = index;
+    }
+
+    void add_shader_arg(handle::resource cbv, unsigned cbv_off = 0, handle::shader_view sv = handle::null_shader_view)
+    {
+        shader_arguments.push_back(shader_argument{cbv, sv, cbv_off});
+    }
+};
 
 // resource creation info
 

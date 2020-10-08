@@ -3,7 +3,7 @@
 #include <clean-core/bit_cast.hh>
 #include <clean-core/utility.hh>
 
-#include <phantasm-hardware-interface/detail/log.hh>
+#include <phantasm-hardware-interface/common/log.hh>
 
 #include <phantasm-hardware-interface/d3d12/common/d3dx12.hh>
 #include <phantasm-hardware-interface/d3d12/common/dxgi_format.hh>
@@ -60,15 +60,16 @@ constexpr D3D12_RESOURCE_STATES d3d12_get_initial_state_by_heap(phi::resource_he
 }
 }
 
-void phi::d3d12::ResourcePool::initialize(ID3D12Device& device, unsigned max_num_resources, unsigned max_num_swapchains)
+void phi::d3d12::ResourcePool::initialize(ID3D12Device* device, unsigned max_num_resources, unsigned max_num_swapchains, cc::allocator* static_alloc, cc::allocator* dynamic_alloc)
 {
-    mAllocator.initialize(device);
-    mPool.initialize(max_num_resources + max_num_swapchains); // additional resources for swapchain backbuffers
+    mAllocator.initialize(device, dynamic_alloc);
+    mPool.initialize(max_num_resources + max_num_swapchains, static_alloc); // additional resources for swapchain backbuffers
 
     mNumReservedBackbuffers = max_num_swapchains;
     for (auto i = 0u; i < mNumReservedBackbuffers; ++i)
     {
         auto backbuffer_reserved = mPool.acquire();
+        (void)backbuffer_reserved;
     }
 }
 
@@ -221,26 +222,27 @@ phi::handle::resource phi::d3d12::ResourcePool::createBuffer(uint64_t size_bytes
     auto* const alloc = mAllocator.allocate(desc, initial_state, nullptr, util::to_native(heap));
     util::set_object_name(alloc->GetResource(), "pool buf %s (%uB, %uB stride, %s heap)", dbg_name ? dbg_name : "", unsigned(size_bytes),
                           stride_bytes, d3d12_get_heap_type_literal(heap));
-    return acquireBuffer(alloc, initial_state, size_bytes, stride_bytes, heap);
+
+    auto const res = acquireBuffer(alloc, initial_state, size_bytes, stride_bytes, heap);
+    return res;
 }
 
-std::byte* phi::d3d12::ResourcePool::mapBuffer(phi::handle::resource res)
+std::byte* phi::d3d12::ResourcePool::mapBuffer(phi::handle::resource res, int begin, int end)
 {
     CC_ASSERT(res.is_valid() && "attempted to map invalid handle");
 
     resource_node const& node = mPool.get(unsigned(res._value));
-
     CC_ASSERT(node.type == resource_node::resource_type::buffer && node.heap != resource_heap::gpu && //
               "attempted to map non-buffer or buffer on GPU heap");
 
 
-    D3D12_RANGE range = {0, node.buffer.width};
+    D3D12_RANGE const range = {SIZE_T(begin), end < 0 ? node.buffer.width : SIZE_T(end)};
     void* data_start_void;
     PHI_D3D12_VERIFY(node.resource->Map(0, &range, &data_start_void));
-    return cc::bit_cast<std::byte*>(data_start_void);
+    return reinterpret_cast<std::byte*>(data_start_void);
 }
 
-void phi::d3d12::ResourcePool::unmapBuffer(phi::handle::resource res)
+void phi::d3d12::ResourcePool::unmapBuffer(phi::handle::resource res, int begin, int end)
 {
     CC_ASSERT(res.is_valid() && "attempted to unmap invalid handle");
 
@@ -249,11 +251,13 @@ void phi::d3d12::ResourcePool::unmapBuffer(phi::handle::resource res)
     CC_ASSERT(node.type == resource_node::resource_type::buffer && node.heap != resource_heap::gpu && //
               "attempted to unmap non-buffer or buffer on GPU heap");
 
-    D3D12_RANGE range = {0, node.heap == resource_heap::readback ? 0 : node.buffer.width};
+    SIZE_T const default_width = node.heap == resource_heap::readback ? begin : node.buffer.width;
+    D3D12_RANGE const range = {SIZE_T(begin), end < 0 ? default_width : SIZE_T(end)};
     node.resource->Unmap(0, &range);
 }
 
-phi::handle::resource phi::d3d12::ResourcePool::createBufferInternal(uint64_t size_bytes, unsigned stride_bytes, bool allow_uav, D3D12_RESOURCE_STATES initial_state)
+phi::handle::resource phi::d3d12::ResourcePool::createBufferInternal(
+    uint64_t size_bytes, unsigned stride_bytes, bool allow_uav, D3D12_RESOURCE_STATES initial_state, char const* debug_name)
 {
     auto desc = CD3DX12_RESOURCE_DESC::Buffer(size_bytes);
 
@@ -261,7 +265,7 @@ phi::handle::resource phi::d3d12::ResourcePool::createBufferInternal(uint64_t si
         desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
     auto* const alloc = mAllocator.allocate(desc, initial_state);
-    util::set_object_name(alloc->GetResource(), "respool internal buffer");
+    util::set_object_name(alloc->GetResource(), debug_name);
     return acquireBuffer(alloc, initial_state, size_bytes, stride_bytes, resource_heap::gpu);
 }
 
@@ -321,6 +325,7 @@ phi::handle::resource phi::d3d12::ResourcePool::acquireBuffer(
     new_node.type = resource_node::resource_type::buffer;
     new_node.heap = heap;
     new_node.master_state = initial_state;
+    new_node.buffer.gpu_va = new_node.resource->GetGPUVirtualAddress();
     new_node.buffer.width = unsigned(buffer_width);
     new_node.buffer.stride = buffer_stride;
 

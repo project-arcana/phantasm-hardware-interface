@@ -2,9 +2,9 @@
 
 #include <clean-core/assert.hh>
 
+#include <phantasm-hardware-interface/common/log.hh>
 #include <phantasm-hardware-interface/config.hh>
-#include <phantasm-hardware-interface/detail/gpu_info.hh>
-#include <phantasm-hardware-interface/detail/log.hh>
+#include <phantasm-hardware-interface/features/gpu_info.hh>
 
 #include "adapter_choice_util.hh"
 #include "common/d3d12_sanitized.hh"
@@ -51,7 +51,7 @@ void phi::d3d12::Adapter::initialize(const backend_config& config)
     {
         shared_com_ptr<IDXGIFactory> temp_factory;
         PHI_D3D12_VERIFY(::CreateDXGIFactory(PHI_COM_WRITE(temp_factory)));
-        PHI_D3D12_VERIFY(temp_factory.get_interface(mFactory));
+        PHI_D3D12_VERIFY(temp_factory->QueryInterface(IID_PPV_ARGS(&mFactory)));
     }
 
     // Adapter init
@@ -78,7 +78,7 @@ void phi::d3d12::Adapter::initialize(const backend_config& config)
         // create the adapter
         shared_com_ptr<IDXGIAdapter> temp_adapter;
         mFactory->EnumAdapters(chosen_adapter_index, temp_adapter.override());
-        PHI_D3D12_VERIFY(temp_adapter.get_interface(mAdapter));
+        PHI_D3D12_VERIFY(temp_adapter->QueryInterface(IID_PPV_ARGS(&mAdapter)));
 
         print_startup_message(candidates, chosen_adapter_index, config, true);
     }
@@ -132,9 +132,9 @@ void phi::d3d12::Adapter::initialize(const backend_config& config)
     }
 }
 
-void phi::d3d12::Adapter::invalidate()
+void phi::d3d12::Adapter::destroy()
 {
-    mInfoQueue = nullptr;
-    mFactory = nullptr;
-    mAdapter = nullptr;
+    PHI_D3D12_SAFE_RELEASE(mAdapter);
+    PHI_D3D12_SAFE_RELEASE(mFactory);
+    PHI_D3D12_SAFE_RELEASE(mInfoQueue);
 }

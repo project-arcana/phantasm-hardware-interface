@@ -4,7 +4,7 @@
 #include <clean-core/span.hh>
 
 #include <phantasm-hardware-interface/commands.hh>
-#include <phantasm-hardware-interface/detail/stable_map.hh>
+#include <phantasm-hardware-interface/common/container/stable_map.hh>
 #include <phantasm-hardware-interface/limits.hh>
 #include <phantasm-hardware-interface/types.hh>
 
@@ -22,7 +22,7 @@ namespace phi::vk
 class RenderPassCache
 {
 public:
-    void initialize(unsigned max_elements);
+    void initialize(unsigned max_elements, cc::allocator* static_alloc);
     void destroy(VkDevice device);
 
     /// receive an existing render pass matching the framebuffer formats and config, or create a new one

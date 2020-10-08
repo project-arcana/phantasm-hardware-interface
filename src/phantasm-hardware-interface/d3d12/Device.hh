@@ -1,39 +1,33 @@
 #pragma once
 
 #include <phantasm-hardware-interface/config.hh>
-#include <phantasm-hardware-interface/detail/gpu_info.hh>
+#include <phantasm-hardware-interface/features/gpu_info.hh>
 
 #include "common/d3d12_fwd.hh"
-#include "common/shared_com_ptr.hh"
 
 namespace phi::d3d12
 {
 class Device
 {
 public:
-    Device() = default;
-    Device(Device const&) = delete;
-    Device(Device&&) noexcept = delete;
-    Device& operator=(Device const&) = delete;
-    Device& operator=(Device&&) noexcept = delete;
-
     void initialize(IDXGIAdapter& adapter, backend_config const& config);
+    void destroy();
 
-    gpu_feature_flags getFeatures() const { return mFeatures; }
-    bool hasSM6WaveIntrinsics() const { return mFeatures.has(gpu_feature::hlsl_wave_ops); }
-    bool hasRaytracing() const { return mFeatures.has(gpu_feature::raytracing); }
-    bool hasVariableRateShading() const { return mFeatures.has_any_of({gpu_feature::shading_rate_t1, gpu_feature::shading_rate_t2}); }
+    bool hasSM6WaveIntrinsics() const { return mFeatures.features.has(gpu_feature::hlsl_wave_ops); }
+    bool hasRaytracing() const { return mIsRaytracingEnabled; }
+    bool hasVariableRateShading() const { return mFeatures.variable_rate_shading >= gpu_feature_info::variable_rate_shading_t1_0; }
 
-    ID3D12Device& getDevice() const { return *mDevice.get(); }
-    shared_com_ptr<ID3D12Device> const& getDeviceShared() const { return mDevice; }
-
-    ID3D12Device5* getDevice5() const { return mDevice5.get(); }
+    ID3D12Device5* getDevice() const { return mDevice; }
 
 private:
-    shared_com_ptr<ID3D12DeviceRemovedExtendedDataSettings> mDREDSettings;
-    shared_com_ptr<ID3D12Device> mDevice;
-    shared_com_ptr<ID3D12Device5> mDevice5;
-    gpu_feature_flags mFeatures;
+    ID3D12Device5* mDevice = nullptr;
+    gpu_feature_info mFeatures;
+    // whether raytracing is enabled in the config AND available
+    // there is nothing to "not init" on the D3D12 side with disabled (but available) RT, this is for phi-internals only
+    bool mIsRaytracingEnabled = false;
+
+    bool mIsShutdownCrashSubsceptible = false;
+    bool mIsShutdownCrashWorkaroundActive = false;
 };
 
 }

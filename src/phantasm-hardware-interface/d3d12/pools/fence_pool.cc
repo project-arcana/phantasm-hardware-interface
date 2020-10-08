@@ -1,6 +1,6 @@
 #include "fence_pool.hh"
 
-#include <phantasm-hardware-interface/detail/log.hh>
+#include <phantasm-hardware-interface/common/log.hh>
 
 #include <phantasm-hardware-interface/d3d12/common/d3d12_sanitized.hh>
 #include <phantasm-hardware-interface/d3d12/common/verify.hh>
@@ -46,11 +46,11 @@ void phi::d3d12::FencePool::free(cc::span<const phi::handle::fence> fence_span)
     }
 }
 
-void phi::d3d12::FencePool::initialize(ID3D12Device* device, unsigned max_num_fences)
+void phi::d3d12::FencePool::initialize(ID3D12Device* device, unsigned max_num_fences, cc::allocator* static_alloc)
 {
     CC_ASSERT(mDevice == nullptr && "double init");
     mDevice = device;
-    mPool.initialize(max_num_fences);
+    mPool.initialize(max_num_fences, static_alloc);
 }
 
 void phi::d3d12::FencePool::destroy()

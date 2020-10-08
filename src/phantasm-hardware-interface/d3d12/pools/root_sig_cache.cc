@@ -23,7 +23,7 @@ char const* get_root_sig_type_literal(phi::d3d12::root_signature_type type)
 
 }
 
-void phi::d3d12::RootSignatureCache::initialize(unsigned max_num_root_sigs) { mCache.initialize(max_num_root_sigs); }
+void phi::d3d12::RootSignatureCache::initialize(unsigned max_num_root_sigs, cc::allocator* alloc) { mCache.initialize(max_num_root_sigs, alloc); }
 
 void phi::d3d12::RootSignatureCache::destroy() { reset(); }
 

@@ -1,11 +1,12 @@
 #include "BackendVulkan.hh"
 
 #include <clean-core/array.hh>
+#include <clean-core/native/win32_util.hh>
 
 #include <rich-log/logger.hh>
 
+#include <phantasm-hardware-interface/common/log.hh>
 #include <phantasm-hardware-interface/config.hh>
-#include <phantasm-hardware-interface/detail/log.hh>
 
 #include "cmd_buf_translation.hh"
 #include "common/debug_callback.hh"
@@ -25,9 +26,17 @@ struct BackendVulkan::per_thread_component
 };
 }
 
+namespace
+{
+constexpr VkPipelineStageFlags const gc_wait_dst_masks[8]
+    = {VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+       VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+       VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT};
+}
+
 void phi::vk::BackendVulkan::initialize(const backend_config& config_arg)
 {
-    // just making sure
+    // enable colors as rich-log is used by this library
     rlog::enable_win32_colors();
 
     PHI_VK_VERIFY_SUCCESS(volkInitialize());
@@ -112,18 +121,21 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg)
         volkLoadDevice(mDevice.getDevice());
 
         print_startup_message(gpu_infos, chosen_index, config, false);
+        PHI_LOG("   compiled with vulkan sdk v{}.{}.{}", VK_VERSION_MAJOR(VK_HEADER_VERSION_COMPLETE), VK_VERSION_MINOR(VK_HEADER_VERSION_COMPLETE),
+                VK_VERSION_PATCH(VK_HEADER_VERSION_COMPLETE));
     }
 
     // Pool init
-    mPoolPipelines.initialize(mDevice.getDevice(), config.max_num_pipeline_states);
-    mPoolResources.initialize(mDevice.getPhysicalDevice(), mDevice.getDevice(), config.max_num_resources, config.max_num_swapchains);
-    mPoolShaderViews.initialize(mDevice.getDevice(), &mPoolResources, config.max_num_cbvs, config.max_num_srvs, config.max_num_uavs, config.max_num_samplers);
-    mPoolFences.initialize(mDevice.getDevice(), config.max_num_fences);
-    mPoolQueries.initialize(mDevice.getDevice(), config.num_timestamp_queries, config.num_occlusion_queries, config.num_pipeline_stat_queries);
+    mPoolPipelines.initialize(mDevice.getDevice(), config.max_num_pipeline_states, config.static_allocator);
+    mPoolResources.initialize(mDevice.getPhysicalDevice(), mDevice.getDevice(), config.max_num_resources, config.max_num_swapchains, config.static_allocator);
+    mPoolShaderViews.initialize(mDevice.getDevice(), &mPoolResources, config.max_num_cbvs, config.max_num_srvs, config.max_num_uavs,
+                                config.max_num_samplers, config.static_allocator);
+    mPoolFences.initialize(mDevice.getDevice(), config.max_num_fences, config.static_allocator);
+    mPoolQueries.initialize(mDevice.getDevice(), config.num_timestamp_queries, config.num_occlusion_queries, config.num_pipeline_stat_queries, config.static_allocator);
 
     if (isRaytracingEnabled())
     {
-        mPoolAccelStructs.initialize(mDevice.getDevice(), &mPoolResources, config.max_num_accel_structs);
+        mPoolAccelStructs.initialize(mDevice.getDevice(), &mPoolResources, config.max_num_accel_structs, config.static_allocator);
     }
 
     mPoolSwapchains.initialize(mInstance, mDevice, config);
@@ -131,23 +143,26 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg)
     // Per-thread components and command list pool
     {
         mThreadAssociation.initialize();
-        mThreadComponents = mThreadComponents.defaulted(config.num_threads);
 
-        cc::vector<CommandAllocatorsPerThread*> thread_allocator_ptrs;
-        thread_allocator_ptrs.reserve(config.num_threads);
+        mThreadComponentAlloc = config.static_allocator;
+        mThreadComponents = config.static_allocator->new_array_sized<per_thread_component>(config.num_threads);
+        mNumThreadComponents = config.num_threads;
 
-        for (auto& thread_comp : mThreadComponents)
+        cc::alloc_array<CommandAllocatorsPerThread*> thread_allocator_ptrs(mNumThreadComponents, config.dynamic_allocator);
+
+        for (auto i = 0u; i < mNumThreadComponents; ++i)
         {
+            auto& thread_comp = mThreadComponents[i];
             thread_comp.translator.initialize(mDevice.getDevice(), &mPoolShaderViews, &mPoolResources, &mPoolPipelines, &mPoolCmdLists, &mPoolQueries,
                                               &mPoolAccelStructs);
-            thread_allocator_ptrs.push_back(&thread_comp.cmd_list_allocator);
+            thread_allocator_ptrs[i] = &thread_comp.cmd_list_allocator;
         }
 
         mPoolCmdLists.initialize(mDevice,                                                                                               //
                                  int(config.num_direct_cmdlist_allocators_per_thread), int(config.num_direct_cmdlists_per_allocator),   //
                                  int(config.num_compute_cmdlist_allocators_per_thread), int(config.num_compute_cmdlists_per_allocator), //
                                  int(config.num_copy_cmdlist_allocators_per_thread), int(config.num_copy_cmdlists_per_allocator),       //
-                                 thread_allocator_ptrs);
+                                 thread_allocator_ptrs, config.static_allocator, config.dynamic_allocator);
     }
 }
 
@@ -169,10 +184,12 @@ void phi::vk::BackendVulkan::destroy()
         mPoolPipelines.destroy();
         mPoolResources.destroy();
 
-        for (auto& thread_cmp : mThreadComponents)
+        for (auto i = 0u; i < mNumThreadComponents; ++i)
         {
-            thread_cmp.cmd_list_allocator.destroy(mDevice.getDevice());
+            auto& thread_comp = mThreadComponents[i];
+            thread_comp.cmd_list_allocator.destroy(mDevice.getDevice());
         }
+        reinterpret_cast<cc::allocator*>(mThreadComponentAlloc)->delete_array_sized(mThreadComponents, mNumThreadComponents);
 
         mDevice.destroy();
 
@@ -192,6 +209,8 @@ phi::handle::swapchain phi::vk::BackendVulkan::createSwapchain(const phi::window
 {
     return mPoolSwapchains.createSwapchain(window_handle, initial_size.width, initial_size.height, num_backbuffers, mode);
 }
+
+void phi::vk::BackendVulkan::free(phi::handle::swapchain sc) { mPoolSwapchains.free(sc); }
 
 phi::handle::resource phi::vk::BackendVulkan::acquireBackbuffer(handle::swapchain sc)
 {
@@ -216,20 +235,93 @@ phi::handle::resource phi::vk::BackendVulkan::acquireBackbuffer(handle::swapchai
     }
 }
 
+void phi::vk::BackendVulkan::present(phi::handle::swapchain sc) { mPoolSwapchains.present(sc); }
+
 void phi::vk::BackendVulkan::onResize(handle::swapchain sc, tg::isize2 size)
 {
     flushGPU();
     mPoolSwapchains.onResize(sc, size.width, size.height);
 }
 
-phi::format phi::vk::BackendVulkan::getBackbufferFormat(handle::swapchain sc) const
+phi::format phi::vk::BackendVulkan::getBackbufferFormat(phi::handle::swapchain sc) const
 {
     return util::to_pr_format(mPoolSwapchains.get(sc).backbuf_format.format);
 }
 
+
+phi::handle::resource phi::vk::BackendVulkan::createTexture(
+    phi::format format, tg::isize2 size, unsigned mips, phi::texture_dimension dim, unsigned depth_or_array_size, bool allow_uav, const char* debug_name)
+{
+    return mPoolResources.createTexture(format, unsigned(size.width), unsigned(size.height), mips, dim, depth_or_array_size, allow_uav, debug_name);
+}
+
+phi::handle::resource phi::vk::BackendVulkan::createRenderTarget(
+    phi::format format, tg::isize2 size, unsigned samples, unsigned array_size, const phi::rt_clear_value*, const char* debug_name)
+{
+    return mPoolResources.createRenderTarget(format, unsigned(size.width), unsigned(size.height), samples, array_size, debug_name);
+}
+
+phi::handle::resource phi::vk::BackendVulkan::createBuffer(unsigned int size_bytes, unsigned int stride_bytes, phi::resource_heap heap, bool allow_uav, const char* debug_name)
+{
+    return mPoolResources.createBuffer(size_bytes, stride_bytes, heap, allow_uav, debug_name);
+}
+
+phi::handle::resource phi::vk::BackendVulkan::createUploadBuffer(unsigned size_bytes, unsigned stride_bytes, const char* debug_name)
+{
+    return createBuffer(size_bytes, stride_bytes, resource_heap::upload, false, debug_name);
+}
+
+std::byte* phi::vk::BackendVulkan::mapBuffer(phi::handle::resource res, int begin, int end) { return mPoolResources.mapBuffer(res, begin, end); }
+
+void phi::vk::BackendVulkan::unmapBuffer(phi::handle::resource res, int begin, int end) { return mPoolResources.unmapBuffer(res, begin, end); }
+
+void phi::vk::BackendVulkan::free(phi::handle::resource res) { mPoolResources.free(res); }
+
+void phi::vk::BackendVulkan::freeRange(cc::span<const phi::handle::resource> resources) { mPoolResources.free(resources); }
+
+phi::handle::shader_view phi::vk::BackendVulkan::createShaderView(cc::span<const phi::resource_view> srvs,
+                                                                  cc::span<const phi::resource_view> uavs,
+                                                                  cc::span<const phi::sampler_config> samplers,
+                                                                  bool usage_compute)
+{
+    return mPoolShaderViews.create(srvs, uavs, samplers, usage_compute);
+}
+
+void phi::vk::BackendVulkan::free(phi::handle::shader_view sv) { mPoolShaderViews.free(sv); }
+
+void phi::vk::BackendVulkan::freeRange(cc::span<const phi::handle::shader_view> svs) { mPoolShaderViews.free(svs); }
+
+phi::handle::pipeline_state phi::vk::BackendVulkan::createPipelineState(phi::arg::vertex_format vertex_format,
+                                                                        const phi::arg::framebuffer_config& framebuffer_conf,
+                                                                        phi::arg::shader_arg_shapes shader_arg_shapes,
+                                                                        bool has_root_constants,
+                                                                        phi::arg::graphics_shaders shaders,
+                                                                        const phi::pipeline_config& primitive_config)
+{
+    return mPoolPipelines.createPipelineState(vertex_format, framebuffer_conf, shader_arg_shapes, has_root_constants, shaders, primitive_config, cc::system_allocator);
+}
+
+phi::handle::pipeline_state phi::vk::BackendVulkan::createPipelineState(const phi::arg::graphics_pipeline_state_desc& description)
+{
+    return mPoolPipelines.createPipelineState(description.vertices, description.framebuffer, description.shader_arg_shapes,
+                                              description.has_root_constants, description.shader_binaries, description.config, cc::system_allocator);
+}
+
+phi::handle::pipeline_state phi::vk::BackendVulkan::createComputePipelineState(phi::arg::shader_arg_shapes shader_arg_shapes, phi::arg::shader_binary shader, bool has_root_constants)
+{
+    return mPoolPipelines.createComputePipelineState(shader_arg_shapes, shader, has_root_constants, cc::system_allocator);
+}
+
+phi::handle::pipeline_state phi::vk::BackendVulkan::createComputePipelineState(const phi::arg::compute_pipeline_state_desc& description)
+{
+    return mPoolPipelines.createComputePipelineState(description.shader_arg_shapes, description.shader, description.has_root_constants, cc::system_allocator);
+}
+
+void phi::vk::BackendVulkan::free(phi::handle::pipeline_state ps) { mPoolPipelines.free(ps); }
+
 phi::handle::command_list phi::vk::BackendVulkan::recordCommandList(std::byte* buffer, size_t size, queue_type queue)
 {
-    auto& thread_comp = mThreadComponents[mThreadAssociation.get_current_index()];
+    auto& thread_comp = getCurrentThreadComponent();
 
     VkCommandBuffer raw_list;
     auto const res = mPoolCmdLists.create(raw_list, thread_comp.cmd_list_allocator, queue);
@@ -237,40 +329,23 @@ phi::handle::command_list phi::vk::BackendVulkan::recordCommandList(std::byte* b
     return res;
 }
 
-void phi::vk::BackendVulkan::submit(cc::span<const phi::handle::command_list> cls, queue_type queue)
+void phi::vk::BackendVulkan::discard(cc::span<const phi::handle::command_list> cls) { mPoolCmdLists.freeAndDiscard(cls); }
+
+void phi::vk::BackendVulkan::submit(cc::span<const phi::handle::command_list> cls,
+                                    phi::queue_type queue,
+                                    cc::span<const phi::fence_operation> fence_waits_before,
+                                    cc::span<const phi::fence_operation> fence_signals_after)
 {
-    constexpr auto c_batch_size = 16;
-    VkQueue const submit_queue = getQueueByType(queue);
+    constexpr unsigned c_max_num_command_lists = 32u;
+    cc::capped_vector<VkCommandBuffer, c_max_num_command_lists * 2> cmd_bufs_to_submit;
+    cc::capped_vector<handle::command_list, c_max_num_command_lists> barrier_lists;
+    CC_ASSERT(cls.size() <= c_max_num_command_lists && "too many commandlists submitted at once");
 
-    cc::capped_vector<VkCommandBuffer, c_batch_size * 2> submit_batch;
-    cc::capped_vector<handle::command_list, c_batch_size> barrier_lists;
-    unsigned last_cl_index = 0;
-    unsigned num_cls_in_batch = 0;
-
-    auto& thread_comp = mThreadComponents[mThreadAssociation.get_current_index()];
-
-    auto const submit_flush = [&]() {
-        VkFence submit_fence;
-        auto const submit_fence_index = mPoolCmdLists.acquireFence(submit_fence);
-
-        VkSubmitInfo submit_info = {};
-        submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-        submit_info.commandBufferCount = unsigned(submit_batch.size());
-        submit_info.pCommandBuffers = submit_batch.data();
-
-        PHI_VK_VERIFY_SUCCESS(vkQueueSubmit(submit_queue, 1, &submit_info, submit_fence));
-
-        cc::array<cc::span<handle::command_list const>, 2> submit_spans = {barrier_lists, cls.subspan(last_cl_index, num_cls_in_batch)};
-        mPoolCmdLists.freeOnSubmit(submit_spans, submit_fence_index);
-
-        submit_batch.clear();
-        barrier_lists.clear();
-        last_cl_index += num_cls_in_batch;
-        num_cls_in_batch = 0;
-    };
+    auto& thread_comp = getCurrentThreadComponent();
 
     for (auto const cl : cls)
     {
+        // silently ignore invalid handles
         if (cl == handle::null_command_list)
             continue;
 
@@ -304,39 +379,97 @@ void phi::vk::BackendVulkan::submit(cc::span<const phi::handle::command_list> cl
             mPoolResources.setResourceState(entry.ptr, entry.current, entry.current_dependency);
         }
 
+        // special barrier-only command list inserted before the proper one
         if (!barriers.empty())
         {
             VkCommandBuffer t_cmd_list;
             barrier_lists.push_back(mPoolCmdLists.create(t_cmd_list, thread_comp.cmd_list_allocator, queue));
             barriers.record(t_cmd_list);
             vkEndCommandBuffer(t_cmd_list);
-            submit_batch.push_back(t_cmd_list);
+            cmd_bufs_to_submit.push_back(t_cmd_list);
         }
 
-        submit_batch.push_back(mPoolCmdLists.getRawBuffer(cl));
-        ++num_cls_in_batch;
-
-        if (num_cls_in_batch == c_batch_size)
-            submit_flush();
+        cmd_bufs_to_submit.push_back(mPoolCmdLists.getRawBuffer(cl));
     }
 
-    if (num_cls_in_batch > 0)
-        submit_flush();
+    // submission
+
+    constexpr unsigned c_max_num_signals_waits = 8;
+
+    uint64_t wait_values[c_max_num_signals_waits];
+    VkSemaphore wait_semaphores[c_max_num_signals_waits];
+
+    uint64_t signal_values[c_max_num_signals_waits];
+    VkSemaphore signal_semaphores[c_max_num_signals_waits];
+
+    CC_ASSERT(fence_waits_before.size() <= c_max_num_signals_waits && "too many fence waits");
+    CC_ASSERT(fence_signals_after.size() <= c_max_num_signals_waits && "too many fence signals");
+
+    for (auto i = 0u; i < fence_waits_before.size(); ++i)
+    {
+        wait_values[i] = fence_waits_before[i].value;
+        wait_semaphores[i] = mPoolFences.get(fence_waits_before[i].fence);
+    }
+
+    for (auto i = 0u; i < fence_signals_after.size(); ++i)
+    {
+        signal_values[i] = fence_signals_after[i].value;
+        signal_semaphores[i] = mPoolFences.get(fence_signals_after[i].fence);
+    }
+
+    VkTimelineSemaphoreSubmitInfoKHR timeline_info = {};
+    timeline_info.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO_KHR;
+    timeline_info.waitSemaphoreValueCount = uint32_t(fence_waits_before.size());
+    timeline_info.pWaitSemaphoreValues = fence_waits_before.empty() ? nullptr : wait_values;
+    timeline_info.signalSemaphoreValueCount = uint32_t(fence_signals_after.size());
+    timeline_info.pSignalSemaphoreValues = fence_signals_after.empty() ? nullptr : signal_values;
+
+    VkSubmitInfo submit_info = {};
+    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submit_info.pNext = &timeline_info;
+    // command buffers
+    submit_info.commandBufferCount = unsigned(cmd_bufs_to_submit.size());
+    submit_info.pCommandBuffers = cmd_bufs_to_submit.data();
+    // wait semaphores
+    submit_info.waitSemaphoreCount = uint32_t(fence_waits_before.size());
+    submit_info.pWaitSemaphores = wait_semaphores;
+    submit_info.pWaitDstStageMask = gc_wait_dst_masks;
+    // signal semaphores
+    submit_info.signalSemaphoreCount = uint32_t(fence_signals_after.size());
+    submit_info.pSignalSemaphores = signal_semaphores;
+
+
+    VkQueue const submit_queue = getQueueByType(queue);
+    VkFence submit_fence;
+    auto const submit_fence_index = mPoolCmdLists.acquireFence(submit_fence);
+    PHI_VK_VERIFY_SUCCESS(vkQueueSubmit(submit_queue, 1, &submit_info, submit_fence));
+
+    cc::array<cc::span<handle::command_list const>, 2> submit_spans = {barrier_lists, cls};
+    mPoolCmdLists.freeOnSubmit(submit_spans, submit_fence_index);
 }
 
-phi::handle::pipeline_state phi::vk::BackendVulkan::createRaytracingPipelineState(phi::arg::raytracing_shader_libraries libraries,
-                                                                                  arg::raytracing_argument_associations arg_assocs,
-                                                                                  phi::arg::raytracing_hit_groups hit_groups,
-                                                                                  unsigned max_recursion,
-                                                                                  unsigned max_payload_size_bytes,
-                                                                                  unsigned max_attribute_size_bytes)
+phi::handle::fence phi::vk::BackendVulkan::createFence() { return mPoolFences.createFence(); }
+
+uint64_t phi::vk::BackendVulkan::getFenceValue(phi::handle::fence fence) { return mPoolFences.getValue(fence); }
+
+void phi::vk::BackendVulkan::signalFenceCPU(phi::handle::fence fence, uint64_t new_value) { mPoolFences.signalCPU(fence, new_value); }
+
+void phi::vk::BackendVulkan::waitFenceCPU(phi::handle::fence fence, uint64_t wait_value) { mPoolFences.waitCPU(fence, wait_value); }
+
+void phi::vk::BackendVulkan::free(cc::span<const phi::handle::fence> fences) { mPoolFences.free(fences); }
+
+phi::handle::query_range phi::vk::BackendVulkan::createQueryRange(phi::query_type type, unsigned int size) { return mPoolQueries.create(type, size); }
+
+void phi::vk::BackendVulkan::free(phi::handle::query_range query_range) { mPoolQueries.free(query_range); }
+
+phi::handle::pipeline_state phi::vk::BackendVulkan::createRaytracingPipelineState(const arg::raytracing_pipeline_state_desc& description)
 {
     CC_ASSERT(isRaytracingEnabled() && "raytracing is not enabled");
-    PHI_LOG_ERROR("createRaytracingPipelineState unimplemented");
-    return handle::null_pipeline_state;
+    return mPoolPipelines.createRaytracingPipelineState(description.libraries, description.argument_associations, description.hit_groups, description.max_recursion,
+                                                        description.max_payload_size_bytes, description.max_attribute_size_bytes, cc::system_allocator);
 }
 
-phi::handle::accel_struct phi::vk::BackendVulkan::createTopLevelAccelStruct(unsigned num_instances)
+phi::handle::accel_struct phi::vk::BackendVulkan::createTopLevelAccelStruct(unsigned num_instances, accel_struct_build_flags_t flags)
 {
     CC_ASSERT(isRaytracingEnabled() && "raytracing is not enabled");
     return mPoolAccelStructs.createTopLevelAS(num_instances);
@@ -355,25 +488,22 @@ phi::handle::accel_struct phi::vk::BackendVulkan::createBottomLevelAccelStruct(c
     return res;
 }
 
-void phi::vk::BackendVulkan::uploadTopLevelInstances(phi::handle::accel_struct as, cc::span<const phi::accel_struct_geometry_instance> instances)
-{
-    CC_ASSERT(isRaytracingEnabled() && "raytracing is not enabled");
-    auto const& node = mPoolAccelStructs.getNode(as);
-
-    auto* const map = mPoolResources.mapBuffer(node.buffer_instances);
-    std::memcpy(map, instances.data(), sizeof(accel_struct_geometry_instance) * instances.size());
-    mPoolResources.unmapBuffer(node.buffer_instances);
-}
-
 phi::handle::resource phi::vk::BackendVulkan::getAccelStructBuffer(phi::handle::accel_struct as)
 {
-    PHI_LOG_ERROR("calculateShaderTableSize unimplemented");
+    PHI_LOG_ERROR("getAccelStructBuffer unimplemented");
     return handle::null_resource;
 }
 
-phi::shader_table_sizes phi::vk::BackendVulkan::calculateShaderTableSize(phi::arg::shader_table_records ray_gen_records,
-                                                                         phi::arg::shader_table_records miss_records,
-                                                                         phi::arg::shader_table_records hit_group_records)
+uint64_t phi::vk::BackendVulkan::getAccelStructNativeHandle(phi::handle::accel_struct as)
+{
+    PHI_LOG_ERROR("getAccelStructNativeHandle unimplemented");
+    return 0;
+}
+
+phi::shader_table_strides phi::vk::BackendVulkan::calculateShaderTableStrides(const arg::shader_table_record& ray_gen_record,
+                                                                              phi::arg::shader_table_records miss_records,
+                                                                              phi::arg::shader_table_records hit_group_records,
+                                                                              phi::arg::shader_table_records callable_records)
 {
     PHI_LOG_ERROR("calculateShaderTableSize unimplemented");
     return {};
@@ -428,6 +558,18 @@ bool phi::vk::BackendVulkan::startForcedDiagnosticCapture() { return mDiagnostic
 
 bool phi::vk::BackendVulkan::endForcedDiagnosticCapture() { return mDiagnostics.end_capture(); }
 
+uint64_t phi::vk::BackendVulkan::getGPUTimestampFrequency() const
+{
+    float const nanoseconds_per_timestamp = mDevice.getDeviceProperties().limits.timestampPeriod;
+    uint64_t const timestamps_per_microsecond = uint64_t(1000.f / nanoseconds_per_timestamp);
+    // us -> ms -> s (Hz)
+    return timestamps_per_microsecond * 1000 * 1000;
+}
+
+bool phi::vk::BackendVulkan::isRaytracingEnabled() const { return mDevice.hasRaytracing(); }
+
+phi::backend_type phi::vk::BackendVulkan::getBackendType() const { return backend_type::vulkan; }
+
 void phi::vk::BackendVulkan::flushGPU() { vkDeviceWaitIdle(mDevice.getDevice()); }
 
 void phi::vk::BackendVulkan::createDebugMessenger()
@@ -441,4 +583,18 @@ void phi::vk::BackendVulkan::createDebugMessenger()
     createInfo.pfnUserCallback = detail::debug_callback;
     createInfo.pUserData = this;
     PHI_VK_VERIFY_SUCCESS(vkCreateDebugUtilsMessengerEXT(mInstance, &createInfo, nullptr, &mDebugMessenger));
+}
+
+VkQueue phi::vk::BackendVulkan::getQueueByType(phi::queue_type type) const
+{
+    return (type == queue_type::direct ? mDevice.getQueueDirect() : (type == queue_type::compute ? mDevice.getQueueCompute() : mDevice.getQueueCopy()));
+}
+
+phi::vk::BackendVulkan::per_thread_component& phi::vk::BackendVulkan::getCurrentThreadComponent()
+{
+    auto const current_index = mThreadAssociation.get_current_index();
+    CC_ASSERT_MSG(current_index < mNumThreadComponents,
+                  "Accessed phi Backend from more OS threads than configured in backend_config\n"
+                  "recordCommandList() and submit() must only be used from at most backend_config::num_threads unique OS threads in total");
+    return mThreadComponents[current_index];
 }

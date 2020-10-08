@@ -12,6 +12,7 @@ namespace phi::d3d12
 struct translator_thread_local_memory
 {
     void initialize(ID3D12Device& device);
+    void destroy();
 
     CPUDescriptorLinearAllocator lin_alloc_rtvs;
     CPUDescriptorLinearAllocator lin_alloc_dsvs;
@@ -41,6 +42,7 @@ struct translator_global_memory
 struct command_list_translator
 {
     void initialize(ID3D12Device* device, ShaderViewPool* sv_pool, ResourcePool* resource_pool, PipelineStateObjectPool* pso_pool, AccelStructPool* as_pool, QueryPool* query_pool);
+    void destroy();
 
     void translateCommandList(ID3D12GraphicsCommandList5* list, queue_type type, d3d12_incomplete_state_cache* state_cache, std::byte* buffer, size_t buffer_size);
 
@@ -57,6 +59,8 @@ struct command_list_translator
     void execute(cmd::transition_resources const& transition_res);
 
     void execute(cmd::transition_image_slices const& transition_images);
+
+    void execute(cmd::barrier_uav const& barrier);
 
     void execute(cmd::copy_buffer const& copy_buf);
 

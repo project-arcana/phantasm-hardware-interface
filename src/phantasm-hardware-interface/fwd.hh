@@ -9,6 +9,15 @@ namespace phi
 // backends
 class Backend;
 
+namespace d3d12
+{
+class BackendD3D12;
+}
+namespace vk
+{
+class BackendVulkan;
+}
+
 // config structs
 struct backend_config;
 struct window_handle;
@@ -31,8 +40,8 @@ struct rt_clear_value;
 struct blend_state;
 struct gpu_indirect_command_draw;
 struct gpu_indirect_command_draw_indexed;
-struct accel_struct_geometry_instance;
-struct shader_table_sizes;
+struct accel_struct_instance;
+struct shader_table_strides;
 
 // data enums
 enum class format : uint8_t;
@@ -70,6 +79,8 @@ struct vertex_format;
 struct shader_arg_shape;
 struct shader_binary;
 struct graphics_shader;
+struct graphics_pipeline_state_desc;
+struct compute_pipeline_state_desc;
 
 using shader_arg_shapes = cc::span<shader_arg_shape const>;
 using graphics_shaders = cc::span<graphics_shader const>;
@@ -78,11 +89,9 @@ struct blas_element;
 struct raytracing_shader_library;
 struct raytracing_argument_association;
 struct raytracing_hit_group;
+struct raytracing_pipeline_state_desc;
 struct shader_table_record;
 
-using raytracing_shader_libraries = cc::span<raytracing_shader_library const>;
-using raytracing_argument_associations = cc::span<raytracing_argument_association const>;
-using raytracing_hit_groups = cc::span<raytracing_hit_group const>;
 using shader_table_records = cc::span<shader_table_record const>;
 
 struct create_render_target_info;
