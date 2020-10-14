@@ -84,20 +84,23 @@ phi::handle::resource phi::vk::ResourcePool::createTexture(
     image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     image_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
+    // SAMPLED: can be read with a sampler; TRANSFER_DST/SRC: can be copied
     image_info.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 
     if (allow_uav)
     {
-        // TODO: Image usage transfer src might deserve its own option, this is coarse
-        // in fact we might want to create a pr::texture_usage enum
-        image_info.usage |= VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+        // STORAGE: can be used as a UAV in shaders
+        image_info.usage |= VK_IMAGE_USAGE_STORAGE_BIT;
     }
 
-    image_info.flags = 0;
     image_info.tiling = VK_IMAGE_TILING_OPTIMAL;
+
+    // MUTABLE_FORMAT: can be viewed with a different format
+    image_info.flags = VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT;
 
     if (dim == texture_dimension::t2d && depth_or_array_size == 6)
     {
+        // t2d[6] is likely used as a cubemap
         image_info.flags |= VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
     }
 

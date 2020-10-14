@@ -85,7 +85,7 @@ phi::handle::shader_view phi::vk::ShaderViewPool::create(cc::span<resource_view 
                 CC_ASSERT(uav.dimension != resource_view_dimension::raytracing_accel_struct && "Raytracing acceleration structures not allowed as UAVs");
 
                 auto& img_info = image_infos.emplace_back();
-                img_info.imageView = makeImageView(uav, true);
+                img_info.imageView = makeImageView(uav, true, true);
                 img_info.imageLayout = util::to_image_layout(resource_state::unordered_access);
                 img_info.sampler = nullptr;
 
@@ -133,7 +133,7 @@ phi::handle::shader_view phi::vk::ShaderViewPool::create(cc::span<resource_view 
                 // shader_view_dimension::textureX
 
                 auto& img_info = image_infos.emplace_back();
-                img_info.imageView = makeImageView(srv);
+                img_info.imageView = makeImageView(srv, false, true);
                 img_info.imageLayout = util::to_image_layout(resource_state::shader_resource);
                 img_info.sampler = nullptr;
 
@@ -230,14 +230,16 @@ void phi::vk::ShaderViewPool::destroy()
     mAllocator.destroy();
 }
 
-VkImageView phi::vk::ShaderViewPool::makeImageView(const resource_view& sve, bool is_uav) const
+VkImageView phi::vk::ShaderViewPool::makeImageView(const resource_view& sve, bool is_uav, bool restrict_usage_for_shader) const
 {
+    VkImageViewUsageCreateInfo usage_info;
     VkImageViewCreateInfo info = {};
     info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+
     info.image = mResourcePool->getRawImage(sve.resource);
     info.viewType = util::to_native_image_view_type(sve.dimension);
-
     info.format = util::to_vk_format(sve.pixel_format);
+
     info.subresourceRange.aspectMask = util::to_native_image_aspect(sve.pixel_format);
     info.subresourceRange.baseMipLevel = sve.texture_info.mip_start;
     info.subresourceRange.levelCount = sve.texture_info.mip_size;
@@ -251,6 +253,24 @@ VkImageView phi::vk::ShaderViewPool::makeImageView(const resource_view& sve, boo
         {
             // UAVs explicitly represent cubes as 2D arrays of size 6
             info.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+        }
+    }
+
+    if (restrict_usage_for_shader)
+    {
+        // by default, an image view inherits the usage flags of the image
+        // this means (for example) viewing an image with the STORAGE_BIT as sRGB gives an error,
+        // because that format doesn't support that usage - even if the view is never used for storage (still works though)
+        // this pNext chain struct allows restricting the usage
+        info.pNext = &usage_info;
+
+        usage_info = {};
+        usage_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_USAGE_CREATE_INFO;
+        usage_info.usage = VK_IMAGE_USAGE_SAMPLED_BIT;
+
+        if (is_uav)
+        {
+            usage_info.usage |= VK_IMAGE_USAGE_STORAGE_BIT;
         }
     }
 
