@@ -162,6 +162,9 @@ enum class format : uint8_t
     rg8un,
     r8un,
 
+    // sRGB formats
+    rgba8un_srgb,
+
     // swizzled and irregular formats
     bgra8un,
     b10g11r11uf,
