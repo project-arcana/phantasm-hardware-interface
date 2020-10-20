@@ -50,6 +50,7 @@ namespace phi::util
     case format::rgba8i:
     case format::rgba8u:
     case format::rgba8un:
+    case format::rgba8un_srgb:
     case format::bgra8un:
         return 4;
 
@@ -97,6 +98,7 @@ namespace phi::util
     case format::rgba8i:
     case format::rgba8u:
     case format::rgba8un:
+    case format::rgba8un_srgb:
     case format::bgra8un:
         return 4;
 

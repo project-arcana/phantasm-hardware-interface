@@ -39,12 +39,14 @@ namespace
 }
 
 VkBool32 phi::vk::detail::debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT severity,
-                                         VkDebugUtilsMessageTypeFlagsEXT /*type*/,
+                                         VkDebugUtilsMessageTypeFlagsEXT type,
                                          const VkDebugUtilsMessengerCallbackDataEXT* callback_data,
                                          void* /*user_data*/)
 {
     if (severity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT)
     {
+        (void)type;
+        // RICH_LOG_IMPL(phi::detail::vulkan_log)("{} message - {}", to_literal(type), to_literal(severity));
         RICH_LOG_IMPL(phi::detail::vulkan_log)("{}", callback_data->pMessage);
         // cc::breakpoint(); // NOTE: setting a breakpoint here sometimes doesn't suffice, this does
     }

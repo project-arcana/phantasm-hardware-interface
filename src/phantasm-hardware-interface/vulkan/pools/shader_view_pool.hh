@@ -36,7 +36,7 @@ public:
 
     [[nodiscard]] VkDescriptorSet get(handle::shader_view sv) const { return mPool.get(sv._value).raw_desc_set; }
 
-    [[nodiscard]] VkImageView makeImageView(resource_view const& sve, bool is_uav = false) const;
+    [[nodiscard]] VkImageView makeImageView(resource_view const& sve, bool is_uav, bool restrict_usage_for_shader) const;
 
 
 private:

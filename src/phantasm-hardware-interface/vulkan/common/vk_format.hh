@@ -82,6 +82,9 @@ namespace phi::vk::util
     case bf::r8un:
         return VK_FORMAT_R8_UNORM;
 
+    case bf::rgba8un_srgb:
+        return VK_FORMAT_R8G8B8A8_SRGB;
+
     case bf::bgra8un:
         return VK_FORMAT_B8G8R8A8_UNORM;
     case bf::b10g11r11uf:
@@ -187,6 +190,9 @@ namespace phi::vk::util
         return bf::rg8un;
     case VK_FORMAT_R8_UNORM:
         return bf::r8un;
+
+    case VK_FORMAT_R8G8B8A8_SRGB:
+        return bf::rgba8un_srgb;
 
     case VK_FORMAT_B8G8R8A8_UNORM:
         return bf::bgra8un;

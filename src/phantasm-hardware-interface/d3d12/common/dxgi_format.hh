@@ -82,6 +82,9 @@ namespace phi::d3d12::util
     case af::r8un:
         return DXGI_FORMAT_R8_UNORM;
 
+    case af::rgba8un_srgb:
+        return DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+
     case af::bgra8un:
         return DXGI_FORMAT_B8G8R8A8_UNORM;
     case af::b10g11r11uf:

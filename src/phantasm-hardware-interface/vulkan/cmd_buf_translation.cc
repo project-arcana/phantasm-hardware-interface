@@ -77,7 +77,7 @@ void phi::vk::command_list_translator::execute(const phi::cmd::begin_render_pass
         }
         else
         {
-            fb_image_views.push_back(_globals.pool_shader_views->makeImageView(rt.rv));
+            fb_image_views.push_back(_globals.pool_shader_views->makeImageView(rt.rv, false, false));
             fb_image_views_to_clean_up.push_back(fb_image_views.back());
         }
 
@@ -89,7 +89,7 @@ void phi::vk::command_list_translator::execute(const phi::cmd::begin_render_pass
     if (begin_rp.depth_target.rv.resource.is_valid())
     {
         // image view
-        fb_image_views.push_back(_globals.pool_shader_views->makeImageView(begin_rp.depth_target.rv));
+        fb_image_views.push_back(_globals.pool_shader_views->makeImageView(begin_rp.depth_target.rv, false, false));
         fb_image_views_to_clean_up.push_back(fb_image_views.back());
 
         // clear val
