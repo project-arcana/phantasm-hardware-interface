@@ -10,26 +10,26 @@ static constexpr rlog::severity assert_severity = rlog::severity("ASSERT", "\u00
 static constexpr rlog::domain vk_domain = rlog::domain("VULKAN");
 static constexpr rlog::severity vk_severity = rlog::severity("LAYER", "\u001b[38;5;202m");
 
-constexpr void info_log(rlog::MessageBuilder& builder) { builder.set_domain(domain); }
-constexpr void warn_log(rlog::MessageBuilder& builder)
+inline void info_log(rlog::MessageBuilder& builder) { builder.set_domain(domain); }
+inline void warn_log(rlog::MessageBuilder& builder)
 {
     builder.set_domain(domain);
     builder.set_severity(rlog::severity::warning());
     builder.set_use_error_stream(true);
 }
-constexpr void err_log(rlog::MessageBuilder& builder)
+inline void err_log(rlog::MessageBuilder& builder)
 {
     builder.set_domain(domain);
     builder.set_severity(rlog::severity::error());
     builder.set_use_error_stream(true);
 }
-constexpr void assert_log(rlog::MessageBuilder& builder)
+inline void assert_log(rlog::MessageBuilder& builder)
 {
     builder.set_domain(domain);
     builder.set_severity(assert_severity);
     builder.set_use_error_stream(true);
 }
-constexpr void vulkan_log(rlog::MessageBuilder& builder)
+inline void vulkan_log(rlog::MessageBuilder& builder)
 {
     builder.set_domain(vk_domain);
     builder.set_severity(vk_severity);
