@@ -116,7 +116,7 @@ public:
     // Command list interface
     //
 
-    [[nodiscard]] handle::command_list recordCommandList(std::byte* buffer, size_t size, queue_type queue = queue_type::direct) override;
+    [[nodiscard]] handle::command_list recordCommandList(std::byte const* buffer, size_t size, queue_type queue = queue_type::direct) override;
     void discard(cc::span<handle::command_list const> cls) override;
 
     void submit(cc::span<handle::command_list const> cls,

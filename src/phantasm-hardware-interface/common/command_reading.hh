@@ -82,8 +82,8 @@ public:
 
     struct iterator
     {
-        iterator(std::byte* pos, size_t size)
-          : _pos(reinterpret_cast<cmd::detail::cmd_base*>(pos)), _remaining_size(_pos == nullptr ? 0 : static_cast<int64_t>(size))
+        iterator(std::byte const* pos, size_t size)
+          : _pos(reinterpret_cast<cmd::detail::cmd_base const*>(pos)), _remaining_size(_pos == nullptr ? 0 : static_cast<int64_t>(size))
         {
         }
 
@@ -92,21 +92,21 @@ public:
         iterator& operator++()
         {
             auto const advance = cmd::detail::get_command_size(_pos->s_internal_type);
-            _pos = reinterpret_cast<cmd::detail::cmd_base*>(reinterpret_cast<std::byte*>(_pos) + advance);
+            _pos = reinterpret_cast<cmd::detail::cmd_base const*>(reinterpret_cast<std::byte const*>(_pos) + advance);
             _remaining_size -= advance;
             return *this;
         }
 
-        cmd::detail::cmd_base& operator*() const { return *(_pos); }
+        cmd::detail::cmd_base const& operator*() const { return *(_pos); }
 
     private:
-        cmd::detail::cmd_base* _pos = nullptr;
+        cmd::detail::cmd_base const* _pos = nullptr;
         int64_t _remaining_size = 0;
     };
 
 public:
     command_stream_parser() = default;
-    command_stream_parser(std::byte* buffer, size_t size) : _in_buffer(buffer), _size(buffer == nullptr ? 0 : size) {}
+    command_stream_parser(std::byte const* buffer, size_t size) : _in_buffer(buffer), _size(buffer == nullptr ? 0 : size) {}
 
     void set_buffer(std::byte* buffer, size_t size)
     {
@@ -118,7 +118,7 @@ public:
     iterator_end end() const { return iterator_end(); }
 
 private:
-    std::byte* _in_buffer = nullptr;
+    std::byte const* _in_buffer = nullptr;
     size_t _size = 0;
 };
 }

@@ -318,7 +318,7 @@ phi::handle::pipeline_state phi::vk::BackendVulkan::createComputePipelineState(c
 
 void phi::vk::BackendVulkan::free(phi::handle::pipeline_state ps) { mPoolPipelines.free(ps); }
 
-phi::handle::command_list phi::vk::BackendVulkan::recordCommandList(std::byte* buffer, size_t size, queue_type queue)
+phi::handle::command_list phi::vk::BackendVulkan::recordCommandList(std::byte const* buffer, size_t size, queue_type queue)
 {
     // possibly fall back to a direct queue
     queue = mDevice.getQueueTypeOrFallback(queue);

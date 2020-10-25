@@ -19,7 +19,7 @@
 #include "resources/transition_barrier.hh"
 
 void phi::vk::command_list_translator::translateCommandList(
-    VkCommandBuffer list, handle::command_list list_handle, vk_incomplete_state_cache* state_cache, std::byte* buffer, size_t buffer_size)
+    VkCommandBuffer list, handle::command_list list_handle, vk_incomplete_state_cache* state_cache, std::byte const* buffer, size_t buffer_size)
 {
     _cmd_list = list;
     _cmd_list_handle = list_handle;
