@@ -206,8 +206,6 @@ public:
 private:
     void createDebugMessenger();
 
-    VkQueue getQueueByType(queue_type type) const;
-
     struct per_thread_component;
     per_thread_component& getCurrentThreadComponent();
 

@@ -320,6 +320,9 @@ void phi::vk::BackendVulkan::free(phi::handle::pipeline_state ps) { mPoolPipelin
 
 phi::handle::command_list phi::vk::BackendVulkan::recordCommandList(std::byte* buffer, size_t size, queue_type queue)
 {
+    // possibly fall back to a direct queue
+    queue = mDevice.getQueueTypeOrFallback(queue);
+
     auto& thread_comp = getCurrentThreadComponent();
 
     VkCommandBuffer raw_list;
@@ -339,6 +342,9 @@ void phi::vk::BackendVulkan::submit(cc::span<const phi::handle::command_list> cl
     cc::capped_vector<VkCommandBuffer, c_max_num_command_lists * 2> cmd_bufs_to_submit;
     cc::capped_vector<handle::command_list, c_max_num_command_lists> barrier_lists;
     CC_ASSERT(cls.size() <= c_max_num_command_lists && "too many commandlists submitted at once");
+
+    // possibly fall back to a direct queue
+    queue = mDevice.getQueueTypeOrFallback(queue);
 
     auto& thread_comp = getCurrentThreadComponent();
 
@@ -438,7 +444,7 @@ void phi::vk::BackendVulkan::submit(cc::span<const phi::handle::command_list> cl
     submit_info.pSignalSemaphores = signal_semaphores;
 
 
-    VkQueue const submit_queue = getQueueByType(queue);
+    VkQueue const submit_queue = mDevice.getRawQueue(queue);
     VkFence submit_fence;
     auto const submit_fence_index = mPoolCmdLists.acquireFence(submit_fence);
     PHI_VK_VERIFY_SUCCESS(vkQueueSubmit(submit_queue, 1, &submit_info, submit_fence));
@@ -582,11 +588,6 @@ void phi::vk::BackendVulkan::createDebugMessenger()
     createInfo.pfnUserCallback = detail::debug_callback;
     createInfo.pUserData = this;
     PHI_VK_VERIFY_SUCCESS(vkCreateDebugUtilsMessengerEXT(mInstance, &createInfo, nullptr, &mDebugMessenger));
-}
-
-VkQueue phi::vk::BackendVulkan::getQueueByType(phi::queue_type type) const
-{
-    return (type == queue_type::direct ? mDevice.getQueueDirect() : (type == queue_type::compute ? mDevice.getQueueCompute() : mDevice.getQueueCopy()));
 }
 
 phi::vk::BackendVulkan::per_thread_component& phi::vk::BackendVulkan::getCurrentThreadComponent()

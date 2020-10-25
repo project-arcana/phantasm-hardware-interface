@@ -23,9 +23,11 @@ public:
     void initialize(vulkan_gpu_info const& device, backend_config const& config);
     void destroy();
 
-    VkQueue getQueueDirect() const { return mQueueDirect; }
-    VkQueue getQueueCompute() const { return mQueueCompute; }
-    VkQueue getQueueCopy() const { return mQueueCopy; }
+    // returns the requested type, or a fallback type if unavailable
+    queue_type getQueueTypeOrFallback(queue_type request) const { return mFallbackQueueTypes[static_cast<uint8_t>(request)]; }
+
+    // reqturns the vulkan queue of the specified type, or the corresponding fallback queue
+    VkQueue getRawQueue(queue_type type) const { return mQueues[static_cast<uint8_t>(type)]; }
 
     int getQueueFamilyDirect() const { return mQueueIndices.direct.family_index; }
     int getQueueFamilyCompute() const { return mQueueIndices.compute.family_index; }
@@ -51,9 +53,8 @@ private:
     VkPhysicalDevice mPhysicalDevice;
     VkDevice mDevice = nullptr;
 
-    VkQueue mQueueDirect = nullptr;
-    VkQueue mQueueCompute = nullptr;
-    VkQueue mQueueCopy = nullptr;
+    VkQueue mQueues[3];
+    phi::queue_type mFallbackQueueTypes[3];
 
     chosen_queues mQueueIndices;
 
