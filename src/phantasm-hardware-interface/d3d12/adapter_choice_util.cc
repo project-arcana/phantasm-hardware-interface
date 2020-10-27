@@ -2,14 +2,13 @@
 
 #include <cstdio>
 
-#include <sdkddkver.h>
-
 #include <clean-core/array.hh>
 #include <clean-core/assert.hh>
 
 #include <phantasm-hardware-interface/common/log.hh>
 
 #include "common/safe_seh_call.hh"
+#include "common/sdk_version.hh"
 #include "common/shared_com_ptr.hh"
 #include "common/verify.hh"
 
@@ -130,7 +129,13 @@ phi::gpu_feature_info phi::d3d12::get_gpu_features(ID3D12Device5* device)
 
     // SM 6.0
     {
-        D3D12_FEATURE_DATA_SHADER_MODEL feat_data = {D3D_SHADER_MODEL_6_6};
+        D3D12_FEATURE_DATA_SHADER_MODEL feat_data = {
+#if PHI_D3D12_HAS_20H1_FEATURES
+            D3D_SHADER_MODEL_6_6
+#else
+            D3D_SHADER_MODEL_6_5
+#endif
+        };
         auto const success = SUCCEEDED(device->CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL, &feat_data, sizeof(feat_data)));
         // NOTE: CheckFeatureSupport writes the max of the current value and the highest supported SM version to feat_data
         // - it is not purely an out parameter
@@ -158,9 +163,11 @@ phi::gpu_feature_info phi::d3d12::get_gpu_features(ID3D12Device5* device)
             case D3D_SHADER_MODEL_6_5:
                 res.sm_version = gpu_feature_info::hlsl_sm6_5;
                 break;
+#if PHI_D3D12_HAS_20H1_FEATURES
             case D3D_SHADER_MODEL_6_6:
                 res.sm_version = gpu_feature_info::hlsl_sm6_6;
                 break;
+#endif
 
             default:
                 PHI_LOG_WARN("unrecognized HLSL shader model version {}", feat_data.HighestShaderModel);
@@ -195,10 +202,12 @@ phi::gpu_feature_info phi::d3d12::get_gpu_features(ID3D12Device5* device)
                 {
                     res.raytracing = gpu_feature_info::raytracing_t1_0;
                 }
+#if PHI_D3D12_HAS_20H1_FEATURES
                 else if (feat_data.RaytracingTier >= D3D12_RAYTRACING_TIER_1_1)
                 {
                     res.raytracing = gpu_feature_info::raytracing_t1_1;
                 }
+#endif
             }
         }
 
@@ -220,9 +229,7 @@ phi::gpu_feature_info phi::d3d12::get_gpu_features(ID3D12Device5* device)
             }
         }
 
-        // Mesh and Amplification shaders were added in Win10 20H1, also known as Win10 2004, codename Vibranium (Vb) (Released May 2020)
-        // NOTE: Explicitly do not use NTDDI_WIN10_VB on the right hand as it isn't defined on previous versions
-#if WDK_NTDDI_VERSION >= 0x0A000008
+#if PHI_D3D12_HAS_20H1_FEATURES
         // Mesh/Amplification shaders
         {
             D3D12_FEATURE_DATA_D3D12_OPTIONS7 feat_data = {};

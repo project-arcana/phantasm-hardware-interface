@@ -270,6 +270,7 @@ void phi::vk::CommandAllocatorBundle::initialize(VkDevice device,
                                                  cc::allocator* static_alloc,
                                                  cc::allocator* dynamic_alloc)
 {
+    CC_ASSERT(mAllocators.empty() && "double init");
     mAllocators = mAllocators.defaulted(num_allocators, static_alloc);
     mActiveAllocator = 0u;
 
@@ -287,6 +288,7 @@ void phi::vk::CommandAllocatorBundle::destroy(VkDevice device)
 
 phi::vk::cmd_allocator_node* phi::vk::CommandAllocatorBundle::acquireMemory(VkDevice device, VkCommandBuffer& out_buffer)
 {
+    CC_ASSERT(!mAllocators.empty() && "uninitalized command allocator bundle");
     updateActiveIndex(device);
     auto& active_alloc = mAllocators[mActiveAllocator];
     out_buffer = active_alloc.acquire(device);
@@ -470,18 +472,28 @@ void phi::vk::CommandListPool::initialize(phi::vk::Device& device,
 
     mFenceRing.initialize(mDevice, unsigned(thread_allocators.size()) * (num_direct_allocs + num_compute_allocs + num_copy_allocs) + 5, static_alloc); // arbitrary safety buffer, should never be required
 
-
     auto const direct_queue_family = unsigned(device.getQueueFamilyDirect());
     auto const compute_queue_family = unsigned(device.getQueueFamilyCompute());
     auto const copy_queue_family = unsigned(device.getQueueFamilyCopy());
+
+    bool const has_discrete_compute = device.getQueueTypeOrFallback(queue_type::compute) == queue_type::compute;
+    bool const has_discrete_copy = device.getQueueTypeOrFallback(queue_type::copy) == queue_type::copy;
 
     for (auto i = 0u; i < thread_allocators.size(); ++i)
     {
         thread_allocators[i]->bundle_direct.initialize(mDevice, num_direct_allocs, num_direct_lists_per_alloc, direct_queue_family, &mFenceRing,
                                                        static_alloc, dynamic_alloc);
-        thread_allocators[i]->bundle_compute.initialize(mDevice, num_compute_allocs, num_compute_lists_per_alloc, compute_queue_family, &mFenceRing,
-                                                        static_alloc, dynamic_alloc);
-        thread_allocators[i]->bundle_copy.initialize(mDevice, num_copy_allocs, num_copy_lists_per_alloc, copy_queue_family, &mFenceRing, static_alloc, dynamic_alloc);
+        if (has_discrete_compute)
+        {
+            thread_allocators[i]->bundle_compute.initialize(mDevice, num_compute_allocs, num_compute_lists_per_alloc, compute_queue_family,
+                                                            &mFenceRing, static_alloc, dynamic_alloc);
+        }
+
+        if (has_discrete_copy)
+        {
+            thread_allocators[i]->bundle_copy.initialize(mDevice, num_copy_allocs, num_copy_lists_per_alloc, copy_queue_family, &mFenceRing,
+                                                         static_alloc, dynamic_alloc);
+        }
     }
 }
 

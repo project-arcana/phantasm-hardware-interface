@@ -23,11 +23,6 @@ void phi::vk::Device::initialize(vulkan_gpu_info const& device, backend_config c
     mQueueIndices = get_chosen_queues(device.queues);
     CC_RUNTIME_ASSERT(mQueueIndices.direct.valid() && "vk::Device failed to find direct queue");
 
-    // NOTE: These two are not necessarily hard requirements but we do not currently fall back gracefully
-    // remove these asserts and fallback in handle::fence and submit API if this comes up (everything else is already handled)
-    CC_RUNTIME_ASSERT(mQueueIndices.compute.valid() && "vk::Device failed to find discrete compute queue - please contact maintainers");
-    CC_RUNTIME_ASSERT(mQueueIndices.copy.valid() && "vk::Device failed to find discrete copy queue - please contact maintainers");
-
     // setup feature struct chain and fill it
     physical_device_feature_bundle feat_bundle;
     set_or_test_device_features(feat_bundle.get(), config.validation >= validation_level::on_extended, false);
@@ -73,27 +68,47 @@ void phi::vk::Device::initialize(vulkan_gpu_info const& device, backend_config c
 
     volkLoadDevice(mDevice);
 
-    // Query queues
+    // Query ("create") queues
     {
-        if (mQueueIndices.direct.valid())
-            vkGetDeviceQueue(mDevice, uint32_t(mQueueIndices.direct.family_index), uint32_t(mQueueIndices.direct.queue_index), &mQueueDirect);
-        if (mQueueIndices.compute.valid())
-            vkGetDeviceQueue(mDevice, uint32_t(mQueueIndices.compute.family_index), uint32_t(mQueueIndices.compute.queue_index), &mQueueCompute);
-        if (mQueueIndices.copy.valid())
-            vkGetDeviceQueue(mDevice, uint32_t(mQueueIndices.copy.family_index), uint32_t(mQueueIndices.copy.queue_index), &mQueueCopy);
+        static_assert(uint8_t(queue_type::direct) == 0, "indices unexpected");
+        static_assert(uint8_t(queue_type::compute) == 1, "indices unexpected");
+        static_assert(uint8_t(queue_type::copy) == 2, "indices unexpected");
 
-        //        PHI_LOG << "queues: " << mQueueDirect << mQueueCompute << mQueueCopy;
-        //        PHI_LOG << "fams: " << getQueueFamilyDirect() << ", " << getQueueFamilyCompute() << ", " << getQueueFamilyCopy();
+        vkGetDeviceQueue(mDevice, uint32_t(mQueueIndices.direct.family_index), uint32_t(mQueueIndices.direct.queue_index), &mQueues[uint8_t(queue_type::direct)]);
+        mFallbackQueueTypes[uint8_t(queue_type::direct)] = queue_type::direct;
+
+        if (mQueueIndices.compute.valid())
+        {
+            // there is a discrete compute queue,
+            vkGetDeviceQueue(mDevice, uint32_t(mQueueIndices.compute.family_index), uint32_t(mQueueIndices.compute.queue_index),
+                             &mQueues[uint8_t(queue_type::compute)]);
+            mFallbackQueueTypes[uint8_t(queue_type::compute)] = queue_type::compute; // fallback just passing through
+        }
+        else
+        {
+            // there is no discrete compute queue, fallback to the direct queue
+            mQueues[uint8_t(queue_type::compute)] = mQueues[uint8_t(queue_type::direct)];
+            mFallbackQueueTypes[uint8_t(queue_type::compute)] = queue_type::direct;
+        }
+
+        if (mQueueIndices.copy.valid())
+        {
+            // discrete copy
+            vkGetDeviceQueue(mDevice, uint32_t(mQueueIndices.copy.family_index), uint32_t(mQueueIndices.copy.queue_index), &mQueues[uint8_t(queue_type::copy)]);
+            mFallbackQueueTypes[uint8_t(queue_type::copy)] = queue_type::copy;
+        }
+        else
+        {
+            // fallback to direct
+            mQueues[uint8_t(queue_type::copy)] = mQueues[uint8_t(queue_type::direct)];
+            mFallbackQueueTypes[uint8_t(queue_type::copy)] = queue_type::direct;
+        }
     }
 
     // copy info
     {
         mInformation.memory_properties = device.mem_props;
         mInformation.device_properties = device.physical_device_props;
-    }
-
-    // query limits
-    {
     }
 
     if (hasRaytracing())

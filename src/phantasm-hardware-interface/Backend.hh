@@ -156,7 +156,7 @@ public:
     //
 
     /// create a command list handle from a software command buffer
-    [[nodiscard]] virtual handle::command_list recordCommandList(std::byte* buffer, size_t size, queue_type queue = queue_type::direct) = 0;
+    [[nodiscard]] virtual handle::command_list recordCommandList(std::byte const* buffer, size_t size, queue_type queue = queue_type::direct) = 0;
 
     /// destroy the given command list handles
     virtual void discard(cc::span<handle::command_list const> cls) = 0;
@@ -271,7 +271,7 @@ public:
     template <class... Args>
     void freeVariadic(Args... handles)
     {
-        (free(handles), ...);
+        (this->free(handles), ...);
     }
 
     [[nodiscard]] handle::resource createBufferFromInfo(arg::create_buffer_info const& info, char const* debug_name = nullptr);

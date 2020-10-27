@@ -501,7 +501,7 @@ struct rt_clear_value
       : red_or_depth(uint8_t(r * 255)), green_or_stencil(uint8_t(g * 255)), blue(uint8_t(b * 255)), alpha(uint8_t(a * 255))
     {
     }
-    rt_clear_value(float depth, uint8_t stencil) : red_or_depth(uint8_t(depth * 255)), green_or_stencil(stencil) {}
+    rt_clear_value(float depth, uint8_t stencil) : red_or_depth(uint8_t(depth * 255)), green_or_stencil(stencil), blue(0), alpha(0) {}
 
     static rt_clear_value from_uint(uint32_t value)
     {
@@ -511,7 +511,7 @@ struct rt_clear_value
         res.blue = uint8_t(value >> 8);
         res.alpha = uint8_t(value);
         return res;
-    };
+    }
 };
 
 /// blending logic operation a (graphics) handle::pipeline_state performs on its render targets

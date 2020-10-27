@@ -30,7 +30,7 @@ void phi::d3d12::command_list_translator::initialize(
 void phi::d3d12::command_list_translator::destroy() { _thread_local.destroy(); }
 
 void phi::d3d12::command_list_translator::translateCommandList(
-    ID3D12GraphicsCommandList5* list, queue_type type, d3d12_incomplete_state_cache* state_cache, std::byte* buffer, size_t buffer_size)
+    ID3D12GraphicsCommandList5* list, queue_type type, d3d12_incomplete_state_cache* state_cache, std::byte const* buffer, size_t buffer_size)
 {
     _cmd_list = list;
     _current_queue_type = type;

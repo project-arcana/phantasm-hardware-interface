@@ -8,6 +8,7 @@
 #include <phantasm-hardware-interface/common/log.hh>
 
 #include "d3d12_sanitized.hh"
+#include "sdk_version.hh"
 #include "shared_com_ptr.hh"
 
 namespace
@@ -62,7 +63,10 @@ char const* get_breadcrumb_op_literal(D3D12_AUTO_BREADCRUMB_OP op)
         PHI_D3D12_BC_SWITCH_RETURN(SETPIPELINESTATE1);
         PHI_D3D12_BC_SWITCH_RETURN(INITIALIZEEXTENSIONCOMMAND);
         PHI_D3D12_BC_SWITCH_RETURN(EXECUTEEXTENSIONCOMMAND);
+#if PHI_D3D12_HAS_20H1_FEATURES
         PHI_D3D12_BC_SWITCH_RETURN(DISPATCHMESH);
+#endif
+
     default:
         return "Unknown Operation";
     }
