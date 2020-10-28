@@ -191,32 +191,36 @@ cc::alloc_vector<phi::vk::util::spirv_desc_info> phi::vk::util::merge_spirv_desc
 
     cc::alloc_vector<spirv_desc_info> sorted_merged_res(alloc);
     sorted_merged_res.reserve(desc_infos.size());
-    spirv_desc_info* curr_range = nullptr;
+    spirv_desc_info* current_descriptor = nullptr;
 
-    for (auto const& di : desc_infos)
+    for (auto const& descriptor : desc_infos)
     {
-        if (curr_range &&                     // not the first range
-            curr_range->set == di.set &&      // set same as current range
-            curr_range->binding == di.binding // binding same as current range
+        if (current_descriptor &&                             // this is not the first range
+            current_descriptor->set == descriptor.set &&      // set and -
+            current_descriptor->binding == descriptor.binding // - binding are the same as current range
         )
         {
-            CC_ASSERT(curr_range->type == di.type && "SPIR-V descriptor type overlap detected");
-            CC_ASSERT(curr_range->binding_array_size == di.binding_array_size && "SPIR-V descriptor array mismatch detected");
+            CC_ASSERT(current_descriptor->type == descriptor.type && "SPIR-V descriptor type overlap detected");
+            CC_ASSERT(current_descriptor->binding_array_size == descriptor.binding_array_size && "SPIR-V descriptor array mismatch detected");
 
-            // this element mirrors the precursor, bit-OR the shader stage bits
-            curr_range->visible_stage = static_cast<VkShaderStageFlagBits>(curr_range->visible_stage | di.visible_stage);
-            curr_range->visible_pipeline_stage = static_cast<VkPipelineStageFlags>(curr_range->visible_pipeline_stage | di.visible_pipeline_stage);
+            // this descriptor is the same as the previous one, just as seen from a different entrypoint,
+            // bit-OR the shader stage bits
+            current_descriptor->visible_stage |= descriptor.visible_stage;
+            current_descriptor->visible_pipeline_stage |= descriptor.visible_pipeline_stage;
         }
         else
         {
-            sorted_merged_res.push_back(di);
-            curr_range = &sorted_merged_res.back();
+            // this element is a different descriptor, advance
+            sorted_merged_res.push_back(descriptor);
+            current_descriptor = &sorted_merged_res.back();
         }
     }
 
-    // change the CBVs to UNIFORM_BUFFER_DYNAMIC
+    // change all the CBVs to UNIFORM_BUFFER_DYNAMIC
     for (auto& range : sorted_merged_res)
     {
+        // set: CBVs are in up-shifted sets {4, 5, 6, 7}
+        // type: uniform buffers cannot be dynamically (at draw time) switched
         if (range.set >= limits::max_shader_arguments && range.type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
         {
             // The CBV is always in b0
@@ -228,7 +232,7 @@ cc::alloc_vector<phi::vk::util::spirv_desc_info> phi::vk::util::merge_spirv_desc
     return sorted_merged_res;
 }
 
-bool phi::vk::util::is_consistent_with_reflection(cc::span<const phi::vk::util::spirv_desc_info> spirv_ranges, phi::arg::shader_arg_shapes arg_shapes)
+bool phi::vk::util::is_consistent_with_reflection(cc::span<const phi::vk::util::spirv_desc_info> reflected_descriptors, phi::arg::shader_arg_shapes arg_shapes)
 {
     struct reflected_range_infos
     {
@@ -240,29 +244,35 @@ bool phi::vk::util::is_consistent_with_reflection(cc::span<const phi::vk::util::
 
     cc::array<reflected_range_infos, limits::max_shader_arguments> range_infos;
 
-    for (auto const& range : spirv_ranges)
+    for (auto const& descriptor : reflected_descriptors)
     {
-        auto set_shape_index = range.set;
+        auto set_shape_index = descriptor.set;
+
+        // wrap CBVs down to their "true" set (as it is given in HLSL)
         if (set_shape_index >= limits::max_shader_arguments)
             set_shape_index -= limits::max_shader_arguments;
 
         reflected_range_infos& info = range_infos[set_shape_index];
 
-        if (range.binding >= spv::sampler_binding_start)
+        if (descriptor.binding >= spv::sampler_binding_start)
         {
-            info.num_samplers = cc::max(info.num_samplers, 1 + (range.binding - spv::sampler_binding_start));
+            // Sampler
+            info.num_samplers = cc::max(info.num_samplers, 1 + (descriptor.binding - spv::sampler_binding_start));
         }
-        else if (range.binding >= spv::uav_binding_start)
+        else if (descriptor.binding >= spv::uav_binding_start)
         {
-            info.num_uavs = cc::max(info.num_uavs, 1 + (range.binding - spv::uav_binding_start));
+            // UAV
+            info.num_uavs = cc::max(info.num_uavs, 1 + (descriptor.binding - spv::uav_binding_start));
         }
-        else if (range.binding >= spv::srv_binding_start)
+        else if (descriptor.binding >= spv::srv_binding_start)
         {
-            info.num_srvs = cc::max(info.num_srvs, 1 + (range.binding - spv::srv_binding_start));
+            // SRV
+            info.num_srvs = cc::max(info.num_srvs, 1 + (descriptor.binding - spv::srv_binding_start));
         }
         else /*if (range.binding >= spv::cbv_binding_start)*/
         {
-            info.num_cbvs = cc::max(info.num_cbvs, 1 + (range.binding - spv::cbv_binding_start));
+            // CBV
+            info.num_cbvs = cc::max(info.num_cbvs, 1 + (descriptor.binding - spv::cbv_binding_start));
         }
     }
 
@@ -297,10 +307,10 @@ bool phi::vk::util::is_consistent_with_reflection(cc::span<const phi::vk::util::
 void phi::vk::util::print_spirv_info(cc::span<const phi::vk::util::spirv_desc_info> info)
 {
     auto log_obj = PHI_LOG;
-    log_obj << "SPIR-V descriptor info:\n";
+    log_obj("SPIR-V descriptor info:\n");
     for (auto const& i : info)
     {
-        log_obj << "  set " << i.set << ", binding " << i.binding << ", array size " << i.binding_array_size << ", VkDescriptorType " << i.type << '\n';
+        log_obj.printf("  set %u, binding %u, array size %u, VkDescriptorType %d\n", i.set, i.binding, i.binding_array_size, i.type);
     }
 }
 

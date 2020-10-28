@@ -36,25 +36,28 @@ struct pipeline_layout_params
     // (this is required as there are no "root descriptors" in vulkan, we do
     // it using spirv-reflect, see loader/spirv_patch_util for details)
 
+    /// lists bindings (descriptors) for a single set
     struct descriptor_set_params
     {
         cc::capped_vector<VkDescriptorSetLayoutBinding, 64> bindings;
 
-        void add_descriptor(VkDescriptorType type, unsigned binding, unsigned array_size, VkShaderStageFlagBits visibility);
-        void fill_in_samplers(cc::span<VkSampler const> samplers);
+        void add_descriptor(VkDescriptorType type, unsigned binding, unsigned array_size, VkShaderStageFlags visibility);
+
+        // this function is no longer in use
+        [[deprecated("dropped support for immutable samplers")]] void fill_in_immutable_samplers(cc::span<VkSampler const> samplers);
 
         [[nodiscard]] VkDescriptorSetLayout create_layout(VkDevice device) const;
     };
 
+    /// bindings per set (2 * args - doubled for CBVs)
     cc::capped_vector<descriptor_set_params, limits::max_shader_arguments * 2> descriptor_sets;
+
+    /// merged visibilities per set
     cc::capped_vector<VkPipelineStageFlags, limits::max_shader_arguments * 2> merged_pipeline_visibilities;
 
     void initialize_from_reflection_info(cc::span<util::spirv_desc_info const> reflection_info);
 };
-
 }
-
-class DescriptorAllocator;
 
 struct pipeline_layout
 {
@@ -70,7 +73,7 @@ struct pipeline_layout
     VkPipelineLayout raw_layout = nullptr;
     VkPipelineStageFlags push_constant_stages;
 
-    void initialize(VkDevice device, cc::span<util::spirv_desc_info const> range_infos, bool add_push_constants);
+    void initialize(VkDevice device, cc::span<util::spirv_desc_info const> descriptor_info, bool add_push_constants);
 
     [[nodiscard]] bool has_push_constants() const { return push_constant_stages != VK_PIPELINE_STAGE_FLAG_BITS_MAX_ENUM; }
 

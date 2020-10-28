@@ -7,7 +7,7 @@
 #include <phantasm-hardware-interface/vulkan/resources/descriptor_allocator.hh>
 #include <phantasm-hardware-interface/vulkan/resources/transition_barrier.hh>
 
-void phi::vk::detail::pipeline_layout_params::descriptor_set_params::add_descriptor(VkDescriptorType type, unsigned binding, unsigned array_size, VkShaderStageFlagBits visibility)
+void phi::vk::detail::pipeline_layout_params::descriptor_set_params::add_descriptor(VkDescriptorType type, unsigned binding, unsigned array_size, VkShaderStageFlags visibility)
 {
     VkDescriptorSetLayoutBinding& new_binding = bindings.emplace_back();
     new_binding = {};
@@ -23,7 +23,7 @@ void phi::vk::detail::pipeline_layout_params::descriptor_set_params::add_descrip
     new_binding.pImmutableSamplers = nullptr; // Optional
 }
 
-void phi::vk::detail::pipeline_layout_params::descriptor_set_params::fill_in_samplers(cc::span<VkSampler const> samplers)
+void phi::vk::detail::pipeline_layout_params::descriptor_set_params::fill_in_immutable_samplers(cc::span<VkSampler const> samplers)
 {
     for (auto& binding : bindings)
     {
@@ -44,27 +44,27 @@ VkDescriptorSetLayout phi::vk::detail::pipeline_layout_params::descriptor_set_pa
     layout_info.bindingCount = uint32_t(bindings.size());
     layout_info.pBindings = bindings.data();
 
-
     VkDescriptorSetLayout res;
     PHI_VK_VERIFY_SUCCESS(vkCreateDescriptorSetLayout(device, &layout_info, nullptr, &res));
 
     return res;
 }
 
-void phi::vk::pipeline_layout::initialize(VkDevice device, cc::span<const util::spirv_desc_info> range_infos, bool add_push_constants)
+void phi::vk::pipeline_layout::initialize(VkDevice device, cc::span<const util::spirv_desc_info> descriptor_info, bool add_push_constants)
 {
+    // partition the descriptors into their sets
     detail::pipeline_layout_params params;
-    params.initialize_from_reflection_info(range_infos);
+    params.initialize_from_reflection_info(descriptor_info);
 
     // copy pipeline stage visibilities
     descriptor_set_visibilities = params.merged_pipeline_visibilities;
 
+    // create the descriptor sets
     for (auto const& param_set : params.descriptor_sets)
     {
         descriptor_set_layouts.push_back(param_set.create_layout(device));
     }
 
-    // always create a push constant range (which is conditionally set in the layout info)
     VkPushConstantRange pushconst_range = {};
 
     VkPipelineLayoutCreateInfo layout_info = {};
@@ -101,6 +101,7 @@ void phi::vk::pipeline_layout::initialize(VkDevice device, cc::span<const util::
         this->push_constant_stages = VK_PIPELINE_STAGE_FLAG_BITS_MAX_ENUM;
     }
 
+    // create the layout
     PHI_VK_VERIFY_SUCCESS(vkCreatePipelineLayout(device, &layout_info, nullptr, &raw_layout));
 }
 
@@ -116,7 +117,7 @@ void phi::vk::pipeline_layout::print() const
 
 void phi::vk::pipeline_layout::free(VkDevice device)
 {
-    for (auto const layout : descriptor_set_layouts)
+    for (VkDescriptorSetLayout const layout : descriptor_set_layouts)
         vkDestroyDescriptorSetLayout(device, layout, nullptr);
 
     vkDestroyPipelineLayout(device, raw_layout, nullptr);
@@ -124,28 +125,34 @@ void phi::vk::pipeline_layout::free(VkDevice device)
 
 void phi::vk::detail::pipeline_layout_params::initialize_from_reflection_info(cc::span<const util::spirv_desc_info> reflection_info)
 {
-    auto const add_set = [this]() {
+    auto f_add_set = [this]() {
         descriptor_sets.emplace_back();
         merged_pipeline_visibilities.push_back(0);
     };
 
-    add_set();
-    for (auto const& desc : reflection_info)
+    f_add_set();
+
+    // iterate over the descriptors
+    // these are sorted and deduplicated/merged
+    for (util::spirv_desc_info const& desc : reflection_info)
     {
-        auto const set_delta = desc.set - (descriptor_sets.size() - 1);
+        size_t const set_delta = desc.set - (descriptor_sets.size() - 1);
+
         if (set_delta == 1)
         {
             // the next set has been reached
-            add_set();
+            f_add_set();
         }
         else if (set_delta > 1)
         {
             // some sets have been skipped
             for (auto i = 0u; i < set_delta; ++i)
-                add_set();
+                f_add_set();
         }
 
+        // add the descriptor to this set
         descriptor_sets.back().add_descriptor(desc.type, desc.binding, desc.binding_array_size, desc.visible_stage);
+        // merge the visibility flags
         merged_pipeline_visibilities.back() |= desc.visible_pipeline_stage;
     }
 }

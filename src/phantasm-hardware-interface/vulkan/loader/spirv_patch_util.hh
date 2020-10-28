@@ -49,14 +49,15 @@ enum spv_constants_e : unsigned
 
 namespace phi::vk::util
 {
+/// info about a descriptor - where, what, and visibility
 struct spirv_desc_info
 {
     unsigned set;
     unsigned binding;
     unsigned binding_array_size;
-    VkDescriptorType type;
-    VkShaderStageFlagBits visible_stage;
-    VkPipelineStageFlags visible_pipeline_stage;
+    VkDescriptorType type;                       ///< type of the descriptor
+    VkShaderStageFlags visible_stage;            ///< shaders it is visible to
+    VkPipelineStageFlags visible_pipeline_stage; ///< pipeline stages it is visible to (only depends upon visible_stage)
 
     bool operator==(spirv_desc_info const& rhs) const noexcept
     {
@@ -87,14 +88,14 @@ struct patched_spirv_stage
 
 void free_patched_spirv(patched_spirv_stage const& val);
 
-/// create a sorted, deduplicated vector of descriptor range infos from an unsorted raw output from previous patches
+/// merge descriptor infos per entrypoint into a sorted, deduplicated list, with visiblity flags OR-d together per descriptor
 cc::alloc_vector<spirv_desc_info> merge_spirv_descriptors(cc::span<spirv_desc_info> desc_infos, cc::allocator* alloc);
 
 void print_spirv_info(cc::span<spirv_desc_info const> info);
 
 /// returns true if the reflected descriptors are consistent with the passed arguments
 /// currently only checks if the amounts are equal
-[[nodiscard]] bool is_consistent_with_reflection(cc::span<spirv_desc_info const> spirv_ranges, arg::shader_arg_shapes arg_shapes);
+[[nodiscard]] bool is_consistent_with_reflection(cc::span<spirv_desc_info const> reflected_descriptors, arg::shader_arg_shapes arg_shapes);
 
 //
 // serialization of fully processed SPIR-V

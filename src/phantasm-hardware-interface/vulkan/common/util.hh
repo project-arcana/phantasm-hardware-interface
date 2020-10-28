@@ -52,14 +52,15 @@ template <class VkT>
 CC_PRINTF_FUNC(3, 4)
 void set_object_name(VkDevice device, VkT* object, char const* fmt, ...)
 {
-    char name_formatted[1024];
+    char buf[1024];
+
     {
         va_list args;
         va_start(args, fmt);
-        std::vsnprintf(name_formatted, 1024, fmt, args);
+        std::vsnprintf(buf, sizeof(buf), fmt, args);
         va_end(args);
     }
 
-    set_object_name(device, detail::as_obj_type_enum<VkT>, object, name_formatted);
+    set_object_name(device, detail::as_obj_type_enum<VkT>, object, buf);
 }
 }
