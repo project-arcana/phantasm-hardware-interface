@@ -24,7 +24,7 @@ void phi::vk::initialize_shader(phi::vk::shader& s, VkDevice device, const std::
     VkShaderModuleCreateInfo shader_info = {};
     shader_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
     shader_info.codeSize = size;
-    shader_info.pCode = cc::bit_cast<uint32_t const*>(data);
+    shader_info.pCode = reinterpret_cast<uint32_t const*>(data);
 
     s.stage = stage;
     s.entrypoint = entrypoint;

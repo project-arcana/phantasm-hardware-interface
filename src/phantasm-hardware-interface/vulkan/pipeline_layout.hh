@@ -46,7 +46,7 @@ struct pipeline_layout_params
         // this function is no longer in use
         [[deprecated("dropped support for immutable samplers")]] void fill_in_immutable_samplers(cc::span<VkSampler const> samplers);
 
-        [[nodiscard]] VkDescriptorSetLayout create_layout(VkDevice device) const;
+        VkDescriptorSetLayout create_layout(VkDevice device) const;
     };
 
     /// bindings per set (2 * args - doubled for CBVs)
@@ -75,11 +75,10 @@ struct pipeline_layout
 
     void initialize(VkDevice device, cc::span<util::spirv_desc_info const> descriptor_info, bool add_push_constants);
 
-    [[nodiscard]] bool has_push_constants() const { return push_constant_stages != VK_PIPELINE_STAGE_FLAG_BITS_MAX_ENUM; }
-
-    void print() const;
-
     void free(VkDevice device);
+
+    bool has_push_constants() const { return push_constant_stages != VK_PIPELINE_STAGE_FLAG_BITS_MAX_ENUM; }
+    void print() const;
 };
 
 }
