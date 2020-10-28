@@ -1895,7 +1895,9 @@ static SpvReflectResult ParseDescriptorBindings(Parser* p_parser, SpvReflectShad
     for (size_t i = 0; i < p_parser->node_count; ++i)
     {
         Node* p_node = &(p_parser->nodes[i]);
-        if ((p_node->op != SpvOpVariable) || ((p_node->storage_class != SpvStorageClassUniform) && (p_node->storage_class != SpvStorageClassUniformConstant)))
+        if ((p_node->op != SpvOpVariable)
+            || ((p_node->storage_class != SpvStorageClassUniform) && (p_node->storage_class != SpvStorageClassStorageBuffer)
+                && (p_node->storage_class != SpvStorageClassUniformConstant)))
         {
             continue;
         }
@@ -1933,7 +1935,9 @@ static SpvReflectResult ParseDescriptorBindings(Parser* p_parser, SpvReflectShad
     for (size_t i = 0; i < p_parser->node_count; ++i)
     {
         Node* p_node = &(p_parser->nodes[i]);
-        if ((p_node->op != SpvOpVariable) || ((p_node->storage_class != SpvStorageClassUniform) && (p_node->storage_class != SpvStorageClassUniformConstant)))
+        if ((p_node->op != SpvOpVariable)
+            || ((p_node->storage_class != SpvStorageClassUniform) && (p_node->storage_class != SpvStorageClassStorageBuffer)
+                && (p_node->storage_class != SpvStorageClassUniformConstant)))
         {
             continue;
         }
@@ -1947,9 +1951,12 @@ static SpvReflectResult ParseDescriptorBindings(Parser* p_parser, SpvReflectShad
         {
             return SPV_REFLECT_RESULT_ERROR_SPIRV_INVALID_ID_REFERENCE;
         }
-        // If the type is a pointer, resolve it
+        // If the type is a pointer, resolve it. We need to retain the storage class
+        // from the pointer so that we can use it to deduce deescriptor types.
+        SpvStorageClass pointer_storage_class = SpvStorageClassMax;
         if (p_type->op == SpvOpTypePointer)
         {
+            pointer_storage_class = p_type->storage_class;
             // Find the type's node
             Node* p_type_node = FindNode(p_parser, p_type->id);
             if (IsNull(p_type_node))
@@ -1973,6 +1980,19 @@ static SpvReflectResult ParseDescriptorBindings(Parser* p_parser, SpvReflectShad
         p_descriptor->count = 1;
         p_descriptor->uav_counter_id = p_node->decorations.uav_counter_buffer.value;
         p_descriptor->type_description = p_type;
+
+        // If this is in the StorageBuffer storage class, it's for sure a storage
+        // buffer descriptor. We need to handle this case earlier because in SPIR-V
+        // there are two ways to indicate a storage buffer:
+        // 1) Uniform storage class + BufferBlock decoration, or
+        // 2) StorageBuffer storage class + Buffer decoration.
+        // The 1) way is deprecated since SPIR-V v1.3. But the Buffer decoration is
+        // also used together with Uniform storage class to mean uniform buffer..
+        // We'll handle the pre-v1.3 cases in ParseDescriptorType().
+        if (pointer_storage_class == SpvStorageClassStorageBuffer)
+        {
+            p_descriptor->descriptor_type = SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        }
 
         // Copy image traits
         if ((p_type->type_flags & SPV_REFLECT_TYPE_FLAG_EXTERNAL_MASK) == SPV_REFLECT_TYPE_FLAG_EXTERNAL_IMAGE)
@@ -2030,98 +2050,101 @@ static SpvReflectResult ParseDescriptorType(SpvReflectShaderModule* p_module)
         SpvReflectDescriptorBinding* p_descriptor = &(p_module->descriptor_bindings[descriptor_index]);
         SpvReflectTypeDescription* p_type = p_descriptor->type_description;
 
-        switch (p_type->type_flags & SPV_REFLECT_TYPE_FLAG_EXTERNAL_MASK)
+        if (p_descriptor->descriptor_type == INVALID_VALUE)
         {
-        default:
-            assert(false && "unknown type flag");
+            switch (p_type->type_flags & SPV_REFLECT_TYPE_FLAG_EXTERNAL_MASK)
+            {
+            default:
+                assert(false && "unknown type flag");
+                break;
+
+            case SPV_REFLECT_TYPE_FLAG_EXTERNAL_IMAGE:
+            {
+                if (p_descriptor->image.dim == SpvDimBuffer)
+                {
+                    switch (p_descriptor->image.sampled)
+                    {
+                    default:
+                        assert(false && "unknown texel buffer sampled value");
+                        break;
+                    case IMAGE_SAMPLED:
+                        p_descriptor->descriptor_type = SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER;
+                        break;
+                    case IMAGE_STORAGE:
+                        p_descriptor->descriptor_type = SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER;
+                        break;
+                    }
+                }
+                else if (p_descriptor->image.dim == SpvDimSubpassData)
+                {
+                    p_descriptor->descriptor_type = SPV_REFLECT_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+                }
+                else
+                {
+                    switch (p_descriptor->image.sampled)
+                    {
+                    default:
+                        assert(false && "unknown image sampled value");
+                        break;
+                    case IMAGE_SAMPLED:
+                        p_descriptor->descriptor_type = SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+                        break;
+                    case IMAGE_STORAGE:
+                        p_descriptor->descriptor_type = SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+                        break;
+                    }
+                }
+            }
             break;
 
-        case SPV_REFLECT_TYPE_FLAG_EXTERNAL_IMAGE:
-        {
-            if (p_descriptor->image.dim == SpvDimBuffer)
+            case SPV_REFLECT_TYPE_FLAG_EXTERNAL_SAMPLER:
             {
-                switch (p_descriptor->image.sampled)
+                p_descriptor->descriptor_type = SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLER;
+            }
+            break;
+
+            case (SPV_REFLECT_TYPE_FLAG_EXTERNAL_SAMPLED_IMAGE | SPV_REFLECT_TYPE_FLAG_EXTERNAL_IMAGE):
+            {
+                // This is a workaround for: https://github.com/KhronosGroup/glslang/issues/1096
+                if (p_descriptor->image.dim == SpvDimBuffer)
                 {
-                default:
-                    assert(false && "unknown texel buffer sampled value");
-                    break;
-                case IMAGE_SAMPLED:
-                    p_descriptor->descriptor_type = SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER;
-                    break;
-                case IMAGE_STORAGE:
-                    p_descriptor->descriptor_type = SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER;
-                    break;
+                    switch (p_descriptor->image.sampled)
+                    {
+                    default:
+                        assert(false && "unknown texel buffer sampled value");
+                        break;
+                    case IMAGE_SAMPLED:
+                        p_descriptor->descriptor_type = SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER;
+                        break;
+                    case IMAGE_STORAGE:
+                        p_descriptor->descriptor_type = SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER;
+                        break;
+                    }
+                }
+                else
+                {
+                    p_descriptor->descriptor_type = SPV_REFLECT_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
                 }
             }
-            else if (p_descriptor->image.dim == SpvDimSubpassData)
+            break;
+
+            case SPV_REFLECT_TYPE_FLAG_EXTERNAL_BLOCK:
             {
-                p_descriptor->descriptor_type = SPV_REFLECT_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
-            }
-            else
-            {
-                switch (p_descriptor->image.sampled)
+                if (p_type->decoration_flags & SPV_REFLECT_DECORATION_BLOCK)
                 {
-                default:
-                    assert(false && "unknown image sampled value");
-                    break;
-                case IMAGE_SAMPLED:
-                    p_descriptor->descriptor_type = SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-                    break;
-                case IMAGE_STORAGE:
-                    p_descriptor->descriptor_type = SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-                    break;
+                    p_descriptor->descriptor_type = SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                }
+                else if (p_type->decoration_flags & SPV_REFLECT_DECORATION_BUFFER_BLOCK)
+                {
+                    p_descriptor->descriptor_type = SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                }
+                else
+                {
+                    assert(false && "unknown struct");
                 }
             }
-        }
-        break;
-
-        case SPV_REFLECT_TYPE_FLAG_EXTERNAL_SAMPLER:
-        {
-            p_descriptor->descriptor_type = SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLER;
-        }
-        break;
-
-        case (SPV_REFLECT_TYPE_FLAG_EXTERNAL_SAMPLED_IMAGE | SPV_REFLECT_TYPE_FLAG_EXTERNAL_IMAGE):
-        {
-            // This is a workaround for: https://github.com/KhronosGroup/glslang/issues/1096
-            if (p_descriptor->image.dim == SpvDimBuffer)
-            {
-                switch (p_descriptor->image.sampled)
-                {
-                default:
-                    assert(false && "unknown texel buffer sampled value");
-                    break;
-                case IMAGE_SAMPLED:
-                    p_descriptor->descriptor_type = SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER;
-                    break;
-                case IMAGE_STORAGE:
-                    p_descriptor->descriptor_type = SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER;
-                    break;
-                }
+            break;
             }
-            else
-            {
-                p_descriptor->descriptor_type = SPV_REFLECT_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            }
-        }
-        break;
-
-        case SPV_REFLECT_TYPE_FLAG_EXTERNAL_BLOCK:
-        {
-            if (p_type->decoration_flags & SPV_REFLECT_DECORATION_BLOCK)
-            {
-                p_descriptor->descriptor_type = SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-            }
-            else if (p_type->decoration_flags & SPV_REFLECT_DECORATION_BUFFER_BLOCK)
-            {
-                p_descriptor->descriptor_type = SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-            }
-            else
-            {
-                assert(false && "unknown struct");
-            }
-        }
-        break;
         }
 
         switch (p_descriptor->descriptor_type)
@@ -2622,7 +2645,7 @@ static SpvReflectResult ParseDescriptorBlocks(Parser* p_parser, SpvReflectShader
 static SpvReflectResult ParseFormat(const SpvReflectTypeDescription* p_type, SpvReflectFormat* p_format)
 {
     SpvReflectResult result = SPV_REFLECT_RESULT_ERROR_INTERNAL_ERROR;
-    bool signedness = p_type->traits.numeric.scalar.signedness;
+    bool signedness = (p_type->traits.numeric.scalar.signedness != 0);
     if (p_type->type_flags & SPV_REFLECT_TYPE_FLAG_VECTOR)
     {
         uint32_t component_count = p_type->traits.numeric.vector.component_count;
@@ -3174,6 +3197,111 @@ static SpvReflectResult ParseEntryPoints(Parser* p_parser, SpvReflectShaderModul
     return SPV_REFLECT_RESULT_SUCCESS;
 }
 
+static SpvReflectResult ParseExecutionModes(Parser* p_parser, SpvReflectShaderModule* p_module)
+{
+    assert(IsNotNull(p_parser));
+    assert(IsNotNull(p_parser->nodes));
+    assert(IsNotNull(p_module));
+
+    if (IsNotNull(p_parser) && IsNotNull(p_parser->spirv_code) && IsNotNull(p_parser->nodes))
+    {
+        for (size_t node_idx = 0; node_idx < p_parser->node_count; ++node_idx)
+        {
+            Node* p_node = &(p_parser->nodes[node_idx]);
+            if (p_node->op != SpvOpExecutionMode)
+            {
+                continue;
+            }
+
+            // Read entry point id
+            uint32_t entry_point_id = 0;
+            CHECKED_READU32(p_parser, p_node->word_offset + 1, entry_point_id);
+
+            // Find entry point
+            SpvReflectEntryPoint* p_entry_point = NULL;
+            for (size_t entry_point_idx = 0; entry_point_idx < p_module->entry_point_count; ++entry_point_idx)
+            {
+                if (p_module->entry_points[entry_point_idx].id == entry_point_id)
+                {
+                    p_entry_point = &p_module->entry_points[entry_point_idx];
+                    break;
+                }
+            }
+            // Bail if entry point is null
+            if (IsNull(p_entry_point))
+            {
+                return SPV_REFLECT_RESULT_ERROR_SPIRV_INVALID_ENTRY_POINT;
+            }
+
+            // Read execution mode
+            uint32_t execution_mode = (uint32_t)INVALID_VALUE;
+            CHECKED_READU32(p_parser, p_node->word_offset + 2, execution_mode);
+
+            // Parse execution mode
+            switch (execution_mode)
+            {
+            default:
+            {
+                return SPV_REFLECT_RESULT_ERROR_SPIRV_INVALID_EXECUTION_MODE;
+            }
+            break;
+
+            case SpvExecutionModeInvocations:
+            case SpvExecutionModeSpacingEqual:
+            case SpvExecutionModeSpacingFractionalEven:
+            case SpvExecutionModeSpacingFractionalOdd:
+            case SpvExecutionModeVertexOrderCw:
+            case SpvExecutionModeVertexOrderCcw:
+            case SpvExecutionModePixelCenterInteger:
+            case SpvExecutionModeOriginUpperLeft:
+            case SpvExecutionModeOriginLowerLeft:
+            case SpvExecutionModeEarlyFragmentTests:
+            case SpvExecutionModePointMode:
+            case SpvExecutionModeXfb:
+            case SpvExecutionModeDepthReplacing:
+            case SpvExecutionModeDepthGreater:
+            case SpvExecutionModeDepthLess:
+            case SpvExecutionModeDepthUnchanged:
+                break;
+
+            case SpvExecutionModeLocalSize:
+            {
+                CHECKED_READU32(p_parser, p_node->word_offset + 3, p_entry_point->local_size.x);
+                CHECKED_READU32(p_parser, p_node->word_offset + 4, p_entry_point->local_size.y);
+                CHECKED_READU32(p_parser, p_node->word_offset + 5, p_entry_point->local_size.z);
+            }
+            break;
+
+            case SpvExecutionModeLocalSizeHint:
+            case SpvExecutionModeInputPoints:
+            case SpvExecutionModeInputLines:
+            case SpvExecutionModeInputLinesAdjacency:
+            case SpvExecutionModeTriangles:
+            case SpvExecutionModeInputTrianglesAdjacency:
+            case SpvExecutionModeQuads:
+            case SpvExecutionModeIsolines:
+            case SpvExecutionModeOutputVertices:
+            case SpvExecutionModeOutputPoints:
+            case SpvExecutionModeOutputLineStrip:
+            case SpvExecutionModeOutputTriangleStrip:
+            case SpvExecutionModeVecTypeHint:
+            case SpvExecutionModeContractionOff:
+            case SpvExecutionModeInitializer:
+            case SpvExecutionModeFinalizer:
+            case SpvExecutionModeSubgroupSize:
+            case SpvExecutionModeSubgroupsPerWorkgroup:
+            case SpvExecutionModeSubgroupsPerWorkgroupId:
+            case SpvExecutionModeLocalSizeId:
+            case SpvExecutionModeLocalSizeHintId:
+            case SpvExecutionModePostDepthCoverage:
+            case SpvExecutionModeStencilRefReplacingEXT:
+                break;
+            }
+        }
+    }
+    return SPV_REFLECT_RESULT_SUCCESS;
+}
+
 static SpvReflectResult ParsePushConstantBlocks(Parser* p_parser, SpvReflectShaderModule* p_module)
 {
     for (size_t i = 0; i < p_parser->node_count; ++i)
@@ -3597,6 +3725,10 @@ SpvReflectResult spvReflectCreateShaderModule(size_t size, const void* p_code, S
     if (result == SPV_REFLECT_RESULT_SUCCESS)
     {
         result = SynchronizeDescriptorSets(p_module);
+    }
+    if (result == SPV_REFLECT_RESULT_SUCCESS)
+    {
+        result = ParseExecutionModes(&parser, p_module);
     }
 
     // Destroy module if parse was not successful
@@ -4694,14 +4826,14 @@ SpvReflectResult spvReflectChangeDescriptorBindingNumbers(SpvReflectShaderModule
             return SPV_REFLECT_RESULT_ERROR_RANGE_EXCEEDED;
         }
         // Binding number
-        if (new_binding_number != SPV_REFLECT_BINDING_NUMBER_DONT_CHANGE)
+        if (new_binding_number != (uint32_t)SPV_REFLECT_BINDING_NUMBER_DONT_CHANGE)
         {
             uint32_t* p_code = p_module->_internal->spirv_code + p_target_descriptor->word_offset.binding;
             *p_code = new_binding_number;
             p_target_descriptor->binding = new_binding_number;
         }
         // Set number
-        if (new_set_binding != SPV_REFLECT_SET_NUMBER_DONT_CHANGE)
+        if (new_set_binding != (uint32_t)SPV_REFLECT_SET_NUMBER_DONT_CHANGE)
         {
             uint32_t* p_code = p_module->_internal->spirv_code + p_target_descriptor->word_offset.set;
             *p_code = new_set_binding;
@@ -4710,7 +4842,7 @@ SpvReflectResult spvReflectChangeDescriptorBindingNumbers(SpvReflectShaderModule
     }
 
     SpvReflectResult result = SPV_REFLECT_RESULT_SUCCESS;
-    if (new_set_binding != SPV_REFLECT_SET_NUMBER_DONT_CHANGE)
+    if (new_set_binding != (uint32_t)SPV_REFLECT_SET_NUMBER_DONT_CHANGE)
     {
         result = SynchronizeDescriptorSets(p_module);
     }
@@ -4747,7 +4879,7 @@ SpvReflectResult spvReflectChangeDescriptorSetNumber(SpvReflectShaderModule* p_m
     }
 
     SpvReflectResult result = SPV_REFLECT_RESULT_SUCCESS;
-    if (IsNotNull(p_target_set) && new_set_number != SPV_REFLECT_SET_NUMBER_DONT_CHANGE)
+    if (IsNotNull(p_target_set) && new_set_number != (uint32_t)SPV_REFLECT_SET_NUMBER_DONT_CHANGE)
     {
         for (uint32_t index = 0; index < p_target_set->binding_count; ++index)
         {
