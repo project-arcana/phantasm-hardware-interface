@@ -110,7 +110,8 @@ VkShaderStageFlags reflect_to_native_shader_stage(SpvReflectShaderStageFlagBits 
     case SPV_REFLECT_SHADER_STAGE_CALLABLE_BIT_NV:
     case SPV_REFLECT_SHADER_STAGE_INTERSECTION_BIT_NV:
     case SPV_REFLECT_SHADER_STAGE_MISS_BIT_NV:
-        return VK_SHADER_STAGE_RAYGEN_BIT_NV | VK_SHADER_STAGE_ANY_HIT_BIT_NV | VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV | VK_SHADER_STAGE_MISS_BIT_NV | VK_SHADER_STAGE_INTERSECTION_BIT_NV | VK_SHADER_STAGE_CALLABLE_BIT_NV;
+        return VK_SHADER_STAGE_RAYGEN_BIT_NV | VK_SHADER_STAGE_ANY_HIT_BIT_NV | VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV | VK_SHADER_STAGE_MISS_BIT_NV
+               | VK_SHADER_STAGE_INTERSECTION_BIT_NV | VK_SHADER_STAGE_CALLABLE_BIT_NV;
     }
     CC_UNREACHABLE("untranslated shader stage");
 }
@@ -175,7 +176,7 @@ phi::vk::util::patched_spirv_stage phi::vk::util::create_patched_spirv(std::byte
     SpvReflectShaderModule module;
     auto const result = spvReflectCreateShaderModule(bytecode_size, bytecode, &module);
     CC_ASSERT(result == SPV_REFLECT_RESULT_SUCCESS && "failed to reflect SPIR-V");
-    
+
     res.stage = reflect_to_pr(module.shader_stage);
 
     VkShaderStageFlags const native_shader_flags = reflect_to_native_shader_stage(module.shader_stage);
