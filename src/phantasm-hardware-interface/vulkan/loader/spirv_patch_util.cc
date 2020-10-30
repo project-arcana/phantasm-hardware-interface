@@ -46,6 +46,8 @@ namespace
         return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
     case SPV_REFLECT_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
         return VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+    case SPV_REFLECT_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV:
+        return VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV;
     }
     CC_UNREACHABLE_SWITCH_WORKAROUND(type);
 }
@@ -69,26 +71,54 @@ namespace
     case SPV_REFLECT_SHADER_STAGE_COMPUTE_BIT:
         return sd::compute;
 
-        //    case VK_SHADER_STAGE_ANY_HIT_BIT_NV:
-        //        return sd::ray_any_hit;
-        //    case VK_SHADER_STAGE_RAYGEN_BIT_NV:
-        //        return sd::ray_gen;
-        //    case VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV:
-        //        return sd::ray_closest_hit;
-        //    case VK_SHADER_STAGE_CALLABLE_BIT_NV:
-        //        return sd::ray_callable;
-        //    case VK_SHADER_STAGE_INTERSECTION_BIT_NV:
-        //        return sd::ray_intersect;
-        //    case VK_SHADER_STAGE_MISS_BIT_NV:
-        //        return sd::ray_miss;
+    case SPV_REFLECT_SHADER_STAGE_ANY_HIT_BIT_NV:
+        return sd::ray_any_hit;
+    case SPV_REFLECT_SHADER_STAGE_RAYGEN_BIT_NV:
+        return sd::ray_gen;
+    case SPV_REFLECT_SHADER_STAGE_CLOSEST_HIT_BIT_NV:
+        return sd::ray_closest_hit;
+    case SPV_REFLECT_SHADER_STAGE_CALLABLE_BIT_NV:
+        return sd::ray_callable;
+    case SPV_REFLECT_SHADER_STAGE_INTERSECTION_BIT_NV:
+        return sd::ray_intersect;
+    case SPV_REFLECT_SHADER_STAGE_MISS_BIT_NV:
+        return sd::ray_miss;
     }
     CC_UNREACHABLE_SWITCH_WORKAROUND(shader_stage_flags);
 }
 
+VkShaderStageFlags reflect_to_native_shader_stage(SpvReflectShaderStageFlagBits shader_stage_flags)
+{
+    switch (shader_stage_flags)
+    {
+        // graphics and compute stages map 1:1 to the native enum
+    case SPV_REFLECT_SHADER_STAGE_VERTEX_BIT:
+    case SPV_REFLECT_SHADER_STAGE_TESSELLATION_CONTROL_BIT:
+    case SPV_REFLECT_SHADER_STAGE_TESSELLATION_EVALUATION_BIT:
+    case SPV_REFLECT_SHADER_STAGE_GEOMETRY_BIT:
+    case SPV_REFLECT_SHADER_STAGE_FRAGMENT_BIT:
+    case SPV_REFLECT_SHADER_STAGE_COMPUTE_BIT:
+        return shader_stage_flags;
+
+        // spirv-reflect only returns the shader stage of the first entrypoint of a raytracing library
+        // but the descriptors are (potentially) visible to all stages, so return a mask over all
+        // (we do not need special handling for the pipeline stage flags because there's just a single ray tracing stage)
+    case SPV_REFLECT_SHADER_STAGE_ANY_HIT_BIT_NV:
+    case SPV_REFLECT_SHADER_STAGE_RAYGEN_BIT_NV:
+    case SPV_REFLECT_SHADER_STAGE_CLOSEST_HIT_BIT_NV:
+    case SPV_REFLECT_SHADER_STAGE_CALLABLE_BIT_NV:
+    case SPV_REFLECT_SHADER_STAGE_INTERSECTION_BIT_NV:
+    case SPV_REFLECT_SHADER_STAGE_MISS_BIT_NV:
+        return VK_SHADER_STAGE_RAYGEN_BIT_NV | VK_SHADER_STAGE_ANY_HIT_BIT_NV | VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV | VK_SHADER_STAGE_MISS_BIT_NV | VK_SHADER_STAGE_INTERSECTION_BIT_NV | VK_SHADER_STAGE_CALLABLE_BIT_NV;
+    }
+    CC_UNREACHABLE("untranslated shader stage");
+}
+
 void patchSpvReflectShader(SpvReflectShaderModule& module,
-                           phi::shader_stage current_stage,
                            cc::alloc_vector<phi::vk::util::spirv_desc_info>& out_desc_infos,
-                           cc::allocator* scratch_alloc)
+                           cc::allocator* scratch_alloc,
+                           VkShaderStageFlags visible_shader_stages,
+                           VkPipelineStageFlags visible_pipeline_stages)
 {
     using namespace phi::vk;
 
@@ -125,8 +155,8 @@ void patchSpvReflectShader(SpvReflectShaderModule& module,
             new_info.binding = b->binding;
             new_info.binding_array_size = b->count;
             new_info.type = reflect_to_native(b->descriptor_type);
-            new_info.visible_stage = util::to_shader_stage_flags(current_stage);
-            new_info.visible_pipeline_stage = util::to_pipeline_stage_flags(current_stage);
+            new_info.visible_stage = visible_shader_stages;
+            new_info.visible_pipeline_stage = visible_pipeline_stages;
         }
     }
 
@@ -144,9 +174,13 @@ phi::vk::util::patched_spirv_stage phi::vk::util::create_patched_spirv(std::byte
     SpvReflectShaderModule module;
     auto const result = spvReflectCreateShaderModule(bytecode_size, bytecode, &module);
     CC_ASSERT(result == SPV_REFLECT_RESULT_SUCCESS && "failed to reflect SPIR-V");
-
+    
     res.stage = reflect_to_pr(module.shader_stage);
-    patchSpvReflectShader(module, res.stage, out_info.descriptor_infos, scratch_alloc);
+
+    VkShaderStageFlags const native_shader_flags = reflect_to_native_shader_stage(module.shader_stage);
+    VkPipelineStageFlags const native_pipeline_flags = util::to_pipeline_stage_flags(res.stage);
+
+    patchSpvReflectShader(module, out_info.descriptor_infos, scratch_alloc, native_shader_flags, native_pipeline_flags);
 
     res.size = spvReflectGetCodeSize(&module);
     res.data = cc::bit_cast<std::byte*>(module._internal->spirv_code);
