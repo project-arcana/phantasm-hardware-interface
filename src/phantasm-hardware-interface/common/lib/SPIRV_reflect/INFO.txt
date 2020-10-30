@@ -1,0 +1,6 @@
+SPIRV-Reflect
+
+forked, version:
+https://github.com/jkunstwald/SPIRV-Reflect/tree/697ef36711f1c4cf1bd8a1f202f69c278b98814c
+
+Apache License 2.0 (in-lined)

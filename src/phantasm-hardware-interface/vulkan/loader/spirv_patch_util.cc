@@ -9,9 +9,10 @@
 #include <clean-core/bit_cast.hh>
 #include <clean-core/utility.hh>
 
+#include <phantasm-hardware-interface/common/lib/SPIRV_reflect/spirv_reflect.h>
+
 #include <phantasm-hardware-interface/common/byte_reader.hh>
 #include <phantasm-hardware-interface/common/container/unique_buffer.hh>
-#include <phantasm-hardware-interface/common/lib/spirv_reflect.hh>
 #include <phantasm-hardware-interface/common/log.hh>
 #include <phantasm-hardware-interface/limits.hh>
 

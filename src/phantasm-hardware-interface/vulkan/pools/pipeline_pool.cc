@@ -145,6 +145,7 @@ phi::handle::pipeline_state phi::vk::PipelinePool::createRaytracingPipelineState
     patched_shader_intermediates shader_intermediates;
     shader_intermediates.initialize_from_libraries(mDevice, libraries, scratch_alloc);
     CC_DEFER { shader_intermediates.free(mDevice); };
+    // util::print_spirv_info(shader_intermediates.sorted_merged_descriptor_infos);
 
     // verifying the descriptor ranges reflected here is much more involved than in a graphics / compute setting, skipping for now
 
