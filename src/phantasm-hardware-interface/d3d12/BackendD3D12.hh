@@ -172,8 +172,6 @@ public:
                                                                     accel_struct_build_flags_t flags,
                                                                     uint64_t* out_native_handle = nullptr) override;
 
-    [[nodiscard]] handle::resource getAccelStructBuffer(handle::accel_struct as) override;
-
     [[nodiscard]] uint64_t getAccelStructNativeHandle(handle::accel_struct as) override;
 
     [[nodiscard]] shader_table_strides calculateShaderTableStrides(arg::shader_table_record const& ray_gen_record,

@@ -91,8 +91,8 @@ phi::handle::accel_struct phi::d3d12::AccelStructPool::createBottomLevelAS(cc::s
         = mResourcePool->createBufferInternal(cc::max<UINT64>(prebuild_info.ScratchDataSizeInBytes, prebuild_info.UpdateScratchDataSizeInBytes), 0,
                                               true, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, "pool BLAS scratch");
 
-    // query GPU VA ("raw native handle" in phi API naming)
-    new_node.raw_as_handle = mResourcePool->getBufferInfo(new_node.buffer_as).gpu_va;
+    // query AS buffer GPU VA
+    new_node.buffer_as_va = mResourcePool->getBufferInfo(new_node.buffer_as).gpu_va;
 
     return res_handle;
 }
@@ -128,7 +128,7 @@ phi::handle::accel_struct phi::d3d12::AccelStructPool::createTopLevelAS(unsigned
                                               true, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, "pool TLAS scratch");
 
     // query GPU VA ("raw native handle" in phi API naming)
-    new_node.raw_as_handle = mResourcePool->getBufferInfo(new_node.buffer_as).gpu_va;
+    new_node.buffer_as_va = mResourcePool->getBufferInfo(new_node.buffer_as).gpu_va;
 
     return res_handle;
 }
@@ -215,7 +215,7 @@ void phi::d3d12::AccelStructPool::internalFree(phi::d3d12::AccelStructPool::acce
 
 void phi::d3d12::AccelStructPool::accel_struct_node::reset(cc::allocator* dyn_alloc, unsigned num_geom_reserve)
 {
-    raw_as_handle = 0;
+    buffer_as_va = 0;
     buffer_as = handle::null_resource;
     buffer_scratch = handle::null_resource;
     flags = {};

@@ -25,7 +25,7 @@ unsigned get_object_name(ID3D12Object* object, cc::span<char> out_name);
 
 /// create a SRV description based on a shader_view_element
 /// the raw resource is only required in case a raytracing AS is described
-[[nodiscard]] D3D12_SHADER_RESOURCE_VIEW_DESC create_srv_desc(resource_view const& sve, ID3D12Resource* raw_resource);
+[[nodiscard]] D3D12_SHADER_RESOURCE_VIEW_DESC create_srv_desc(resource_view const& sve, D3D12_GPU_VIRTUAL_ADDRESS accelstruct_va);
 
 /// create a UAV description based on a shader_view_element
 [[nodiscard]] D3D12_UNORDERED_ACCESS_VIEW_DESC create_uav_desc(resource_view const& sve);

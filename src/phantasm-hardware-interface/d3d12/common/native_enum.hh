@@ -175,7 +175,7 @@ namespace phi::d3d12::util
     return D3D12_COMMAND_LIST_TYPE_DIRECT;
 }
 
-[[nodiscard]] constexpr D3D12_SRV_DIMENSION to_native_srv_dim(resource_view_dimension sv_dim)
+[[nodiscard]] D3D12_SRV_DIMENSION to_native_srv_dim(resource_view_dimension sv_dim)
 {
     switch (sv_dim)
     {
@@ -201,11 +201,10 @@ namespace phi::d3d12::util
         return D3D12_SRV_DIMENSION_TEXTURECUBEARRAY;
     case resource_view_dimension::raytracing_accel_struct:
         return D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
+    default:
+        CC_UNREACHABLE("to_native_srv_dim uncaught argument");
+        return D3D12_SRV_DIMENSION_UNKNOWN;
     }
-
-
-    CC_UNREACHABLE("to_native uncaught argument");
-    return D3D12_SRV_DIMENSION_BUFFER;
 }
 
 [[nodiscard]] constexpr D3D12_UAV_DIMENSION to_native_uav_dim(resource_view_dimension sv_dim)

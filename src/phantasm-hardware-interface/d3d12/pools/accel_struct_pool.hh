@@ -37,7 +37,7 @@ public:
     struct accel_struct_node
     {
         // d3d12 GPU VA, "raw native handle" in phi naming
-        uint64_t raw_as_handle;
+        D3D12_GPU_VIRTUAL_ADDRESS buffer_as_va;
         handle::resource buffer_as;
         handle::resource buffer_scratch;
         accel_struct_build_flags_t flags;

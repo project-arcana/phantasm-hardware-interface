@@ -645,7 +645,7 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::update_top_lev
     as_create_info.Inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
     as_create_info.Inputs.InstanceDescs = _globals.pool_resources->getBufferInfo(tlas_update.source_buffer_instances).gpu_va + tlas_update.source_buffer_offset_bytes;
 
-    as_create_info.DestAccelerationStructureData = dest_node.raw_as_handle;
+    as_create_info.DestAccelerationStructureData = dest_node.buffer_as_va;
     as_create_info.ScratchAccelerationStructureData = _globals.pool_resources->getBufferInfo(dest_node.buffer_scratch).gpu_va;
 
     _cmd_list->BuildRaytracingAccelerationStructure(&as_create_info, 0, nullptr);
@@ -710,7 +710,7 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::clear_textures
         auto const& op = clear_tex.clear_ops[i];
         auto* const resource = _globals.pool_resources->getRawResource(op.rv.resource);
 
-        if (is_depth_format(op.rv.pixel_format))
+        if (is_depth_format(op.rv.texture_info.pixel_format))
         {
             auto const dsv = dynamic_dsvs.get_index(i);
 
