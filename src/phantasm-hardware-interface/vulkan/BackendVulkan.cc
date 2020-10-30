@@ -127,8 +127,8 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg)
     // Pool init
     mPoolPipelines.initialize(mDevice.getDevice(), config.max_num_pipeline_states, config.static_allocator);
     mPoolResources.initialize(mDevice.getPhysicalDevice(), mDevice.getDevice(), config.max_num_resources, config.max_num_swapchains, config.static_allocator);
-    mPoolShaderViews.initialize(mDevice.getDevice(), &mPoolResources, config.max_num_cbvs, config.max_num_srvs, config.max_num_uavs,
-                                config.max_num_samplers, config.static_allocator);
+    mPoolShaderViews.initialize(mDevice.getDevice(), &mPoolResources, &mPoolAccelStructs, config.max_num_cbvs, config.max_num_srvs,
+                                config.max_num_uavs, config.max_num_samplers, config.static_allocator);
     mPoolFences.initialize(mDevice.getDevice(), config.max_num_fences, config.static_allocator);
     mPoolQueries.initialize(mDevice.getDevice(), config.num_timestamp_queries, config.num_occlusion_queries, config.num_pipeline_stat_queries, config.static_allocator);
 
@@ -246,7 +246,6 @@ phi::format phi::vk::BackendVulkan::getBackbufferFormat(phi::handle::swapchain s
 {
     return util::to_pr_format(mPoolSwapchains.get(sc).backbuf_format.format);
 }
-
 
 phi::handle::resource phi::vk::BackendVulkan::createTexture(
     phi::format format, tg::isize2 size, unsigned mips, phi::texture_dimension dim, unsigned depth_or_array_size, bool allow_uav, const char* debug_name)
@@ -493,15 +492,9 @@ phi::handle::accel_struct phi::vk::BackendVulkan::createBottomLevelAccelStruct(c
     return res;
 }
 
-phi::handle::resource phi::vk::BackendVulkan::getAccelStructBuffer(phi::handle::accel_struct as)
-{
-    PHI_LOG_ERROR("getAccelStructBuffer unimplemented");
-    return handle::null_resource;
-}
-
 uint64_t phi::vk::BackendVulkan::getAccelStructNativeHandle(phi::handle::accel_struct as)
 {
-    PHI_LOG_ERROR("getAccelStructNativeHandle unimplemented");
+    CC_ASSERT(false && "getAccelStructNativeHandle unimplemented");
     return 0;
 }
 
@@ -510,13 +503,13 @@ phi::shader_table_strides phi::vk::BackendVulkan::calculateShaderTableStrides(co
                                                                               phi::arg::shader_table_records hit_group_records,
                                                                               phi::arg::shader_table_records callable_records)
 {
-    PHI_LOG_ERROR("calculateShaderTableSize unimplemented");
+    CC_ASSERT(false && "calculateShaderTableSize unimplemented");
     return {};
 }
 
 void phi::vk::BackendVulkan::writeShaderTable(std::byte* dest, handle::pipeline_state pso, unsigned stride, arg::shader_table_records records)
 {
-    PHI_LOG_ERROR("writeShaderTable unimplemented");
+    CC_ASSERT(false && "writeShaderTable unimplemented");
 }
 
 void phi::vk::BackendVulkan::free(phi::handle::accel_struct as)
