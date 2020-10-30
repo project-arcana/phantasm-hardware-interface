@@ -68,7 +68,7 @@ void phi::vk::command_list_translator::execute(const phi::cmd::begin_render_pass
     for (auto const& rt : begin_rp.render_targets)
     {
         // rt format
-        formats_flat.push_back(rt.rv.pixel_format);
+        formats_flat.push_back(rt.rv.texture_info.pixel_format);
 
         // image view
         if (_globals.pool_resources->isBackbuffer(rt.rv.resource))
@@ -649,14 +649,14 @@ void phi::vk::command_list_translator::execute(const phi::cmd::clear_textures& c
         auto* const resource = _globals.pool_resources->getRawImage(op.rv.resource);
 
         VkImageSubresourceRange range = {};
-        range.aspectMask = util::to_native_image_aspect(op.rv.pixel_format);
+        range.aspectMask = util::to_native_image_aspect(op.rv.texture_info.pixel_format);
         range.baseMipLevel = op.rv.texture_info.mip_start;
         range.levelCount = op.rv.texture_info.mip_size;
         range.baseArrayLayer = op.rv.texture_info.array_start;
         range.layerCount = op.rv.texture_info.array_size;
 
 
-        if (is_depth_format(op.rv.pixel_format))
+        if (is_depth_format(op.rv.texture_info.pixel_format))
         {
             VkClearDepthStencilValue clearval = {};
             clearval.depth = op.value.red_or_depth / 255.f;

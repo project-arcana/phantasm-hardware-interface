@@ -9,6 +9,7 @@
 #include <phantasm-hardware-interface/vulkan/loader/spirv_patch_util.hh>
 #include <phantasm-hardware-interface/vulkan/resources/transition_barrier.hh>
 
+#include "accel_struct_pool.hh"
 #include "resource_pool.hh"
 
 phi::handle::shader_view phi::vk::ShaderViewPool::create(cc::span<resource_view const> srvs,
@@ -43,10 +44,11 @@ phi::handle::shader_view phi::vk::ShaderViewPool::create(cc::span<resource_view 
     // Perform the writes
     {
         cc::capped_vector<VkWriteDescriptorSet, 16> writes;
+        cc::capped_vector<VkWriteDescriptorSetAccelerationStructureNV, 4> as_write_infos;
         cc::capped_vector<VkDescriptorBufferInfo, 64> buffer_infos;
         cc::capped_vector<VkDescriptorImageInfo, 64 + limits::max_shader_samplers> image_infos;
 
-        auto const perform_write = [&](VkDescriptorType type, unsigned dest_binding, bool is_image) {
+        auto f_perform_write = [&](VkDescriptorType type, unsigned dest_binding, bool is_image) {
             auto& write = writes.emplace_back();
             write = {};
             write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -77,7 +79,7 @@ phi::handle::shader_view phi::vk::ShaderViewPool::create(cc::span<resource_view 
                 uav_info.offset = uav.buffer_info.element_start;
                 uav_info.range = uav.buffer_info.num_elements * uav.buffer_info.element_stride_bytes;
 
-                perform_write(uav_native_type, binding, false);
+                f_perform_write(uav_native_type, binding, false);
             }
             else
             {
@@ -89,9 +91,10 @@ phi::handle::shader_view phi::vk::ShaderViewPool::create(cc::span<resource_view 
                 img_info.imageLayout = util::to_image_layout(resource_state::unordered_access);
                 img_info.sampler = nullptr;
 
-                perform_write(uav_native_type, binding, true);
+                f_perform_write(uav_native_type, binding, true);
             }
         }
+
 
         for (auto i = 0u; i < srvs.size(); ++i)
         {
@@ -107,21 +110,20 @@ phi::handle::shader_view phi::vk::ShaderViewPool::create(cc::span<resource_view 
                 uav_info.offset = srv.buffer_info.element_start;
                 uav_info.range = srv.buffer_info.num_elements * srv.buffer_info.element_stride_bytes;
 
-                perform_write(srv_native_type, binding, false);
+                f_perform_write(srv_native_type, binding, false);
             }
             else if (srv.dimension == resource_view_dimension::raytracing_accel_struct)
             {
-                CC_RUNTIME_ASSERT(false && "Unimplemented!");
-
-                VkWriteDescriptorSetAccelerationStructureNV as_info = {};
+                VkWriteDescriptorSetAccelerationStructureNV& as_info = as_write_infos.emplace_back();
+                as_info = {};
                 as_info.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_NV;
                 as_info.accelerationStructureCount = 1;
-                as_info.pAccelerationStructures = nullptr; // TODO: Retrieve from res pool
+                as_info.pAccelerationStructures = &mAccelStructPool->getNode(srv.accel_struct_info.accel_struct).raw_as;
 
                 auto& write = writes.emplace_back();
                 write = {};
                 write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-                write.pNext = &as_info; // TODO: keep as_info alive
+                write.pNext = &as_info;
                 write.dstSet = res_raw;
                 write.descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV;
                 write.dstArrayElement = 0;
@@ -137,7 +139,7 @@ phi::handle::shader_view phi::vk::ShaderViewPool::create(cc::span<resource_view 
                 img_info.imageLayout = util::to_image_layout(resource_state::shader_resource);
                 img_info.sampler = nullptr;
 
-                perform_write(srv_native_type, binding, true);
+                f_perform_write(srv_native_type, binding, true);
             }
         }
 
@@ -154,7 +156,7 @@ phi::handle::shader_view phi::vk::ShaderViewPool::create(cc::span<resource_view 
                 img_info.imageLayout = util::to_image_layout(resource_state::shader_resource);
                 img_info.sampler = new_node.samplers.back();
 
-                perform_write(VK_DESCRIPTOR_TYPE_SAMPLER, spv::sampler_binding_start + i, true);
+                f_perform_write(VK_DESCRIPTOR_TYPE_SAMPLER, spv::sampler_binding_start + i, true);
             }
         }
 
@@ -202,10 +204,12 @@ void phi::vk::ShaderViewPool::free(cc::span<const phi::handle::shader_view> svs)
 }
 
 void phi::vk::ShaderViewPool::initialize(
-    VkDevice device, ResourcePool* res_pool, unsigned num_cbvs, unsigned num_srvs, unsigned num_uavs, unsigned num_samplers, cc::allocator* static_alloc)
+    VkDevice device, ResourcePool* res_pool, AccelStructPool* as_pool, unsigned num_cbvs, unsigned num_srvs, unsigned num_uavs, unsigned num_samplers, cc::allocator* static_alloc)
 {
+    CC_ASSERT(mDevice == nullptr && "double init");
     mDevice = device;
     mResourcePool = res_pool;
+    mAccelStructPool = as_pool;
 
     mAllocator.initialize(mDevice, num_cbvs, num_srvs, num_uavs, num_samplers);
     // Due to the fact that each shader argument represents up to one CBV, this is the upper limit for the amount of shader_view handles
@@ -238,9 +242,9 @@ VkImageView phi::vk::ShaderViewPool::makeImageView(const resource_view& sve, boo
 
     info.image = mResourcePool->getRawImage(sve.resource);
     info.viewType = util::to_native_image_view_type(sve.dimension);
-    info.format = util::to_vk_format(sve.pixel_format);
+    info.format = util::to_vk_format(sve.texture_info.pixel_format);
 
-    info.subresourceRange.aspectMask = util::to_native_image_aspect(sve.pixel_format);
+    info.subresourceRange.aspectMask = util::to_native_image_aspect(sve.texture_info.pixel_format);
     info.subresourceRange.baseMipLevel = sve.texture_info.mip_start;
     info.subresourceRange.levelCount = sve.texture_info.mip_size;
     info.subresourceRange.baseArrayLayer = sve.texture_info.array_start;

@@ -127,7 +127,7 @@ VkRenderPass phi::vk::create_render_pass(VkDevice device, const phi::cmd::begin_
         auto const& ds = begin_rp.depth_target;
         auto& desc = attachments.emplace_back();
         desc = {};
-        desc.format = util::to_vk_format(ds.rv.pixel_format);
+        desc.format = util::to_vk_format(ds.rv.texture_info.pixel_format);
         desc.samples = sample_bits;
         desc.loadOp = util::to_native(ds.clear_type);
         desc.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
