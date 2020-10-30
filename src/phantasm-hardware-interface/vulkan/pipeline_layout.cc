@@ -15,11 +15,36 @@ void phi::vk::detail::pipeline_layout_params::descriptor_set_params::add_descrip
     new_binding.descriptorType = type;
     new_binding.descriptorCount = array_size;
 
-    // TODO: We have access to precise visibility constraints _in this function_, in the `visibility` argument
-    // however, in shader_view_pool, DescriptorSets must be created without this knowledge, which is why
-    // the pool falls back to VK_SHADER_STAGE_ALL_GRAPHICS for its temporary layouts. And since the descriptors would
-    // be incompatible, we have to use the same thing here
-    new_binding.stageFlags = (visibility == VK_SHADER_STAGE_COMPUTE_BIT) ? visibility : VK_SHADER_STAGE_ALL_GRAPHICS;
+    enum : VkShaderStageFlags
+    {
+        mask_all_raytracing = VK_SHADER_STAGE_RAYGEN_BIT_NV | VK_SHADER_STAGE_ANY_HIT_BIT_NV | VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV
+                              | VK_SHADER_STAGE_MISS_BIT_NV | VK_SHADER_STAGE_INTERSECTION_BIT_NV | VK_SHADER_STAGE_CALLABLE_BIT_NV,
+        mask_all_graphics = VK_SHADER_STAGE_ALL_GRAPHICS
+    };
+
+    if (visibility == VK_SHADER_STAGE_COMPUTE_BIT)
+    {
+        new_binding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    }
+    else if (visibility & mask_all_graphics)
+    {
+        // NOTE: We have access to precise visibility constraints at PSO creation time (via SPIR-V reflection)
+        // however, at shader_view creation, DescriptorSets must be created without this knowledge (only whether it's compute or graphics)
+        // thus the pool falls back to VK_SHADER_STAGE_ALL_GRAPHICS for its temporary layouts - and for compatibility, these must match
+        new_binding.stageFlags = mask_all_graphics;
+    }
+    else if (visibility & mask_all_raytracing)
+    {
+        // there are no shader_views for raytracing shaders,
+        // thus we do not have to make this more coarse
+        new_binding.stageFlags = visibility;
+    }
+    else
+    {
+        CC_ASSERT(false && "unexpected descriptor shader visibility");
+        new_binding.stageFlags = visibility;
+    }
+
     new_binding.pImmutableSamplers = nullptr; // Optional
 }
 
