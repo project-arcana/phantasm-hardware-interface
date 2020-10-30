@@ -142,14 +142,6 @@ phi::handle::pipeline_state phi::vk::PipelinePool::createRaytracingPipelineState
     CC_ASSERT(libraries.size() > 0 && arg_assocs.size() <= limits::max_raytracing_argument_assocs && "zero libraries or too many argument associations");
     CC_ASSERT(hit_groups.size() <= limits::max_raytracing_hit_groups && "too many hit groups");
 
-    CC_RUNTIME_ASSERT(false && "createRaytracingPipelineState WIP, not functional");
-    // NOTE: right now this hinges on SPIRV-Reflect not supporting ray tracing shader stages
-    // since it's abandoned. Patching support in doesn't seem so straightforward, SPIRV-Cross:
-    // https://github.com/KhronosGroup/SPIRV-Cross
-    // might be the only alternative. Unfortunately it's much larger, and it's not entirely clear
-    // if Vk_NV_ray_tracing is already fully supported (Vk_KHR_ray_tracing is not, see
-    // https://github.com/KhronosGroup/SPIRV-Cross/pull/1364)
-
     patched_shader_intermediates shader_intermediates;
     shader_intermediates.initialize_from_libraries(mDevice, libraries, scratch_alloc);
     CC_DEFER { shader_intermediates.free(mDevice); };
