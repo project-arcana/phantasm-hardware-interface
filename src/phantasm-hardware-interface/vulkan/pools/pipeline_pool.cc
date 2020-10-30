@@ -59,15 +59,8 @@ phi::handle::pipeline_state phi::vk::PipelinePool::createPipelineState(phi::arg:
     pso_node& new_node = mPool.get(pool_index);
     new_node.associated_pipeline_layout = layout;
 
-    // write meta info
-    {
-        new_node.rt_formats.clear();
-        for (auto const& rt : framebuffer_config.render_targets)
-            new_node.rt_formats.push_back(rt.fmt);
+    CC_ASSERT(primitive_config.samples > 0 && "invalid amount of MSAA samples");
 
-        CC_ASSERT(primitive_config.samples > 0 && "invalid amount of MSAA samples");
-        new_node.num_msaa_samples = static_cast<unsigned>(primitive_config.samples);
-    }
 
     {
         // Create VkPipeline
@@ -122,8 +115,6 @@ phi::handle::pipeline_state phi::vk::PipelinePool::createComputePipelineState(ph
     // Populate new node
     pso_node& new_node = mPool.get(pool_index);
     new_node.associated_pipeline_layout = layout;
-    new_node.rt_formats.clear();
-    new_node.num_msaa_samples = 0;
 
 
     new_node.raw_pipeline = create_compute_pipeline(mDevice, new_node.associated_pipeline_layout->raw_layout, patched_shader_stage);
@@ -161,8 +152,6 @@ phi::handle::pipeline_state phi::vk::PipelinePool::createRaytracingPipelineState
     // Populate new node
     pso_node& new_node = mPool.get(pool_index);
     new_node.associated_pipeline_layout = layout;
-    new_node.rt_formats.clear();
-    new_node.num_msaa_samples = 0;
     new_node.raw_pipeline = create_raytracing_pipeline(mDevice, shader_intermediates, new_node.associated_pipeline_layout->raw_layout, arg_assocs,
                                                        hit_groups, max_recursion, max_payload_size_bytes, max_attribute_size_bytes, scratch_alloc);
 
