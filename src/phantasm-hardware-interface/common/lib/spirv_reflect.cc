@@ -683,7 +683,10 @@ static SpvReflectResult ParseNodes(Parser* p_parser)
         switch (p_node->op)
         {
         default:
-            break;
+        {
+            // assert(false && "failed to parse operation on some node");
+        }
+        break;
 
         case SpvOpString:
         {
@@ -735,6 +738,7 @@ static SpvReflectResult ParseNodes(Parser* p_parser)
         case SpvOpTypeReserveId:
         case SpvOpTypeQueue:
         case SpvOpTypePipe:
+        case SpvOpTypeAccelerationStructureNV: // has nothing but the result id
         {
             CHECKED_READU32(p_parser, p_node->word_offset + 1, p_node->result_id);
             p_node->is_type = true;
@@ -903,6 +907,334 @@ static SpvReflectResult ParseNodes(Parser* p_parser)
             function_node = (uint32_t)INVALID_VALUE;
         }
         break;
+
+
+        // known legal fallthroughs
+        case SpvOpNop:
+        case SpvOpUndef:
+        case SpvOpSourceContinued:
+        case SpvOpSourceExtension:
+        case SpvOpLine:
+        case SpvOpExtension:
+        case SpvOpExtInstImport:
+        case SpvOpExtInst:
+        case SpvOpMemoryModel:
+        case SpvOpExecutionMode:
+        case SpvOpCapability:
+        case SpvOpFunctionParameter:
+        case SpvOpFunctionCall:
+        case SpvOpImageTexelPointer:
+        case SpvOpStore:
+        case SpvOpCopyMemory:
+        case SpvOpCopyMemorySized:
+        case SpvOpInBoundsAccessChain:
+        case SpvOpPtrAccessChain:
+        case SpvOpArrayLength:
+        case SpvOpGenericPtrMemSemantics:
+        case SpvOpInBoundsPtrAccessChain:
+        case SpvOpDecorate:
+        case SpvOpMemberDecorate:
+        case SpvOpDecorationGroup:
+        case SpvOpGroupDecorate:
+        case SpvOpGroupMemberDecorate:
+        case SpvOpVectorExtractDynamic:
+        case SpvOpVectorInsertDynamic:
+        case SpvOpVectorShuffle:
+        case SpvOpCompositeConstruct:
+        case SpvOpCompositeExtract:
+        case SpvOpCompositeInsert:
+        case SpvOpCopyObject:
+        case SpvOpTranspose:
+        case SpvOpSampledImage:
+        case SpvOpImageSampleImplicitLod:
+        case SpvOpImageSampleExplicitLod:
+        case SpvOpImageSampleDrefImplicitLod:
+        case SpvOpImageSampleDrefExplicitLod:
+        case SpvOpImageSampleProjImplicitLod:
+        case SpvOpImageSampleProjExplicitLod:
+        case SpvOpImageSampleProjDrefImplicitLod:
+        case SpvOpImageSampleProjDrefExplicitLod:
+        case SpvOpImageFetch:
+        case SpvOpImageGather:
+        case SpvOpImageDrefGather:
+        case SpvOpImageRead:
+        case SpvOpImageWrite:
+        case SpvOpImage:
+        case SpvOpImageQueryFormat:
+        case SpvOpImageQueryOrder:
+        case SpvOpImageQuerySizeLod:
+        case SpvOpImageQuerySize:
+        case SpvOpImageQueryLod:
+        case SpvOpImageQueryLevels:
+        case SpvOpImageQuerySamples:
+        case SpvOpConvertFToU:
+        case SpvOpConvertFToS:
+        case SpvOpConvertSToF:
+        case SpvOpConvertUToF:
+        case SpvOpUConvert:
+        case SpvOpSConvert:
+        case SpvOpFConvert:
+        case SpvOpQuantizeToF16:
+        case SpvOpConvertPtrToU:
+        case SpvOpSatConvertSToU:
+        case SpvOpSatConvertUToS:
+        case SpvOpConvertUToPtr:
+        case SpvOpPtrCastToGeneric:
+        case SpvOpGenericCastToPtr:
+        case SpvOpGenericCastToPtrExplicit:
+        case SpvOpBitcast:
+        case SpvOpSNegate:
+        case SpvOpFNegate:
+        case SpvOpIAdd:
+        case SpvOpFAdd:
+        case SpvOpISub:
+        case SpvOpFSub:
+        case SpvOpIMul:
+        case SpvOpFMul:
+        case SpvOpUDiv:
+        case SpvOpSDiv:
+        case SpvOpFDiv:
+        case SpvOpUMod:
+        case SpvOpSRem:
+        case SpvOpSMod:
+        case SpvOpFRem:
+        case SpvOpFMod:
+        case SpvOpVectorTimesScalar:
+        case SpvOpMatrixTimesScalar:
+        case SpvOpVectorTimesMatrix:
+        case SpvOpMatrixTimesVector:
+        case SpvOpMatrixTimesMatrix:
+        case SpvOpOuterProduct:
+        case SpvOpDot:
+        case SpvOpIAddCarry:
+        case SpvOpISubBorrow:
+        case SpvOpUMulExtended:
+        case SpvOpSMulExtended:
+        case SpvOpAny:
+        case SpvOpAll:
+        case SpvOpIsNan:
+        case SpvOpIsInf:
+        case SpvOpIsFinite:
+        case SpvOpIsNormal:
+        case SpvOpSignBitSet:
+        case SpvOpLessOrGreater:
+        case SpvOpOrdered:
+        case SpvOpUnordered:
+        case SpvOpLogicalEqual:
+        case SpvOpLogicalNotEqual:
+        case SpvOpLogicalOr:
+        case SpvOpLogicalAnd:
+        case SpvOpLogicalNot:
+        case SpvOpSelect:
+        case SpvOpIEqual:
+        case SpvOpINotEqual:
+        case SpvOpUGreaterThan:
+        case SpvOpSGreaterThan:
+        case SpvOpUGreaterThanEqual:
+        case SpvOpSGreaterThanEqual:
+        case SpvOpULessThan:
+        case SpvOpSLessThan:
+        case SpvOpULessThanEqual:
+        case SpvOpSLessThanEqual:
+        case SpvOpFOrdEqual:
+        case SpvOpFUnordEqual:
+        case SpvOpFOrdNotEqual:
+        case SpvOpFUnordNotEqual:
+        case SpvOpFOrdLessThan:
+        case SpvOpFUnordLessThan:
+        case SpvOpFOrdGreaterThan:
+        case SpvOpFUnordGreaterThan:
+        case SpvOpFOrdLessThanEqual:
+        case SpvOpFUnordLessThanEqual:
+        case SpvOpFOrdGreaterThanEqual:
+        case SpvOpFUnordGreaterThanEqual:
+        case SpvOpShiftRightLogical:
+        case SpvOpShiftRightArithmetic:
+        case SpvOpShiftLeftLogical:
+        case SpvOpBitwiseOr:
+        case SpvOpBitwiseXor:
+        case SpvOpBitwiseAnd:
+        case SpvOpNot:
+        case SpvOpBitFieldInsert:
+        case SpvOpBitFieldSExtract:
+        case SpvOpBitFieldUExtract:
+        case SpvOpBitReverse:
+        case SpvOpBitCount:
+        case SpvOpDPdx:
+        case SpvOpDPdy:
+        case SpvOpFwidth:
+        case SpvOpDPdxFine:
+        case SpvOpDPdyFine:
+        case SpvOpFwidthFine:
+        case SpvOpDPdxCoarse:
+        case SpvOpDPdyCoarse:
+        case SpvOpFwidthCoarse:
+        case SpvOpEmitVertex:
+        case SpvOpEndPrimitive:
+        case SpvOpEmitStreamVertex:
+        case SpvOpEndStreamPrimitive:
+        case SpvOpControlBarrier:
+        case SpvOpMemoryBarrier:
+        case SpvOpAtomicLoad:
+        case SpvOpAtomicStore:
+        case SpvOpAtomicExchange:
+        case SpvOpAtomicCompareExchange:
+        case SpvOpAtomicCompareExchangeWeak:
+        case SpvOpAtomicIIncrement:
+        case SpvOpAtomicIDecrement:
+        case SpvOpAtomicIAdd:
+        case SpvOpAtomicISub:
+        case SpvOpAtomicSMin:
+        case SpvOpAtomicUMin:
+        case SpvOpAtomicSMax:
+        case SpvOpAtomicUMax:
+        case SpvOpAtomicAnd:
+        case SpvOpAtomicOr:
+        case SpvOpAtomicXor:
+        case SpvOpPhi:
+        case SpvOpLoopMerge:
+        case SpvOpSelectionMerge:
+        case SpvOpBranch:
+        case SpvOpBranchConditional:
+        case SpvOpSwitch:
+        case SpvOpKill:
+        case SpvOpReturn:
+        case SpvOpReturnValue:
+        case SpvOpUnreachable:
+        case SpvOpLifetimeStart:
+        case SpvOpLifetimeStop:
+        case SpvOpGroupAsyncCopy:
+        case SpvOpGroupWaitEvents:
+        case SpvOpGroupAll:
+        case SpvOpGroupAny:
+        case SpvOpGroupBroadcast:
+        case SpvOpGroupIAdd:
+        case SpvOpGroupFAdd:
+        case SpvOpGroupFMin:
+        case SpvOpGroupUMin:
+        case SpvOpGroupSMin:
+        case SpvOpGroupFMax:
+        case SpvOpGroupUMax:
+        case SpvOpGroupSMax:
+        case SpvOpReadPipe:
+        case SpvOpWritePipe:
+        case SpvOpReservedReadPipe:
+        case SpvOpReservedWritePipe:
+        case SpvOpReserveReadPipePackets:
+        case SpvOpReserveWritePipePackets:
+        case SpvOpCommitReadPipe:
+        case SpvOpCommitWritePipe:
+        case SpvOpIsValidReserveId:
+        case SpvOpGetNumPipePackets:
+        case SpvOpGetMaxPipePackets:
+        case SpvOpGroupReserveReadPipePackets:
+        case SpvOpGroupReserveWritePipePackets:
+        case SpvOpGroupCommitReadPipe:
+        case SpvOpGroupCommitWritePipe:
+        case SpvOpEnqueueMarker:
+        case SpvOpEnqueueKernel:
+        case SpvOpGetKernelNDrangeSubGroupCount:
+        case SpvOpGetKernelNDrangeMaxSubGroupSize:
+        case SpvOpGetKernelWorkGroupSize:
+        case SpvOpGetKernelPreferredWorkGroupSizeMultiple:
+        case SpvOpRetainEvent:
+        case SpvOpReleaseEvent:
+        case SpvOpCreateUserEvent:
+        case SpvOpIsValidEvent:
+        case SpvOpSetUserEventStatus:
+        case SpvOpCaptureEventProfilingInfo:
+        case SpvOpGetDefaultQueue:
+        case SpvOpBuildNDRange:
+        case SpvOpImageSparseSampleImplicitLod:
+        case SpvOpImageSparseSampleExplicitLod:
+        case SpvOpImageSparseSampleDrefImplicitLod:
+        case SpvOpImageSparseSampleDrefExplicitLod:
+        case SpvOpImageSparseSampleProjImplicitLod:
+        case SpvOpImageSparseSampleProjExplicitLod:
+        case SpvOpImageSparseSampleProjDrefImplicitLod:
+        case SpvOpImageSparseSampleProjDrefExplicitLod:
+        case SpvOpImageSparseFetch:
+        case SpvOpImageSparseGather:
+        case SpvOpImageSparseDrefGather:
+        case SpvOpImageSparseTexelsResident:
+        case SpvOpNoLine:
+        case SpvOpAtomicFlagTestAndSet:
+        case SpvOpAtomicFlagClear:
+        case SpvOpImageSparseRead:
+        case SpvOpSizeOf:
+        case SpvOpTypePipeStorage:
+        case SpvOpConstantPipeStorage:
+        case SpvOpCreatePipeFromPipeStorage:
+        case SpvOpGetKernelLocalSizeForSubgroupCount:
+        case SpvOpGetKernelMaxNumSubgroups:
+        case SpvOpTypeNamedBarrier:
+        case SpvOpNamedBarrierInitialize:
+        case SpvOpMemoryNamedBarrier:
+        case SpvOpModuleProcessed:
+        case SpvOpExecutionModeId:
+        case SpvOpDecorateId:
+        case SpvOpGroupNonUniformElect:
+        case SpvOpGroupNonUniformAll:
+        case SpvOpGroupNonUniformAny:
+        case SpvOpGroupNonUniformAllEqual:
+        case SpvOpGroupNonUniformBroadcast:
+        case SpvOpGroupNonUniformBroadcastFirst:
+        case SpvOpGroupNonUniformBallot:
+        case SpvOpGroupNonUniformInverseBallot:
+        case SpvOpGroupNonUniformBallotBitExtract:
+        case SpvOpGroupNonUniformBallotBitCount:
+        case SpvOpGroupNonUniformBallotFindLSB:
+        case SpvOpGroupNonUniformBallotFindMSB:
+        case SpvOpGroupNonUniformShuffle:
+        case SpvOpGroupNonUniformShuffleXor:
+        case SpvOpGroupNonUniformShuffleUp:
+        case SpvOpGroupNonUniformShuffleDown:
+        case SpvOpGroupNonUniformIAdd:
+        case SpvOpGroupNonUniformFAdd:
+        case SpvOpGroupNonUniformIMul:
+        case SpvOpGroupNonUniformFMul:
+        case SpvOpGroupNonUniformSMin:
+        case SpvOpGroupNonUniformUMin:
+        case SpvOpGroupNonUniformFMin:
+        case SpvOpGroupNonUniformSMax:
+        case SpvOpGroupNonUniformUMax:
+        case SpvOpGroupNonUniformFMax:
+        case SpvOpGroupNonUniformBitwiseAnd:
+        case SpvOpGroupNonUniformBitwiseOr:
+        case SpvOpGroupNonUniformBitwiseXor:
+        case SpvOpGroupNonUniformLogicalAnd:
+        case SpvOpGroupNonUniformLogicalOr:
+        case SpvOpGroupNonUniformLogicalXor:
+        case SpvOpGroupNonUniformQuadBroadcast:
+        case SpvOpGroupNonUniformQuadSwap:
+        case SpvOpSubgroupBallotKHR:
+        case SpvOpSubgroupFirstInvocationKHR:
+        case SpvOpSubgroupAllKHR:
+        case SpvOpSubgroupAnyKHR:
+        case SpvOpSubgroupAllEqualKHR:
+        case SpvOpSubgroupReadInvocationKHR:
+        case SpvOpGroupIAddNonUniformAMD:
+        case SpvOpGroupFAddNonUniformAMD:
+        case SpvOpGroupFMinNonUniformAMD:
+        case SpvOpGroupUMinNonUniformAMD:
+        case SpvOpGroupSMinNonUniformAMD:
+        case SpvOpGroupFMaxNonUniformAMD:
+        case SpvOpGroupUMaxNonUniformAMD:
+        case SpvOpGroupSMaxNonUniformAMD:
+        case SpvOpFragmentMaskFetchAMD:
+        case SpvOpFragmentFetchAMD:
+        case SpvOpGroupNonUniformPartitionNV:
+        case SpvOpSubgroupShuffleINTEL:
+        case SpvOpSubgroupShuffleDownINTEL:
+        case SpvOpSubgroupShuffleUpINTEL:
+        case SpvOpSubgroupShuffleXorINTEL:
+        case SpvOpSubgroupBlockReadINTEL:
+        case SpvOpSubgroupBlockWriteINTEL:
+        case SpvOpSubgroupImageBlockReadINTEL:
+        case SpvOpSubgroupImageBlockWriteINTEL:
+        case SpvOpDecorateStringGOOGLE:
+        case SpvOpMemberDecorateStringGOOGLE:
+            break;
         }
 
         if (p_node->is_type)
@@ -1814,6 +2146,12 @@ static SpvReflectResult ParseType(Parser* p_parser, Node* p_node, Decorations* p
             }
         }
         break;
+
+        case SpvOpTypeAccelerationStructureNV:
+        {
+            p_type->type_flags |= SPV_REFLECT_TYPE_FLAG_EXTERNAL_OPAQUE;
+        }
+        break;
         }
 
         if (result == SPV_REFLECT_RESULT_SUCCESS)
@@ -2144,6 +2482,13 @@ static SpvReflectResult ParseDescriptorType(SpvReflectShaderModule* p_module)
                 }
             }
             break;
+
+            case SPV_REFLECT_TYPE_FLAG_EXTERNAL_OPAQUE:
+            {
+                // currently there is just a single "external opaque" type - the SPV_NV acceleration structure
+                p_descriptor->descriptor_type = SPV_REFLECT_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV;
+            }
+            break;
             }
         }
 
@@ -2179,9 +2524,18 @@ static SpvReflectResult ParseDescriptorType(SpvReflectShaderModule* p_module)
         case SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC:
             p_descriptor->resource_type = SPV_REFLECT_RESOURCE_FLAG_UAV;
             break;
+        case SPV_REFLECT_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV:
+            p_descriptor->resource_type = SPV_REFLECT_RESOURCE_FLAG_SRV;
+            break;
 
         case SPV_REFLECT_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
             break;
+
+        default:
+        {
+            assert(false && "unknown descriptor type");
+        }
+        break;
         }
     }
 
@@ -3124,6 +3478,7 @@ static SpvReflectResult ParseEntryPoints(Parser* p_parser, SpvReflectShaderModul
         switch (p_entry_point->spirv_execution_model)
         {
         default:
+            assert(false && "unknown execution model");
             break;
         case SpvExecutionModelVertex:
             p_entry_point->shader_stage = SPV_REFLECT_SHADER_STAGE_VERTEX_BIT;
@@ -3142,6 +3497,24 @@ static SpvReflectResult ParseEntryPoints(Parser* p_parser, SpvReflectShaderModul
             break;
         case SpvExecutionModelGLCompute:
             p_entry_point->shader_stage = SPV_REFLECT_SHADER_STAGE_COMPUTE_BIT;
+            break;
+        case SpvExecutionModelRayGenerationNV:
+            p_entry_point->shader_stage = SPV_REFLECT_SHADER_STAGE_RAYGEN_BIT_NV;
+            break;
+        case SpvExecutionModelIntersectionNV:
+            p_entry_point->shader_stage = SPV_REFLECT_SHADER_STAGE_INTERSECTION_BIT_NV;
+            break;
+        case SpvExecutionModelAnyHitNV:
+            p_entry_point->shader_stage = SPV_REFLECT_SHADER_STAGE_ANY_HIT_BIT_NV;
+            break;
+        case SpvExecutionModelClosestHitNV:
+            p_entry_point->shader_stage = SPV_REFLECT_SHADER_STAGE_CLOSEST_HIT_BIT_NV;
+            break;
+        case SpvExecutionModelMissNV:
+            p_entry_point->shader_stage = SPV_REFLECT_SHADER_STAGE_MISS_BIT_NV;
+            break;
+        case SpvExecutionModelCallableNV:
+            p_entry_point->shader_stage = SPV_REFLECT_SHADER_STAGE_CALLABLE_BIT_NV;
             break;
         }
 

@@ -117,6 +117,14 @@ typedef enum SpvExecutionModel_
     SpvExecutionModelFragment = 4,
     SpvExecutionModelGLCompute = 5,
     SpvExecutionModelKernel = 6,
+    // SPV_NV_ray_tracing
+    SpvExecutionModelRayGenerationNV = 5313,
+    SpvExecutionModelIntersectionNV = 5314,
+    SpvExecutionModelAnyHitNV = 5315,
+    SpvExecutionModelClosestHitNV = 5316,
+    SpvExecutionModelMissNV = 5317,
+    SpvExecutionModelCallableNV = 5318,
+    // end of SPV_NV_ray_tracing
     SpvExecutionModelMax = 0x7fffffff,
 } SpvExecutionModel;
 
@@ -196,6 +204,14 @@ typedef enum SpvStorageClass_
     SpvStorageClassAtomicCounter = 10,
     SpvStorageClassImage = 11,
     SpvStorageClassStorageBuffer = 12,
+    // SPV_NV_ray_tracing
+    SpvStorageClassCallableDataNV = 5328,
+    SpvStorageClassIncomingCallableDataNV = 5329,
+    SpvStorageClassRayPayloadNV = 5338,
+    SpvStorageClassHitAttributeNV = 5339,
+    SpvStorageClassIncomingRayPayloadNV = 5342,
+    SpvStorageClassShaderRecordBufferNV = 5343,
+    // end of SPV_NV_ray_tracing
     SpvStorageClassMax = 0x7fffffff,
 } SpvStorageClass;
 
@@ -456,6 +472,22 @@ typedef enum SpvDecoration_
     SpvDecorationPassthroughNV = 5250,
     SpvDecorationViewportRelativeNV = 5252,
     SpvDecorationSecondaryViewportRelativeNV = 5256,
+    // SPV_NV_ray_tracing
+    SpvDecorationLaunchIdNV = 5319,
+    SpvDecorationLaunchSizeNV = 5320,
+    SpvDecorationWorldRayOriginNV = 5321,
+    SpvDecorationWorldRayDirectionNV = 5322,
+    SpvDecorationObjectRayOriginNV = 5323,
+    SpvDecorationObjectRayDirectionNV = 5324,
+    SpvDecorationRayTminNV = 5325,
+    SpvDecorationRayTmaxNV = 5326,
+    SpvDecorationInstanceCustomIndexNV = 5327,
+    SpvDecorationObjectToWorldNV = 5330,
+    SpvDecorationWorldToObjectNV = 5331,
+    SpvDecorationHitTNV = 5332,
+    SpvDecorationHitKindNV = 5333,
+    SpvDecorationIncomingRayFlagsNV = 5351,
+    // end of SPV_NV_ray_tracing
     SpvDecorationHlslCounterBufferGOOGLE = 5634,
     SpvDecorationHlslSemanticGOOGLE = 5635,
     SpvDecorationMax = 0x7fffffff,
@@ -772,6 +804,7 @@ typedef enum SpvCapability_
     SpvCapabilityPerViewAttributesNV = 5260,
     SpvCapabilityFragmentFullyCoveredEXT = 5265,
     SpvCapabilityGroupNonUniformPartitionedNV = 5297,
+    SpvCapabilityRayTracingNV = 5340,
     SpvCapabilitySubgroupShuffleINTEL = 5568,
     SpvCapabilitySubgroupBufferBlockIOINTEL = 5569,
     SpvCapabilitySubgroupImageBlockIOINTEL = 5570,
@@ -1137,6 +1170,14 @@ typedef enum SpvOp_
     SpvOpFragmentMaskFetchAMD = 5011,
     SpvOpFragmentFetchAMD = 5012,
     SpvOpGroupNonUniformPartitionNV = 5296,
+    // SPV_NV_ray_tracing
+    SpvOpReportIntersectionNV = 5334,
+    SpvOpIgnoreIntersectionNV = 5335,
+    SpvOpTerminateRayNV = 5336,
+    SpvOpTraceNV = 5337,
+    SpvOpTypeAccelerationStructureNV = 5341,
+    SpvOpExecuteCallableNV = 5344,
+    // end of SPV_NV_ray_tracing
     SpvOpSubgroupShuffleINTEL = 5571,
     SpvOpSubgroupShuffleDownINTEL = 5572,
     SpvOpSubgroupShuffleUpINTEL = 5573,
@@ -1214,7 +1255,8 @@ typedef enum SpvReflectTypeFlagBits
     SPV_REFLECT_TYPE_FLAG_EXTERNAL_SAMPLER = 0x00020000,
     SPV_REFLECT_TYPE_FLAG_EXTERNAL_SAMPLED_IMAGE = 0x00040000,
     SPV_REFLECT_TYPE_FLAG_EXTERNAL_BLOCK = 0x00080000,
-    SPV_REFLECT_TYPE_FLAG_EXTERNAL_MASK = 0x000F0000,
+    SPV_REFLECT_TYPE_FLAG_EXTERNAL_OPAQUE = 0x00100000,
+    SPV_REFLECT_TYPE_FLAG_EXTERNAL_MASK = 0x001F0000,
     SPV_REFLECT_TYPE_FLAG_STRUCT = 0x10000000,
     SPV_REFLECT_TYPE_FLAG_ARRAY = 0x20000000,
 } SpvReflectTypeFlagBits;
@@ -1287,17 +1329,18 @@ typedef uint32_t SpvReflectVariableFlags;
 */
 typedef enum SpvReflectDescriptorType
 {
-    SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLER = 0,                // = VK_DESCRIPTOR_TYPE_SAMPLER
-    SPV_REFLECT_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER = 1, // = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
-    SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLED_IMAGE = 2,          // = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE
-    SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_IMAGE = 3,          // = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE
-    SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER = 4,   // = VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER
-    SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER = 5,   // = VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER
-    SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_BUFFER = 6,         // = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER
-    SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_BUFFER = 7,         // = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER
-    SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC = 8, // = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC
-    SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC = 9, // = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC
-    SPV_REFLECT_DESCRIPTOR_TYPE_INPUT_ATTACHMENT = 10,      // = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT
+    SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLER = 0,                            // = VK_DESCRIPTOR_TYPE_SAMPLER
+    SPV_REFLECT_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER = 1,             // = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
+    SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLED_IMAGE = 2,                      // = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE
+    SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_IMAGE = 3,                      // = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE
+    SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER = 4,               // = VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER
+    SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER = 5,               // = VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER
+    SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_BUFFER = 6,                     // = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER
+    SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_BUFFER = 7,                     // = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER
+    SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC = 8,             // = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC
+    SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC = 9,             // = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC
+    SPV_REFLECT_DESCRIPTOR_TYPE_INPUT_ATTACHMENT = 10,                  // = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT
+    SPV_REFLECT_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV = 1000165000, // = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV
 } SpvReflectDescriptorType;
 
 /*! @enum SpvReflectShaderStageFlagBits
@@ -1311,6 +1354,12 @@ typedef enum SpvReflectShaderStageFlagBits
     SPV_REFLECT_SHADER_STAGE_GEOMETRY_BIT = 0x00000008,                // = VK_SHADER_STAGE_GEOMETRY_BIT
     SPV_REFLECT_SHADER_STAGE_FRAGMENT_BIT = 0x00000010,                // = VK_SHADER_STAGE_FRAGMENT_BIT
     SPV_REFLECT_SHADER_STAGE_COMPUTE_BIT = 0x00000020,                 // = VK_SHADER_STAGE_COMPUTE_BIT
+    SPV_REFLECT_SHADER_STAGE_RAYGEN_BIT_NV = 0x00000100,               // = VK_SHADER_STAGE_RAYGEN_BIT_NV
+    SPV_REFLECT_SHADER_STAGE_ANY_HIT_BIT_NV = 0x00000200,              // = VK_SHADER_STAGE_ANY_HIT_BIT_NV
+    SPV_REFLECT_SHADER_STAGE_CLOSEST_HIT_BIT_NV = 0x00000400,          // = VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV
+    SPV_REFLECT_SHADER_STAGE_MISS_BIT_NV = 0x00000800,                 // = VK_SHADER_STAGE_MISS_BIT_NV
+    SPV_REFLECT_SHADER_STAGE_INTERSECTION_BIT_NV = 0x00001000,         // = VK_SHADER_STAGE_INTERSECTION_BIT_NV
+    SPV_REFLECT_SHADER_STAGE_CALLABLE_BIT_NV = 0x00002000,             // = VK_SHADER_STAGE_CALLABLE_BIT_NV
 } SpvReflectShaderStageFlagBits;
 
 /*! @enum SpvReflectGenerator
