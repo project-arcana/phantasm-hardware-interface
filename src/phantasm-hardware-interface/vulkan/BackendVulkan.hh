@@ -15,6 +15,7 @@
 #include "pools/resource_pool.hh"
 #include "pools/shader_view_pool.hh"
 #include "pools/swapchain_pool.hh"
+#include "shader_table_construction.hh"
 
 namespace phi::vk
 {
@@ -227,6 +228,7 @@ private:
     unsigned mNumThreadComponents;
     void* mThreadComponentAlloc;
     phi::thread_association mThreadAssociation;
+    ShaderTableConstructor mShaderTableCtor;
 
     // Misc
     util::diagnostic_state mDiagnostics;

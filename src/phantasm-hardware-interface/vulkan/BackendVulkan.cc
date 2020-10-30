@@ -135,6 +135,7 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg)
     if (isRaytracingEnabled())
     {
         mPoolAccelStructs.initialize(mDevice.getDevice(), &mPoolResources, config.max_num_accel_structs, config.static_allocator);
+        mShaderTableCtor.initialize(mDevice.getDevice(), &mPoolShaderViews, &mPoolResources, &mPoolPipelines, &mPoolAccelStructs);
     }
 
     mPoolSwapchains.initialize(mInstance, mDevice, config);
