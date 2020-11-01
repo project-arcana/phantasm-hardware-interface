@@ -19,7 +19,7 @@ namespace phi::d3d12::util
 
 [[nodiscard]] cc::capped_vector<D3D12_INPUT_ELEMENT_DESC, 16> get_native_vertex_format(cc::span<vertex_attribute_info const> attrib_info);
 
-void set_object_name(ID3D12Object* object, char const* name, ...) CC_PRINTF_FUNC(2, 3);
+void set_object_name(ID3D12Object* object, char const* name, ...) CC_PRINTF_FUNC(2);
 
 unsigned get_object_name(ID3D12Object* object, cc::span<char> out_name);
 
