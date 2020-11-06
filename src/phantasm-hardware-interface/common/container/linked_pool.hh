@@ -100,32 +100,19 @@ struct linked_pool
         if constexpr (!std::is_trivially_constructible_v<T>)
             new (cc::placement_new, acquired_node) T();
 
+        // calculate the index
         uint32_t const res_index = uint32_t(acquired_node - _pool);
-        return _acquire_handle(res_index);
+
+        // construct a handle
+        return _construct_handle(res_index);
     }
 
     void release(handle_t handle)
     {
-        uint32_t real_index = _read_index_on_release(handle);
+        uint32_t real_index = _read_handle_index_on_release(handle);
 
         T* const released_node = &_pool[real_index];
-
-        // call the destructor
-        if constexpr (!std::is_trivially_destructible_v<T>)
-            released_node->~T();
-
-        bool cas_success = false;
-        do
-        {
-            T* expected_first_free = _first_free_node.load(std::memory_order_acquire);
-
-            // write the in-place next pointer of this node provisionally
-            new (cc::placement_new, released_node) T*(expected_first_free);
-
-            // CAS write the newly released node if the expected wasn't raced
-            cas_success = std::atomic_compare_exchange_strong_explicit(&_first_free_node, &expected_first_free, released_node,
-                                                                       std::memory_order_seq_cst, std::memory_order_relaxed);
-        } while (!cas_success);
+        _release_node(released_node);
     }
 
     void release_node(T* node)
@@ -138,26 +125,19 @@ struct linked_pool
             ++_generation[node - _pool].generation; // increment generation on release
         }
 
-        // call the destructor
-        if constexpr (!std::is_trivially_destructible_v<T>)
-            node->~T();
-
-        // write the in-place next pointer of this node
-        new (cc::placement_new, node) T*(_first_free_node);
-
-        _first_free_node = node;
+        _release_node(node);
     }
 
     CC_FORCE_INLINE T& get(handle_t handle)
     {
-        uint32_t index = _read_index(handle);
+        uint32_t index = _read_handle_index(handle);
         CC_CONTRACT(index < _pool_size);
         return _pool[index];
     }
 
     CC_FORCE_INLINE T const& get(handle_t handle) const
     {
-        uint32_t index = _read_index(handle);
+        uint32_t index = _read_handle_index(handle);
         CC_CONTRACT(index < _pool_size);
         return _pool[index];
     }
@@ -185,7 +165,7 @@ struct linked_pool
         }
     }
 
-    uint32_t get_handle_index(handle_t handle) const { return _read_index(handle); }
+    uint32_t get_handle_index(handle_t handle) const { return _read_handle_index(handle); }
 
     bool is_full() const { return _first_free_node == nullptr; }
 
@@ -232,7 +212,7 @@ struct linked_pool
 
     /// NOTE: advanced feature, returns a valid handle for the index
     /// without checking if it is allocated, bypassing future checks
-    handle_t unsafe_construct_handle_for_index(uint32_t index) const { return _acquire_handle(index); }
+    handle_t unsafe_construct_handle_for_index(uint32_t index) const { return _construct_handle(index); }
 
 private:
     // internally, generational checks are active in debug even if disabled via template argument
@@ -280,7 +260,7 @@ private:
         return free_indices;
     }
 
-    handle_t _acquire_handle(uint32_t real_index) const
+    handle_t _construct_handle(uint32_t real_index) const
     {
         if constexpr (sc_enable_gen_check)
         {
@@ -296,7 +276,7 @@ private:
         }
     }
 
-    CC_FORCE_INLINE handle_t _read_index(uint32_t handle) const
+    CC_FORCE_INLINE uint32_t _read_handle_index(handle_t handle) const
     {
         if constexpr (sc_enable_gen_check)
         {
@@ -310,24 +290,48 @@ private:
         {
             // we use the handle as-is, but mask out the padding
             // mask is
-            // 0b00<..#sc_num_padding_bits..>00111<..rest of uint32..>1111
-            constexpr uint32_t mask = ((uint32_t(1) << (32 - sc_num_padding_bits)) - 1);
-            return handle & mask;
+            // 0b000 <..#sc_num_padding_bits..> 000111 <..rest of uint32..> 111
+            enum : uint32_t
+            {
+                e_padding_mask = ((uint32_t(1) << (32 - sc_num_padding_bits)) - 1)
+            };
+            return handle & e_padding_mask;
         }
     }
 
-    handle_t _read_index_on_release(uint32_t handle) const
+    handle_t _read_handle_index_on_release(uint32_t handle) const
     {
         if constexpr (sc_enable_gen_check)
         {
-            uint32_t const real_index = _read_index(handle);
+            uint32_t const real_index = _read_handle_index(handle);
             ++_generation[real_index].generation; // increment generation on release
             return real_index;
         }
         else
         {
-            return _read_index(handle);
+            return _read_handle_index(handle);
         }
+    }
+
+    void _release_node(T* released_node)
+    {
+        // call the destructor
+        if constexpr (!std::is_trivially_destructible_v<T>)
+            released_node->~T();
+
+        // write the in-place next pointer of this node
+        bool cas_success = false;
+        do
+        {
+            T* expected_first_free = _first_free_node.load(std::memory_order_acquire);
+
+            // write the in-place next pointer of this node provisionally
+            new (cc::placement_new, released_node) T*(expected_first_free);
+
+            // CAS write the newly released node if the expected wasn't raced
+            cas_success = std::atomic_compare_exchange_strong_explicit(&_first_free_node, &expected_first_free, released_node,
+                                                                       std::memory_order_seq_cst, std::memory_order_relaxed);
+        } while (!cas_success);
     }
 
     void _destroy()
