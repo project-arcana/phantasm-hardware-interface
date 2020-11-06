@@ -2,7 +2,6 @@
 
 #include <atomic>
 #include <cstdint>
-#include <mutex>
 
 #include <clean-core/array.hh>
 #include <clean-core/bits.hh>
@@ -224,51 +223,11 @@ public:
 
     [[nodiscard]] handle::command_list create(ID3D12GraphicsCommandList5*& out_cmdlist, CommandAllocatorsPerThread& thread_allocator, queue_type type);
 
-    void freeOnSubmit(handle::command_list cl, ID3D12CommandQueue& queue)
-    {
-        cmdlist_linked_pool_t* pool;
-        ID3D12GraphicsCommandList5* list;
-        cmd_list_node* const node = getNodeInternal(cl, pool, list);
-        {
-            auto lg = std::lock_guard(mMutex);
-            node->responsible_allocator->on_submit(queue);
-            pool->release_node(node);
-        }
-    }
+    void freeOnSubmit(handle::command_list cl, ID3D12CommandQueue& queue);
 
-    void freeOnSubmit(cc::span<handle::command_list const> cls, ID3D12CommandQueue& queue)
-    {
-        auto lg = std::lock_guard(mMutex);
-        for (auto const& cl : cls)
-        {
-            if (!cl.is_valid())
-                continue;
+    void freeOnSubmit(cc::span<handle::command_list const> cls, ID3D12CommandQueue& queue);
 
-            cmdlist_linked_pool_t* pool;
-            ID3D12GraphicsCommandList5* list;
-            cmd_list_node* const node = getNodeInternal(cl, pool, list);
-
-            node->responsible_allocator->on_submit(queue);
-            pool->release_node(node);
-        }
-    }
-
-    void freeOnDiscard(cc::span<handle::command_list const> cls)
-    {
-        auto lg = std::lock_guard(mMutex);
-        for (auto cl : cls)
-        {
-            if (cl.is_valid())
-            {
-                cmdlist_linked_pool_t* pool;
-                ID3D12GraphicsCommandList5* list;
-                cmd_list_node* const node = getNodeInternal(cl, pool, list);
-
-                node->responsible_allocator->on_discard();
-                pool->release_node(node);
-            }
-        }
-    }
+    void freeOnDiscard(cc::span<handle::command_list const> cls);
 
 public:
     ID3D12GraphicsCommandList5* getRawList(handle::command_list cl)
@@ -320,7 +279,5 @@ private:
     cc::array<ID3D12GraphicsCommandList5*> mRawListsDirect;
     cc::array<ID3D12GraphicsCommandList5*> mRawListsCompute;
     cc::array<ID3D12GraphicsCommandList5*> mRawListsCopy;
-
-    std::mutex mMutex;
 };
 }

@@ -78,11 +78,7 @@ void phi::d3d12::SwapchainPool::destroy()
 phi::handle::swapchain phi::d3d12::SwapchainPool::createSwapchain(HWND window_handle, int initial_w, int initial_h, unsigned num_backbuffers, phi::present_mode mode)
 {
     CC_CONTRACT(initial_w > 0 && initial_h > 0);
-    handle::handle_t res;
-    {
-        auto lg = std::lock_guard(mMutex);
-        res = mPool.acquire();
-    }
+    handle::handle_t const res = mPool.acquire();
 
     swapchain& new_node = mPool.get(res);
 
@@ -134,11 +130,7 @@ void phi::d3d12::SwapchainPool::free(phi::handle::swapchain handle)
     swapchain& freed_node = mPool.get(handle._value);
     internalFree(freed_node);
 
-    {
-        // This is a write access to the pool and must be synced
-        auto lg = std::lock_guard(mMutex);
-        mPool.release(handle._value);
-    }
+    mPool.release(handle._value);
 }
 
 void phi::d3d12::SwapchainPool::onResize(phi::handle::swapchain handle, int w, int h)

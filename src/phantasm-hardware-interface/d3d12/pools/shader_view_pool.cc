@@ -39,13 +39,14 @@ phi::handle::shader_view phi::d3d12::ShaderViewPool::create(cc::span<resource_vi
     auto const srv_uav_size = int(srvs.size() + uavs.size());
     DescriptorPageAllocator::handle_t srv_uav_alloc;
     DescriptorPageAllocator::handle_t sampler_alloc;
-    unsigned pool_index;
+
     {
         auto lg = std::lock_guard(mMutex);
         srv_uav_alloc = mSRVUAVAllocator.allocate(srv_uav_size);
         sampler_alloc = mSamplerAllocator.allocate(static_cast<int>(samplers.size()));
-        pool_index = mPool.acquire();
     }
+
+    unsigned const pool_index = mPool.acquire();
 
     // Populate the data entry and fill out descriptors
     {
@@ -131,8 +132,8 @@ void phi::d3d12::ShaderViewPool::free(phi::handle::shader_view sv)
         auto lg = std::lock_guard(mMutex);
         mSRVUAVAllocator.free(data.srv_uav_alloc_handle);
         mSamplerAllocator.free(data.sampler_alloc_handle);
-        mPool.release(unsigned(sv._value));
     }
+    mPool.release(unsigned(sv._value));
 }
 
 void phi::d3d12::ShaderViewPool::free(cc::span<const phi::handle::shader_view> svs)

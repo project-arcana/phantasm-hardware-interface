@@ -54,13 +54,13 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createPipelineS
                                                                                      const phi::pipeline_config& primitive_config)
 {
     root_signature* root_sig;
-    unsigned pool_index;
     // Do things requiring synchronization first
     {
         auto lg = std::lock_guard(mMutex);
         root_sig = mRootSigCache.getOrCreate(*mDevice, shader_arg_shapes, has_root_constants, root_signature_type::graphics);
-        pool_index = mPool.acquire();
     }
+
+    unsigned const pool_index = mPool.acquire();
 
     // Populate new node
     pso_node& new_node = mPool.get(pool_index);
@@ -83,13 +83,13 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createComputePi
                                                                                             bool has_root_constants)
 {
     root_signature* root_sig;
-    uint32_t pool_index;
     // Do things requiring synchronization first
     {
         auto lg = std::lock_guard(mMutex);
         root_sig = mRootSigCache.getOrCreate(*mDevice, shader_arg_shapes, has_root_constants, root_signature_type::compute);
-        pool_index = mPool.acquire();
     }
+
+    uint32_t const pool_index = mPool.acquire();
 
     // Populate new node
     pso_node& new_node = mPool.get(pool_index);
@@ -116,14 +116,14 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracin
     CC_ASSERT(libraries.size() > 0 && arg_assocs.size() <= limits::max_raytracing_argument_assocs && "zero libraries or too many argument associations");
     CC_ASSERT(hit_groups.size() <= limits::max_raytracing_hit_groups && "too many hit groups");
 
-    unsigned pool_index;
+    unsigned const pool_index = mPoolRaytracing.acquire();
+    rt_pso_node& new_node = mPoolRaytracing.get(pool_index);
+    new_node.associated_root_signatures.clear();
+
     // Do things requiring synchronization first
     {
+        // accesses to root sig cache require sync
         auto lg = std::lock_guard(mMutex);
-        pool_index = mPoolRaytracing.acquire();
-
-        rt_pso_node& new_node = mPoolRaytracing.get(pool_index);
-        new_node.associated_root_signatures.clear();
 
         // each argument association constitutes a local root signature
         // (the global root signature is empty and shared across all RT PSOs)
@@ -318,8 +318,6 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracin
     D3D12_GLOBAL_ROOT_SIGNATURE global_root_sig = {};
     global_root_sig.pGlobalRootSignature = mEmptyRaytraceRootSignature;
 
-    rt_pso_node& new_node = mPoolRaytracing.get(pool_index);
-
     cc::alloc_vector<D3D12_STATE_SUBOBJECT> subobjects(scratch_alloc);
     {
         // create "subobjects" which finally compose into the PSO
@@ -494,10 +492,7 @@ void phi::d3d12::PipelineStateObjectPool::free(phi::handle::pipeline_state ps)
         freed_node.raw_state_object->Release();
         freed_node.raw_state_object_props->Release();
 
-        {
-            auto lg = std::lock_guard(mMutex);
-            mPoolRaytracing.release(ps._value);
-        }
+        mPoolRaytracing.release(ps._value);
     }
     else
     {
@@ -505,11 +500,7 @@ void phi::d3d12::PipelineStateObjectPool::free(phi::handle::pipeline_state ps)
         pso_node& freed_node = mPool.get(ps._value);
         freed_node.raw_pso->Release();
 
-        {
-            // This is a write access to the pool and must be synced
-            auto lg = std::lock_guard(mMutex);
-            mPool.release(ps._value);
-        }
+        mPool.release(ps._value);
     }
 }
 

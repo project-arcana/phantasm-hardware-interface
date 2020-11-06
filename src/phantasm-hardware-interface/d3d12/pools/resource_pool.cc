@@ -265,7 +265,7 @@ phi::handle::resource phi::d3d12::ResourcePool::createBufferInternal(
         desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
     auto* const alloc = mAllocator.allocate(desc, initial_state);
-    util::set_object_name(alloc->GetResource(), debug_name);
+    util::set_object_name(alloc->GetResource(), "phi internal: %s", debug_name);
     return acquireBuffer(alloc, initial_state, size_bytes, stride_bytes, resource_heap::gpu);
 }
 
@@ -275,32 +275,18 @@ void phi::d3d12::ResourcePool::free(phi::handle::resource res)
         return;
     CC_ASSERT(!isBackbuffer(res) && "the backbuffer resource must not be freed");
 
-    // This requires no synchronization, as D3D12MA internally syncs
     resource_node& freed_node = mPool.get(unsigned(res._value));
+    // This requires no synchronization, as D3D12MA internally syncs
     freed_node.allocation->Release();
 
-    {
-        // This is a write access to the pool and must be synced
-        auto lg = std::lock_guard(mMutex);
-        mPool.release(unsigned(res._value));
-    }
+    mPool.release(unsigned(res._value));
 }
 
 void phi::d3d12::ResourcePool::free(cc::span<const phi::handle::resource> resources)
 {
-    auto lg = std::lock_guard(mMutex);
-
     for (auto res : resources)
     {
-        if (res.is_valid())
-        {
-            CC_ASSERT(!isBackbuffer(res) && "the backbuffer resource must not be freed");
-            resource_node& freed_node = mPool.get(unsigned(res._value));
-            // This is a write access to mAllocatorDescriptors
-            freed_node.allocation->Release();
-            // This is a write access to the pool and must be synced
-            mPool.release(unsigned(res._value));
-        }
+        free(res);
     }
 }
 
@@ -313,12 +299,8 @@ void phi::d3d12::ResourcePool::setDebugName(phi::handle::resource res, const cha
 phi::handle::resource phi::d3d12::ResourcePool::acquireBuffer(
     D3D12MA::Allocation* alloc, D3D12_RESOURCE_STATES initial_state, uint64_t buffer_width, unsigned buffer_stride, phi::resource_heap heap)
 {
-    unsigned res;
-    {
-        // This is a write access to the pool and must be synced
-        auto lg = std::lock_guard(mMutex);
-        res = mPool.acquire();
-    }
+    unsigned const res = mPool.acquire();
+
     resource_node& new_node = mPool.get(res);
     new_node.allocation = alloc;
     new_node.resource = alloc->GetResource();
@@ -335,12 +317,7 @@ phi::handle::resource phi::d3d12::ResourcePool::acquireBuffer(
 phi::handle::resource phi::d3d12::ResourcePool::acquireImage(
     D3D12MA::Allocation* alloc, phi::format pixel_format, D3D12_RESOURCE_STATES initial_state, unsigned num_mips, unsigned num_array_layers)
 {
-    unsigned res;
-    {
-        // This is a write access to the pool and must be synced
-        auto lg = std::lock_guard(mMutex);
-        res = mPool.acquire();
-    }
+    unsigned const res = mPool.acquire();
 
     resource_node& new_node = mPool.get(res);
     new_node.allocation = alloc;

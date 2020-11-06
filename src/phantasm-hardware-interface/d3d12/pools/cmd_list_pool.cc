@@ -132,6 +132,47 @@ phi::handle::command_list phi::d3d12::CommandListPool::create(ID3D12GraphicsComm
     return res_handle;
 }
 
+void phi::d3d12::CommandListPool::freeOnSubmit(phi::handle::command_list cl, ID3D12CommandQueue& queue)
+{
+    cmdlist_linked_pool_t* pool;
+    ID3D12GraphicsCommandList5* list;
+    cmd_list_node* const node = getNodeInternal(cl, pool, list);
+    node->responsible_allocator->on_submit(queue);
+    pool->release_node(node);
+}
+
+void phi::d3d12::CommandListPool::freeOnSubmit(cc::span<const phi::handle::command_list> cls, ID3D12CommandQueue& queue)
+{
+    for (auto const& cl : cls)
+    {
+        if (!cl.is_valid())
+            continue;
+
+        cmdlist_linked_pool_t* pool;
+        ID3D12GraphicsCommandList5* list;
+        cmd_list_node* const node = getNodeInternal(cl, pool, list);
+
+        node->responsible_allocator->on_submit(queue);
+        pool->release_node(node);
+    }
+}
+
+void phi::d3d12::CommandListPool::freeOnDiscard(cc::span<const phi::handle::command_list> cls)
+{
+    for (auto cl : cls)
+    {
+        if (cl.is_valid())
+        {
+            cmdlist_linked_pool_t* pool;
+            ID3D12GraphicsCommandList5* list;
+            cmd_list_node* const node = getNodeInternal(cl, pool, list);
+
+            node->responsible_allocator->on_discard();
+            pool->release_node(node);
+        }
+    }
+}
+
 void phi::d3d12::CommandListPool::initialize(phi::d3d12::BackendD3D12& backend,
                                              int num_direct_allocs,
                                              int num_direct_lists_per_alloc,
@@ -187,12 +228,8 @@ phi::handle::command_list phi::d3d12::CommandListPool::acquireNodeInternal(phi::
                                                                            phi::d3d12::CommandListPool::cmd_list_node*& out_node,
                                                                            ID3D12GraphicsCommandList5*& out_cmdlist)
 {
-    unsigned res_index;
     auto& pool = getPool(type);
-    {
-        auto lg = std::lock_guard(mMutex);
-        res_index = pool.acquire();
-    }
+    unsigned const res_index = pool.acquire();
 
     out_node = &pool.get(res_index);
     auto const res_handle = IndexToHandle(res_index, type);
