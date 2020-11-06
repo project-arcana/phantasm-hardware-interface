@@ -170,6 +170,7 @@ void phi::vk::ShaderTableConstructor::initialize(
 unsigned phi::vk::ShaderTableConstructor::getShaderRecordSize(cc::span<arg::shader_table_record const> records)
 {
     CC_ASSERT(false && "unimplemented");
+    return 0;
 #if 0
 
     unsigned max_num_8byte_blocks = 0;
