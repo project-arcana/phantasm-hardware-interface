@@ -3,6 +3,8 @@
 #include <cstdint>
 #include <cstring>
 
+#include <atomic>
+
 #include <clean-core/alloc_vector.hh>
 #include <clean-core/allocator.hh>
 #include <clean-core/bit_cast.hh>
@@ -13,9 +15,11 @@ namespace phi
 {
 void radix_sort(uint32_t* a, uint32_t* temp, size_t n);
 
-/// Fixed-size object pool
+/// Fixed-size object pool, synchronized and lock-free
 /// Uses an in-place linked list in free nodes, for O(1) acquire, release and size overhead
 /// Pointers remain stable
+/// acquire() and release() fully thread-safe
+/// (access to underlying memory unsynchronized)
 template <class T, bool GenCheckEnabled = false>
 struct linked_pool
 {
@@ -77,9 +81,21 @@ struct linked_pool
     {
         CC_ASSERT(!is_full() && "linked_pool full");
 
-        T* const acquired_node = _first_free_node;
-        // read the in-place next pointer of this node
-        _first_free_node = *reinterpret_cast<T**>(acquired_node);
+        // CAS-loop to acquire a free node and write the matching next pointer
+        bool cas_success = false;
+        T* acquired_node = nullptr;
+        do
+        {
+            // acquire-candidate: the current value of _first_free_node
+            acquired_node = _first_free_node.load(std::memory_order_acquire);
+            // read the in-place next pointer of this node
+            T* const next_pointer_of_acquired = *reinterpret_cast<T**>(acquired_node);
+
+            // compare-exchange these two - spurious failure if raced
+            cas_success = std::atomic_compare_exchange_strong_explicit(&_first_free_node, &acquired_node, next_pointer_of_acquired,
+                                                                       std::memory_order_seq_cst, std::memory_order_relaxed);
+        } while (!cas_success);
+
         // call the constructor
         if constexpr (!std::is_trivially_constructible_v<T>)
             new (cc::placement_new, acquired_node) T();
@@ -93,12 +109,23 @@ struct linked_pool
         uint32_t real_index = _read_index_on_release(handle);
 
         T* const released_node = &_pool[real_index];
+
         // call the destructor
         if constexpr (!std::is_trivially_destructible_v<T>)
             released_node->~T();
-        // write the in-place next pointer of this node
-        new (cc::placement_new, released_node) T*(_first_free_node);
-        _first_free_node = released_node;
+
+        bool cas_success = false;
+        do
+        {
+            T* expected_first_free = _first_free_node.load(std::memory_order_acquire);
+
+            // write the in-place next pointer of this node provisionally
+            new (cc::placement_new, released_node) T*(expected_first_free);
+
+            // CAS write the newly released node if the expected wasn't raced
+            cas_success = std::atomic_compare_exchange_strong_explicit(&_first_free_node, &expected_first_free, released_node,
+                                                                       std::memory_order_seq_cst, std::memory_order_relaxed);
+        } while (!cas_success);
     }
 
     void release_node(T* node)
@@ -114,6 +141,7 @@ struct linked_pool
         // call the destructor
         if constexpr (!std::is_trivially_destructible_v<T>)
             node->~T();
+
         // write the in-place next pointer of this node
         new (cc::placement_new, node) T*(_first_free_node);
 
@@ -321,7 +349,7 @@ private:
     T* _pool = nullptr;
     size_t _pool_size = 0;
 
-    T* _first_free_node = nullptr;
+    std::atomic<T*> _first_free_node = nullptr;
     cc::allocator* _alloc = nullptr;
 
     // this field is useless for instances without generational checks,
