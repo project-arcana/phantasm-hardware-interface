@@ -1,7 +1,5 @@
 #pragma once
 
-#include <mutex>
-
 #include <clean-core/span.hh>
 #include <clean-core/vector.hh>
 
@@ -56,8 +54,6 @@ private:
     ResourcePool* mResourcePool = nullptr;
 
     phi::linked_pool<accel_struct_node> mPool;
-
-    std::mutex mMutex;
 };
 
 }

@@ -328,11 +328,7 @@ void phi::vk::CommandAllocatorBundle::updateActiveIndex(VkDevice device)
 
 phi::handle::command_list phi::vk::CommandListPool::create(VkCommandBuffer& out_cmdlist, phi::vk::CommandAllocatorsPerThread& thread_allocator, queue_type type)
 {
-    unsigned res_index;
-    {
-        auto lg = std::lock_guard(mMutex);
-        res_index = mPool.acquire();
-    }
+    unsigned res_index = mPool.acquire();
 
     cmd_list_node& new_node = mPool.get(res_index);
     new_node.responsible_allocator = thread_allocator.get(type).acquireMemory(mDevice, new_node.raw_buffer);
@@ -347,8 +343,8 @@ void phi::vk::CommandListPool::freeOnSubmit(phi::handle::command_list cl, unsign
     {
         auto lg = std::lock_guard(mMutex);
         freed_node.responsible_allocator->on_submit(1, fence_index);
-        mPool.release(cl._value);
     }
+    mPool.release(cl._value);
 }
 
 void phi::vk::CommandListPool::freeOnSubmit(cc::span<const phi::handle::command_list> cls, unsigned fence_index)

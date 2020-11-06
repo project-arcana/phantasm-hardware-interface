@@ -180,17 +180,11 @@ void phi::vk::AccelStructPool::free(phi::handle::accel_struct as)
 
     accel_struct_node& freed_node = mPool.get(as._value);
     internalFree(freed_node);
-
-    {
-        auto lg = std::lock_guard(mMutex);
-        mPool.release(as._value);
-    }
+    mPool.release(as._value);
 }
 
 void phi::vk::AccelStructPool::free(cc::span<const phi::handle::accel_struct> as_span)
 {
-    auto lg = std::lock_guard(mMutex);
-
     for (auto as : as_span)
     {
         if (as.is_valid())
@@ -238,11 +232,7 @@ phi::handle::accel_struct phi::vk::AccelStructPool::acquireAccelStruct(VkAcceler
                                                                        handle::resource buffer_as,
                                                                        handle::resource buffer_scratch)
 {
-    unsigned res;
-    {
-        auto lg = std::lock_guard(mMutex);
-        res = mPool.acquire();
-    }
+    unsigned res = mPool.acquire();
 
     accel_struct_node& new_node = mPool.get(res);
     new_node.raw_as = raw_as;

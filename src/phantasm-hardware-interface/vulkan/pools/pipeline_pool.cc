@@ -47,14 +47,13 @@ phi::handle::pipeline_state phi::vk::PipelinePool::createPipelineState(phi::arg:
 
 
     pipeline_layout* layout;
-    uint32_t pool_index;
     // Do things requiring synchronization
     {
         auto lg = std::lock_guard(mMutex);
         layout = mLayoutCache.getOrCreate(mDevice, shader_descriptor_ranges, has_push_constants);
-        pool_index = mPool.acquire();
     }
 
+    uint32_t const pool_index = mPool.acquire();
     // Populate new node
     pso_node& new_node = mPool.get(pool_index);
     new_node.associated_pipeline_layout = layout;
@@ -104,13 +103,13 @@ phi::handle::pipeline_state phi::vk::PipelinePool::createComputePipelineState(ph
 
 
     pipeline_layout* layout;
-    uint32_t pool_index;
     // Do things requiring synchronization
     {
         auto lg = std::lock_guard(mMutex);
         layout = mLayoutCache.getOrCreate(mDevice, shader_descriptor_ranges, has_push_constants);
-        pool_index = mPool.acquire();
     }
+
+    uint32_t const pool_index = mPool.acquire();
 
     // Populate new node
     pso_node& new_node = mPool.get(pool_index);
@@ -141,13 +140,14 @@ phi::handle::pipeline_state phi::vk::PipelinePool::createRaytracingPipelineState
     // verifying the descriptor ranges reflected here is much more involved than in a graphics / compute setting, skipping for now
 
     pipeline_layout* layout;
-    uint32_t pool_index;
+
     // Do things requiring synchronization
     {
         auto lg = std::lock_guard(mMutex);
         layout = mLayoutCache.getOrCreate(mDevice, shader_intermediates.sorted_merged_descriptor_infos, shader_intermediates.has_root_constants);
-        pool_index = mPool.acquire();
     }
+
+    uint32_t const pool_index = mPool.acquire();
 
     // Populate new node
     pso_node& new_node = mPool.get(pool_index);
@@ -164,11 +164,7 @@ void phi::vk::PipelinePool::free(phi::handle::pipeline_state ps)
     pso_node& freed_node = mPool.get(ps._value);
     vkDestroyPipeline(mDevice, freed_node.raw_pipeline, nullptr);
 
-    {
-        // This is a write access to the pool and must be synced
-        auto lg = std::lock_guard(mMutex);
-        mPool.release(ps._value);
-    }
+    mPool.release(ps._value);
 }
 
 void phi::vk::PipelinePool::initialize(VkDevice device, unsigned max_num_psos, cc::allocator* static_alloc)

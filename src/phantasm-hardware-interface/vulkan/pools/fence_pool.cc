@@ -9,11 +9,8 @@
 
 phi::handle::fence phi::vk::FencePool::createFence()
 {
-    unsigned pool_index;
-    {
-        auto lg = std::lock_guard(mMutex);
-        pool_index = mPool.acquire();
-    }
+    unsigned pool_index = mPool.acquire();
+
 
     VkSemaphoreTypeCreateInfo sem_type_info = {};
     sem_type_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO;
@@ -38,16 +35,11 @@ void phi::vk::FencePool::free(phi::handle::fence fence)
     VkSemaphore freed_fence = mPool.get(fence._value);
     vkDestroySemaphore(mDevice, freed_fence, nullptr);
 
-    {
-        auto lg = std::lock_guard(mMutex);
-        mPool.release(fence._value);
-    }
+    mPool.release(fence._value);
 }
 
 void phi::vk::FencePool::free(cc::span<const phi::handle::fence> fence_span)
 {
-    auto lg = std::lock_guard(mMutex);
-
     for (auto as : fence_span)
     {
         if (as.is_valid())
