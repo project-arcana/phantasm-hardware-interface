@@ -1,6 +1,8 @@
 #pragma once
 
-#include <dxgiformat.h> // This header only contains a single enum, no includes believe it or not
+#ifndef DXGI_FORMAT_DEFINED // guard to allow for external use (ie. on Linux)
+#include <dxgiformat.h>     // This header only contains a single enum, no includes believe it or not
+#endif
 
 #include <clean-core/assert.hh>
 
@@ -210,13 +212,29 @@ namespace phi::d3d12::util
     case DXGI_FORMAT_R8_UNORM:
         return af::r8un;
 
+        // sRGB formats
+    case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
+        return af::rgba8un_srgb;
+
+        // swizzled and irregular formats
     case DXGI_FORMAT_B8G8R8A8_UNORM:
         return af::bgra8un;
+    case DXGI_FORMAT_R11G11B10_FLOAT: // this is incorrectly named, order is as in our enum
+        return af::b10g11r11uf;
 
+        // compressed formats
+    case DXGI_FORMAT_BC6H_SF16:
+        return af::bc6h_16f;
+    case DXGI_FORMAT_BC6H_UF16:
+        return af::bc6h_16uf;
+
+        // depth formats
     case DXGI_FORMAT_D32_FLOAT:
         return af::depth32f;
     case DXGI_FORMAT_D16_UNORM:
         return af::depth16un;
+
+        // depth stencil formats
     case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
         return af::depth32f_stencil8u;
     case DXGI_FORMAT_D24_UNORM_S8_UINT:
@@ -224,7 +242,7 @@ namespace phi::d3d12::util
 
     default:
         CC_ASSERT(false && "untranslatable DXGI_FORMAT");
-        return af::rgba8u;
+        return af::none;
     }
 }
 }
