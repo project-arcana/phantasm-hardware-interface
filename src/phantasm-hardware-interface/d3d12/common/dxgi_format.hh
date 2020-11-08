@@ -92,6 +92,18 @@ namespace phi::d3d12::util
     case af::b10g11r11uf:
         return DXGI_FORMAT_R11G11B10_FLOAT; // this is incorrectly named, order is as in our enum
 
+    case af::bc1_8un:
+        return DXGI_FORMAT_BC1_UNORM;
+    case af::bc1_8un_srgb:
+        return DXGI_FORMAT_BC1_UNORM_SRGB;
+    case af::bc2_8un:
+        return DXGI_FORMAT_BC2_UNORM;
+    case af::bc2_8un_srgb:
+        return DXGI_FORMAT_BC2_UNORM_SRGB;
+    case af::bc3_8un:
+        return DXGI_FORMAT_BC3_UNORM;
+    case af::bc3_8un_srgb:
+        return DXGI_FORMAT_BC3_UNORM_SRGB;
     case af::bc6h_16f:
         return DXGI_FORMAT_BC6H_SF16;
     case af::bc6h_16uf:
@@ -223,6 +235,18 @@ namespace phi::d3d12::util
         return af::b10g11r11uf;
 
         // compressed formats
+    case DXGI_FORMAT_BC1_UNORM:
+        return af::bc1_8un;
+    case DXGI_FORMAT_BC1_UNORM_SRGB:
+        return af::bc1_8un_srgb;
+    case DXGI_FORMAT_BC2_UNORM:
+        return af::bc2_8un;
+    case DXGI_FORMAT_BC2_UNORM_SRGB:
+        return af::bc2_8un_srgb;
+    case DXGI_FORMAT_BC3_UNORM:
+        return af::bc3_8un;
+    case DXGI_FORMAT_BC3_UNORM_SRGB:
+        return af::bc3_8un_srgb;
     case DXGI_FORMAT_BC6H_SF16:
         return af::bc6h_16f;
     case DXGI_FORMAT_BC6H_UF16:

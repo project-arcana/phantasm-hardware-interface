@@ -73,8 +73,19 @@ namespace phi::util
 
     case format::b10g11r11uf:
         return 4;
+
+        // NOTE: block-compressed formats do not have per-pixel byte sizes
+        // they cost bytes per NxN square block
+    case format::bc1_8un:
+    case format::bc1_8un_srgb:
+        // BC1 and BC4 cost 8 B per 4x4 pixels
+    case format::bc2_8un:
+    case format::bc2_8un_srgb:
+    case format::bc3_8un:
+    case format::bc3_8un_srgb:
     case format::bc6h_16f:
     case format::bc6h_16uf:
+        // BC2, 3, 5, 6H and 7 cost 16 B per 4x4 pixels
         CC_UNREACHABLE("compressed block format has no per-pixel byte size");
         return 0;
     default:
@@ -83,6 +94,29 @@ namespace phi::util
     }
     CC_UNREACHABLE("unknown format");
     return 0;
+}
+
+[[nodiscard]] inline unsigned get_block_format_4x4_size(format fmt)
+{
+    switch (fmt)
+    {
+    case format::bc1_8un:
+    case format::bc1_8un_srgb:
+        // BC1 and BC4 cost 8 B per 4x4 pixels
+        return 8;
+    case format::bc2_8un:
+    case format::bc2_8un_srgb:
+    case format::bc3_8un:
+    case format::bc3_8un_srgb:
+    case format::bc6h_16f:
+    case format::bc6h_16uf:
+        // BC2, 3, 5, 6H and 7 cost 16 B per 4x4 pixels
+        return 16;
+
+    default:
+        CC_UNREACHABLE("not a block-compressed format");
+        return 0;
+    }
 }
 
 [[nodiscard]] inline unsigned get_format_num_components(format fmt)

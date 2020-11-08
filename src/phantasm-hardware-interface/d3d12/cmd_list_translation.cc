@@ -507,7 +507,6 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::copy_texture& 
 void phi::d3d12::command_list_translator::execute(const phi::cmd::copy_buffer_to_texture& copy_text)
 {
     auto const& dest_info = _globals.pool_resources->getImageInfo(copy_text.destination);
-    auto const pixel_bytes = phi::util::get_format_size_bytes(dest_info.pixel_format);
     auto const format_dxgi = util::to_dxgi_format(dest_info.pixel_format);
 
     D3D12_SUBRESOURCE_FOOTPRINT footprint;
@@ -515,7 +514,23 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::copy_buffer_to
     footprint.Width = copy_text.dest_width;
     footprint.Height = copy_text.dest_height;
     footprint.Depth = 1;
-    footprint.RowPitch = phi::util::align_up(pixel_bytes * copy_text.dest_width, 256);
+    // footprint.RowPitch:
+    if (is_block_compressed_format(dest_info.pixel_format))
+    {
+        // calculated differently for block-compressed textures
+        unsigned const num_blocks = cc::int_div_ceil(copy_text.dest_width, 4u);
+        auto const block_bytes = phi::util::get_block_format_4x4_size(dest_info.pixel_format);
+        footprint.RowPitch = phi::util::align_up(num_blocks * block_bytes, 256);
+
+        // width and height must be at least 4x4
+        footprint.Width = cc::max(4u, footprint.Width);
+        footprint.Height = cc::max(4u, footprint.Height);
+    }
+    else
+    {
+        auto const pixel_bytes = phi::util::get_format_size_bytes(dest_info.pixel_format);
+        footprint.RowPitch = phi::util::align_up(pixel_bytes * copy_text.dest_width, 256);
+    }
 
     D3D12_PLACED_SUBRESOURCE_FOOTPRINT placed_footprint;
     placed_footprint.Offset = copy_text.source_offset_bytes;

@@ -90,6 +90,18 @@ namespace phi::vk::util
     case bf::b10g11r11uf:
         return VK_FORMAT_B10G11R11_UFLOAT_PACK32;
 
+    case bf::bc1_8un:
+        return VK_FORMAT_BC1_RGBA_UNORM_BLOCK;
+    case bf::bc1_8un_srgb:
+        return VK_FORMAT_BC1_RGBA_SRGB_BLOCK;
+    case bf::bc2_8un:
+        return VK_FORMAT_BC2_UNORM_BLOCK;
+    case bf::bc2_8un_srgb:
+        return VK_FORMAT_BC2_SRGB_BLOCK;
+    case bf::bc3_8un:
+        return VK_FORMAT_BC3_UNORM_BLOCK;
+    case bf::bc3_8un_srgb:
+        return VK_FORMAT_BC3_SRGB_BLOCK;
     case bf::bc6h_16f:
         return VK_FORMAT_BC6H_SFLOAT_BLOCK;
     case bf::bc6h_16uf:
