@@ -92,8 +92,8 @@ struct linked_pool
             T* const next_pointer_of_acquired = *reinterpret_cast<T**>(acquired_node);
 
             // compare-exchange these two - spurious failure if raced
-            cas_success = std::atomic_compare_exchange_strong_explicit(&_first_free_node, &acquired_node, next_pointer_of_acquired,
-                                                                       std::memory_order_seq_cst, std::memory_order_relaxed);
+            cas_success = std::atomic_compare_exchange_weak_explicit(&_first_free_node, &acquired_node, next_pointer_of_acquired,
+                                                                     std::memory_order_seq_cst, std::memory_order_relaxed);
         } while (!cas_success);
 
         // call the constructor
@@ -329,8 +329,8 @@ private:
             new (cc::placement_new, released_node) T*(expected_first_free);
 
             // CAS write the newly released node if the expected wasn't raced
-            cas_success = std::atomic_compare_exchange_strong_explicit(&_first_free_node, &expected_first_free, released_node,
-                                                                       std::memory_order_seq_cst, std::memory_order_relaxed);
+            cas_success = std::atomic_compare_exchange_weak_explicit(&_first_free_node, &expected_first_free, released_node,
+                                                                     std::memory_order_seq_cst, std::memory_order_relaxed);
         } while (!cas_success);
     }
 
