@@ -25,6 +25,23 @@ struct byte_reader
         _head += out_data.size();
     }
 
+    void const* read_size_and_skip(size_t& out_size, size_t skip_multiplier = 1)
+    {
+        read_t(out_size);
+        auto* const res = head();
+        skip(out_size * skip_multiplier);
+        return res;
+    }
+
+    // in memory: [num] [T] [T] .. x num .. [T]
+    template <class T>
+    cc::span<T const> read_sized_array()
+    {
+        size_t array_size;
+        void const* const res = read_size_and_skip(array_size, sizeof(T));
+        return cc::span{static_cast<T const*>(res), array_size};
+    }
+
     void skip(size_t size)
     {
         CC_ASSERT(_head + size <= _buffer_end && "skip OOB");
