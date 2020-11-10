@@ -49,7 +49,7 @@ inline constexpr VkObjectType as_obj_type_enum = get_object_type<VkT>();
 }
 
 template <class VkT>
-void set_object_name(VkDevice device, VkT* object, char const* fmt, ...) CC_PRINTF_FUNC(3)
+CC_PRINTF_FUNC(3) void set_object_name(VkDevice device, VkT* object, char const* fmt, ...)
 {
     char buf[1024];
 
