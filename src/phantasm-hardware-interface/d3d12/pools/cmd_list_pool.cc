@@ -138,7 +138,7 @@ void phi::d3d12::CommandListPool::freeOnSubmit(phi::handle::command_list cl, ID3
     ID3D12GraphicsCommandList5* list;
     cmd_list_node* const node = getNodeInternal(cl, pool, list);
     node->responsible_allocator->on_submit(queue);
-    pool->release_node(node);
+    pool->unsafe_release_node(node);
 }
 
 void phi::d3d12::CommandListPool::freeOnSubmit(cc::span<const phi::handle::command_list> cls, ID3D12CommandQueue& queue)
@@ -153,7 +153,7 @@ void phi::d3d12::CommandListPool::freeOnSubmit(cc::span<const phi::handle::comma
         cmd_list_node* const node = getNodeInternal(cl, pool, list);
 
         node->responsible_allocator->on_submit(queue);
-        pool->release_node(node);
+        pool->unsafe_release_node(node);
     }
 }
 
@@ -168,7 +168,7 @@ void phi::d3d12::CommandListPool::freeOnDiscard(cc::span<const phi::handle::comm
             cmd_list_node* const node = getNodeInternal(cl, pool, list);
 
             node->responsible_allocator->on_discard();
-            pool->release_node(node);
+            pool->unsafe_release_node(node);
         }
     }
 }

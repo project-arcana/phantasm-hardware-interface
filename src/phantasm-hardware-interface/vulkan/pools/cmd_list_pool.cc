@@ -434,7 +434,7 @@ unsigned phi::vk::CommandListPool::discardAndFreeAll()
     mPool.iterate_allocated_nodes([&](cmd_list_node& leaked_node) {
         ++num_freed;
         leaked_node.responsible_allocator->on_discard();
-        mPool.release_node(&leaked_node);
+        mPool.unsafe_release_node(&leaked_node);
     });
 
     return num_freed;

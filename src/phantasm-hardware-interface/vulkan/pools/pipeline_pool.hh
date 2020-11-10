@@ -2,10 +2,10 @@
 
 #include <mutex>
 
+#include <clean-core/atomic_linked_pool.hh>
 #include <clean-core/capped_vector.hh>
 
 #include <phantasm-hardware-interface/arguments.hh>
-#include <phantasm-hardware-interface/common/container/linked_pool.hh>
 #include <phantasm-hardware-interface/types.hh>
 
 #include <phantasm-hardware-interface/vulkan/loader/volk.hh>
@@ -68,7 +68,7 @@ private:
     PipelineLayoutCache mLayoutCache;
     RenderPassCache mRenderPassCache;
     DescriptorAllocator mDescriptorAllocator;
-    phi::linked_pool<pso_node> mPool;
+    cc::atomic_linked_pool<pso_node> mPool;
     std::mutex mMutex;
 };
 

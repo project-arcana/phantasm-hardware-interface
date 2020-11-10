@@ -1,10 +1,10 @@
 #pragma once
 
 #include <clean-core/alloc_vector.hh>
+#include <clean-core/atomic_linked_pool.hh>
 #include <clean-core/span.hh>
 
 #include <phantasm-hardware-interface/arguments.hh>
-#include <phantasm-hardware-interface/common/container/linked_pool.hh>
 #include <phantasm-hardware-interface/types.hh>
 
 #include <phantasm-hardware-interface/d3d12/fwd.hh>
@@ -57,7 +57,7 @@ private:
     ResourcePool* mResourcePool = nullptr;
     cc::allocator* mDynamicAllocator = nullptr;
 
-    phi::linked_pool<accel_struct_node> mPool;
+    cc::atomic_linked_pool<accel_struct_node> mPool;
 };
 
 }

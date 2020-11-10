@@ -5,9 +5,9 @@
 #include <clean-core/capped_vector.hh>
 #include <clean-core/span.hh>
 #include <clean-core/vector.hh>
+#include <clean-core/atomic_linked_pool.hh>
 
 #include <phantasm-hardware-interface/arguments.hh>
-#include <phantasm-hardware-interface/common/container/linked_pool.hh>
 #include <phantasm-hardware-interface/limits.hh>
 
 #include <phantasm-hardware-interface/vulkan/resources/descriptor_allocator.hh>
@@ -68,7 +68,7 @@ private:
     AccelStructPool* mAccelStructPool = nullptr;
 
     /// The main pool data
-    phi::linked_pool<shader_view_node> mPool;
+    cc::atomic_linked_pool<shader_view_node> mPool;
 
     /// "Backing" allocator
     DescriptorAllocator mAllocator;

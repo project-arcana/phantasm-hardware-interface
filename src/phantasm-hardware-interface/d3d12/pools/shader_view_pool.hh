@@ -5,9 +5,9 @@
 #include <clean-core/array.hh>
 #include <clean-core/capped_vector.hh>
 #include <clean-core/span.hh>
+#include <clean-core/atomic_linked_pool.hh>
 
 #include <phantasm-hardware-interface/arguments.hh>
-#include <phantasm-hardware-interface/common/container/linked_pool.hh>
 #include <phantasm-hardware-interface/common/page_allocator.hh>
 #include <phantasm-hardware-interface/types.hh>
 
@@ -166,7 +166,7 @@ private:
     ResourcePool* mResourcePool = nullptr;
     AccelStructPool* mAccelStructPool = nullptr;
 
-    phi::linked_pool<shader_view_data> mPool;
+    cc::atomic_linked_pool<shader_view_data> mPool;
     DescriptorPageAllocator mSRVUAVAllocator;
     DescriptorPageAllocator mSamplerAllocator;
     std::mutex mMutex;
