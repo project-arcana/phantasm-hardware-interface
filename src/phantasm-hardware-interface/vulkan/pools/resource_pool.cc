@@ -268,31 +268,15 @@ void phi::vk::ResourcePool::free(phi::handle::resource res)
     CC_ASSERT(!isBackbuffer(res) && "the backbuffer resource must not be freed");
 
     resource_node& freed_node = mPool.get(res._value);
-
-    {
-        auto lg = std::lock_guard(mMutex);
-        // This is a write access to mAllocatorDescriptors
-        internalFree(freed_node);
-        // This is a write access to the pool and must be synced
-        mPool.release(res._value);
-    }
+    internalFree(freed_node);
+    mPool.release(res._value);
 }
 
 void phi::vk::ResourcePool::free(cc::span<const phi::handle::resource> resources)
 {
-    auto lg = std::lock_guard(mMutex);
-
     for (auto res : resources)
     {
-        if (res.is_valid())
-        {
-            CC_ASSERT(!isBackbuffer(res) && "the backbuffer resource must not be freed");
-            resource_node& freed_node = mPool.get(res._value);
-            // This is a write access to mAllocatorDescriptors
-            internalFree(freed_node);
-            // This is a write access to the pool and must be synced
-            mPool.release(res._value);
-        }
+        free(res);
     }
 }
 
@@ -407,21 +391,15 @@ phi::handle::resource phi::vk::ResourcePool::acquireBuffer(VmaAllocation alloc, 
 {
     bool const create_cbv_desc = (buffer_width < 65536) && (usage & VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
 
-    unsigned res;
     VkDescriptorSet cbv_desc_set = nullptr;
     VkDescriptorSet cbv_desc_set_compute = nullptr;
+
+    if (create_cbv_desc)
     {
+        // This is a write access to mAllocatorDescriptors
         auto lg = std::lock_guard(mMutex);
-
-        // This is a write access to the pool and must be synced
-        res = mPool.acquire();
-
-        if (create_cbv_desc)
-        {
-            // This is a write access to mAllocatorDescriptors
-            cbv_desc_set = mAllocatorDescriptors.allocDescriptor(mSingleCBVLayout);
-            cbv_desc_set_compute = mAllocatorDescriptors.allocDescriptor(mSingleCBVLayoutCompute);
-        }
+        cbv_desc_set = mAllocatorDescriptors.allocDescriptor(mSingleCBVLayout);
+        cbv_desc_set_compute = mAllocatorDescriptors.allocDescriptor(mSingleCBVLayoutCompute);
     }
 
     // Perform the initial update to the CBV descriptor set
@@ -457,6 +435,8 @@ phi::handle::resource phi::vk::ResourcePool::acquireBuffer(VmaAllocation alloc, 
         vkUpdateDescriptorSets(mAllocatorDescriptors.getDevice(), static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
     }
 
+    unsigned const res = mPool.acquire();
+
     resource_node& new_node = mPool.get(res);
     new_node.allocation = alloc;
     new_node.type = resource_node::resource_type::buffer;
@@ -476,12 +456,8 @@ phi::handle::resource phi::vk::ResourcePool::acquireBuffer(VmaAllocation alloc, 
 phi::handle::resource phi::vk::ResourcePool::acquireImage(
     VmaAllocation alloc, VkImage image, format pixel_format, unsigned num_mips, unsigned num_array_layers, unsigned num_samples, int width, int height)
 {
-    unsigned res;
-    {
-        // This is a write access to the pool and must be synced
-        auto lg = std::lock_guard(mMutex);
-        res = mPool.acquire();
-    }
+    unsigned const res = mPool.acquire();
+
     resource_node& new_node = mPool.get(res);
     new_node.allocation = alloc;
     new_node.type = resource_node::resource_type::image;
@@ -520,6 +496,7 @@ void phi::vk::ResourcePool::internalFree(resource_node& node)
         // This does require synchronization
         if (node.buffer.raw_uniform_dynamic_ds != nullptr)
         {
+            auto lg = std::lock_guard(mMutex);
             mAllocatorDescriptors.free(node.buffer.raw_uniform_dynamic_ds);
             mAllocatorDescriptors.free(node.buffer.raw_uniform_dynamic_ds_compute);
         }

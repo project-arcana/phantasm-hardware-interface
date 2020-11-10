@@ -1,7 +1,5 @@
 #pragma once
 
-#include <mutex>
-
 #include <phantasm-hardware-interface/common/container/linked_pool.hh>
 #include <phantasm-hardware-interface/types.hh>
 
@@ -181,7 +179,6 @@ private:
 
     /// "Backing" allocator
     ResourceAllocator mAllocator;
-    std::mutex mMutex;
 };
 
 }

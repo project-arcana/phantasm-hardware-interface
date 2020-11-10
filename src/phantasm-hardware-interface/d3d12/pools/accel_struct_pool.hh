@@ -1,7 +1,5 @@
 #pragma once
 
-#include <mutex>
-
 #include <clean-core/alloc_vector.hh>
 #include <clean-core/span.hh>
 
@@ -60,8 +58,6 @@ private:
     cc::allocator* mDynamicAllocator = nullptr;
 
     phi::linked_pool<accel_struct_node> mPool;
-
-    std::mutex mMutex;
 };
 
 }

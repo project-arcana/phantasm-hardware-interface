@@ -135,29 +135,37 @@ enum class format : uint8_t
     rgb32f,
     rg32f,
     r32f,
+
     rgba32i,
     rgb32i,
     rg32i,
     r32i,
+
     rgba32u,
     rgb32u,
     rg32u,
     r32u,
+
     rgba16i,
     rg16i,
     r16i,
+
     rgba16u,
     rg16u,
     r16u,
+
     rgba16f,
     rg16f,
     r16f,
+
     rgba8i,
     rg8i,
     r8i,
+
     rgba8u,
     rg8u,
     r8u,
+
     rgba8un,
     rg8un,
     r8un,
@@ -169,7 +177,13 @@ enum class format : uint8_t
     bgra8un,
     b10g11r11uf,
 
-    // compressed formats
+    // block-compressed formats
+    bc1_8un,
+    bc1_8un_srgb,
+    bc2_8un,
+    bc2_8un_srgb,
+    bc3_8un,
+    bc3_8un_srgb,
     bc6h_16f,
     bc6h_16uf,
 
@@ -193,6 +207,9 @@ constexpr bool is_valid_format(format fmt) { return fmt > format::none && fmt < 
 
 /// returns true if the format is a view-only format
 constexpr bool is_view_format(format fmt) { return fmt >= format::r24un_g8t && fmt < format::depth32f; }
+
+/// returns true if the format is a block-compressed format
+constexpr bool is_block_compressed_format(format fmt) { return fmt >= format::bc1_8un && fmt <= format::bc6h_16uf; }
 
 /// returns true if the format is a depth OR depth stencil format
 constexpr bool is_depth_format(format fmt) { return fmt >= format::depth32f; }

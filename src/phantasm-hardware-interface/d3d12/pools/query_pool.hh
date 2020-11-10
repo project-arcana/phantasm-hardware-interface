@@ -2,7 +2,6 @@
 
 #include <mutex>
 
-#include <phantasm-hardware-interface/common/container/linked_pool.hh>
 #include <phantasm-hardware-interface/common/page_allocator.hh>
 #include <phantasm-hardware-interface/types.hh>
 

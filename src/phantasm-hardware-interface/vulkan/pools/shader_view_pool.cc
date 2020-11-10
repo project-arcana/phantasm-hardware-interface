@@ -29,12 +29,12 @@ phi::handle::shader_view phi::vk::ShaderViewPool::create(cc::span<resource_view 
 
     // Do acquires requiring synchronization
     VkDescriptorSet res_raw;
-    unsigned pool_index;
     {
         auto lg = std::lock_guard(mMutex);
         res_raw = mAllocator.allocDescriptor(layout);
-        pool_index = mPool.acquire();
     }
+
+    unsigned const pool_index = mPool.acquire();
 
     // Populate new node
     shader_view_node& new_node = mPool.get(pool_index);
@@ -177,29 +177,23 @@ phi::handle::shader_view phi::vk::ShaderViewPool::create(cc::span<resource_view 
 
 void phi::vk::ShaderViewPool::free(phi::handle::shader_view sv)
 {
-    // TODO: dangle check
-
     shader_view_node& freed_node = mPool.get(sv._value);
     internalFree(freed_node);
 
     {
-        // This is a write access to the pool and allocator, and must be synced
+        // This is a write access to the allocator, and must be synced
         auto lg = std::lock_guard(mMutex);
         mAllocator.free(freed_node.raw_desc_set);
-        mPool.release(sv._value);
     }
+
+    mPool.release(sv._value);
 }
 
 void phi::vk::ShaderViewPool::free(cc::span<const phi::handle::shader_view> svs)
 {
-    // This is a write access to the pool and allocator, and must be synced
-    auto lg = std::lock_guard(mMutex);
     for (auto sv : svs)
     {
-        shader_view_node& freed_node = mPool.get(sv._value);
-        internalFree(freed_node);
-        mAllocator.free(freed_node.raw_desc_set);
-        mPool.release(sv._value);
+        free(sv);
     }
 }
 

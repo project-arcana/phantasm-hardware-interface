@@ -140,25 +140,14 @@ void phi::d3d12::AccelStructPool::free(phi::handle::accel_struct as)
 
     accel_struct_node& freed_node = mPool.get(as._value);
     internalFree(freed_node);
-
-    {
-        auto lg = std::lock_guard(mMutex);
-        mPool.release(as._value);
-    }
+    mPool.release(as._value);
 }
 
 void phi::d3d12::AccelStructPool::free(cc::span<const phi::handle::accel_struct> as_span)
 {
-    auto lg = std::lock_guard(mMutex);
-
     for (auto as : as_span)
     {
-        if (as.is_valid())
-        {
-            accel_struct_node& freed_node = mPool.get(as._value);
-            internalFree(freed_node);
-            mPool.release(as._value);
-        }
+        free(as);
     }
 }
 
@@ -197,11 +186,7 @@ phi::d3d12::AccelStructPool::accel_struct_node& phi::d3d12::AccelStructPool::get
 
 phi::d3d12::AccelStructPool::accel_struct_node& phi::d3d12::AccelStructPool::acquireAccelStruct(handle::accel_struct& out_handle)
 {
-    unsigned res;
-    {
-        auto lg = std::lock_guard(mMutex);
-        res = mPool.acquire();
-    }
+    unsigned const res = mPool.acquire();
 
     out_handle = {static_cast<handle::handle_t>(res)};
     return mPool.get(res);

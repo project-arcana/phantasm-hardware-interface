@@ -136,7 +136,9 @@ VkPresentModeKHR phi::vk::choose_present_mode(cc::span<const VkPresentModeKHR> a
     VkPresentModeKHR preferred;
     switch (mode)
     {
-    case present_mode::unsynced: // TODO
+    case present_mode::unsynced:
+        preferred = VK_PRESENT_MODE_MAILBOX_KHR;
+        break;
     case present_mode::unsynced_allow_tearing:
         preferred = VK_PRESENT_MODE_IMMEDIATE_KHR;
         break;

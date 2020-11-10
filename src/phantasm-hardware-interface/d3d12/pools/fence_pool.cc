@@ -7,11 +7,7 @@
 
 phi::handle::fence phi::d3d12::FencePool::createFence()
 {
-    unsigned pool_index;
-    {
-        auto lg = std::lock_guard(mMutex);
-        pool_index = mPool.acquire();
-    }
+    unsigned const pool_index = mPool.acquire();
 
     node& new_node = mPool.get(pool_index);
     new_node.create(mDevice);
@@ -25,17 +21,11 @@ void phi::d3d12::FencePool::free(phi::handle::fence fence)
         return;
 
     mPool.get(fence._value).free();
-
-    {
-        auto lg = std::lock_guard(mMutex);
-        mPool.release(fence._value);
-    }
+    mPool.release(fence._value);
 }
 
 void phi::d3d12::FencePool::free(cc::span<const phi::handle::fence> fence_span)
 {
-    auto lg = std::lock_guard(mMutex);
-
     for (auto as : fence_span)
     {
         if (as.is_valid())

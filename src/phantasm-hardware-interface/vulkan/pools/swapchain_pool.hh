@@ -1,7 +1,5 @@
 #pragma once
 
-#include <mutex>
-
 #include <clean-core/capped_array.hh>
 
 #include <phantasm-hardware-interface/common/container/linked_pool.hh>
@@ -101,7 +99,6 @@ private:
     uint32_t mPresentQueueFamilyIndex;
 
     // owning
-    std::mutex mMutex;
     phi::linked_pool<swapchain> mPool;
 
     VkRenderPass mRenderPass = nullptr;
