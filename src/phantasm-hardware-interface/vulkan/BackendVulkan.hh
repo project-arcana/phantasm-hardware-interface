@@ -15,6 +15,7 @@
 #include "pools/resource_pool.hh"
 #include "pools/shader_view_pool.hh"
 #include "pools/swapchain_pool.hh"
+#include "shader_table_construction.hh"
 
 namespace phi::vk
 {
@@ -160,8 +161,6 @@ public:
                                                       accel_struct_build_flags_t flags,
                                                       uint64_t* out_native_handle = nullptr) override;
 
-    [[nodiscard]] handle::resource getAccelStructBuffer(handle::accel_struct as) override;
-
     [[nodiscard]] uint64_t getAccelStructNativeHandle(handle::accel_struct as) override;
 
     [[nodiscard]] shader_table_strides calculateShaderTableStrides(arg::shader_table_record const& ray_gen_record,
@@ -229,6 +228,7 @@ private:
     unsigned mNumThreadComponents;
     void* mThreadComponentAlloc;
     phi::thread_association mThreadAssociation;
+    ShaderTableConstructor mShaderTableCtor;
 
     // Misc
     util::diagnostic_state mDiagnostics;

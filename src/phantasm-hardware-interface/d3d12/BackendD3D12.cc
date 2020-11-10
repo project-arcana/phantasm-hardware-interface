@@ -53,8 +53,8 @@ void phi::d3d12::BackendD3D12::initialize(const phi::backend_config& config)
     // Global pools
     {
         mPoolResources.initialize(device, config.max_num_resources, config.max_num_swapchains, config.static_allocator, config.dynamic_allocator);
-        mPoolShaderViews.initialize(device, &mPoolResources, config.max_num_cbvs, config.max_num_srvs + config.max_num_uavs, config.max_num_samplers,
-                                    config.static_allocator);
+        mPoolShaderViews.initialize(device, &mPoolResources, &mPoolAccelStructs, config.max_num_cbvs, config.max_num_srvs + config.max_num_uavs,
+                                    config.max_num_samplers, config.static_allocator);
         mPoolPSOs.initialize(device, config.max_num_pipeline_states, config.max_num_raytrace_pipeline_states, config.static_allocator, config.dynamic_allocator);
         mPoolFences.initialize(device, config.max_num_fences, config.static_allocator);
         mPoolQueries.initialize(device, config.num_timestamp_queries, config.num_occlusion_queries, config.num_pipeline_stat_queries, config.static_allocator);
@@ -404,14 +404,12 @@ phi::handle::accel_struct phi::d3d12::BackendD3D12::createBottomLevelAccelStruct
     auto const res = mPoolAccelStructs.createBottomLevelAS(elements, flags);
 
     if (out_native_handle != nullptr)
-        *out_native_handle = mPoolAccelStructs.getNode(res).raw_as_handle;
+        *out_native_handle = mPoolAccelStructs.getNode(res).buffer_as_va;
 
     return res;
 }
 
-phi::handle::resource phi::d3d12::BackendD3D12::getAccelStructBuffer(phi::handle::accel_struct as) { return mPoolAccelStructs.getNode(as).buffer_as; }
-
-uint64_t phi::d3d12::BackendD3D12::getAccelStructNativeHandle(phi::handle::accel_struct as) { return mPoolAccelStructs.getNode(as).raw_as_handle; }
+uint64_t phi::d3d12::BackendD3D12::getAccelStructNativeHandle(phi::handle::accel_struct as) { return mPoolAccelStructs.getNode(as).buffer_as_va; }
 
 phi::shader_table_strides phi::d3d12::BackendD3D12::calculateShaderTableStrides(arg::shader_table_record const& ray_gen_record,
                                                                                 arg::shader_table_records miss_records,

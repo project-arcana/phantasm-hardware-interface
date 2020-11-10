@@ -4,7 +4,7 @@
 #include "detail/volk.h"
 
 #ifndef VK_VERSION_1_2
-#error "Vulkan version lower than 1.2, update your SDK"
+#error "[phantasm-hardware-interface] Vulkan SDK version 1.2 or higher required"
 #endif
 
 namespace phi::vk::vkver

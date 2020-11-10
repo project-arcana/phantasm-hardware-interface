@@ -10,12 +10,12 @@
 #include <phantasm-hardware-interface/common/container/linked_pool.hh>
 #include <phantasm-hardware-interface/limits.hh>
 
-
 #include <phantasm-hardware-interface/vulkan/resources/descriptor_allocator.hh>
 
 namespace phi::vk
 {
 class ResourcePool;
+class AccelStructPool;
 
 /// The high-level allocator for shader views
 /// Synchronized
@@ -31,7 +31,7 @@ public:
 
 public:
     // internal API
-    void initialize(VkDevice device, ResourcePool* res_pool, unsigned num_cbvs, unsigned num_srvs, unsigned num_uavs, unsigned num_samplers, cc::allocator* static_alloc);
+    void initialize(VkDevice device, ResourcePool* res_pool, AccelStructPool* as_pool, unsigned num_cbvs, unsigned num_srvs, unsigned num_uavs, unsigned num_samplers, cc::allocator* static_alloc);
     void destroy();
 
     [[nodiscard]] VkDescriptorSet get(handle::shader_view sv) const { return mPool.get(sv._value).raw_desc_set; }
@@ -63,8 +63,9 @@ private:
 
 private:
     // non-owning
-    VkDevice mDevice;
-    ResourcePool* mResourcePool;
+    VkDevice mDevice = nullptr;
+    ResourcePool* mResourcePool = nullptr;
+    AccelStructPool* mAccelStructPool = nullptr;
 
     /// The main pool data
     phi::linked_pool<shader_view_node> mPool;

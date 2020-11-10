@@ -41,7 +41,7 @@ cc::hash_t phi::vk::RenderPassCache::hashKey(cmd::begin_render_pass const& brp, 
     if (brp.depth_target.rv.resource != handle::null_resource)
     {
         auto const& ds = brp.depth_target;
-        res = cc::hash_combine(res, cc::make_hash(ds.clear_type, ds.rv.pixel_format));
+        res = cc::hash_combine(res, cc::make_hash(ds.clear_type, ds.rv.texture_info.pixel_format));
     }
 
     return cc::hash_combine(res, cc::make_hash(num_samples));
@@ -70,7 +70,7 @@ bool phi::vk::RenderPassCache::render_pass_key::operator==(const phi::vk::Render
             auto const& lhs_dt = brp.depth_target;
             auto const& rhs_dt = rhs.brp.depth_target;
 
-            if (lhs_dt.rv.pixel_format != rhs_dt.rv.pixel_format || lhs_dt.clear_type != rhs_dt.clear_type)
+            if (lhs_dt.rv.texture_info.pixel_format != rhs_dt.rv.texture_info.pixel_format || lhs_dt.clear_type != rhs_dt.clear_type)
                 return false;
         }
 

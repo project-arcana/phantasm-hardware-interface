@@ -218,6 +218,7 @@ enum class texture_dimension : uint8_t
 /// the type of a resource_view
 enum class resource_view_dimension : uint8_t
 {
+    none = 0,
     buffer,
     texture1d,
     texture1d_array,
@@ -236,11 +237,11 @@ struct resource_view
 {
     handle::resource resource;
 
-    format pixel_format;
     resource_view_dimension dimension;
 
     struct texture_info_t
     {
+        format pixel_format;
         unsigned mip_start;   ///< index of the first usable mipmap (usually: 0)
         unsigned mip_size;    ///< amount of usable mipmaps, starting from mip_start (usually: -1 / all)
         unsigned array_start; ///< index of the first usable array element [if applicable] (usually: 0)
@@ -254,30 +255,40 @@ struct resource_view
         unsigned element_stride_bytes; ///< the stride of elements in bytes
     };
 
+    struct accel_struct_info_t
+    {
+        handle::accel_struct accel_struct;
+    };
+
     union {
         texture_info_t texture_info;
         buffer_info_t buffer_info;
+        accel_struct_info_t accel_struct_info;
     };
 
 public:
     // convenience
 
-    void init_as_null() { resource = handle::null_resource; }
+    void init_as_null()
+    {
+        dimension = resource_view_dimension::none;
+        resource = handle::null_resource;
+    }
 
     void init_as_backbuffer(handle::resource res)
     {
-        resource = res;
-        pixel_format = format::bgra8un;
         dimension = resource_view_dimension::texture2d;
+        resource = res;
+        texture_info.pixel_format = format::bgra8un;
         // cmdlist translation checks for this case and automatically chooses the right texture_info contents,
         // no need to specify
     }
 
     void init_as_tex2d(handle::resource res, format pf, bool multisampled = false, unsigned mip_start = 0, unsigned mip_size = unsigned(-1))
     {
-        resource = res;
-        pixel_format = pf;
         dimension = multisampled ? resource_view_dimension::texture2d_ms : resource_view_dimension::texture2d;
+        resource = res;
+        texture_info.pixel_format = pf;
         texture_info.mip_start = mip_start;
         texture_info.mip_size = mip_size;
         texture_info.array_start = 0;
@@ -286,9 +297,9 @@ public:
 
     void init_as_texcube(handle::resource res, format pf)
     {
-        resource = res;
-        pixel_format = pf;
         dimension = resource_view_dimension::texturecube;
+        resource = res;
+        texture_info.pixel_format = pf;
         texture_info.mip_start = 0;
         texture_info.mip_size = unsigned(-1);
         texture_info.array_start = 0;
@@ -297,18 +308,18 @@ public:
 
     void init_as_structured_buffer(handle::resource res, unsigned num_elements, unsigned stride_bytes, unsigned element_start = 0)
     {
-        resource = res;
         dimension = resource_view_dimension::buffer;
+        resource = res;
         buffer_info.num_elements = num_elements;
         buffer_info.element_start = element_start;
         buffer_info.element_stride_bytes = stride_bytes;
     }
 
-    /// receive the buffer handle from getAccelStructBuffer
-    void init_as_accel_struct(handle::resource as_buffer)
+    void init_as_accel_struct(handle::accel_struct as)
     {
-        resource = as_buffer;
         dimension = resource_view_dimension::raytracing_accel_struct;
+        resource = handle::null_resource;
+        accel_struct_info.accel_struct = as;
     }
 
 public:
@@ -344,10 +355,10 @@ public:
         rv.init_as_structured_buffer(res, num_elements, stride_bytes);
         return rv;
     }
-    static resource_view accel_struct(handle::resource as_buffer)
+    static resource_view accel_struct(handle::accel_struct as)
     {
         resource_view rv;
-        rv.init_as_accel_struct(as_buffer);
+        rv.init_as_accel_struct(as);
         return rv;
     }
 };

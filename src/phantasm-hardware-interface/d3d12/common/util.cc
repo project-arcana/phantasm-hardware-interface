@@ -56,7 +56,7 @@ unsigned phi::d3d12::util::get_object_name(ID3D12Object* object, cc::span<char> 
 }
 
 
-D3D12_SHADER_RESOURCE_VIEW_DESC phi::d3d12::util::create_srv_desc(const phi::resource_view& sve, ID3D12Resource* raw_resource)
+D3D12_SHADER_RESOURCE_VIEW_DESC phi::d3d12::util::create_srv_desc(const phi::resource_view& sve, D3D12_GPU_VIRTUAL_ADDRESS accelstruct_va)
 {
     D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
     srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
@@ -70,7 +70,7 @@ D3D12_SHADER_RESOURCE_VIEW_DESC phi::d3d12::util::create_srv_desc(const phi::res
         srv_desc.Format = DXGI_FORMAT_UNKNOWN;
         break;
     default:
-        srv_desc.Format = util::to_view_dxgi_format(sve.pixel_format);
+        srv_desc.Format = util::to_view_dxgi_format(sve.texture_info.pixel_format);
         break;
     }
 
@@ -83,7 +83,8 @@ D3D12_SHADER_RESOURCE_VIEW_DESC phi::d3d12::util::create_srv_desc(const phi::res
         break;
 
     case svd::raytracing_accel_struct:
-        srv_desc.RaytracingAccelerationStructure.Location = raw_resource->GetGPUVirtualAddress();
+        CC_ASSERT(accelstruct_va != UINT64(-1) && "invalid acceleration structure VA");
+        srv_desc.RaytracingAccelerationStructure.Location = accelstruct_va;
         break;
 
     case svd::texture1d:
@@ -143,6 +144,10 @@ D3D12_SHADER_RESOURCE_VIEW_DESC phi::d3d12::util::create_srv_desc(const phi::res
         srv_desc.TextureCubeArray.First2DArrayFace = sve.texture_info.array_start;
         srv_desc.TextureCubeArray.NumCubes = sve.texture_info.array_size;
         break;
+
+    default:
+        CC_UNREACHABLE("invalid shader view dimension");
+        break;
     }
 
     return srv_desc;
@@ -162,7 +167,7 @@ D3D12_UNORDERED_ACCESS_VIEW_DESC phi::d3d12::util::create_uav_desc(const phi::re
         uav_desc.Format = DXGI_FORMAT_UNKNOWN;
         break;
     default:
-        uav_desc.Format = util::to_view_dxgi_format(sve.pixel_format);
+        uav_desc.Format = util::to_view_dxgi_format(sve.texture_info.pixel_format);
         break;
     }
 
@@ -219,7 +224,7 @@ D3D12_UNORDERED_ACCESS_VIEW_DESC phi::d3d12::util::create_uav_desc(const phi::re
 D3D12_RENDER_TARGET_VIEW_DESC phi::d3d12::util::create_rtv_desc(const phi::resource_view& sve)
 {
     D3D12_RENDER_TARGET_VIEW_DESC rtv_desc = {};
-    rtv_desc.Format = util::to_dxgi_format(sve.pixel_format);
+    rtv_desc.Format = util::to_dxgi_format(sve.texture_info.pixel_format);
     rtv_desc.ViewDimension = util::to_native_rtv_dim(sve.dimension);
 
     using svd = resource_view_dimension;
@@ -273,7 +278,7 @@ D3D12_RENDER_TARGET_VIEW_DESC phi::d3d12::util::create_rtv_desc(const phi::resou
 D3D12_DEPTH_STENCIL_VIEW_DESC phi::d3d12::util::create_dsv_desc(const phi::resource_view& sve)
 {
     D3D12_DEPTH_STENCIL_VIEW_DESC dsv_desc = {};
-    dsv_desc.Format = util::to_dxgi_format(sve.pixel_format);
+    dsv_desc.Format = util::to_dxgi_format(sve.texture_info.pixel_format);
     dsv_desc.ViewDimension = util::to_native_dsv_dim(sve.dimension);
 
     using svd = resource_view_dimension;

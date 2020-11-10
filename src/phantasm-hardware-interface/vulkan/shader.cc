@@ -24,7 +24,7 @@ void phi::vk::initialize_shader(phi::vk::shader& s, VkDevice device, const std::
     VkShaderModuleCreateInfo shader_info = {};
     shader_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
     shader_info.codeSize = size;
-    shader_info.pCode = cc::bit_cast<uint32_t const*>(data);
+    shader_info.pCode = reinterpret_cast<uint32_t const*>(data);
 
     s.stage = stage;
     s.entrypoint = entrypoint;
@@ -43,12 +43,13 @@ void phi::vk::patched_shader_intermediates::initialize_from_libraries(VkDevice d
     {
         // patch SPIR-V
         patched_spirv.push_back(util::create_patched_spirv(lib.binary.data, lib.binary.size, spirv_info, alloc));
+        auto const& patched_lib = patched_spirv.back();
 
         // create a shader per export
         for (auto const& exp : lib.shader_exports)
         {
             shader& new_shader = shader_modules.emplace_back();
-            initialize_shader(new_shader, device, lib.binary.data, lib.binary.size, exp.entrypoint, exp.stage);
+            initialize_shader(new_shader, device, patched_lib.data, patched_lib.size, exp.entrypoint, exp.stage);
             shader_create_infos.push_back(get_shader_create_info(new_shader));
         }
     }

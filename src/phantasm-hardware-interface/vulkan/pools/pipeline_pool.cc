@@ -59,15 +59,8 @@ phi::handle::pipeline_state phi::vk::PipelinePool::createPipelineState(phi::arg:
     pso_node& new_node = mPool.get(pool_index);
     new_node.associated_pipeline_layout = layout;
 
-    // write meta info
-    {
-        new_node.rt_formats.clear();
-        for (auto const& rt : framebuffer_config.render_targets)
-            new_node.rt_formats.push_back(rt.fmt);
+    CC_ASSERT(primitive_config.samples > 0 && "invalid amount of MSAA samples");
 
-        CC_ASSERT(primitive_config.samples > 0 && "invalid amount of MSAA samples");
-        new_node.num_msaa_samples = static_cast<unsigned>(primitive_config.samples);
-    }
 
     {
         // Create VkPipeline
@@ -122,8 +115,6 @@ phi::handle::pipeline_state phi::vk::PipelinePool::createComputePipelineState(ph
     // Populate new node
     pso_node& new_node = mPool.get(pool_index);
     new_node.associated_pipeline_layout = layout;
-    new_node.rt_formats.clear();
-    new_node.num_msaa_samples = 0;
 
 
     new_node.raw_pipeline = create_compute_pipeline(mDevice, new_node.associated_pipeline_layout->raw_layout, patched_shader_stage);
@@ -142,17 +133,10 @@ phi::handle::pipeline_state phi::vk::PipelinePool::createRaytracingPipelineState
     CC_ASSERT(libraries.size() > 0 && arg_assocs.size() <= limits::max_raytracing_argument_assocs && "zero libraries or too many argument associations");
     CC_ASSERT(hit_groups.size() <= limits::max_raytracing_hit_groups && "too many hit groups");
 
-    CC_RUNTIME_ASSERT(false && "createRaytracingPipelineState WIP, not functional");
-    // NOTE: right now this hinges on SPIRV-Reflect not supporting ray tracing shader stages
-    // since it's abandoned. Patching support in doesn't seem so straightforward, SPIRV-Cross:
-    // https://github.com/KhronosGroup/SPIRV-Cross
-    // might be the only alternative. Unfortunately it's much larger, and it's not entirely clear
-    // if Vk_NV_ray_tracing is already fully supported (Vk_KHR_ray_tracing is not, see
-    // https://github.com/KhronosGroup/SPIRV-Cross/pull/1364)
-
     patched_shader_intermediates shader_intermediates;
     shader_intermediates.initialize_from_libraries(mDevice, libraries, scratch_alloc);
     CC_DEFER { shader_intermediates.free(mDevice); };
+    // util::print_spirv_info(shader_intermediates.sorted_merged_descriptor_infos);
 
     // verifying the descriptor ranges reflected here is much more involved than in a graphics / compute setting, skipping for now
 
@@ -168,8 +152,6 @@ phi::handle::pipeline_state phi::vk::PipelinePool::createRaytracingPipelineState
     // Populate new node
     pso_node& new_node = mPool.get(pool_index);
     new_node.associated_pipeline_layout = layout;
-    new_node.rt_formats.clear();
-    new_node.num_msaa_samples = 0;
     new_node.raw_pipeline = create_raytracing_pipeline(mDevice, shader_intermediates, new_node.associated_pipeline_layout->raw_layout, arg_assocs,
                                                        hit_groups, max_recursion, max_payload_size_bytes, max_attribute_size_bytes, scratch_alloc);
 

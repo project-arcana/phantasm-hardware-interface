@@ -2,6 +2,7 @@
 
 #include <mutex>
 
+#include <clean-core/array.hh>
 #include <clean-core/capped_vector.hh>
 #include <clean-core/span.hh>
 
@@ -11,7 +12,7 @@
 #include <phantasm-hardware-interface/types.hh>
 
 #include <phantasm-hardware-interface/d3d12/common/d3d12_sanitized.hh>
-#include <phantasm-hardware-interface/d3d12/common/shared_com_ptr.hh>
+#include <phantasm-hardware-interface/d3d12/fwd.hh>
 
 namespace phi::d3d12
 {
@@ -109,7 +110,13 @@ public:
 public:
     // internal API
 
-    void initialize(ID3D12Device* device, ResourcePool* res_pool, unsigned num_shader_views, unsigned num_srvs_uavs, unsigned num_samplers, cc::allocator* static_alloc);
+    void initialize(ID3D12Device* device,
+                    ResourcePool* res_pool,
+                    phi::d3d12::AccelStructPool* as_pool,
+                    unsigned num_shader_views,
+                    unsigned num_srvs_uavs,
+                    unsigned num_samplers,
+                    cc::allocator* static_alloc);
     void destroy();
 
     [[nodiscard]] D3D12_GPU_DESCRIPTOR_HANDLE getSRVUAVGPUHandle(handle::shader_view sv) const
@@ -155,8 +162,9 @@ private:
 
 private:
     // non-owning
-    ID3D12Device* mDevice;
-    ResourcePool* mResourcePool;
+    ID3D12Device* mDevice = nullptr;
+    ResourcePool* mResourcePool = nullptr;
+    AccelStructPool* mAccelStructPool = nullptr;
 
     phi::linked_pool<shader_view_data> mPool;
     DescriptorPageAllocator mSRVUAVAllocator;
