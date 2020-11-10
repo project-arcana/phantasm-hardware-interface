@@ -349,6 +349,9 @@ namespace phi::vk::util
     case phi::resource_view_dimension::texturecube:
     case phi::resource_view_dimension::texturecube_array:
         return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+
+    case phi::resource_view_dimension::none:
+        return VK_DESCRIPTOR_TYPE_MAX_ENUM;
     }
 
     CC_UNREACHABLE_SWITCH_WORKAROUND(sv_dim);
@@ -371,6 +374,7 @@ namespace phi::vk::util
         return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
 
     case phi::resource_view_dimension::raytracing_accel_struct:
+    case phi::resource_view_dimension::none:
         return VK_DESCRIPTOR_TYPE_MAX_ENUM;
     }
 
@@ -406,6 +410,7 @@ namespace phi::vk::util
     case phi::resource_view_dimension::buffer:
     case phi::resource_view_dimension::raytracing_accel_struct:
         CC_ASSERT(false && "requested image view for buffer or raytracing structure");
+    case phi::resource_view_dimension::none:
         return VK_IMAGE_VIEW_TYPE_MAX_ENUM;
     }
 
