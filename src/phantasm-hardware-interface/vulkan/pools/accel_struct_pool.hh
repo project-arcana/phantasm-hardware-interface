@@ -2,9 +2,9 @@
 
 #include <clean-core/span.hh>
 #include <clean-core/vector.hh>
+#include <clean-core/atomic_linked_pool.hh>
 
 #include <phantasm-hardware-interface/arguments.hh>
-#include <phantasm-hardware-interface/common/container/linked_pool.hh>
 #include <phantasm-hardware-interface/types.hh>
 
 #include <phantasm-hardware-interface/vulkan/loader/volk.hh>
@@ -53,7 +53,7 @@ private:
     VkDevice mDevice = nullptr;
     ResourcePool* mResourcePool = nullptr;
 
-    phi::linked_pool<accel_struct_node> mPool;
+    cc::atomic_linked_pool<accel_struct_node> mPool;
 };
 
 }

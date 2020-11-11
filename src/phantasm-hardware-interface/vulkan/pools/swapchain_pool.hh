@@ -1,8 +1,8 @@
 #pragma once
 
 #include <clean-core/capped_array.hh>
+#include <clean-core/atomic_linked_pool.hh>
 
-#include <phantasm-hardware-interface/common/container/linked_pool.hh>
 #include <phantasm-hardware-interface/fwd.hh>
 #include <phantasm-hardware-interface/types.hh>
 
@@ -99,7 +99,7 @@ private:
     uint32_t mPresentQueueFamilyIndex;
 
     // owning
-    phi::linked_pool<swapchain> mPool;
+    cc::atomic_linked_pool<swapchain> mPool;
 
     VkRenderPass mRenderPass = nullptr;
     VkCommandPool mDummyPresentCommandPool;

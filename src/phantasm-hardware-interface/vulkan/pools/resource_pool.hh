@@ -3,8 +3,8 @@
 #include <mutex>
 
 #include <clean-core/alloc_array.hh>
+#include <clean-core/atomic_linked_pool.hh>
 
-#include <phantasm-hardware-interface/common/container/linked_pool.hh>
 #include <phantasm-hardware-interface/types.hh>
 
 #include <phantasm-hardware-interface/vulkan/resources/descriptor_allocator.hh>
@@ -183,7 +183,7 @@ private:
 
 private:
     /// The main pool data
-    phi::linked_pool<resource_node> mPool;
+    cc::atomic_linked_pool<resource_node> mPool;
 
     /// Amount of handles (from the start) reserved for backbuffer injection
     unsigned mNumReservedBackbuffers;

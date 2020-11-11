@@ -6,9 +6,9 @@
 #include <clean-core/array.hh>
 #include <clean-core/bits.hh>
 #include <clean-core/capped_array.hh>
+#include <clean-core/atomic_linked_pool.hh>
 
 #include <phantasm-hardware-interface/arguments.hh>
-#include <phantasm-hardware-interface/common/container/linked_pool.hh>
 #include <phantasm-hardware-interface/common/incomplete_state_cache.hh>
 
 #include <phantasm-hardware-interface/d3d12/Fence.hh>
@@ -155,7 +155,7 @@ private:
         d3d12_incomplete_state_cache state_cache;
     };
 
-    using cmdlist_linked_pool_t = phi::linked_pool<cmd_list_node>;
+    using cmdlist_linked_pool_t = cc::atomic_linked_pool<cmd_list_node>;
 
     static queue_type HandleToQueueType(handle::command_list cl)
     {

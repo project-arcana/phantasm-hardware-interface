@@ -1,6 +1,7 @@
 #pragma once
 
-#include <phantasm-hardware-interface/common/container/linked_pool.hh>
+#include <clean-core/atomic_linked_pool.hh>
+
 #include <phantasm-hardware-interface/types.hh>
 
 #include <phantasm-hardware-interface/d3d12/memory/ResourceAllocator.hh>
@@ -173,7 +174,7 @@ private:
 
 private:
     /// The main pool data
-    phi::linked_pool<resource_node> mPool;
+    cc::atomic_linked_pool<resource_node> mPool;
     /// Amount of handles (from the start) reserved for backbuffer injection
     unsigned mNumReservedBackbuffers;
 

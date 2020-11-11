@@ -1,8 +1,8 @@
 #pragma once
 
+#include <clean-core/atomic_linked_pool.hh>
 #include <clean-core/capped_array.hh>
 
-#include <phantasm-hardware-interface/common/container/linked_pool.hh>
 #include <phantasm-hardware-interface/handles.hh>
 #include <phantasm-hardware-interface/types.hh>
 
@@ -80,7 +80,7 @@ private:
     ID3D12CommandQueue* mParentQueue = nullptr; ///< The device's queue being used to present
 
     // owning
-    phi::linked_pool<swapchain> mPool;
+    cc::atomic_linked_pool<swapchain> mPool;
     ID3D12DescriptorHeap* mRTVHeap;
     UINT mRTVSize;
 };

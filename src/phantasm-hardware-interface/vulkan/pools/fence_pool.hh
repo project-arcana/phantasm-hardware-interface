@@ -1,6 +1,7 @@
 #pragma once
 
-#include <phantasm-hardware-interface/common/container/linked_pool.hh>
+#include <clean-core/atomic_linked_pool.hh>
+
 #include <phantasm-hardware-interface/types.hh>
 
 #include <phantasm-hardware-interface/vulkan/loader/vulkan_fwd.hh>
@@ -33,7 +34,7 @@ public:
 private:
     VkDevice mDevice = nullptr;
 
-    phi::linked_pool<VkSemaphore> mPool;
+    cc::atomic_linked_pool<VkSemaphore> mPool;
 };
 
 }
