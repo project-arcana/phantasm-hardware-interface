@@ -275,11 +275,11 @@ void phi::d3d12::ResourcePool::free(phi::handle::resource res)
         return;
     CC_ASSERT(!isBackbuffer(res) && "the backbuffer resource must not be freed");
 
-    resource_node& freed_node = mPool.get(unsigned(res._value));
+    resource_node& freed_node = mPool.get(res._value);
     // This requires no synchronization, as D3D12MA internally syncs
     freed_node.allocation->Release();
 
-    mPool.release(unsigned(res._value));
+    mPool.release(res._value);
 }
 
 void phi::d3d12::ResourcePool::free(cc::span<const phi::handle::resource> resources)

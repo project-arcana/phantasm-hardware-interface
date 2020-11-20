@@ -141,6 +141,9 @@ void phi::d3d12::ShaderViewPool::free(cc::span<const phi::handle::shader_view> s
     auto lg = std::lock_guard(mMutex);
     for (auto sv : svs)
     {
+        if (!sv.is_valid())
+            continue;
+
         auto& data = mPool.get(unsigned(sv._value));
         mSRVUAVAllocator.free(data.srv_uav_alloc_handle);
         mSamplerAllocator.free(data.sampler_alloc_handle);
