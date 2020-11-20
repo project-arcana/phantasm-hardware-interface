@@ -43,7 +43,12 @@ phi::handle::pipeline_state phi::vk::PipelinePool::createPipelineState(phi::arg:
     // In debug, calculate the amount of descriptors in the SPIR-V reflection and assert that the
     // amount declared in the shader arg shapes is the same
     CC_ASSERT(util::is_consistent_with_reflection(shader_descriptor_ranges, shader_arg_shapes) && "Given shader argument shapes inconsistent with SPIR-V reflection");
-    CC_ASSERT(has_push_constants == should_have_push_constants && "Shader push constant reflection inconsistent with creation argument");
+
+    if (!!has_push_constants != !!should_have_push_constants)
+    {
+        PHI_LOG_WARN("createPipelineState: Call {} root constants but SPIR-V reflection {}", should_have_push_constants ? "enables" : "disables", has_push_constants ? "finds push constants" : "finds none");
+        CC_ASSERT(!!has_push_constants == !!should_have_push_constants && "Given root constant state inconsistent with SPIR-V reflection");
+    }
 
 
     pipeline_layout* layout;
