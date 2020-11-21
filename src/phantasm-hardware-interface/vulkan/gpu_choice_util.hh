@@ -45,7 +45,7 @@ struct physical_device_feature_bundle
     VkPhysicalDeviceFeatures2* get() { return &features; }
 };
 
-bool set_or_test_device_features(VkPhysicalDeviceFeatures2* arg, bool enable_gbv, bool test_mode);
+bool set_or_test_device_features(VkPhysicalDeviceFeatures2* arg, bool enable_gbv, bool test_mode, char const* gpu_name_for_logging = nullptr);
 
 /// receive all physical devices visible to the instance
 [[nodiscard]] cc::array<VkPhysicalDevice> get_physical_devices(VkInstance instance);
