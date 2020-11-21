@@ -142,9 +142,13 @@ PHI_DEFINE_CMD(draw)
     handle::pipeline_state pipeline_state = handle::null_pipeline_state;
     handle::resource vertex_buffer = handle::null_resource; // optional
     handle::resource index_buffer = handle::null_resource;  // optional
+    
+    /// amount of indices drawn (or amount of vertices if no index buffer specified)
     unsigned num_indices = 0;
+    /// location of the first index (or first vertex if no index buffer specified)
     unsigned index_offset = 0;
-    unsigned vertex_offset = 0;
+    /// added to the vertex index before indexing into the vertex buffer
+    int vertex_offset = 0;
 
     /// the scissor rectangle to set, none if -1
     /// left, top, right, bottom of the rectangle in absolute pixel values
@@ -152,7 +156,7 @@ PHI_DEFINE_CMD(draw)
 
 public:
     void init(handle::pipeline_state pso, unsigned num_ind, handle::resource vb = handle::null_resource, handle::resource ib = handle::null_resource,
-              unsigned ind_offset = 0, unsigned vert_offset = 0)
+              unsigned ind_offset = 0, int vert_offset = 0)
     {
         pipeline_state = pso;
         num_indices = num_ind;
