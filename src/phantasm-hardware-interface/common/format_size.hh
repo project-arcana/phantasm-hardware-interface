@@ -179,4 +179,20 @@ namespace phi::util
     return 0;
 }
 
+[[nodiscard]] inline format get_format_srgb_variant(format fmt)
+{
+    switch (fmt)
+    {
+    case format::rgba8un:
+        return format::rgba8un_srgb;
+    case format::bc1_8un:
+        return format::bc1_8un_srgb;
+    case format::bc2_8un:
+        return format::bc2_8un_srgb;
+    case format::bc3_8un:
+        return format::bc3_8un_srgb;
+    default:
+        return fmt;
+    }
+}
 }
