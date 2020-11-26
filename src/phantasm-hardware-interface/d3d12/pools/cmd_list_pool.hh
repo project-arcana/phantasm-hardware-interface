@@ -4,9 +4,9 @@
 #include <cstdint>
 
 #include <clean-core/array.hh>
+#include <clean-core/atomic_linked_pool.hh>
 #include <clean-core/bits.hh>
 #include <clean-core/capped_array.hh>
-#include <clean-core/atomic_linked_pool.hh>
 
 #include <phantasm-hardware-interface/arguments.hh>
 #include <phantasm-hardware-interface/common/incomplete_state_cache.hh>
