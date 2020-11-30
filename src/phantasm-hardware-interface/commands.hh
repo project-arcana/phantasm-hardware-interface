@@ -143,6 +143,8 @@ PHI_DEFINE_CMD(draw)
     handle::resource vertex_buffer = handle::null_resource; // optional
     handle::resource index_buffer = handle::null_resource;  // optional
     
+    /// amount of instances to draw
+    unsigned num_instances = 1;
     /// amount of indices drawn (or amount of vertices if no index buffer specified)
     unsigned num_indices = 0;
     /// location of the first index (or first vertex if no index buffer specified)

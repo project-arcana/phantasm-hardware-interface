@@ -241,11 +241,11 @@ void phi::vk::command_list_translator::execute(const phi::cmd::draw& draw)
     // Draw command
     if (draw.index_buffer.is_valid())
     {
-        vkCmdDrawIndexed(_cmd_list, draw.num_indices, 1, draw.index_offset, draw.vertex_offset, 0);
+        vkCmdDrawIndexed(_cmd_list, draw.num_indices, draw.num_instances, draw.index_offset, draw.vertex_offset, 0);
     }
     else
     {
-        vkCmdDraw(_cmd_list, draw.num_indices, 1, draw.index_offset, 0);
+        vkCmdDraw(_cmd_list, draw.num_indices, draw.num_instances, draw.index_offset, 0);
     }
 }
 

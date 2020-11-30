@@ -227,11 +227,11 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::draw& draw)
     // Draw command
     if (draw.index_buffer.is_valid())
     {
-        _cmd_list->DrawIndexedInstanced(draw.num_indices, 1, draw.index_offset, draw.vertex_offset, 0);
+        _cmd_list->DrawIndexedInstanced(draw.num_indices, draw.num_instances, draw.index_offset, draw.vertex_offset, 0);
     }
     else
     {
-        _cmd_list->DrawInstanced(draw.num_indices, 1, draw.index_offset, 0);
+        _cmd_list->DrawInstanced(draw.num_indices, draw.num_instances, draw.index_offset, 0);
     }
 }
 
