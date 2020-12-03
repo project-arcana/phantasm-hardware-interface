@@ -46,7 +46,8 @@ phi::handle::pipeline_state phi::vk::PipelinePool::createPipelineState(phi::arg:
 
     if (!!has_push_constants != !!should_have_push_constants)
     {
-        PHI_LOG_WARN("createPipelineState: Call {} root constants but SPIR-V reflection {}", should_have_push_constants ? "enables" : "disables", has_push_constants ? "finds push constants" : "finds none");
+        PHI_LOG_WARN("createPipelineState: Call {} root constants but SPIR-V reflection {}", should_have_push_constants ? "enables" : "disables",
+                     has_push_constants ? "finds push constants" : "finds none");
         CC_ASSERT(!!has_push_constants == !!should_have_push_constants && "Given root constant state inconsistent with SPIR-V reflection");
     }
 

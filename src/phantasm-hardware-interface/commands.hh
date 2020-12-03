@@ -142,7 +142,7 @@ PHI_DEFINE_CMD(draw)
     handle::pipeline_state pipeline_state = handle::null_pipeline_state;
     handle::resource vertex_buffer = handle::null_resource; // optional
     handle::resource index_buffer = handle::null_resource;  // optional
-    
+
     /// amount of instances to draw
     unsigned num_instances = 1;
     /// amount of indices drawn (or amount of vertices if no index buffer specified)

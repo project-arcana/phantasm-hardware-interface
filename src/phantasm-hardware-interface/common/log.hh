@@ -17,6 +17,11 @@ inline void warn_log(rlog::MessageBuilder& builder)
     builder.set_severity(rlog::severity::warning());
     builder.set_use_error_stream(true);
 }
+inline void trace_log(rlog::MessageBuilder& builder)
+{
+    builder.set_domain(domain);
+    builder.set_severity(rlog::severity::trace());
+}
 inline void err_log(rlog::MessageBuilder& builder)
 {
     builder.set_domain(domain);
@@ -39,5 +44,6 @@ inline void vulkan_log(rlog::MessageBuilder& builder)
 
 #define PHI_LOG RICH_LOG_IMPL(phi::detail::info_log)
 #define PHI_LOG_WARN RICH_LOG_IMPL(phi::detail::warn_log)
+#define PHI_LOG_TRACE RICH_LOG_IMPL(phi::detail::trace_log)
 #define PHI_LOG_ERROR RICH_LOG_IMPL(phi::detail::err_log)
 #define PHI_LOG_ASSERT RICH_LOG_IMPL(phi::detail::assert_log)

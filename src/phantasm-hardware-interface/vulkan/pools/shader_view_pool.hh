@@ -2,10 +2,10 @@
 
 #include <mutex>
 
+#include <clean-core/atomic_linked_pool.hh>
 #include <clean-core/capped_vector.hh>
 #include <clean-core/span.hh>
 #include <clean-core/vector.hh>
-#include <clean-core/atomic_linked_pool.hh>
 
 #include <phantasm-hardware-interface/arguments.hh>
 #include <phantasm-hardware-interface/limits.hh>

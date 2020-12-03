@@ -52,6 +52,7 @@ size_t phi::get_preferred_gpu(cc::span<const phi::gpu_info> candidates, phi::ada
                 return i;
         }
 
+        PHI_LOG_ERROR("Fatal: Found no suitable GPU (in {} candidate{})", candidates.size(), candidates.size() == 1 ? "" : "s");
         return candidates.size();
     };
 
@@ -77,7 +78,7 @@ size_t phi::get_preferred_gpu(cc::span<const phi::gpu_info> candidates, phi::ada
         {
             auto highest_vram_index = get_first_capable();
 
-            for (auto i = 1u; i < candidates.size(); ++i)
+            for (auto i = 0u; i < candidates.size(); ++i)
             {
                 if (candidates[i].capabilities != gpu_capabilities::insufficient
                     && candidates[i].dedicated_video_memory_bytes > candidates[highest_vram_index].dedicated_video_memory_bytes)
@@ -88,7 +89,8 @@ size_t phi::get_preferred_gpu(cc::span<const phi::gpu_info> candidates, phi::ada
         }
         case adapter_preference::highest_feature_level:
         {
-            auto highest_capability_index = 0u;
+            auto highest_capability_index = get_first_capable();
+
             for (auto i = 1u; i < candidates.size(); ++i)
             {
                 if (candidates[i].capabilities > candidates[highest_capability_index].capabilities)

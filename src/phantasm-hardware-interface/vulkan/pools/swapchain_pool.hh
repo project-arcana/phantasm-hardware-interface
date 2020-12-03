@@ -1,7 +1,7 @@
 #pragma once
 
-#include <clean-core/capped_array.hh>
 #include <clean-core/atomic_linked_pool.hh>
+#include <clean-core/capped_array.hh>
 
 #include <phantasm-hardware-interface/fwd.hh>
 #include <phantasm-hardware-interface/types.hh>

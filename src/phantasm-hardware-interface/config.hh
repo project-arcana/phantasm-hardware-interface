@@ -8,10 +8,19 @@ namespace phi
 {
 enum class adapter_preference : uint8_t
 {
+    // use the GPU with the highest VRAM
     highest_vram,
+
+    // use the first GPU found by the API
     first,
+
+    // prefer integrated GPUs (like Intel Graphics)
     integrated,
+
+    // use the GPU with the highest feature level
     highest_feature_level,
+
+    // use the n-th GPU, n given by the explicit_adapter_index field
     explicit_index
 };
 
@@ -26,19 +35,18 @@ enum class validation_level : uint8_t
 
     // D3D12: Whether to additionally enable GPU based validation (slow)
     //
-    // Vulkan: Whether to additionally enable LunarG GPU-assisted validation
-    //          Slow, and requires a reserved descriptor set. If your device
-    //          only has 8 (max shader args * 2), like an IGP, this could fail
+    // Vulkan: Whether to additionally enable LunarG GPU-assisted validation (slow)
+    //          Requires a reserved descriptor set, can fail if the device only supports 8, like some iGPUs.
     //
-    // Extended validation for both APIs can prevent diagnostic tools like
-    // Renderdoc and NSight from working properly (PIX will work though)
+    // Can prevent diagnostic tools like Renderdoc and NSight from working properly,
+    // but the backend will attempt to auto-disable if those are detected
     on_extended,
 
     // D3D12: Whether to additionally enable DRED (Device Removed Extended Data)
     //          with automatic breadcrumbs and pagefault recovery (very slow)
     //          see: https://docs.microsoft.com/en-us/windows/win32/direct3d12/use-dred
     //
-    // Vulkan: No additional effect
+    // Vulkan: same as on_extended
     on_extended_dred
 };
 
@@ -54,8 +62,16 @@ struct backend_config
     enum native_feature_flags : uint8_t
     {
         native_feature_none = 0,
+
+        // Vulkan: Dump all Vulkan API calls in text form
         native_feature_vk_api_dump = 1 << 0,
+
+        // D3D12: Cause a breakpoint on any warning, useful to find it's source
+        // for an equivalent Vulkan feature, set a breakpoint in <phi>/vulkan/common/debug_callback.cc
         native_feature_d3d12_break_on_warn = 1 << 1,
+
+        // D3D12: skip destroying ID3D12Device on shutdown to avoid a known crash in Windows pre-21H1 with enabled GPU based validation
+        // this causes a lot of spam on shutdown because of live COM objects, but will avoid the crash
         native_feature_d3d12_workaround_device_release_crash = 1 << 2
     };
 
