@@ -33,13 +33,24 @@ struct byte_reader
         return res;
     }
 
-    // in memory: [num] [T] [T] .. x num .. [T]
+    // in memory: [size_t: num] [T] [T] .. x num .. [T]
     template <class T>
     cc::span<T const> read_sized_array()
     {
-        size_t array_size;
-        void const* const res = read_size_and_skip(array_size, sizeof(T));
-        return cc::span{static_cast<T const*>(res), array_size};
+        static_assert(sizeof(T) > 0, "requires complete T");
+        size_t num_elems;
+        void const* const res = read_size_and_skip(num_elems, sizeof(T));
+        return cc::span{static_cast<T const*>(res), num_elems};
+    }
+
+    // in memory: [T] [T] .. x num .. [T]
+    template <class T>
+    cc::span<T const> read_unsized_array(size_t num_elems)
+    {
+        static_assert(sizeof(T) > 0, "requires complete T");
+        auto* const res = head();
+        skip(num_elems * sizeof(T));
+        return cc::span{reinterpret_cast<T const*>(res), num_elems};
     }
 
     void skip(size_t size)
