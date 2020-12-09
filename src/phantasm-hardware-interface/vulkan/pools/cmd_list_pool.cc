@@ -328,13 +328,15 @@ void phi::vk::CommandAllocatorBundle::updateActiveIndex(VkDevice device)
 
 phi::handle::command_list phi::vk::CommandListPool::create(VkCommandBuffer& out_cmdlist, phi::vk::CommandAllocatorsPerThread& thread_allocator, queue_type type)
 {
-    unsigned res_index = mPool.acquire();
+    unsigned const res = mPool.acquire();
+    unsigned const res_index = mPool.get_handle_index(res);
 
-    cmd_list_node& new_node = mPool.get(res_index);
+    cmd_list_node& new_node = mPool.get(res);
     new_node.responsible_allocator = thread_allocator.get(type).acquireMemory(mDevice, new_node.raw_buffer);
+    new_node.state_cache.initialize(cc::span(mFlatStateCacheEntries).subspan(res_index * mNumStateCacheEntriesPerCmdlist, mNumStateCacheEntriesPerCmdlist));
 
     out_cmdlist = new_node.raw_buffer;
-    return {res_index};
+    return {res};
 }
 
 void phi::vk::CommandListPool::freeOnSubmit(phi::handle::command_list cl, unsigned fence_index)
@@ -447,6 +449,7 @@ void phi::vk::CommandListPool::initialize(phi::vk::Device& device,
                                           int num_compute_lists_per_alloc,
                                           int num_copy_allocs,
                                           int num_copy_lists_per_alloc,
+                                          int max_num_unique_transitions_per_cmdlist,
                                           cc::span<CommandAllocatorsPerThread*> thread_allocators,
                                           cc::allocator* static_alloc,
                                           cc::allocator* dynamic_alloc)
@@ -461,10 +464,12 @@ void phi::vk::CommandListPool::initialize(phi::vk::Device& device,
     auto const num_compute_lists_total = num_compute_lists_per_thread * thread_allocators.size();
     auto const num_copy_lists_total = num_copy_lists_per_thread * thread_allocators.size();
 
-    mPoolDirect.initialize(num_direct_lists_total, static_alloc);
-    mPoolCompute.initialize(num_compute_lists_total, static_alloc);
-    mPoolCopy.initialize(num_copy_lists_total, static_alloc);
-    mPool.initialize(num_direct_lists_total + num_compute_lists_total + num_copy_lists_total, static_alloc);
+    auto const num_lists_total = num_direct_lists_total + num_compute_lists_total + num_copy_lists_total;
+
+    mPool.initialize(num_lists_total, static_alloc);
+
+    mNumStateCacheEntriesPerCmdlist = max_num_unique_transitions_per_cmdlist;
+    mFlatStateCacheEntries = mFlatStateCacheEntries.uninitialized(num_lists_total * max_num_unique_transitions_per_cmdlist, static_alloc);
 
     mFenceRing.initialize(mDevice, unsigned(thread_allocators.size()) * (num_direct_allocs + num_compute_allocs + num_copy_allocs) + 5, static_alloc); // arbitrary safety buffer, should never be required
 

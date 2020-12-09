@@ -1,10 +1,12 @@
 #pragma once
 
-#include <clean-core/capped_vector.hh>
+#include <clean-core/span.hh>
 
 #include <phantasm-hardware-interface/types.hh>
 
-namespace phi::detail
+#include "d3d12_fwd.hh"
+
+namespace phi::d3d12
 {
 /// A thread-local, incomplete-information resource state cache
 /// Keeps track of locally known resource states, and stores the required initial states
@@ -15,16 +17,25 @@ namespace phi::detail
 ///     4. creates barriers for all cache entries, transitioning from (known) <before> to cache_entry::required_initial
 ///     5. executes small "barrier" command list, then executes the proper command list, now with all states correctly in place
 ///     6. updates master cache with all the cache_entry::current states
-template <class StateT>
-struct generic_incomplete_state_cache
+struct incomplete_state_cache
 {
-public:
+    struct cache_entry
+    {
+        /// (const) the resource handle
+        handle::resource ptr;
+        /// (const) the <after> state of the initial barrier (<before> is unknown)
+        D3D12_RESOURCE_STATES required_initial;
+        /// latest state of this resource
+        D3D12_RESOURCE_STATES current;
+    };
+
     /// signal a resource transition to a given state
     /// returns true if the before state is known, or false otherwise
-    bool transition_resource(handle::resource res, StateT after, StateT& out_before)
+    bool transition_resource(handle::resource res, D3D12_RESOURCE_STATES after, D3D12_RESOURCE_STATES& out_before)
     {
-        for (auto& entry : cache)
+        for (auto i = 0u; i < num_entries; ++i)
         {
+            cache_entry& entry = entries[i];
             if (entry.ptr == res)
             {
                 // resource is in cache
@@ -34,24 +45,21 @@ public:
             }
         }
 
-        cache.push_back({res, after, after});
+        CC_ASSERT(num_entries < entries.size() && "state cache full, increase increase PHI config : max_num_unique_transitions_per_cmdlist");
+        entries[num_entries++] = {res, after, after};
         return false;
     }
 
-    void reset() { cache.clear(); }
+    void reset() { num_entries = 0; }
 
-public:
-    struct cache_entry
+    void initialize(cc::span<cache_entry> memory)
     {
-        /// (const) the resource handle
-        handle::resource ptr;
-        /// (const) the <after> state of the initial barrier (<before> is unknown)
-        StateT required_initial;
-        /// latest state of this resource
-        StateT current;
-    };
+        num_entries = 0;
+        entries = memory;
+    }
 
-    // linear "map" for now, might want to benchmark this
-    cc::capped_vector<cache_entry, 32> cache;
+    // linear map for now
+    unsigned num_entries = 0;
+    cc::span<cache_entry> entries;
 };
 }

@@ -3,11 +3,11 @@
 #include <phantasm-hardware-interface/common/byte_util.hh>
 #include <phantasm-hardware-interface/common/command_reading.hh>
 #include <phantasm-hardware-interface/common/format_size.hh>
-#include <phantasm-hardware-interface/common/incomplete_state_cache.hh>
 #include <phantasm-hardware-interface/common/log.hh>
 
 #include "common/diagnostic_util.hh"
 #include "common/dxgi_format.hh"
+#include "common/incomplete_state_cache.hh"
 #include "common/native_enum.hh"
 #include "common/shared_com_ptr.hh"
 #include "common/util.hh"
@@ -30,7 +30,7 @@ void phi::d3d12::command_list_translator::initialize(
 void phi::d3d12::command_list_translator::destroy() { _thread_local.destroy(); }
 
 void phi::d3d12::command_list_translator::translateCommandList(
-    ID3D12GraphicsCommandList5* list, queue_type type, d3d12_incomplete_state_cache* state_cache, std::byte const* buffer, size_t buffer_size)
+    ID3D12GraphicsCommandList5* list, queue_type type, incomplete_state_cache* state_cache, std::byte const* buffer, size_t buffer_size)
 {
     _cmd_list = list;
     _current_queue_type = type;

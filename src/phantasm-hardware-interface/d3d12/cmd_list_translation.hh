@@ -44,7 +44,7 @@ struct command_list_translator
     void initialize(ID3D12Device* device, ShaderViewPool* sv_pool, ResourcePool* resource_pool, PipelineStateObjectPool* pso_pool, AccelStructPool* as_pool, QueryPool* query_pool);
     void destroy();
 
-    void translateCommandList(ID3D12GraphicsCommandList5* list, queue_type type, d3d12_incomplete_state_cache* state_cache, std::byte const* buffer, size_t buffer_size);
+    void translateCommandList(ID3D12GraphicsCommandList5* list, queue_type type, incomplete_state_cache* state_cache, std::byte const* buffer, size_t buffer_size);
 
     void execute(cmd::begin_render_pass const& begin_rp);
 
@@ -96,7 +96,7 @@ private:
     translator_thread_local_memory _thread_local;
 
     // non-owning dynamic
-    d3d12_incomplete_state_cache* _state_cache = nullptr;
+    incomplete_state_cache* _state_cache = nullptr;
     ID3D12GraphicsCommandList5* _cmd_list = nullptr;
     queue_type _current_queue_type = queue_type::direct;
 

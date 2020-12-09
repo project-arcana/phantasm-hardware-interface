@@ -96,7 +96,7 @@ struct backend_config
     /// allocator for runtime allocations, must be thread-safe
     cc::allocator* dynamic_allocator = cc::system_allocator;
 
-    /// resource limits
+    // resource limits
     unsigned max_num_swapchains = 32;
     unsigned max_num_resources = 2048;
     unsigned max_num_pipeline_states = 1024;
@@ -108,7 +108,7 @@ struct backend_config
     unsigned max_num_accel_structs = 2048;
     unsigned max_num_raytrace_pipeline_states = 256;
 
-    /// command list allocator sizes (total = #threads * #allocs/thread * #lists/alloc)
+    // command list allocator sizes (total = #threads * #allocs/thread * #lists/alloc)
     unsigned num_direct_cmdlist_allocators_per_thread = 5;
     unsigned num_direct_cmdlists_per_allocator = 5;
     unsigned num_compute_cmdlist_allocators_per_thread = 5;
@@ -116,7 +116,10 @@ struct backend_config
     unsigned num_copy_cmdlist_allocators_per_thread = 3;
     unsigned num_copy_cmdlists_per_allocator = 3;
 
-    /// query heap sizes
+    // command list limits
+    unsigned max_num_unique_transitions_per_cmdlist = 64;
+
+    // query heap sizes
     unsigned num_timestamp_queries = 1024;
     unsigned num_occlusion_queries = 1024;
     unsigned num_pipeline_stat_queries = 256;

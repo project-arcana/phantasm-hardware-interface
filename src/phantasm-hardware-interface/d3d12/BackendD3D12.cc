@@ -86,10 +86,11 @@ void phi::d3d12::BackendD3D12::initialize(const phi::backend_config& config)
             thread_allocator_ptrs[i] = &thread_comp.cmd_list_allocator;
         }
 
-        mPoolCmdLists.initialize(*this,                                                                                                 //
+        mPoolCmdLists.initialize(*this, config.static_allocator,                                                                        //
                                  int(config.num_direct_cmdlist_allocators_per_thread), int(config.num_direct_cmdlists_per_allocator),   //
                                  int(config.num_compute_cmdlist_allocators_per_thread), int(config.num_compute_cmdlists_per_allocator), //
-                                 int(config.num_copy_cmdlist_allocators_per_thread), int(config.num_copy_cmdlists_per_allocator),       //
+                                 int(config.num_copy_cmdlist_allocators_per_thread), int(config.num_copy_cmdlists_per_allocator),
+                                 config.max_num_unique_transitions_per_cmdlist, //
                                  thread_allocator_ptrs);
     }
 
@@ -311,8 +312,10 @@ void phi::d3d12::BackendD3D12::submit(cc::span<const phi::handle::command_list> 
         auto const* const state_cache = mPoolCmdLists.getStateCache(cl);
         cc::capped_vector<D3D12_RESOURCE_BARRIER, 32> barriers;
 
-        for (auto const& entry : state_cache->cache)
+        for (auto i = 0u; i < state_cache->num_entries; ++i)
         {
+            auto const& entry = state_cache->entries[i];
+
             D3D12_RESOURCE_STATES const master_before = mPoolResources.getResourceState(entry.ptr);
 
             if (master_before != entry.required_initial)

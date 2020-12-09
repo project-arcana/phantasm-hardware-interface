@@ -2,7 +2,6 @@
 
 #include <phantasm-hardware-interface/common/byte_util.hh>
 #include <phantasm-hardware-interface/common/command_reading.hh>
-#include <phantasm-hardware-interface/common/incomplete_state_cache.hh>
 #include <phantasm-hardware-interface/common/log.hh>
 #include <phantasm-hardware-interface/util.hh>
 

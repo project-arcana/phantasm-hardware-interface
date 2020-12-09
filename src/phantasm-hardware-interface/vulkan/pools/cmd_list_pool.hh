@@ -7,7 +7,6 @@
 #include <clean-core/alloc_vector.hh>
 #include <clean-core/atomic_linked_pool.hh>
 
-#include <phantasm-hardware-interface/common/incomplete_state_cache.hh>
 #include <phantasm-hardware-interface/vulkan/common/verify.hh>
 #include <phantasm-hardware-interface/vulkan/common/vk_incomplete_state_cache.hh>
 #include <phantasm-hardware-interface/vulkan/loader/volk.hh>
@@ -279,6 +278,7 @@ public:
                     int num_compute_lists_per_alloc,
                     int num_copy_allocs,
                     int num_copy_lists_per_alloc,
+                    int max_num_unique_transitions_per_cmdlist,
                     cc::span<CommandAllocatorsPerThread*> thread_allocators,
                     cc::allocator* static_alloc,
                     cc::allocator* dynamic_alloc);
@@ -288,15 +288,15 @@ private:
     // non-owning
     VkDevice mDevice;
 
-    /// the fence ringbuffer
+    // the fence ringbuffer
     FenceRingbuffer mFenceRing;
 
-    /// the linked pools per cmdlist type, managing handle association as well as additional
-    /// bookkeeping data structures
-    cmdlist_linked_pool_t mPoolDirect;
-    cmdlist_linked_pool_t mPoolCompute;
-    cmdlist_linked_pool_t mPoolCopy;
+    // the linked pool
     cmdlist_linked_pool_t mPool;
+
+    // flat memory for the state caches
+    int mNumStateCacheEntriesPerCmdlist;
+    cc::alloc_array<vk_incomplete_state_cache::cache_entry> mFlatStateCacheEntries;
 
     std::mutex mMutex;
 };

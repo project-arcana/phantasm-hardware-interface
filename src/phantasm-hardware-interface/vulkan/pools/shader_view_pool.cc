@@ -177,6 +177,9 @@ phi::handle::shader_view phi::vk::ShaderViewPool::create(cc::span<resource_view 
 
 void phi::vk::ShaderViewPool::free(phi::handle::shader_view sv)
 {
+    if (!sv.is_valid())
+        return;
+
     shader_view_node& freed_node = mPool.get(sv._value);
     internalFree(freed_node);
 
