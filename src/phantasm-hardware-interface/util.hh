@@ -8,6 +8,7 @@
 #include <phantasm-hardware-interface/types.hh>
 
 #include <phantasm-hardware-interface/common/byte_util.hh>
+#include <phantasm-hardware-interface/common/api.hh>
 
 namespace phi::util
 {
@@ -29,13 +30,13 @@ inline int get_num_mips(int width, int height) { return int(cc::bit_log2(cc::uin
 inline int get_num_mips(tg::isize2 size) { return get_num_mips(size.width, size.height); }
 
 /// returns the amount of bytes needed to store the contents of a texture in a GPU buffer
-unsigned get_texture_size_bytes(tg::isize3 size, format fmt, int num_mips, bool is_d3d12);
+PHI_API unsigned get_texture_size_bytes(tg::isize3 size, format fmt, int num_mips, bool is_d3d12);
 
 /// returns the offset in bytes of the given pixel position in a texture of given size and format (in a GPU buffer)
-unsigned get_texture_pixel_byte_offset(tg::isize2 size, format fmt, tg::ivec2 pixel, bool is_d3d12);
+PHI_API unsigned get_texture_pixel_byte_offset(tg::isize2 size, format fmt, tg::ivec2 pixel, bool is_d3d12);
 
 /// converts texture data from bgra8 to rgba8
-void unswizzle_bgra_texture_data(cc::span<std::byte> in_out_texture_data);
+PHI_API void unswizzle_bgra_texture_data(cc::span<std::byte> in_out_texture_data);
 
 /// returns the offset in bytes of the next element of size 'next_size_bytes' in a HLSL constant buffer
 /// where head_offset_bytes is the amount of bytes already in use

@@ -4,6 +4,7 @@
 
 #include <typed-geometry/types/size.hh>
 
+#include <phantasm-hardware-interface/common/api.hh>
 #include <phantasm-hardware-interface/fwd.hh>
 #include <phantasm-hardware-interface/types.hh>
 
@@ -15,7 +16,7 @@ enum class backend_type : uint8_t
     vulkan
 };
 
-class Backend
+class PHI_API Backend
 {
 public:
     virtual void initialize(backend_config const& config) = 0;

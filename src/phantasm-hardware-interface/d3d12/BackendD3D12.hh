@@ -24,7 +24,7 @@
 
 namespace phi::d3d12
 {
-class BackendD3D12 final : public Backend
+class PHI_API BackendD3D12 final : public Backend
 {
 public:
     void initialize(backend_config const& config) override;
