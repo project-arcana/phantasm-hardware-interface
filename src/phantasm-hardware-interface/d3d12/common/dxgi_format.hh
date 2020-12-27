@@ -92,6 +92,11 @@ namespace phi::d3d12::util
     case af::b10g11r11uf:
         return DXGI_FORMAT_R11G11B10_FLOAT; // this is incorrectly named, order is as in our enum
 
+    case af::r10g10b10a2u:
+        return DXGI_FORMAT_R10G10B10A2_UINT;
+    case af::r10g10b10a2un:
+        return DXGI_FORMAT_R10G10B10A2_UNORM;
+
     case af::bc1_8un:
         return DXGI_FORMAT_BC1_UNORM;
     case af::bc1_8un_srgb:
@@ -233,6 +238,10 @@ namespace phi::d3d12::util
         return af::bgra8un;
     case DXGI_FORMAT_R11G11B10_FLOAT: // this is incorrectly named, order is as in our enum
         return af::b10g11r11uf;
+    case DXGI_FORMAT_R10G10B10A2_UINT:
+        return af::r10g10b10a2u;
+    case DXGI_FORMAT_R10G10B10A2_UNORM:
+        return af::r10g10b10a2un;
 
         // compressed formats
     case DXGI_FORMAT_BC1_UNORM:

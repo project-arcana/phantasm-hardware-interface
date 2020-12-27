@@ -72,6 +72,8 @@ namespace phi::util
         return 4;
 
     case format::b10g11r11uf:
+    case format::r10g10b10a2u:
+    case format::r10g10b10a2un:
         return 4;
 
         // NOTE: block-compressed formats do not have per-pixel byte sizes
@@ -134,6 +136,8 @@ namespace phi::util
     case format::rgba8un:
     case format::rgba8un_srgb:
     case format::bgra8un:
+    case format::r10g10b10a2u:
+    case format::r10g10b10a2un:
         return 4;
 
     case format::rgb32f:

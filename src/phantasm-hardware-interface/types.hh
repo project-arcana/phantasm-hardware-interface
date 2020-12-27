@@ -170,12 +170,14 @@ enum class format : uint8_t
     rg8un,
     r8un,
 
-    // sRGB formats
+    // sRGB versions of regular formats
     rgba8un_srgb,
 
     // swizzled and irregular formats
     bgra8un,
     b10g11r11uf,
+    r10g10b10a2u,
+    r10g10b10a2un,
 
     // block-compressed formats
     bc1_8un,
@@ -212,10 +214,10 @@ constexpr bool is_view_format(format fmt) { return fmt >= format::r24un_g8t && f
 constexpr bool is_block_compressed_format(format fmt) { return fmt >= format::bc1_8un && fmt <= format::bc6h_16uf; }
 
 /// returns true if the format is a depth OR depth stencil format
-constexpr bool is_depth_format(format fmt) { return fmt >= format::depth32f; }
+constexpr bool is_depth_format(format fmt) { return fmt >= format::depth32f && fmt <= format::depth24un_stencil8u; }
 
 /// returns true if the format is a depth stencil format
-constexpr bool is_depth_stencil_format(format fmt) { return fmt >= format::depth32f_stencil8u; }
+constexpr bool is_depth_stencil_format(format fmt) { return fmt >= format::depth32f_stencil8u && fmt <= format::depth24un_stencil8u; }
 
 /// information about a single vertex attribute
 struct vertex_attribute_info

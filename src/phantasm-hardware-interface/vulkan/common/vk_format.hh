@@ -12,7 +12,7 @@ namespace phi::vk::util
 {
     using bf = phi::format;
     switch (format)
-    {
+    {        
     case bf::rgba32f:
         return VK_FORMAT_R32G32B32A32_SFLOAT;
     case bf::rgb32f:
@@ -89,6 +89,10 @@ namespace phi::vk::util
         return VK_FORMAT_B8G8R8A8_UNORM;
     case bf::b10g11r11uf:
         return VK_FORMAT_B10G11R11_UFLOAT_PACK32;
+    case bf::r10g10b10a2u:
+        return VK_FORMAT_A2R10G10B10_UINT_PACK32;
+    case bf::r10g10b10a2un:
+        return VK_FORMAT_A2R10G10B10_UNORM_PACK32;
 
     case bf::bc1_8un:
         return VK_FORMAT_BC1_RGBA_UNORM_BLOCK;
