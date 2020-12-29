@@ -5,6 +5,7 @@
 
 #include <typed-geometry/tg.hh>
 
+#include <phantasm-hardware-interface/common/format_size.hh>
 #include <phantasm-hardware-interface/common/log.hh>
 
 #include <phantasm-hardware-interface/util.hh>
@@ -137,7 +138,7 @@ phi::handle::resource phi::vk::ResourcePool::createRenderTarget(phi::format form
     image_info.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 
     // Attachment bits so we can render to it
-    if (phi::is_depth_format(format))
+    if (phi::util::is_depth_format(format))
         image_info.usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
     else
         image_info.usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
@@ -152,7 +153,7 @@ phi::handle::resource phi::vk::ResourcePool::createRenderTarget(phi::format form
     VkImage res_image;
     PHI_VK_VERIFY_SUCCESS(vmaCreateImage(mAllocator, &image_info, &alloc_info, &res_image, &res_alloc, nullptr));
 
-    util::set_object_name(mDevice, res_image, "pool %s tgt %s (%ux%u, fmt %u)", phi::is_depth_format(format) ? "depth" : "render",
+    util::set_object_name(mDevice, res_image, "pool %s tgt %s (%ux%u, fmt %u)", phi::util::is_depth_format(format) ? "depth" : "render",
                           dbg_name ? dbg_name : "", w, h, unsigned(format));
 
     return acquireImage(res_alloc, res_image, format, image_info.mipLevels, image_info.arrayLayers, samples, w, h);

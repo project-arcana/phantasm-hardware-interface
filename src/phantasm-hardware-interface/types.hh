@@ -175,19 +175,25 @@ enum class format : uint8_t
 
     // swizzled and irregular formats
     bgra8un,
+    bgra4un,
     b10g11r11uf,
     r10g10b10a2u,
     r10g10b10a2un,
+    b5g6r5un,
+    b5g5r5a1un,
+    r9g9b9e5_sharedexp_uf, // three ufloats sharing a single 5 bit exponent, 32b in total
 
     // block-compressed formats
-    bc1_8un,
-    bc1_8un_srgb,
-    bc2_8un,
-    bc2_8un_srgb,
-    bc3_8un,
-    bc3_8un_srgb,
+    bc1,
+    bc1_srgb,
+    bc2,
+    bc2_srgb,
+    bc3,
+    bc3_srgb,
     bc6h_16f,
     bc6h_16uf,
+    bc7,
+    bc7_srgb,
 
     // view-only formats - depth
     r24un_g8t, // view the depth part of depth24un_stencil8u
@@ -206,18 +212,6 @@ enum class format : uint8_t
 };
 
 constexpr bool is_valid_format(format fmt) { return fmt > format::none && fmt < format::MAX_FORMAT_RANGE; }
-
-/// returns true if the format is a view-only format
-constexpr bool is_view_format(format fmt) { return fmt >= format::r24un_g8t && fmt < format::depth32f; }
-
-/// returns true if the format is a block-compressed format
-constexpr bool is_block_compressed_format(format fmt) { return fmt >= format::bc1_8un && fmt <= format::bc6h_16uf; }
-
-/// returns true if the format is a depth OR depth stencil format
-constexpr bool is_depth_format(format fmt) { return fmt >= format::depth32f && fmt <= format::depth24un_stencil8u; }
-
-/// returns true if the format is a depth stencil format
-constexpr bool is_depth_stencil_format(format fmt) { return fmt >= format::depth32f_stencil8u && fmt <= format::depth24un_stencil8u; }
 
 /// information about a single vertex attribute
 struct vertex_attribute_info

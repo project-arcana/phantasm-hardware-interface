@@ -2,6 +2,7 @@
 
 #include <phantasm-hardware-interface/common/byte_util.hh>
 #include <phantasm-hardware-interface/common/command_reading.hh>
+#include <phantasm-hardware-interface/common/format_size.hh>
 #include <phantasm-hardware-interface/common/log.hh>
 #include <phantasm-hardware-interface/util.hh>
 
@@ -499,7 +500,7 @@ void phi::vk::command_list_translator::execute(const phi::cmd::resolve_texture& 
 
     VkImageResolve region = {};
 
-    region.srcSubresource.aspectMask = is_depth_format(dest_info.pixel_format) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+    region.srcSubresource.aspectMask = phi::util::is_depth_format(dest_info.pixel_format) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
     region.srcSubresource.mipLevel = resolve.src_mip_index;
     region.srcSubresource.layerCount = 1;
     region.srcSubresource.baseArrayLayer = resolve.src_array_index;
@@ -655,7 +656,7 @@ void phi::vk::command_list_translator::execute(const phi::cmd::clear_textures& c
         range.layerCount = op.rv.texture_info.array_size;
 
 
-        if (is_depth_format(op.rv.texture_info.pixel_format))
+        if (phi::util::is_depth_format(op.rv.texture_info.pixel_format))
         {
             VkClearDepthStencilValue clearval = {};
             clearval.depth = op.value.red_or_depth / 255.f;

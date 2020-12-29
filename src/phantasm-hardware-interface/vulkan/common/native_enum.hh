@@ -2,6 +2,7 @@
 
 #include <clean-core/assert.hh>
 
+#include <phantasm-hardware-interface/common/format_size.hh>
 #include <phantasm-hardware-interface/types.hh>
 
 #include <phantasm-hardware-interface/vulkan/loader/volk.hh>
@@ -419,7 +420,7 @@ namespace phi::vk::util
 
 [[nodiscard]] constexpr VkImageAspectFlags to_native_image_aspect(format fmt)
 {
-    if (is_view_format(fmt))
+    if (phi::util::is_view_format(fmt))
     {
         if (fmt == format::r24un_g8t)
         {
@@ -431,11 +432,11 @@ namespace phi::vk::util
             return VK_IMAGE_ASPECT_STENCIL_BIT;
         }
     }
-    else if (is_depth_stencil_format(fmt))
+    else if (phi::util::is_depth_stencil_format(fmt))
     {
         return VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
     }
-    else if (is_depth_format(fmt))
+    else if (phi::util::is_depth_format(fmt))
     {
         return VK_IMAGE_ASPECT_DEPTH_BIT;
     }

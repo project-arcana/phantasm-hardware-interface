@@ -4,6 +4,7 @@
 #include <clean-core/utility.hh>
 
 #include <phantasm-hardware-interface/common/log.hh>
+#include <phantasm-hardware-interface/common/format_size.hh>
 
 #include <phantasm-hardware-interface/d3d12/common/d3dx12.hh>
 #include <phantasm-hardware-interface/d3d12/common/dxgi_format.hh>
@@ -153,7 +154,7 @@ phi::handle::resource phi::d3d12::ResourcePool::createRenderTarget(
     CC_CONTRACT(w > 0 && h > 0);
 
     auto const format_dxgi = util::to_dxgi_format(format);
-    if (is_depth_format(format))
+    if (phi::util::is_depth_format(format))
     {
         // Depth-stencil target
         constexpr D3D12_RESOURCE_STATES initial_state = util::to_native(resource_state::depth_write);

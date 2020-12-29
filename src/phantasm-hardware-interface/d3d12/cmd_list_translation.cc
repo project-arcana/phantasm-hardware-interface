@@ -515,7 +515,7 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::copy_buffer_to
     footprint.Height = copy_text.dest_height;
     footprint.Depth = 1;
     // footprint.RowPitch:
-    if (is_block_compressed_format(dest_info.pixel_format))
+    if (phi::util::is_block_compressed_format(dest_info.pixel_format))
     {
         // calculated differently for block-compressed textures
         unsigned const num_blocks = cc::int_div_ceil(copy_text.dest_width, 4u);
@@ -725,7 +725,7 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::clear_textures
         auto const& op = clear_tex.clear_ops[i];
         auto* const resource = _globals.pool_resources->getRawResource(op.rv.resource);
 
-        if (is_depth_format(op.rv.texture_info.pixel_format))
+        if (phi::util::is_depth_format(op.rv.texture_info.pixel_format))
         {
             auto const dsv = dynamic_dsvs.get_index(i);
 

@@ -15,8 +15,7 @@ inline VkFormat to_vk_format(phi::format fmt)
 {
     switch (fmt)
     {
-        PHI_FORMAT_INFO_LIST(PHI_FORMAT_INFO_X_TO_VK)
-        PHI_FORMAT_INFO_LIST_VIEWONLY(PHI_FORMAT_INFO_X_TO_VK)
+        PHI_FORMAT_INFO_LIST_ALL(PHI_FORMAT_INFO_X_TO_VK)
 
     case format::none:
     case format::MAX_FORMAT_RANGE:
@@ -30,7 +29,8 @@ inline phi::format to_pr_format(VkFormat format)
 {
     switch (format)
     {
-        PHI_FORMAT_INFO_LIST(PHI_FORMAT_INFO_X_FROM_VK)
+        // only regular formats, view-only formats map to the same VkFormat in Vulkan
+        PHI_FORMAT_INFO_LIST_REGULAR(PHI_FORMAT_INFO_X_FROM_VK)
 
     default:
         return format::none;
