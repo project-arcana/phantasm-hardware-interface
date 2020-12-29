@@ -8,6 +8,8 @@
 
 namespace phi::util
 {
+/// returns the byte size of a single pixel of a texture in the given format
+/// NOTE: block-compressed formats do not have a per-pixel size, use get_block_format_4x4_size for them instead
 inline unsigned get_format_size_bytes(format fmt)
 {
     unsigned res = 0;
@@ -22,6 +24,7 @@ inline unsigned get_format_size_bytes(format fmt)
     return res;
 }
 
+/// returns the amount of components of a format (ie. RGBA = 4, Depth-Stencil = 2)
 inline unsigned get_format_num_components(format fmt)
 {
     switch (fmt)
@@ -33,6 +36,7 @@ inline unsigned get_format_num_components(format fmt)
     }
 }
 
+/// returns the byte size of a 4x4 pixel square of a texture in the given block-compressed format
 inline unsigned get_block_format_4x4_size(format fmt)
 {
     switch (fmt)
@@ -58,6 +62,7 @@ inline unsigned get_block_format_4x4_size(format fmt)
     }
 }
 
+/// returns the format's sRGB variant if existing, or the format itself otherwise
 inline format get_format_srgb_variant(format fmt)
 {
     switch (fmt)
@@ -73,6 +78,7 @@ inline format get_format_srgb_variant(format fmt)
     case format::bc7:
         return format::bc7_srgb;
     default:
+        // either fmt is already sRGB or no variant exsits
         return fmt;
     }
 }
