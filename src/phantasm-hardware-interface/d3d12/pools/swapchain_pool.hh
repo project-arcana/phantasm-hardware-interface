@@ -16,20 +16,20 @@ class SwapchainPool
 public:
     struct backbuffer
     {
-        Fence fence;                     ///< present fence
-        D3D12_CPU_DESCRIPTOR_HANDLE rtv; ///< CPU RTV
-        ID3D12Resource* resource;        ///< resource ptr
-        D3D12_RESOURCE_STATES state;     ///< current state
+        Fence fence;                     // present fence - GPU signalled on present, CPU waited on acquire
+        D3D12_CPU_DESCRIPTOR_HANDLE rtv; // CPU RTV
+        ID3D12Resource* resource;        // resource ptr
+        D3D12_RESOURCE_STATES state;     // current state
     };
 
     struct swapchain
     {
-        IDXGISwapChain3* swapchain_com; ///< Swapchain COM Ptr
+        IDXGISwapChain3* swapchain_com; // Swapchain COM Ptr
         int backbuf_width;
         int backbuf_height;
         present_mode mode;
         bool has_resized;
-        cc::capped_array<backbuffer, 6> backbuffers; ///< all backbuffers
+        cc::capped_array<backbuffer, 6> backbuffers; // all backbuffers
     };
 
 public:
