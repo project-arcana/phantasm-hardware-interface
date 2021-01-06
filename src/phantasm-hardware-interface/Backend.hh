@@ -39,16 +39,11 @@ public:
     virtual void free(handle::swapchain sc) = 0;
 
     /// acquire the next available backbuffer on the given swapchain
-    /// blocks on CPU until a backbuffer is available
     /// if the returned handle is handle::null_resource, the current frame must be discarded
     /// can cause an internal resize on the swapchain
-    [[nodiscard]] virtual handle::resource acquireBackbuffer(handle::swapchain sc, bool waitOnCPU = true) = 0;
+    [[nodiscard]] virtual handle::resource acquireBackbuffer(handle::swapchain sc) = 0;
 
-    /// wait on CPU until a previously acquired backbuffer is ready
-    /// use with acquireBackbuffer, waitOnCPU = false
-    virtual void waitOnBackbuffer(handle::swapchain sc) = 0;
-
-    /// attempts to present on the swapchain
+    /// attempts to present on the swapchain (blocking)
     /// can fail and cause an internal resize
     virtual void present(handle::swapchain sc) = 0;
 

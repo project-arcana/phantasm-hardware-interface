@@ -156,33 +156,24 @@ void phi::d3d12::SwapchainPool::present(phi::handle::swapchain handle)
 {
     swapchain& node = mPool.get(handle._value);
 
-    UINT sync_interval = get_sync_interval(node.mode);
-    UINT flags = node.mode == present_mode::unsynced_allow_tearing ? DXGI_PRESENT_ALLOW_TEARING : 0;
+    // CPU-wait on currently acquired backbuffer
+    node.backbuffers[node.last_backbuf_i].fence.waitOnCPU(0);
 
+    // present
+    UINT const sync_interval = get_sync_interval(node.mode);
+    UINT const flags = node.mode == present_mode::unsynced_allow_tearing ? DXGI_PRESENT_ALLOW_TEARING : 0;
     PHI_D3D12_VERIFY_FULL(node.swapchain_com->Present(sync_interval, flags), mParentDevice);
 
-    auto const backbuffer_i = node.swapchain_com->GetCurrentBackBufferIndex();
-    node.backbuffers[backbuffer_i].fence.issueFence(*mParentQueue);
+    // issue present fence on GPU for the backbuffer that was just presented
+    node.backbuffers[node.last_backbuf_i].fence.issueFence(*mParentQueue);
 }
 
-unsigned phi::d3d12::SwapchainPool::acquireBackbuffer(phi::handle::swapchain handle, bool wait)
+unsigned phi::d3d12::SwapchainPool::acquireBackbuffer(phi::handle::swapchain handle)
 {
     swapchain& node = mPool.get(handle._value);
     auto const backbuffer_i = node.swapchain_com->GetCurrentBackBufferIndex();
     node.last_backbuf_i = backbuffer_i;
-
-    if (wait)
-    {
-         node.backbuffers[backbuffer_i].fence.waitOnCPU(0);
-    }
-
     return backbuffer_i;
-}
-
-void phi::d3d12::SwapchainPool::waitForBackbufferOnCPU(handle::swapchain handle) 
-{
-    swapchain& node = mPool.get(handle._value);
-    node.backbuffers[node.last_backbuf_i].fence.waitOnCPU(0);
 }
 
 DXGI_FORMAT phi::d3d12::SwapchainPool::getBackbufferFormat() const { return gc_pool_backbuffer_format; }

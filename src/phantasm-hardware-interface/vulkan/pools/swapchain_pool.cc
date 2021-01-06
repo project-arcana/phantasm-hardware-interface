@@ -177,9 +177,11 @@ bool phi::vk::SwapchainPool::present(phi::handle::swapchain handle)
     }
 }
 
-bool phi::vk::SwapchainPool::waitForBackbuffer(phi::handle::swapchain handle)
+bool phi::vk::SwapchainPool::acquireBackbuffer(phi::handle::swapchain handle)
 {
     auto& node = mPool.get(handle._value);
+    // according to NVidia, this can never block (despite having a timeout param)
+    // it thus doesn't sync anything at all
     auto const res = vkAcquireNextImageKHR(mDevice, node.swapchain, UINT64_MAX, node.backbuffers[node.active_fence_index].sem_image_available,
                                            nullptr, &node.active_image_index);
 

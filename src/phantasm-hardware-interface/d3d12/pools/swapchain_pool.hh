@@ -54,8 +54,7 @@ public:
 
     void present(handle::swapchain handle);
 
-    unsigned acquireBackbuffer(handle::swapchain handle, bool wait);
-    void waitForBackbufferOnCPU(handle::swapchain handle);
+    unsigned acquireBackbuffer(handle::swapchain handle);
 
     swapchain const& get(handle::swapchain handle) const { return mPool.get(handle._value); }
 

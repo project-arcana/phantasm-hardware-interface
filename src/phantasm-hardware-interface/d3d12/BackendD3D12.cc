@@ -187,15 +187,13 @@ phi::handle::swapchain phi::d3d12::BackendD3D12::createSwapchain(const phi::wind
 
 void phi::d3d12::BackendD3D12::free(phi::handle::swapchain sc) { mPoolSwapchains.free(sc); }
 
-phi::handle::resource phi::d3d12::BackendD3D12::acquireBackbuffer(handle::swapchain sc, bool waitOnCPU)
+phi::handle::resource phi::d3d12::BackendD3D12::acquireBackbuffer(handle::swapchain sc)
 {
     auto const swapchain_index = mPoolSwapchains.getSwapchainIndex(sc);
-    auto const backbuffer_i = mPoolSwapchains.acquireBackbuffer(sc, waitOnCPU);
+    auto const backbuffer_i = mPoolSwapchains.acquireBackbuffer(sc);
     auto const& backbuffer = mPoolSwapchains.get(sc).backbuffers[backbuffer_i];
     return mPoolResources.injectBackbufferResource(swapchain_index, backbuffer.resource, backbuffer.state);
 }
-
-void phi::d3d12::BackendD3D12::waitOnBackbuffer(handle::swapchain sc) { mPoolSwapchains.waitForBackbufferOnCPU(sc); }
 
 void phi::d3d12::BackendD3D12::present(phi::handle::swapchain sc) { mPoolSwapchains.present(sc); }
 

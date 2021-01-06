@@ -21,7 +21,7 @@ public:
         // sync objects
         /// reset and signalled in ::performPresentSubmit, waited on (CPU) in ::present
         VkFence fence_command_buf_executed;
-        /// signalled in ::waitForBackbuffer, waited on (GPU) in ::performPresentSubmit
+        /// signalled in ::acquireBackbuffer, waited on (GPU) in ::performPresentSubmit
         VkSemaphore sem_image_available;
         /// signalled in ::performPresentSubmit, waited on (GPU) in ::present
         VkSemaphore sem_render_finished;
@@ -70,7 +70,7 @@ public:
 
     bool present(handle::swapchain handle);
 
-    bool waitForBackbuffer(handle::swapchain handle);
+    bool acquireBackbuffer(handle::swapchain handle);
 
     swapchain const& get(handle::swapchain handle) const { return mPool.get(handle._value); }
 
