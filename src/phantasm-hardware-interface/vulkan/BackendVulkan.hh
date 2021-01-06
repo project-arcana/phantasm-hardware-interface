@@ -42,7 +42,7 @@ public:
 
     [[nodiscard]] handle::resource acquireBackbuffer(handle::swapchain sc, bool waitOnCPU = true) override;
 
-    void waitOnBackbufferFromGPU(handle::swapchain sc) override;
+    void waitOnBackbuffer(handle::swapchain sc) override;
 
     void present(handle::swapchain sc) override;
 

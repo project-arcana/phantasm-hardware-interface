@@ -179,10 +179,10 @@ unsigned phi::d3d12::SwapchainPool::acquireBackbuffer(phi::handle::swapchain han
     return backbuffer_i;
 }
 
-void phi::d3d12::SwapchainPool::waitForBackbufferOnGPU(handle::swapchain handle) 
+void phi::d3d12::SwapchainPool::waitForBackbufferOnCPU(handle::swapchain handle) 
 {
     swapchain& node = mPool.get(handle._value);
-    node.backbuffers[node.last_backbuf_i].fence.waitOnGPU(*mParentQueue);
+    node.backbuffers[node.last_backbuf_i].fence.waitOnCPU(0);
 }
 
 DXGI_FORMAT phi::d3d12::SwapchainPool::getBackbufferFormat() const { return gc_pool_backbuffer_format; }

@@ -195,7 +195,7 @@ phi::handle::resource phi::d3d12::BackendD3D12::acquireBackbuffer(handle::swapch
     return mPoolResources.injectBackbufferResource(swapchain_index, backbuffer.resource, backbuffer.state);
 }
 
-void phi::d3d12::BackendD3D12::waitOnBackbufferFromGPU(handle::swapchain sc) { mPoolSwapchains.waitForBackbufferOnGPU(sc); }
+void phi::d3d12::BackendD3D12::waitOnBackbuffer(handle::swapchain sc) { mPoolSwapchains.waitForBackbufferOnCPU(sc); }
 
 void phi::d3d12::BackendD3D12::present(phi::handle::swapchain sc) { mPoolSwapchains.present(sc); }
 

@@ -237,7 +237,7 @@ phi::handle::resource phi::vk::BackendVulkan::acquireBackbuffer(handle::swapchai
     }
 }
 
-void phi::vk::BackendVulkan::waitOnBackbufferFromGPU(handle::swapchain sc) 
+void phi::vk::BackendVulkan::waitOnBackbuffer(handle::swapchain sc) 
 {
     CC_ASSERT(false && "unimplemented");
 }
