@@ -187,13 +187,15 @@ phi::handle::swapchain phi::d3d12::BackendD3D12::createSwapchain(const phi::wind
 
 void phi::d3d12::BackendD3D12::free(phi::handle::swapchain sc) { mPoolSwapchains.free(sc); }
 
-phi::handle::resource phi::d3d12::BackendD3D12::acquireBackbuffer(handle::swapchain sc)
+phi::handle::resource phi::d3d12::BackendD3D12::acquireBackbuffer(handle::swapchain sc, bool waitOnCPU)
 {
     auto const swapchain_index = mPoolSwapchains.getSwapchainIndex(sc);
-    auto const backbuffer_i = mPoolSwapchains.waitForBackbuffer(sc);
+    auto const backbuffer_i = mPoolSwapchains.acquireBackbuffer(sc, waitOnCPU);
     auto const& backbuffer = mPoolSwapchains.get(sc).backbuffers[backbuffer_i];
     return mPoolResources.injectBackbufferResource(swapchain_index, backbuffer.resource, backbuffer.state);
 }
+
+void phi::d3d12::BackendD3D12::waitOnBackbufferFromGPU(handle::swapchain sc) { mPoolSwapchains.waitForBackbufferOnGPU(sc); }
 
 void phi::d3d12::BackendD3D12::present(phi::handle::swapchain sc) { mPoolSwapchains.present(sc); }
 
@@ -341,22 +343,22 @@ void phi::d3d12::BackendD3D12::submit(cc::span<const phi::handle::command_list> 
     }
 
 
-    ID3D12CommandQueue& target_queue = getQueueByType(queue);
+    ID3D12CommandQueue* const target_queue = getQueueByType(queue);
 
     for (auto const& wait_op : fence_waits_before)
     {
         mPoolFences.waitGPU(wait_op.fence, wait_op.value, target_queue);
     }
 
-    target_queue.ExecuteCommandLists(UINT(cmd_bufs_to_submit.size()), cmd_bufs_to_submit.data());
+    target_queue->ExecuteCommandLists(UINT(cmd_bufs_to_submit.size()), cmd_bufs_to_submit.data());
 
     for (auto const& signal_op : fence_signals_after)
     {
         mPoolFences.signalGPU(signal_op.fence, signal_op.value, target_queue);
     }
 
-    mPoolCmdLists.freeOnSubmit(barrier_lists, target_queue);
-    mPoolCmdLists.freeOnSubmit(cls, target_queue);
+    mPoolCmdLists.freeOnSubmit(barrier_lists, *target_queue);
+    mPoolCmdLists.freeOnSubmit(cls, *target_queue);
 }
 
 phi::handle::fence phi::d3d12::BackendD3D12::createFence() { return mPoolFences.createFence(); }

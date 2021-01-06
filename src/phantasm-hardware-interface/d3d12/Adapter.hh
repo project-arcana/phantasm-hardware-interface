@@ -4,8 +4,6 @@
 
 #include "common/d3d12_fwd.hh"
 
-#include "common/shared_com_ptr.hh"
-
 namespace phi::d3d12
 {
 /// Represents a IDXGIAdapter, the uppermost object in the D3D12 hierarchy

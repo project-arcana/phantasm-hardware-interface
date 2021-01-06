@@ -3,7 +3,6 @@
 #include <phantasm-hardware-interface/types.hh>
 
 #include "common/d3d12_fwd.hh"
-#include "common/shared_com_ptr.hh"
 
 namespace phi::d3d12
 {

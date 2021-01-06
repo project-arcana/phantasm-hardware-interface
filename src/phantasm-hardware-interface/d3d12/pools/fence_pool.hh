@@ -23,10 +23,10 @@ public:
     ID3D12Fence* get(handle::fence fence) const { return internalGet(fence).fence; }
 
     void signalCPU(handle::fence fence, uint64_t new_val) const;
-    void signalGPU(handle::fence fence, uint64_t new_val, ID3D12CommandQueue& queue) const;
+    void signalGPU(handle::fence fence, uint64_t new_val, ID3D12CommandQueue* queue) const;
 
     void waitCPU(handle::fence fence, uint64_t val) const;
-    void waitGPU(handle::fence fence, uint64_t val, ID3D12CommandQueue& queue) const;
+    void waitGPU(handle::fence fence, uint64_t val, ID3D12CommandQueue* queue) const;
 
     [[nodiscard]] uint64_t getValue(handle::fence fence) const;
 
@@ -40,17 +40,8 @@ private:
         void free();
     };
 
-    [[nodiscard]] node& internalGet(handle::fence fence)
-    {
-        CC_ASSERT(fence.is_valid() && "invalid handle::fence");
-        return mPool.get(fence._value);
-    }
-
-    [[nodiscard]] node const& internalGet(handle::fence fence) const
-    {
-        CC_ASSERT(fence.is_valid() && "invalid handle::fence");
-        return mPool.get(fence._value);
-    }
+    node& internalGet(handle::fence fence);
+    node const& internalGet(handle::fence fence) const;
 
 private:
     ID3D12Device* mDevice = nullptr;

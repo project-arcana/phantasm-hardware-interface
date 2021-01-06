@@ -208,14 +208,15 @@ void phi::d3d12::CommandListPool::initialize(phi::d3d12::BackendD3D12& backend,
     // initialize the three allocator bundles (direct, compute, copy)
     for (auto i = 0u; i < thread_allocators.size(); ++i)
     {
-        thread_allocators[i]->bundle_direct.initialize(*backend.getDevice5(), static_alloc, D3D12_COMMAND_LIST_TYPE_DIRECT, num_direct_allocs, num_direct_lists_per_alloc,
+        thread_allocators[i]->bundle_direct.initialize(*backend.nativeGetDevice(), static_alloc, D3D12_COMMAND_LIST_TYPE_DIRECT, num_direct_allocs,
+                                                       num_direct_lists_per_alloc,
                                                        cc::span{mRawListsDirect}.subspan(i * num_direct_lists_per_thread, num_direct_lists_per_thread));
 
         thread_allocators[i]->bundle_compute.initialize(
-            *backend.getDevice5(), static_alloc, D3D12_COMMAND_LIST_TYPE_COMPUTE, num_compute_allocs, num_compute_lists_per_alloc,
+            *backend.nativeGetDevice(), static_alloc, D3D12_COMMAND_LIST_TYPE_COMPUTE, num_compute_allocs, num_compute_lists_per_alloc,
             cc::span{mRawListsCompute}.subspan(i * num_compute_lists_per_thread, num_compute_lists_per_thread));
 
-        thread_allocators[i]->bundle_copy.initialize(*backend.getDevice5(), static_alloc, D3D12_COMMAND_LIST_TYPE_COPY, num_copy_allocs, num_copy_lists_per_alloc,
+        thread_allocators[i]->bundle_copy.initialize(*backend.nativeGetDevice(), static_alloc, D3D12_COMMAND_LIST_TYPE_COPY, num_copy_allocs, num_copy_lists_per_alloc,
                                                      cc::span{mRawListsCopy}.subspan(i * num_copy_lists_per_thread, num_copy_lists_per_thread));
     }
 }

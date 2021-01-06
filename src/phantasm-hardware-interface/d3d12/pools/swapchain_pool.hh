@@ -30,6 +30,7 @@ public:
         present_mode mode;
         bool has_resized;
         cc::capped_array<backbuffer, 6> backbuffers; // all backbuffers
+        uint32_t last_backbuf_i = 0;
     };
 
 public:
@@ -53,7 +54,8 @@ public:
 
     void present(handle::swapchain handle);
 
-    unsigned waitForBackbuffer(handle::swapchain handle);
+    unsigned acquireBackbuffer(handle::swapchain handle, bool wait);
+    void waitForBackbufferOnGPU(handle::swapchain handle);
 
     swapchain const& get(handle::swapchain handle) const { return mPool.get(handle._value); }
 

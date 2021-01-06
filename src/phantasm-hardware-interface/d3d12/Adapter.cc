@@ -9,6 +9,7 @@
 #include "adapter_choice_util.hh"
 #include "common/d3d12_sanitized.hh"
 #include "common/verify.hh"
+#include "common/shared_com_ptr.hh"
 
 void phi::d3d12::Adapter::initialize(const backend_config& config)
 {

@@ -213,8 +213,9 @@ phi::handle::swapchain phi::vk::BackendVulkan::createSwapchain(const phi::window
 
 void phi::vk::BackendVulkan::free(phi::handle::swapchain sc) { mPoolSwapchains.free(sc); }
 
-phi::handle::resource phi::vk::BackendVulkan::acquireBackbuffer(handle::swapchain sc)
+phi::handle::resource phi::vk::BackendVulkan::acquireBackbuffer(handle::swapchain sc, bool waitOnCPU)
 {
+    CC_ASSERT(waitOnCPU && "deferred backbuffer waiting unimplemented");
     auto const swapchain_index = mPoolSwapchains.getSwapchainIndex(sc);
     auto const& swapchain = mPoolSwapchains.get(sc);
     auto const prev_backbuffer_index = swapchain.active_image_index;
@@ -234,6 +235,11 @@ phi::handle::resource phi::vk::BackendVulkan::acquireBackbuffer(handle::swapchai
         mPoolSwapchains.setBackbufferState(sc, prev_backbuffer_index, prev_state);
         return res;
     }
+}
+
+void phi::vk::BackendVulkan::waitOnBackbufferFromGPU(handle::swapchain sc) 
+{
+    CC_ASSERT(false && "unimplemented");
 }
 
 void phi::vk::BackendVulkan::present(phi::handle::swapchain sc) { mPoolSwapchains.present(sc); }

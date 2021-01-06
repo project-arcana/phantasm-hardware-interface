@@ -165,12 +165,24 @@ void phi::d3d12::SwapchainPool::present(phi::handle::swapchain handle)
     node.backbuffers[backbuffer_i].fence.issueFence(*mParentQueue);
 }
 
-unsigned phi::d3d12::SwapchainPool::waitForBackbuffer(phi::handle::swapchain handle)
+unsigned phi::d3d12::SwapchainPool::acquireBackbuffer(phi::handle::swapchain handle, bool wait)
 {
     swapchain& node = mPool.get(handle._value);
     auto const backbuffer_i = node.swapchain_com->GetCurrentBackBufferIndex();
-    node.backbuffers[backbuffer_i].fence.waitOnCPU(0);
+    node.last_backbuf_i = backbuffer_i;
+
+    if (wait)
+    {
+         node.backbuffers[backbuffer_i].fence.waitOnCPU(0);
+    }
+
     return backbuffer_i;
+}
+
+void phi::d3d12::SwapchainPool::waitForBackbufferOnGPU(handle::swapchain handle) 
+{
+    swapchain& node = mPool.get(handle._value);
+    node.backbuffers[node.last_backbuf_i].fence.waitOnGPU(*mParentQueue);
 }
 
 DXGI_FORMAT phi::d3d12::SwapchainPool::getBackbufferFormat() const { return gc_pool_backbuffer_format; }

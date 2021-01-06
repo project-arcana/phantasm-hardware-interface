@@ -47,7 +47,8 @@ public:
 
     void free(handle::swapchain sc) override;
 
-    [[nodiscard]] handle::resource acquireBackbuffer(handle::swapchain sc) override;
+    [[nodiscard]] handle::resource acquireBackbuffer(handle::swapchain sc, bool waitOnCPU = true) override;
+    void waitOnBackbufferFromGPU(handle::swapchain sc) override;
     void present(handle::swapchain sc) override;
     void onResize(handle::swapchain sc, tg::isize2 size) override;
 
@@ -205,16 +206,21 @@ public:
     backend_type getBackendType() const override { return backend_type::d3d12; }
 
 public:
-    // backend-internal
+    // non virtual - d3d12 specific
 
-    [[nodiscard]] ID3D12Device5* getDevice5() { return mDevice.getDevice(); }
-    [[nodiscard]] ID3D12CommandQueue& getDirectQueue() { return *mDirectQueue.command_queue; }
+    ID3D12Device5* nativeGetDevice() { return mDevice.getDevice(); }
+    ID3D12CommandQueue* nativeGetDirectQueue() { return mDirectQueue.command_queue; }
+    ID3D12CommandQueue* nativeGetCopyQueue() { return mCopyQueue.command_queue; }
+    ID3D12CommandQueue* nativeGetComputeQueue() { return mComputeQueue.command_queue; }
 
+    ID3D12Resource* nativeGetResource(handle::resource res) { return mPoolResources.getRawResource(res); }
+    IDXGISwapChain3* nativeGetSwapchain(handle::swapchain sc) { return mPoolSwapchains.get(sc).swapchain_com; }
+    ID3D12GraphicsCommandList5* nativeGetCommandList(handle::command_list cl) { return mPoolCmdLists.getRawList(cl); }
 
 private:
-    ID3D12CommandQueue& getQueueByType(queue_type type) const
+    ID3D12CommandQueue* getQueueByType(queue_type type) const
     {
-        return (type == queue_type::direct ? *mDirectQueue.command_queue : (type == queue_type::compute ? *mComputeQueue.command_queue : *mCopyQueue.command_queue));
+        return (type == queue_type::direct ? mDirectQueue.command_queue : (type == queue_type::compute ? mComputeQueue.command_queue : mCopyQueue.command_queue));
     }
 
     struct per_thread_component;

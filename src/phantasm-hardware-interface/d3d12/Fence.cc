@@ -23,6 +23,10 @@ void phi::d3d12::SimpleFence::destroy()
     }
 }
 
+void phi::d3d12::SimpleFence::signalCPU(uint64_t new_val) { fence->Signal(new_val); }
+
+void phi::d3d12::SimpleFence::signalGPU(uint64_t new_val, ID3D12CommandQueue& queue) { queue.Signal(fence, new_val); }
+
 void phi::d3d12::SimpleFence::waitCPU(uint64_t val)
 {
     if (fence->GetCompletedValue() <= val)
@@ -36,4 +40,13 @@ void phi::d3d12::SimpleFence::waitGPU(uint64_t val, ID3D12CommandQueue& queue)
 {
     //
     PHI_D3D12_VERIFY(queue.Wait(fence, val));
+}
+
+uint64_t phi::d3d12::SimpleFence::getCurrentValue() const
+{
+    auto const res = fence->GetCompletedValue();
+#ifdef CC_ENABLE_ASSERTIONS
+    PHI_D3D12_DRED_ASSERT(res != UINT64_MAX, fence);
+#endif
+    return res;
 }

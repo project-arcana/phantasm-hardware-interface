@@ -40,7 +40,9 @@ public:
 
     void free(handle::swapchain sc) override;
 
-    [[nodiscard]] handle::resource acquireBackbuffer(handle::swapchain sc) override;
+    [[nodiscard]] handle::resource acquireBackbuffer(handle::swapchain sc, bool waitOnCPU = true) override;
+
+    void waitOnBackbufferFromGPU(handle::swapchain sc) override;
 
     void present(handle::swapchain sc) override;
 
