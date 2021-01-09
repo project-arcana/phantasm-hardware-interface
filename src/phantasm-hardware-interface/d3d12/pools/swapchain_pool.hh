@@ -6,8 +6,9 @@
 #include <phantasm-hardware-interface/handles.hh>
 #include <phantasm-hardware-interface/types.hh>
 
+#include <phantasm-hardware-interface/d3d12/common/d3d12_sanitized.hh>
+
 #include <phantasm-hardware-interface/d3d12/Fence.hh>
-#include <phantasm-hardware-interface/d3d12/fwd.hh>
 
 namespace phi::d3d12
 {
@@ -30,7 +31,7 @@ public:
         present_mode mode;
         bool has_resized;
         cc::capped_array<backbuffer, 6> backbuffers; // all backbuffers
-        uint32_t last_backbuf_i = 0;
+        uint32_t last_acquired_backbuf_i = 0;
     };
 
 public:
