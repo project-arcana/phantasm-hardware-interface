@@ -554,6 +554,21 @@ PHI_DEFINE_CMD(clear_textures)
     flat_vector<clear_info, 4> clear_ops;
 };
 
+PHI_DEFINE_CMD(code_location_marker)
+{
+    // Mark the code location that currently writes commands, can be viewed in command list translators
+    // no GPU / API effects whatsoever
+
+    char const* function = "NO_DEBUG_LOCATION";
+    char const* file = "NO_DEBUG_LOCATION";
+    int line = 0;
+
+    code_location_marker(char const* func, char const* file, int line) : function(func), file(file), line(line) {}
+};
+
+#define PHI_CMD_CODE_LOCATION() \
+    ::phi::cmd::code_location_marker { __FUNCTION__, __FILE__, __LINE__ }
+
 #undef PHI_DEFINE_CMD
 }
 

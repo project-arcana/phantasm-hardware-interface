@@ -25,7 +25,8 @@ namespace phi::cmd::detail
     PHI_X(update_bottom_level)     \
     PHI_X(update_top_level)        \
     PHI_X(dispatch_rays)           \
-    PHI_X(clear_textures)
+    PHI_X(clear_textures)          \
+    PHI_X(code_location_marker)
 
 enum class cmd_type : uint8_t
 {

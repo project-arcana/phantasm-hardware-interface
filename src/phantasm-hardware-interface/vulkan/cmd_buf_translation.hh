@@ -92,6 +92,8 @@ struct command_list_translator
 
     void execute(cmd::clear_textures const& clear_tex);
 
+    void execute(cmd::code_location_marker const& marker);
+
 private:
     void bind_shader_arguments(handle::pipeline_state pso, std::byte const* root_consts, cc::span<shader_argument const> shader_args, VkPipelineBindPoint bind_point);
 
@@ -201,6 +203,22 @@ private:
         }
 
     } _bound;
+
+    // debug state - cmd::code_location_marker
+    struct
+    {
+        char const* function;
+        char const* file;
+        int line;
+
+        void reset()
+        {
+            function = "NONE";
+            file = "NONE";
+            line = 0;
+        }
+
+    } _last_code_location;
 };
 
 }

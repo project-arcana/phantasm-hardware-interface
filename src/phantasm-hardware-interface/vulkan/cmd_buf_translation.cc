@@ -27,6 +27,7 @@ void phi::vk::command_list_translator::translateCommandList(
 
     _bound.reset();
     _state_cache->reset();
+    _last_code_location.reset();
 
     // translate all contained commands
     command_stream_parser parser(buffer, buffer_size);
@@ -673,6 +674,13 @@ void phi::vk::command_list_translator::execute(const phi::cmd::clear_textures& c
             vkCmdClearColorImage(_cmd_list, resource, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearval, 1, &range);
         }
     }
+}
+
+void phi::vk::command_list_translator::execute(cmd::code_location_marker const& marker)
+{
+    _last_code_location.file = marker.file;
+    _last_code_location.function = marker.function;
+    _last_code_location.line = marker.line;
 }
 
 void phi::vk::command_list_translator::bind_shader_arguments(phi::handle::pipeline_state pso,

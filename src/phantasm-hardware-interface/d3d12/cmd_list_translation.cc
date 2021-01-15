@@ -38,6 +38,7 @@ void phi::d3d12::command_list_translator::translateCommandList(
 
     _bound.reset();
     _state_cache->reset();
+    _last_code_location.reset();
 
     auto const gpu_heaps = _globals.pool_shader_views->getGPURelevantHeaps();
     _cmd_list->SetDescriptorHeaps(UINT(gpu_heaps.size()), gpu_heaps.data());
@@ -130,6 +131,8 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::begin_render_p
 void phi::d3d12::command_list_translator::execute(const phi::cmd::draw& draw)
 {
     CC_ASSERT(_current_queue_type == queue_type::direct && "graphics commands are only valid on queue_type::direct");
+    CC_ASSERT(draw.pipeline_state.is_valid() && "invalid PSO handle");
+
     auto const& pso_node = _globals.pool_pipeline_states->get(draw.pipeline_state);
 
     // PSO
@@ -760,6 +763,13 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::clear_textures
 
     _thread_local.lin_alloc_rtvs.reset();
     _thread_local.lin_alloc_dsvs.reset();
+}
+
+void phi::d3d12::command_list_translator::execute(cmd::code_location_marker const& marker) {
+
+    _last_code_location.file = marker.file;
+    _last_code_location.function = marker.function;
+    _last_code_location.line = marker.line;
 }
 
 void phi::d3d12::translator_thread_local_memory::initialize(ID3D12Device& device)

@@ -88,6 +88,8 @@ struct command_list_translator
 
     void execute(cmd::clear_textures const& clear_tex);
 
+    void execute(cmd::code_location_marker const& marker);
+
 private:
     // non-owning constant (global)
     translator_global_memory _globals;
@@ -188,6 +190,22 @@ private:
         }
 
     } _bound;
+
+    // debug state - cmd::code_location_marker
+    struct
+    {
+        char const* function;
+        char const* file;
+        int line;
+
+        void reset()
+        {
+            function = "NONE";
+            file = "NONE";
+            line = 0;
+        }
+
+    } _last_code_location;
 };
 
 }
