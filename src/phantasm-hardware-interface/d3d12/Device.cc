@@ -122,6 +122,8 @@ void phi::d3d12::Device::initialize(IDXGIAdapter& adapter, const backend_config&
             shared_com_ptr<ID3D12InfoQueue> info_queue;
             PHI_D3D12_VERIFY(mDevice->QueryInterface(PHI_COM_WRITE(info_queue)));
             PHI_D3D12_VERIFY(info_queue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, TRUE));
+            PHI_D3D12_VERIFY(info_queue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE));
+            PHI_D3D12_VERIFY(info_queue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE));
             PHI_LOG("d3d12_break_on_warn enabled");
         }
     }

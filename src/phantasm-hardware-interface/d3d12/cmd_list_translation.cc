@@ -49,7 +49,7 @@ void phi::d3d12::command_list_translator::translateCommandList(
         cmd::detail::dynamic_dispatch(cmd, *this);
 
     // close the list
-    _cmd_list->Close();
+    PHI_D3D12_VERIFY(_cmd_list->Close());
 
     // done
 }
