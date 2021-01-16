@@ -765,8 +765,8 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::clear_textures
     _thread_local.lin_alloc_dsvs.reset();
 }
 
-void phi::d3d12::command_list_translator::execute(cmd::code_location_marker const& marker) {
-
+void phi::d3d12::command_list_translator::execute(cmd::code_location_marker const& marker)
+{
     _last_code_location.file = marker.file;
     _last_code_location.function = marker.function;
     _last_code_location.line = marker.line;
