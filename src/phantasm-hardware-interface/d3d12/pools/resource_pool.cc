@@ -327,7 +327,6 @@ phi::handle::resource phi::d3d12::ResourcePool::acquireImage(
     new_node.heap = resource_heap::gpu;
     new_node.master_state = initial_state;
     new_node.image.num_mips = num_mips;
-    new_node.image.num_array_layers = num_array_layers;
     new_node.image.pixel_format = pixel_format;
 
     return {static_cast<handle::handle_t>(res)};

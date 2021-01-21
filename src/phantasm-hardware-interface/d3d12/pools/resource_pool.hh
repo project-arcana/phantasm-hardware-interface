@@ -51,25 +51,25 @@ public:
 
         struct buffer_info
         {
-            D3D12_GPU_VIRTUAL_ADDRESS gpu_va;
-            uint32_t width;
-            uint32_t stride; // vertex/index size, structured buffer stride
+            D3D12_GPU_VIRTUAL_ADDRESS gpu_va; // cached
+            uint32_t width;                   // for bound checks, copy ranges, VBVs
+            uint32_t stride;                  // vertex/index size, structured buffer stride
 
             bool is_access_in_bounds(size_t offset, size_t size) const { return offset + size <= size_t(width); }
         };
 
         struct image_info
         {
-            format pixel_format;
-            unsigned num_mips;
-            unsigned num_array_layers;
+            format pixel_format; // for byte size of image
+            unsigned num_mips;   // for subresource index
         };
 
     public:
         D3D12MA::Allocation* allocation = nullptr;
         ID3D12Resource* resource = nullptr;
 
-        union {
+        union
+        {
             buffer_info buffer;
             image_info image;
         };
