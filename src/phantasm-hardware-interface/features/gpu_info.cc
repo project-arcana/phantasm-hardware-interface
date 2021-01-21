@@ -2,9 +2,11 @@
 
 #include <clean-core/assert.hh>
 
-#include <phantasm-hardware-interface/common/log.hh>
 #include <phantasm-hardware-interface/config.hh>
 #include <phantasm-hardware-interface/types.hh>
+
+#include <phantasm-hardware-interface/common/enums_from_string.hh>
+#include <phantasm-hardware-interface/common/log.hh>
 
 namespace
 {
@@ -24,22 +26,6 @@ constexpr char const* get_preference_literal(phi::adapter_preference pref)
         return "highest feature level";
     }
     CC_UNREACHABLE_SWITCH_WORKAROUND(pref);
-}
-
-constexpr char const* get_validation_literal(phi::validation_level level)
-{
-    switch (level)
-    {
-    case phi::validation_level::off:
-        return "off";
-    case phi::validation_level::on:
-        return "on";
-    case phi::validation_level::on_extended:
-        return "on_extended";
-    case phi::validation_level::on_extended_dred:
-        return "on_extended_dred";
-    }
-    CC_UNREACHABLE_SWITCH_WORKAROUND(level);
 }
 }
 
@@ -138,7 +124,7 @@ void phi::print_startup_message(cc::span<const phi::gpu_info> gpu_candidates, si
         return;
 
     PHI_LOG("{} backend initialized, validation: {}", //
-            is_d3d12 ? "d3d12" : "vulkan", get_validation_literal(config.validation));
+            is_d3d12 ? "d3d12" : "vulkan", enum_to_string(config.validation));
 
     PHI_LOG("   {} threads, max {} resources, max {} PSOs", //
             config.num_threads, config.max_num_resources, config.max_num_pipeline_states);

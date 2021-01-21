@@ -247,13 +247,13 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::draw_indirect&
     if (_bound.update_pso(draw_indirect.pipeline_state))
     {
         _cmd_list->SetPipelineState(pso_node.raw_pso);
+        _cmd_list->IASetPrimitiveTopology(pso_node.primitive_topology);
     }
 
     // Root signature
     if (_bound.update_root_sig(pso_node.associated_root_sig->raw_root_sig))
     {
         _cmd_list->SetGraphicsRootSignature(_bound.raw_root_sig);
-        _cmd_list->IASetPrimitiveTopology(pso_node.primitive_topology);
     }
 
     // Index buffer (optional)
