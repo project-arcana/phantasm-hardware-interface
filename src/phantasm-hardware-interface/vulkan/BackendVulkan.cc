@@ -121,7 +121,13 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg)
         volkLoadDevice(mDevice.getDevice());
 
         print_startup_message(gpu_infos, chosen_index, config, false);
-        PHI_LOG("   compiled with vulkan sdk v{}.{}.{}", vkver::major, vkver::minor, vkver::patch);
+
+        if (config.print_startup_message)
+        {
+            PHI_LOG("   compiled with vulkan sdk v{}.{}.{}", vkver::major, vkver::minor, vkver::patch);
+        }
+
+        mGPUInfo = gpu_infos[chosen_index];
     }
 
     // Pool init

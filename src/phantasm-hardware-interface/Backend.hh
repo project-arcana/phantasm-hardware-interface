@@ -258,6 +258,8 @@ public:
 
     virtual backend_type getBackendType() const = 0;
 
+    virtual gpu_info const& getGPUInfo() const = 0;
+
     //
     // Non-virtual utility
     //

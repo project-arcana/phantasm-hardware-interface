@@ -204,6 +204,8 @@ public:
 
     backend_type getBackendType() const override { return backend_type::d3d12; }
 
+    gpu_info const& getGPUInfo() const override { return mAdapter.getGPUInfo(); }
+
 public:
     // non virtual - d3d12 specific
 

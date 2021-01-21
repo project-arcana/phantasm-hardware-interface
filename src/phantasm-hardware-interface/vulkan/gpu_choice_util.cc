@@ -197,8 +197,8 @@ cc::vector<phi::gpu_info> phi::vk::get_available_gpus(cc::span<const vulkan_gpu_
 
         auto& new_gpu = res.emplace_back();
         new_gpu.index = i;
-        new_gpu.vendor = get_gpu_vendor_from_id(ll_info.physical_device_props.vendorID);
-        new_gpu.description = cc::string(ll_info.physical_device_props.deviceName);
+        new_gpu.vendor = get_gpu_info_from_pcie_id(ll_info.physical_device_props.vendorID);
+        std::snprintf(new_gpu.name, sizeof(new_gpu.name), "%s", ll_info.physical_device_props.deviceName);
 
         // TODO: differentiate this somehow
         new_gpu.capabilities = ll_info.is_suitable ? gpu_capabilities::level_1 : gpu_capabilities::insufficient;
@@ -212,9 +212,13 @@ cc::vector<phi::gpu_info> phi::vk::get_available_gpus(cc::span<const vulkan_gpu_
             auto const& heap = ll_info.mem_props.memoryHeaps[i];
 
             if (heap.flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT && ll_info.physical_device_props.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+            {
                 new_gpu.dedicated_video_memory_bytes += heap.size;
+            }
             else
+            {
                 new_gpu.shared_system_memory_bytes += heap.size;
+            }
         }
     }
 

@@ -2,6 +2,7 @@
 
 #include <phantasm-hardware-interface/Backend.hh>
 #include <phantasm-hardware-interface/common/thread_association.hh>
+#include <phantasm-hardware-interface/features/gpu_info.hh>
 #include <phantasm-hardware-interface/types.hh>
 
 #include "Device.hh"
@@ -196,6 +197,8 @@ public:
 
     backend_type getBackendType() const override;
 
+    gpu_info const& getGPUInfo() const override { return mGPUInfo; }
+
 public:
     // backend-internal
 
@@ -209,6 +212,7 @@ private:
     per_thread_component& getCurrentThreadComponent();
 
 private:
+    gpu_info mGPUInfo;
     VkInstance mInstance = nullptr;
     VkDebugUtilsMessengerEXT mDebugMessenger = nullptr;
     Device mDevice;
