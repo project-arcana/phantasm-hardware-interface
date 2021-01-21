@@ -95,6 +95,7 @@ void phi::d3d12::Adapter::initialize(const backend_config& config)
         PHI_D3D12_VERIFY(temp_adapter->QueryInterface(IID_PPV_ARGS(&mAdapter)));
 
         print_startup_message(candidates, chosen_adapter_index, config, true);
+        mGPUInfo = candidates[chosen_adapter_index];
     }
 
     // Debug layer init

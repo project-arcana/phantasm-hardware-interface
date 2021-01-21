@@ -1,5 +1,6 @@
 #pragma once
 
+#include <phantasm-hardware-interface/features/gpu_info.hh>
 #include <phantasm-hardware-interface/fwd.hh>
 
 #include "common/d3d12_fwd.hh"
@@ -15,10 +16,13 @@ public:
 
     bool isValid() const { return mAdapter != nullptr; }
 
-    [[nodiscard]] IDXGIAdapter& getAdapter() const { return *mAdapter; }
-    [[nodiscard]] IDXGIFactory4& getFactory() const { return *mFactory; }
+    IDXGIAdapter& getAdapter() const { return *mAdapter; }
+    IDXGIFactory4& getFactory() const { return *mFactory; }
+
+    gpu_info const& getGPUInfo() const { return mGPUInfo; }
 
 private:
+    gpu_info mGPUInfo;
     IDXGIAdapter* mAdapter = nullptr;
     IDXGIFactory4* mFactory = nullptr;
     IDXGIInfoQueue* mInfoQueue = nullptr;

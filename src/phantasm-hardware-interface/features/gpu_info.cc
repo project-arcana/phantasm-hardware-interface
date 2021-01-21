@@ -97,7 +97,7 @@ size_t phi::get_preferred_gpu(cc::span<const phi::gpu_info> candidates, phi::ada
     return make_choice();
 }
 
-phi::gpu_vendor phi::get_gpu_vendor_from_id(unsigned vendor_id)
+phi::gpu_vendor phi::get_gpu_info_from_pcie_id(unsigned vendor_id)
 {
     switch (vendor_id)
     {
@@ -132,7 +132,7 @@ void phi::print_startup_message(cc::span<const phi::gpu_info> gpu_candidates, si
     if (chosen_index < gpu_candidates.size())
     {
         PHI_LOG("   chose gpu #{} ({}) from {} candidate{}, preference: {}", //
-                chosen_index, gpu_candidates[chosen_index].description.c_str(), gpu_candidates.size(), (gpu_candidates.size() == 1 ? "" : "s"),
+                chosen_index, gpu_candidates[chosen_index].name, gpu_candidates.size(), (gpu_candidates.size() == 1 ? "" : "s"),
                 get_preference_literal(config.adapter));
     }
     else
