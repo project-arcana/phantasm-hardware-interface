@@ -2,10 +2,16 @@
 
 #include <cstring>
 
+#include <phantasm-hardware-interface/config.hh>
 #include <phantasm-hardware-interface/types.hh>
 
 namespace phi
 {
+// config enums
+#define PHI_LIST_ADAPTER_PREF(X) X(highest_vram) X(first) X(integrated) X(highest_feature_level) X(explicit_index)
+#define PHI_LIST_VALIDATION_LVL(X) X(off) X(on) X(on_extended) X(on_extended_dred)
+
+// normal enums
 #define PHI_LIST_PRIMITIVE_TOPOLOGY(X) X(triangles) X(lines) X(points) X(patches)
 #define PHI_LIST_DEPTH_FUNCTION(X) X(none) X(less) X(less_equal) X(greater) X(greater_equal) X(equal) X(not_equal) X(always) X(never)
 #define PHI_LIST_CULL_MODE(X) X(none) X(back) X(front)
@@ -46,8 +52,11 @@ namespace phi
     }
 // clang-format on
 
-PHI_DECLARE_TOSTRING(enum_to_string, primitive_topology, PHI_LIST_PRIMITIVE_TOPOLOGY);
-PHI_DECLARE_FROMSTRING(enum_from_string, primitive_topology, PHI_LIST_PRIMITIVE_TOPOLOGY);
+PHI_DECLARE_TOSTRING(enum_to_string, adapter_preference, PHI_LIST_ADAPTER_PREF);
+PHI_DECLARE_FROMSTRING(enum_from_string, adapter_preference, PHI_LIST_ADAPTER_PREF);
+
+PHI_DECLARE_TOSTRING(enum_to_string, validation_level, PHI_LIST_VALIDATION_LVL);
+PHI_DECLARE_FROMSTRING(enum_from_string, validation_level, PHI_LIST_VALIDATION_LVL);
 
 PHI_DECLARE_TOSTRING(enum_to_string, depth_function, PHI_LIST_DEPTH_FUNCTION);
 PHI_DECLARE_FROMSTRING(enum_from_string, depth_function, PHI_LIST_DEPTH_FUNCTION);
