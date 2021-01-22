@@ -58,6 +58,9 @@ PHI_DECLARE_FROMSTRING(enum_from_string, adapter_preference, PHI_LIST_ADAPTER_PR
 PHI_DECLARE_TOSTRING(enum_to_string, validation_level, PHI_LIST_VALIDATION_LVL);
 PHI_DECLARE_FROMSTRING(enum_from_string, validation_level, PHI_LIST_VALIDATION_LVL);
 
+PHI_DECLARE_TOSTRING(enum_to_string, primitive_topology, PHI_LIST_PRIMITIVE_TOPOLOGY);
+PHI_DECLARE_FROMSTRING(enum_from_string, primitive_topology, PHI_LIST_PRIMITIVE_TOPOLOGY);
+
 PHI_DECLARE_TOSTRING(enum_to_string, depth_function, PHI_LIST_DEPTH_FUNCTION);
 PHI_DECLARE_FROMSTRING(enum_from_string, depth_function, PHI_LIST_DEPTH_FUNCTION);
 
