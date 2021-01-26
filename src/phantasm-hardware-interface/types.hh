@@ -1,12 +1,14 @@
 #pragma once
 
+#include <cstdint>
+
 #include <clean-core/flags.hh>
 
 #include <phantasm-hardware-interface/handles.hh>
 
 #define PHI_DEFINE_FLAG_TYPE(_flags_t_, _enum_t_, _max_num_)    \
-    using _flags_t_ = cc::flags<_enum_t_, unsigned(_max_num_)>; \
-    CC_FLAGS_ENUM_SIZED(_enum_t_, unsigned(_max_num_));
+    using _flags_t_ = cc::flags<_enum_t_, uint32_t(_max_num_)>; \
+    CC_FLAGS_ENUM_SIZED(_enum_t_, uint32_t(_max_num_));
 
 namespace phi
 {
@@ -15,7 +17,7 @@ struct shader_argument
 {
     handle::resource constant_buffer;
     handle::shader_view shader_view;
-    unsigned constant_buffer_offset;
+    uint32_t constant_buffer_offset;
 };
 
 /// the type of a single shader
@@ -217,7 +219,7 @@ constexpr bool is_valid_format(format fmt) { return fmt > format::none && fmt < 
 struct vertex_attribute_info
 {
     char const* semantic_name;
-    unsigned offset;
+    uint32_t offset;
     format fmt;
 };
 
@@ -255,17 +257,17 @@ struct resource_view
     struct texture_info_t
     {
         format pixel_format;
-        unsigned mip_start;   ///< index of the first usable mipmap (usually: 0)
-        unsigned mip_size;    ///< amount of usable mipmaps, starting from mip_start (usually: -1 / all)
-        unsigned array_start; ///< index of the first usable array element [if applicable] (usually: 0)
-        unsigned array_size;  ///< amount of usable array elements [if applicable]
+        uint32_t mip_start;   ///< index of the first usable mipmap (usually: 0)
+        uint32_t mip_size;    ///< amount of usable mipmaps, starting from mip_start (usually: -1 / all)
+        uint32_t array_start; ///< index of the first usable array element [if applicable] (usually: 0)
+        uint32_t array_size;  ///< amount of usable array elements [if applicable]
     };
 
     struct buffer_info_t
     {
-        unsigned element_start;        ///< index of the first element in the buffer
-        unsigned num_elements;         ///< amount of elements in the buffer
-        unsigned element_stride_bytes; ///< the stride of elements in bytes
+        uint32_t element_start;        ///< index of the first element in the buffer
+        uint32_t num_elements;         ///< amount of elements in the buffer
+        uint32_t element_stride_bytes; ///< the stride of elements in bytes
     };
 
     struct accel_struct_info_t
@@ -273,7 +275,8 @@ struct resource_view
         handle::accel_struct accel_struct;
     };
 
-    union {
+    union
+    {
         texture_info_t texture_info;
         buffer_info_t buffer_info;
         accel_struct_info_t accel_struct_info;
@@ -297,14 +300,14 @@ public:
         // no need to specify
     }
 
-    void init_as_tex2d(handle::resource res, format pf, bool multisampled = false, unsigned mip_start = 0, unsigned mip_size = unsigned(-1))
+    void init_as_tex2d(handle::resource res, format pf, bool multisampled = false, uint32_t mip_start = 0, uint32_t mip_size = uint32_t(-1), uint32_t array_index = 0)
     {
         dimension = multisampled ? resource_view_dimension::texture2d_ms : resource_view_dimension::texture2d;
         resource = res;
         texture_info.pixel_format = pf;
         texture_info.mip_start = mip_start;
         texture_info.mip_size = mip_size;
-        texture_info.array_start = 0;
+        texture_info.array_start = array_index;
         texture_info.array_size = 1;
     }
 
@@ -314,12 +317,12 @@ public:
         resource = res;
         texture_info.pixel_format = pf;
         texture_info.mip_start = 0;
-        texture_info.mip_size = unsigned(-1);
+        texture_info.mip_size = uint32_t(-1);
         texture_info.array_start = 0;
         texture_info.array_size = 1;
     }
 
-    void init_as_structured_buffer(handle::resource res, unsigned num_elements, unsigned stride_bytes, unsigned element_start = 0)
+    void init_as_structured_buffer(handle::resource res, uint32_t num_elements, uint32_t stride_bytes, uint32_t element_start = 0)
     {
         dimension = resource_view_dimension::buffer;
         resource = res;
@@ -350,10 +353,10 @@ public:
         rv.init_as_backbuffer(res);
         return rv;
     }
-    static resource_view tex2d(handle::resource res, format pf, bool multisampled = false, unsigned mip_start = 0, unsigned mip_size = unsigned(-1))
+    static resource_view tex2d(handle::resource res, format pf, bool multisampled = false, uint32_t mip_start = 0, uint32_t mip_size = uint32_t(-1), uint32_t array_index = 0)
     {
         resource_view rv;
-        rv.init_as_tex2d(res, pf, multisampled, mip_start, mip_size);
+        rv.init_as_tex2d(res, pf, multisampled, mip_start, mip_size, array_index);
         return rv;
     }
     static resource_view texcube(handle::resource res, format pf)
@@ -362,7 +365,7 @@ public:
         rv.init_as_texcube(res, pf);
         return rv;
     }
-    static resource_view structured_buffer(handle::resource res, unsigned num_elements, unsigned stride_bytes)
+    static resource_view structured_buffer(handle::resource res, uint32_t num_elements, uint32_t stride_bytes)
     {
         resource_view rv;
         rv.init_as_structured_buffer(res, num_elements, stride_bytes);
@@ -435,11 +438,11 @@ struct sampler_config
     float min_lod;
     float max_lod;
     float lod_bias;          ///< offset from the calculated MIP level (sampled = calculated + lod_bias)
-    unsigned max_anisotropy; ///< maximum amount of anisotropy in [1, 16], req. sampler_filter::anisotropic
+    uint32_t max_anisotropy; ///< maximum amount of anisotropy in [1, 16], req. sampler_filter::anisotropic
     sampler_compare_func compare_func;
     sampler_border_color border_color; ///< the border color to use, req. sampler_address_mode::clamp_border
 
-    void init_default(sampler_filter filter, unsigned anisotropy = 16u, sampler_address_mode address_mode = sampler_address_mode::wrap)
+    void init_default(sampler_filter filter, uint32_t anisotropy = 16u, sampler_address_mode address_mode = sampler_address_mode::wrap)
     {
         this->filter = filter;
         address_u = address_mode;
@@ -453,7 +456,7 @@ struct sampler_config
         border_color = sampler_border_color::white_float;
     }
 
-    sampler_config(sampler_filter filter, unsigned anisotropy = 16u, sampler_address_mode address_mode = sampler_address_mode::wrap)
+    sampler_config(sampler_filter filter, uint32_t anisotropy = 16u, sampler_address_mode address_mode = sampler_address_mode::wrap)
     {
         init_default(filter, anisotropy, address_mode);
     }
@@ -498,7 +501,7 @@ struct pipeline_config
     depth_function depth = depth_function::none;
     bool depth_readonly = false;
     cull_mode cull = cull_mode::none;
-    int samples = 1;
+    int32_t samples = 1;
     bool conservative_raster = false;
     bool frontface_counterclockwise = true;
     bool wireframe = false;
