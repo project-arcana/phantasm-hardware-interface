@@ -176,7 +176,7 @@ phi::handle::resource phi::d3d12::ResourcePool::createRenderTarget(
                                                        samples != 1 ? DXGI_STANDARD_MULTISAMPLE_QUALITY_PATTERN : 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
 
         auto* const alloc = mAllocator.allocate(desc, initial_state, &clear_value);
-        util::set_object_name(alloc->GetResource(), "pool depth tgt %s (%ux%u, fmt %u)", dbg_name ? dbg_name : "", w, h, unsigned(format));
+        util::set_object_name(alloc->GetResource(), "pool depth tgt %s (%ux%u, 2D[%u], fmt %u)", dbg_name ? dbg_name : "", w, h, array_size, unsigned(format));
         return acquireImage(alloc, format, initial_state, desc.MipLevels, desc.ArraySize());
     }
     else
@@ -205,7 +205,7 @@ phi::handle::resource phi::d3d12::ResourcePool::createRenderTarget(
                                                        samples != 1 ? DXGI_STANDARD_MULTISAMPLE_QUALITY_PATTERN : 0, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
 
         auto* const alloc = mAllocator.allocate(desc, initial_state, &clear_value);
-        util::set_object_name(alloc->GetResource(), "pool render tgt %s (%ux%u, fmt %u)", dbg_name ? dbg_name : "", w, h, unsigned(format));
+        util::set_object_name(alloc->GetResource(), "pool render tgt %s (%ux%u, 2D[%u], fmt %u)", dbg_name ? dbg_name : "", w, h, array_size, unsigned(format));
         return acquireImage(alloc, format, initial_state, desc.MipLevels, desc.ArraySize());
     }
 }

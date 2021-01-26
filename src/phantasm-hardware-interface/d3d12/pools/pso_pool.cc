@@ -74,7 +74,7 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createPipelineS
         util::set_object_name(new_node.raw_pso, "pool graphics pso #%d", int(pool_index));
     }
 
-
+    
     return {static_cast<handle::handle_t>(pool_index)};
 }
 
