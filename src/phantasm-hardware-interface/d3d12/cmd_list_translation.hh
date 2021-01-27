@@ -7,6 +7,13 @@
 #include <phantasm-hardware-interface/d3d12/fwd.hh>
 #include <phantasm-hardware-interface/d3d12/pools/linear_descriptor_allocator.hh>
 
+#ifdef PHI_HAS_OPTICK
+namespace Optick
+{
+struct EventData;
+}
+#endif
+
 namespace phi::d3d12
 {
 struct translator_thread_local_memory
@@ -79,6 +86,10 @@ struct command_list_translator
     void execute(cmd::begin_debug_label const& label);
 
     void execute(cmd::end_debug_label const&);
+
+    void execute(cmd::begin_profile_scope const& scope);
+
+    void execute(cmd::end_profile_scope const&);
 
     void execute(cmd::update_bottom_level const& blas_update);
 
@@ -206,6 +217,11 @@ private:
         }
 
     } _last_code_location;
+
+// debug state - current Optick GPU Event
+#ifdef PHI_HAS_OPTICK
+    Optick::EventData* _current_optick_event = nullptr;
+#endif
 };
 
 }

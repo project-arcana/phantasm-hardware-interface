@@ -1,5 +1,9 @@
 #include "cmd_buf_translation.hh"
 
+#ifdef PHI_HAS_OPTICK
+#include <optick/optick.h>
+#endif
+
 #include <phantasm-hardware-interface/common/byte_util.hh>
 #include <phantasm-hardware-interface/common/command_reading.hh>
 #include <phantasm-hardware-interface/common/format_size.hh>
@@ -29,15 +33,36 @@ void phi::vk::command_list_translator::translateCommandList(
     _state_cache->reset();
     _last_code_location.reset();
 
-    // translate all contained commands
-    command_stream_parser parser(buffer, buffer_size);
-    for (auto const& cmd : parser)
-        cmd::detail::dynamic_dispatch(cmd, *this);
-
-    if (_bound.raw_render_pass != nullptr)
     {
-        // end the last render pass
-        vkCmdEndRenderPass(_cmd_list);
+        // start Optick context
+#ifdef PHI_HAS_OPTICK
+        OPTICK_GPU_CONTEXT(_cmd_list);
+        _current_optick_event = nullptr;
+        OPTICK_GPU_EVENT("PHI Command List");
+#endif
+
+        // translate all contained commands
+        command_stream_parser parser(buffer, buffer_size);
+        for (auto const& cmd : parser)
+        {
+            cmd::detail::dynamic_dispatch(cmd, *this);
+        }
+
+        // close pending render pass
+        if (_bound.raw_render_pass != nullptr)
+        {
+            // end the last render pass
+            vkCmdEndRenderPass(_cmd_list);
+        }
+
+        // end last pending optick event
+#ifdef PHI_HAS_OPTICK
+        if (_current_optick_event)
+        {
+            Optick::GPUEvent::Stop(*_current_optick_event);
+            _current_optick_event = nullptr;
+        }
+#endif
     }
 
     // close the list
@@ -564,6 +589,33 @@ void phi::vk::command_list_translator::execute(const phi::cmd::end_debug_label&)
     // see execute(begin_debug_label);
     CC_ASSERT(vkCmdBeginDebugUtilsLabelEXT != nullptr && "cmd::end_debug_label not available, contact maintainers");
     vkCmdEndDebugUtilsLabelEXT(_cmd_list);
+}
+
+void phi::vk::command_list_translator::execute(cmd::begin_profile_scope const& scope)
+{
+#ifdef PHI_HAS_OPTICK
+    if (_current_optick_event)
+    {
+        Optick::GPUEvent::Stop(*_current_optick_event);
+        _current_optick_event = nullptr;
+    }
+
+    if (scope.optick_event)
+    {
+        _current_optick_event = Optick::GPUEvent::Start(*scope.optick_event);
+    }
+#endif
+}
+
+void phi::vk::command_list_translator::execute(cmd::end_profile_scope const&)
+{
+#ifdef PHI_HAS_OPTICK
+    if (_current_optick_event)
+    {
+        Optick::GPUEvent::Stop(*_current_optick_event);
+        _current_optick_event = nullptr;
+    }
+#endif
 }
 
 void phi::vk::command_list_translator::execute(const phi::cmd::update_bottom_level& blas_update)

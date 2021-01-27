@@ -1,5 +1,9 @@
 #include "BackendVulkan.hh"
 
+#ifdef PHI_HAS_OPTICK
+#include <optick/optick.h>
+#endif
+
 #include <clean-core/array.hh>
 #include <clean-core/native/win32_util.hh>
 
@@ -171,6 +175,17 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg)
                                  config.max_num_unique_transitions_per_cmdlist, //
                                  thread_allocator_ptrs, config.static_allocator, config.dynamic_allocator);
     }
+
+#ifdef PHI_HAS_OPTICK
+    {
+        VkDevice dev = mDevice.getDevice();
+        VkPhysicalDevice physDev = mDevice.getPhysicalDevice();
+        VkQueue dirQueue = mDevice.getRawQueue(phi::queue_type::direct);
+        uint32_t dirQueueIdx = uint32_t(mDevice.getQueueFamilyDirect());
+
+        OPTICK_GPU_INIT_VULKAN(&dev, &physDev, &dirQueue, &dirQueueIdx, 1, nullptr);
+    }
+#endif
 }
 
 void phi::vk::BackendVulkan::destroy()

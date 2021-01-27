@@ -1,5 +1,9 @@
 #include "cmd_list_translation.hh"
 
+#ifdef PHI_HAS_OPTICK
+#include <optick/optick.h>
+#endif
+
 #include <phantasm-hardware-interface/common/byte_util.hh>
 #include <phantasm-hardware-interface/common/command_reading.hh>
 #include <phantasm-hardware-interface/common/format_size.hh>
@@ -19,6 +23,25 @@
 #include "pools/resource_pool.hh"
 #include "pools/root_sig_cache.hh"
 #include "pools/shader_view_pool.hh"
+
+namespace
+{
+#ifdef PHI_HAS_OPTICK
+Optick::GPUQueueType phiQueueTypeToOptickD3D12(phi::queue_type type)
+{
+    switch (type)
+    {
+    case phi::queue_type::direct:
+    default:
+        return Optick::GPU_QUEUE_GRAPHICS;
+    case phi::queue_type::compute:
+        return Optick::GPU_QUEUE_COMPUTE;
+    case phi::queue_type::copy:
+        return Optick::GPU_QUEUE_TRANSFER;
+    }
+}
+#endif
+}
 
 void phi::d3d12::command_list_translator::initialize(
     ID3D12Device* device, ShaderViewPool* sv_pool, ResourcePool* resource_pool, PipelineStateObjectPool* pso_pool, AccelStructPool* as_pool, QueryPool* query_pool)
@@ -40,13 +63,33 @@ void phi::d3d12::command_list_translator::translateCommandList(
     _state_cache->reset();
     _last_code_location.reset();
 
-    auto const gpu_heaps = _globals.pool_shader_views->getGPURelevantHeaps();
-    _cmd_list->SetDescriptorHeaps(UINT(gpu_heaps.size()), gpu_heaps.data());
+    {
+        // start Optick context
+#ifdef PHI_HAS_OPTICK
+        OPTICK_GPU_CONTEXT(_cmd_list, phiQueueTypeToOptickD3D12(_current_queue_type));
+        _current_optick_event = nullptr;
+        OPTICK_GPU_EVENT("PHI Command List");
+#endif
 
-    // translate all contained commands
-    command_stream_parser parser(buffer, buffer_size);
-    for (auto const& cmd : parser)
-        cmd::detail::dynamic_dispatch(cmd, *this);
+        auto const gpu_heaps = _globals.pool_shader_views->getGPURelevantHeaps();
+        _cmd_list->SetDescriptorHeaps(UINT(gpu_heaps.size()), gpu_heaps.data());
+
+        // translate all contained commands
+        command_stream_parser parser(buffer, buffer_size);
+        for (auto const& cmd : parser)
+        {
+            cmd::detail::dynamic_dispatch(cmd, *this);
+        }
+
+        // end last pending optick event
+#ifdef PHI_HAS_OPTICK
+        if (_current_optick_event)
+        {
+            Optick::GPUEvent::Stop(*_current_optick_event);
+            _current_optick_event = nullptr;
+        }
+#endif
+    }
 
     // close the list
     PHI_D3D12_VERIFY(_cmd_list->Close());
@@ -601,9 +644,44 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::resolve_querie
     _cmd_list->ResolveQueryData(heap, util::to_query_type(type), query_index_start, resolve.num_queries, raw_dest_buffer, resolve.dest_offset_bytes);
 }
 
-void phi::d3d12::command_list_translator::execute(const phi::cmd::begin_debug_label& label) { util::begin_pix_marker(_cmd_list, 0, label.string); }
+void phi::d3d12::command_list_translator::execute(const phi::cmd::begin_debug_label& label)
+{
+    //
+    util::begin_pix_marker(_cmd_list, 0, label.string);
+}
 
-void phi::d3d12::command_list_translator::execute(const phi::cmd::end_debug_label&) { util::end_pix_marker(_cmd_list); }
+void phi::d3d12::command_list_translator::execute(const phi::cmd::end_debug_label&)
+{
+    //
+    util::end_pix_marker(_cmd_list);
+}
+
+void phi::d3d12::command_list_translator::execute(cmd::begin_profile_scope const& scope)
+{
+#ifdef PHI_HAS_OPTICK
+    if (_current_optick_event)
+    {
+        Optick::GPUEvent::Stop(*_current_optick_event);
+        _current_optick_event = nullptr;
+    }
+
+    if (scope.optick_event)
+    {
+        _current_optick_event = Optick::GPUEvent::Start(*scope.optick_event);
+    }
+#endif
+}
+
+void phi::d3d12::command_list_translator::execute(cmd::end_profile_scope const&)
+{
+#ifdef PHI_HAS_OPTICK
+    if (_current_optick_event)
+    {
+        Optick::GPUEvent::Stop(*_current_optick_event);
+        _current_optick_event = nullptr;
+    }
+#endif
+}
 
 void phi::d3d12::command_list_translator::execute(const phi::cmd::update_bottom_level& blas_update)
 {

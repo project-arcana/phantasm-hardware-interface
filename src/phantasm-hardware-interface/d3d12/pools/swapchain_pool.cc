@@ -1,5 +1,9 @@
 #include "swapchain_pool.hh"
 
+#ifdef PHI_HAS_OPTICK
+#include <optick/optick.h>
+#endif
+
 #include <clean-core/assert.hh>
 
 #include <phantasm-hardware-interface/common/log.hh>
@@ -160,6 +164,10 @@ void phi::d3d12::SwapchainPool::present(phi::handle::swapchain handle)
 
     // CPU-wait on currently acquired backbuffer
     node.backbuffers[node.last_acquired_backbuf_i].fence.waitOnCPU(0);
+
+#ifdef PHI_HAS_OPTICK
+    OPTICK_GPU_FLIP(node.swapchain_com);
+#endif
 
     // present
     UINT const sync_interval = get_sync_interval(node.mode);

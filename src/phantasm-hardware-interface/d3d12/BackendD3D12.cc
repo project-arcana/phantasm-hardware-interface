@@ -1,5 +1,13 @@
 #include "BackendD3D12.hh"
 
+#ifdef PHI_HAS_SDL2
+#include <SDL2/SDL_syswm.h>
+#endif
+
+#ifdef PHI_HAS_OPTICK
+#include <optick/optick.h>
+#endif
+
 #include <clean-core/vector.hh>
 
 #include <phantasm-hardware-interface/common/log.hh>
@@ -13,10 +21,6 @@
 #include "common/util.hh"
 #include "common/verify.hh"
 
-#ifdef PHI_HAS_SDL2
-#include <SDL2/SDL_syswm.h>
-#endif
-
 namespace phi::d3d12
 {
 struct BackendD3D12::per_thread_component
@@ -24,7 +28,6 @@ struct BackendD3D12::per_thread_component
     command_list_translator translator;
     CommandAllocatorsPerThread cmd_list_allocator;
 };
-
 }
 
 void phi::d3d12::BackendD3D12::initialize(const phi::backend_config& config)
@@ -95,6 +98,18 @@ void phi::d3d12::BackendD3D12::initialize(const phi::backend_config& config)
     }
 
     mDiagnostics.init();
+
+#ifdef PHI_HAS_OPTICK
+    {
+        ID3D12Device* device = nativeGetDevice();
+
+        // for some reason optick interprets the amount of cmd queues as the device node count (device->getNodeCount())
+        // thus only use the direct queue here
+        ID3D12CommandQueue* cmdQueues[] = {nativeGetDirectQueue()};
+
+        OPTICK_GPU_INIT_D3D12(device, cmdQueues, CC_COUNTOF(cmdQueues));
+    }
+#endif
 }
 
 void phi::d3d12::BackendD3D12::destroy()

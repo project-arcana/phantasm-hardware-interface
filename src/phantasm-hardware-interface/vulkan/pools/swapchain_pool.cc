@@ -1,5 +1,9 @@
 #include "swapchain_pool.hh"
 
+#ifdef PHI_HAS_OPTICK
+#include <optick/optick.h>
+#endif
+
 #include <clean-core/assert.hh>
 #include <clean-core/utility.hh>
 
@@ -145,6 +149,10 @@ bool phi::vk::SwapchainPool::present(phi::handle::swapchain handle)
 
         PHI_VK_VERIFY_SUCCESS(vkQueueSubmit(mPresentQueue, 1, &submit_info, active_backbuffer.fence_command_buf_executed));
     }
+
+#ifdef PHI_HAS_OPTICK
+    OPTICK_GPU_FLIP(node.swapchain);
+#endif
 
     // present proper
     {

@@ -10,6 +10,22 @@
 #include <phantasm-hardware-interface/limits.hh>
 #include <phantasm-hardware-interface/types.hh>
 
+#ifdef PHI_HAS_OPTICK
+namespace Optick
+{
+struct EventDescription;
+}
+
+// create an Optick event name for use with cmd::begin_debug_label
+#define PHI_CREATE_OPTICK_EVENT(VariableName, NameString)                                  \
+    static ::Optick::EventDescription* VariableName = nullptr;                             \
+    if (VariableName == nullptr)                                                           \
+    {                                                                                      \
+        VariableName = ::Optick::EventDescription::Create(NameString, __FILE__, __LINE__); \
+    }                                                                                      \
+    CC_FORCE_SEMICOLON
+#endif
+
 namespace phi
 {
 namespace cmd
@@ -434,9 +450,8 @@ public:
 PHI_DEFINE_CMD(begin_debug_label)
 {
     // Begin a debug label on the cmdlist
-
-    // for diagnostic tools like renderdoc, nsight, gpa, pix
     // close it using cmd::end_debug_label
+    // for diagnostic tools like renderdoc, nsight, gpa, pix
 
     char const* string = "UNLABELED_DEBUG_MARKER";
 
@@ -449,6 +464,22 @@ PHI_DEFINE_CMD(end_debug_label){
     // Close a debug label started with cmd::begin_debug_label
 };
 
+PHI_DEFINE_CMD(begin_profile_scope)
+{
+    // Creates a GPU profile scope on the cmdlist
+    // close it using cmd::end_profile_scope
+    // usage depends on enabled profilers, see CMake options
+
+#ifdef PHI_HAS_OPTICK
+    // point to a manually allocated Optick EventDescription
+    // create one using PHI_CREATE_OPTICK_EVENT(VariableName, NameString)
+    Optick::EventDescription* optick_event = nullptr;
+#endif
+};
+
+PHI_DEFINE_CMD(end_profile_scope){
+    // Close a profile scope started with cmd::begin_profile_scope
+};
 
 PHI_DEFINE_CMD(update_bottom_level)
 {
