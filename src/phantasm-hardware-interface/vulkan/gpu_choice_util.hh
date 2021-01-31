@@ -35,14 +35,20 @@ struct physical_device_feature_bundle
 {
     VkPhysicalDeviceFeatures2 features = {};
     VkPhysicalDeviceTimelineSemaphoreFeatures features_time_sem = {};
+    VkPhysicalDeviceDescriptorIndexingFeatures features_descriptor_indexing = {};
 
     physical_device_feature_bundle()
     {
         features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
         features.pNext = &features_time_sem;
         features_time_sem.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TIMELINE_SEMAPHORE_FEATURES;
+        features_time_sem.pNext = &features_descriptor_indexing;
+        features_descriptor_indexing.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
     }
     VkPhysicalDeviceFeatures2* get() { return &features; }
+
+    physical_device_feature_bundle(physical_device_feature_bundle const&) = delete;
+    physical_device_feature_bundle(physical_device_feature_bundle&&) = delete;
 };
 
 bool set_or_test_device_features(VkPhysicalDeviceFeatures2* arg, bool enable_gbv, bool test_mode, char const* gpu_name_for_logging = nullptr);

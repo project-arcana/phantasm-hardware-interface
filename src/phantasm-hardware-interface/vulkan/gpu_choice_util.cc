@@ -236,6 +236,9 @@ bool phi::vk::set_or_test_device_features(VkPhysicalDeviceFeatures2* arg, bool e
 
     VkPhysicalDeviceTimelineSemaphoreFeatures& p_next_chain_1 = *static_cast<VkPhysicalDeviceTimelineSemaphoreFeatures*>(arg->pNext);
     CC_ASSERT(p_next_chain_1.sType == VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TIMELINE_SEMAPHORE_FEATURES && "pNext chain ordered unexpectedly");
+    CC_ASSERT(p_next_chain_1.pNext != nullptr && "pNext chain not long enough");
+    VkPhysicalDeviceDescriptorIndexingFeatures& p_next_chain_2 = *static_cast<VkPhysicalDeviceDescriptorIndexingFeatures*>(p_next_chain_1.pNext);
+    CC_ASSERT(p_next_chain_2.sType == VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES && "pNext chain ordered unexpectedly");
 
 #define PHI_VK_SET_OR_TEST_PROPERTY(_prop_, _prop_name_)                                                                           \
     if (test_mode)                                                                                                                 \
@@ -309,7 +312,14 @@ bool phi::vk::set_or_test_device_features(VkPhysicalDeviceFeatures2* arg, bool e
         PHI_VK_SET_OR_TEST(vertexPipelineStoresAndAtomics);
     }
 
+    // timeline semaphores (hard requirement for fence API)
     PHI_VK_SET_OR_TEST_PROPERTY(p_next_chain_1.timelineSemaphore, timelineSemaphore);
+
+    // dynamic descriptor indexing (required for empty shader view API / "bindless", currently hard requirement)
+    PHI_VK_SET_OR_TEST_PROPERTY(p_next_chain_2.shaderSampledImageArrayNonUniformIndexing, shaderSampledImageArrayNonUniformIndexing);
+    PHI_VK_SET_OR_TEST_PROPERTY(p_next_chain_2.runtimeDescriptorArray, runtimeDescriptorArray);
+    PHI_VK_SET_OR_TEST_PROPERTY(p_next_chain_2.descriptorBindingVariableDescriptorCount, descriptorBindingVariableDescriptorCount);
+    PHI_VK_SET_OR_TEST_PROPERTY(p_next_chain_2.descriptorBindingPartiallyBound, descriptorBindingPartiallyBound);
 
     return true;
 

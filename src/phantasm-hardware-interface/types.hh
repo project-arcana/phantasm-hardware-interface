@@ -300,15 +300,26 @@ public:
         // no need to specify
     }
 
-    void init_as_tex2d(handle::resource res, format pf, bool multisampled = false, uint32_t mip_start = 0, uint32_t mip_size = uint32_t(-1), uint32_t array_index = 0)
+    void init_as_tex2d(handle::resource res, format pf, bool multisampled = false, uint32_t mip_slice = 0)
     {
         dimension = multisampled ? resource_view_dimension::texture2d_ms : resource_view_dimension::texture2d;
         resource = res;
         texture_info.pixel_format = pf;
-        texture_info.mip_start = mip_start;
-        texture_info.mip_size = mip_size;
-        texture_info.array_start = array_index;
+        texture_info.mip_start = mip_slice;
+        texture_info.mip_size = 1;
+        texture_info.array_start = 0;
         texture_info.array_size = 1;
+    }
+
+    void init_as_tex2d_array(handle::resource res, format pf, bool multisampled, uint32_t array_start = 0, uint32_t array_size = 1, uint32_t mip_slice = 0)
+    {
+        dimension = multisampled ? resource_view_dimension::texture2d_ms_array : resource_view_dimension::texture2d_array;
+        resource = res;
+        texture_info.pixel_format = pf;
+        texture_info.mip_start = mip_slice;
+        texture_info.mip_size = 1;
+        texture_info.array_start = array_start;
+        texture_info.array_size = array_size;
     }
 
     void init_as_texcube(handle::resource res, format pf)
@@ -353,10 +364,10 @@ public:
         rv.init_as_backbuffer(res);
         return rv;
     }
-    static resource_view tex2d(handle::resource res, format pf, bool multisampled = false, uint32_t mip_start = 0, uint32_t mip_size = uint32_t(-1), uint32_t array_index = 0)
+    static resource_view tex2d(handle::resource res, format pf, bool multisampled = false, uint32_t mip_slice = 0)
     {
         resource_view rv;
-        rv.init_as_tex2d(res, pf, multisampled, mip_start, mip_size, array_index);
+        rv.init_as_tex2d(res, pf, multisampled, mip_slice);
         return rv;
     }
     static resource_view texcube(handle::resource res, format pf)
