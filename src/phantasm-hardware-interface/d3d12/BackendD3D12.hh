@@ -97,6 +97,14 @@ public:
                                                        cc::span<sampler_config const> samplers,
                                                        bool /*usage_compute*/) override;
 
+    [[nodiscard]] handle::shader_view createEmptyShaderView(uint32_t num_srvs_uavs, uint32_t num_samplers, bool /*usage_compute*/);
+
+    void writeShaderViewSRVs(handle::shader_view sv, uint32_t offset, cc::span<resource_view const> srvs);
+
+    void writeShaderViewUAVs(handle::shader_view sv, uint32_t offset, cc::span<resource_view const> uavs);
+
+    void writeShaderViewSamplers(handle::shader_view sv, uint32_t offset, cc::span<sampler_config const> samplers);
+
     void free(handle::shader_view sv) override;
 
     void freeRange(cc::span<handle::shader_view const> svs) override;

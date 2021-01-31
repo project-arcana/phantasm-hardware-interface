@@ -261,6 +261,26 @@ phi::handle::shader_view phi::d3d12::BackendD3D12::createShaderView(cc::span<con
     return mPoolShaderViews.create(srvs, uavs, samplers);
 }
 
+phi::handle::shader_view phi::d3d12::BackendD3D12::createEmptyShaderView(uint32_t num_srvs_uavs, uint32_t num_samplers, bool /*usage_compute*/)
+{
+    return mPoolShaderViews.createEmpty(num_srvs_uavs, num_samplers);
+}
+
+void phi::d3d12::BackendD3D12::writeShaderViewSRVs(handle::shader_view sv, uint32_t offset, cc::span<resource_view const> srvs)
+{
+    mPoolShaderViews.writeShaderViewSRVs(sv, offset, srvs);
+}
+
+void phi::d3d12::BackendD3D12::writeShaderViewUAVs(handle::shader_view sv, uint32_t offset, cc::span<resource_view const> uavs)
+{
+    mPoolShaderViews.writeShaderViewUAVs(sv, offset, uavs);
+}
+
+void phi::d3d12::BackendD3D12::writeShaderViewSamplers(handle::shader_view sv, uint32_t offset, cc::span<sampler_config const> samplers)
+{
+    mPoolShaderViews.writeShaderViewSamplers(sv, offset, samplers);
+}
+
 void phi::d3d12::BackendD3D12::free(phi::handle::shader_view sv) { mPoolShaderViews.free(sv); }
 
 void phi::d3d12::BackendD3D12::freeRange(cc::span<const phi::handle::shader_view> svs) { mPoolShaderViews.free(svs); }

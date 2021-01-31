@@ -102,7 +102,15 @@ class ShaderViewPool
 public:
     // frontend-facing API
 
-    [[nodiscard]] handle::shader_view create(cc::span<resource_view const> srvs, cc::span<resource_view const> uavs, cc::span<sampler_config const> samplers);
+    handle::shader_view createEmpty(uint32_t num_srvs_uavs, uint32_t num_samplers);
+
+    handle::shader_view create(cc::span<resource_view const> srvs, cc::span<resource_view const> uavs, cc::span<sampler_config const> samplers);
+
+    void writeShaderViewSRVs(handle::shader_view sv, uint32_t offset, cc::span<resource_view const> srvs);
+
+    void writeShaderViewUAVs(handle::shader_view sv, uint32_t offset, cc::span<resource_view const> uavs);
+
+    void writeShaderViewSamplers(handle::shader_view sv, uint32_t offset, cc::span<sampler_config const> samplers);
 
     void free(handle::shader_view sv);
     void free(cc::span<handle::shader_view const> svs);
@@ -159,6 +167,12 @@ private:
         CC_ASSERT(res.is_valid() && "invalid shader_view handle");
         return mPool.get(res._value);
     }
+
+    void writeSRV(D3D12_CPU_DESCRIPTOR_HANDLE handle, resource_view const& srv);
+
+    void writeUAV(D3D12_CPU_DESCRIPTOR_HANDLE handle, resource_view const& uav);
+
+    void writeSampler(D3D12_CPU_DESCRIPTOR_HANDLE handle, sampler_config const& sampler);
 
 private:
     // non-owning
