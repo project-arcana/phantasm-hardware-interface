@@ -93,19 +93,19 @@ enum format_property_flags_e
 
 #define PHI_FORMAT_INFO_X_HAS_DEPTH(PhiName, NumComps, SizeBytes, Props, ...) \
     case format::PhiName:                                                     \
-        return ((Props) & efp_has_depth) != 0;
+        return ((Props)&efp_has_depth) != 0;
 
 #define PHI_FORMAT_INFO_X_HAS_DEPTH_STENCIL(PhiName, NumComps, SizeBytes, Props, ...) \
     case format::PhiName:                                                             \
-        return ((Props) & efp_has_depth_stencil) == efp_has_depth_stencil;
+        return ((Props)&efp_has_depth_stencil) == efp_has_depth_stencil;
 
 #define PHI_FORMAT_INFO_X_IS_BLOCK_COMPRESSED(PhiName, NumComps, SizeBytes, Props, ...) \
     case format::PhiName:                                                               \
-        return ((Props) & efp_is_bc) != 0;
+        return ((Props)&efp_is_bc) != 0;
 
 #define PHI_FORMAT_INFO_X_IS_SRGB(PhiName, NumComps, SizeBytes, Props, ...) \
     case format::PhiName:                                                   \
-        return ((Props) & efp_is_srgb) != 0;
+        return ((Props)&efp_is_srgb) != 0;
 
 #define PHI_FORMAT_INFO_X_TO_DXGI(PhiName, NumComps, SizeBytes, Props, DxgiName, ...) \
     case format::PhiName:                                                             \
