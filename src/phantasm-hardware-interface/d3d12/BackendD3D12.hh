@@ -95,15 +95,15 @@ public:
     [[nodiscard]] handle::shader_view createShaderView(cc::span<resource_view const> srvs,
                                                        cc::span<resource_view const> uavs,
                                                        cc::span<sampler_config const> samplers,
-                                                       bool /*usage_compute*/) override;
+                                                       bool usage_compute) override;
 
-    [[nodiscard]] handle::shader_view createEmptyShaderView(uint32_t num_srvs_uavs, uint32_t num_samplers, bool /*usage_compute*/);
+    [[nodiscard]] handle::shader_view createEmptyShaderView(uint32_t num_srvs_uavs, uint32_t num_samplers, bool usage_compute) override;
 
-    void writeShaderViewSRVs(handle::shader_view sv, uint32_t offset, cc::span<resource_view const> srvs);
+    void writeShaderViewSRVs(handle::shader_view sv, uint32_t offset, cc::span<resource_view const> srvs) override;
 
-    void writeShaderViewUAVs(handle::shader_view sv, uint32_t offset, cc::span<resource_view const> uavs);
+    void writeShaderViewUAVs(handle::shader_view sv, uint32_t offset, cc::span<resource_view const> uavs) override;
 
-    void writeShaderViewSamplers(handle::shader_view sv, uint32_t offset, cc::span<sampler_config const> samplers);
+    void writeShaderViewSamplers(handle::shader_view sv, uint32_t offset, cc::span<sampler_config const> samplers) override;
 
     void free(handle::shader_view sv) override;
 

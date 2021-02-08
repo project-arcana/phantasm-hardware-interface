@@ -308,6 +308,24 @@ phi::handle::shader_view phi::vk::BackendVulkan::createShaderView(cc::span<const
     return mPoolShaderViews.create(srvs, uavs, samplers, usage_compute);
 }
 
+phi::handle::shader_view phi::vk::BackendVulkan::createEmptyShaderView(uint32_t num_srvs_uavs, uint32_t num_samplers, bool usage_compute)
+{
+    CC_ASSERT(false && "unimplemented");
+    return handle::null_shader_view;
+}
+
+void phi::vk::BackendVulkan::writeShaderViewSRVs(handle::shader_view sv, uint32_t offset, cc::span<resource_view const> srvs)
+{
+    CC_ASSERT(false && "unimplemented");
+}
+
+void phi::vk::BackendVulkan::writeShaderViewUAVs(handle::shader_view sv, uint32_t offset, cc::span<resource_view const> uavs)
+{
+    CC_ASSERT(false && "unimplemented");
+}
+
+void phi::vk::BackendVulkan::writeShaderViewSamplers(handle::shader_view sv, uint32_t offset, cc::span<sampler_config const> samplers) {}
+
 void phi::vk::BackendVulkan::free(phi::handle::shader_view sv) { mPoolShaderViews.free(sv); }
 
 void phi::vk::BackendVulkan::freeRange(cc::span<const phi::handle::shader_view> svs) { mPoolShaderViews.free(svs); }

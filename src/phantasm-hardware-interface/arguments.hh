@@ -49,7 +49,7 @@ struct shader_arg_shape
     bool has_cbv = false;
 
 public:
-    shader_arg_shape(unsigned srvs, unsigned uavs = 0, unsigned samplers = 0, bool cbv = false)
+    constexpr shader_arg_shape(unsigned srvs, unsigned uavs = 0, unsigned samplers = 0, bool cbv = false)
       : num_srvs(srvs), num_uavs(uavs), num_samplers(samplers), has_cbv(cbv)
     {
     }
@@ -290,7 +290,8 @@ struct create_resource_info
 
     e_resource_type type = e_resource_undefined;
 
-    union {
+    union
+    {
         create_render_target_info info_render_target;
         create_texture_info info_texture;
         create_buffer_info info_buffer;

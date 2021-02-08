@@ -124,11 +124,14 @@ public:
                                                                bool usage_compute = false)
         = 0;
 
-    //  [[nodiscard]] virtual handle::shader_view createEmptyShaderView(uint32_t num_srvs_uavs, uint32_t num_samplers, bool usage_compute = false) = 0;
+    // WARNING: This API is subject to change (will have to get more verbose for Vulkan)
+    [[nodiscard]] virtual handle::shader_view createEmptyShaderView(uint32_t num_srvs_uavs, uint32_t num_samplers, bool usage_compute = false) = 0;
 
-    //    virtual void writeShaderViewResource(handle::shader_view sv, resource_view const& resview, uint32_t index) = 0;
+    virtual void writeShaderViewSRVs(handle::shader_view sv, uint32_t offset, cc::span<resource_view const> srvs) = 0;
 
-    //  virtual void writeShaderViewSampler(handle::shader_view sv, sampler_config const& sampler, uint32_t index) = 0;
+    virtual void writeShaderViewUAVs(handle::shader_view sv, uint32_t offset, cc::span<resource_view const> uavs) = 0;
+
+    virtual void writeShaderViewSamplers(handle::shader_view sv, uint32_t offset, cc::span<sampler_config const> samplers) = 0;
 
     virtual void free(handle::shader_view sv) = 0;
 
