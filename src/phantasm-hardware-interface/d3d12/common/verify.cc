@@ -295,9 +295,6 @@ void phi::d3d12::detail::verify_failure_handler(HRESULT hr, const char* expressi
     }
 
     show_error_alert_box(expression, error_string, filename, line);
-
-    // TODO: Graceful shutdown
-    std::abort();
 }
 
 void phi::d3d12::detail::dred_assert_handler(void* device_child, const char* expression, const char* filename, int line)
@@ -319,7 +316,4 @@ void phi::d3d12::detail::dred_assert_handler(void* device_child, const char* exp
     }
 
     show_error_alert_box(expression, "DRED Assert (device removed)", filename, line);
-
-    // TODO: Graceful shutdown
-    std::abort();
 }

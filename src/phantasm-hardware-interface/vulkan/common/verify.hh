@@ -1,5 +1,6 @@
 #pragma once
 
+#include <clean-core/assert.hh>
 #include <clean-core/macros.hh>
 
 #include <phantasm-hardware-interface/common/value_category.hh>
@@ -14,14 +15,17 @@ namespace phi::vk::detail
 // NOTE: possibly merge this somehow with CC_ASSERT
 
 /// Terminates with a detailed error message if the given VkResult lvalue is not VK_SUCCESS
-#define PHI_VK_ASSERT_SUCCESS(_val_)                                                                     \
-    static_assert(PHI_IS_LVALUE_EXPRESSION(_val_), "Use PHI_VK_VERIFY_SUCCESS for prvalue expressions"); \
-    (CC_UNLIKELY(_val_ != VK_SUCCESS) ? ::phi::vk::detail::verify_failure_handler(_val_, #_val_ " is not VK_SUCCESS", __FILE__, __LINE__) : void(0))
+#define PHI_VK_ASSERT_SUCCESS(_val_)                                                                                                 \
+    static_assert(PHI_IS_LVALUE_EXPRESSION(_val_), "Use PHI_VK_VERIFY_SUCCESS for prvalue expressions");                             \
+    (CC_UNLIKELY(_val_ != VK_SUCCESS)                                                                                                \
+         ? (::phi::vk::detail::verify_failure_handler(_val_, #_val_ " is not VK_SUCCESS", __FILE__, __LINE__), CC_BREAK_AND_ABORT()) \
+         : void(0))
 
 /// Terminates with a detailed error message if the given VkResult lvalue is not an error (less strict)
-#define PHI_VK_ASSERT_NONERROR(_val_)                                                                     \
-    static_assert(PHI_IS_LVALUE_EXPRESSION(_val_), "Use PHI_VK_VERIFY_NONERROR for prvalue expressions"); \
-    (CC_UNLIKELY(_val_ < VK_SUCCESS) ? ::phi::vk::detail::verify_failure_handler(_val_, #_val_ " is an error value", __FILE__, __LINE__) : void(0))
+#define PHI_VK_ASSERT_NONERROR(_val_)                                                                                                                            \
+    static_assert(PHI_IS_LVALUE_EXPRESSION(_val_), "Use PHI_VK_VERIFY_NONERROR for prvalue expressions");                                                        \
+    (CC_UNLIKELY(_val_ < VK_SUCCESS) ? (::phi::vk::detail::verify_failure_handler(_val_, #_val_ " is an error value", __FILE__, __LINE__), CC_BREAK_AND_ABORT()) \
+                                     : void(0))
 
 /// Executes the given expression and terminates with a detailed error message if the VkResult is not VK_SUCCESS
 #define PHI_VK_VERIFY_SUCCESS(_expr_)                                                                     \
@@ -32,6 +36,7 @@ namespace phi::vk::detail
         if (CC_UNLIKELY(op_res != VK_SUCCESS))                                                            \
         {                                                                                                 \
             ::phi::vk::detail::verify_failure_handler(op_res, #_expr_, __FILE__, __LINE__);               \
+            CC_BREAK_AND_ABORT();                                                                         \
         }                                                                                                 \
     } while (0)
 
@@ -44,5 +49,6 @@ namespace phi::vk::detail
         if (CC_UNLIKELY(op_res < VK_SUCCESS))                                                              \
         {                                                                                                  \
             ::phi::vk::detail::verify_failure_handler(op_res, #_expr_, __FILE__, __LINE__);                \
+            CC_BREAK_AND_ABORT();                                                                          \
         }                                                                                                  \
     } while (0)

@@ -73,7 +73,4 @@ void phi::vk::detail::verify_failure_handler(VkResult vr, const char* expression
     PHI_LOG_ASSERT("backend verify on {} failed", expression);
     PHI_LOG_ASSERT("  error: {}", error_string);
     PHI_LOG_ASSERT("  file {}:{}", filename, line);
-
-    // TODO: Graceful shutdown, possibly memory dump n
-    std::abort();
 }
