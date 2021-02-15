@@ -322,6 +322,17 @@ public:
         texture_info.array_size = array_size;
     }
 
+    void init_as_tex3d(handle::resource res, format pf, uint32_t array_start, uint32_t array_size, uint32_t mip_slice = 0)
+    {
+        dimension = resource_view_dimension::texture3d;
+        resource = res;
+        texture_info.pixel_format = pf;
+        texture_info.mip_start = mip_slice;
+        texture_info.mip_size = 1;
+        texture_info.array_start = array_start;
+        texture_info.array_size = array_size;
+    }
+
     void init_as_texcube(handle::resource res, format pf)
     {
         dimension = resource_view_dimension::texturecube;
