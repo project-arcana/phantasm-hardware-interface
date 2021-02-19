@@ -290,8 +290,7 @@ struct create_resource_info
 
     e_resource_type type = e_resource_undefined;
 
-    union
-    {
+    union {
         create_render_target_info info_render_target;
         create_texture_info info_texture;
         create_buffer_info info_buffer;

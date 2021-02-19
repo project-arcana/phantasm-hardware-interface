@@ -68,8 +68,7 @@ public:
         D3D12MA::Allocation* allocation = nullptr;
         ID3D12Resource* resource = nullptr;
 
-        union
-        {
+        union {
             buffer_info buffer;
             image_info image;
         };

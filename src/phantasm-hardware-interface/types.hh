@@ -275,8 +275,7 @@ struct resource_view
         handle::accel_struct accel_struct;
     };
 
-    union
-    {
+    union {
         texture_info_t texture_info;
         buffer_info_t buffer_info;
         accel_struct_info_t accel_struct_info;
