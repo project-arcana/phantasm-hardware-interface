@@ -164,7 +164,7 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg)
         {
             auto& thread_comp = mThreadComponents[i];
             thread_comp.translator.initialize(mDevice.getDevice(), &mPoolShaderViews, &mPoolResources, &mPoolPipelines, &mPoolCmdLists, &mPoolQueries,
-                                              &mPoolAccelStructs);
+                                              &mPoolAccelStructs, mDevice.hasRaytracing());
             thread_allocator_ptrs[i] = &thread_comp.cmd_list_allocator;
         }
 

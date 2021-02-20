@@ -141,9 +141,11 @@ public:
 
 PHI_DEFINE_CMD(barrier_uav)
 {
-    // Explicitly record UAV barriers on the spot (currently D3D12 only)
+    // Explicitly record UAV barriers on the spot, no tracking
 
-    flat_vector<handle::resource, limits::max_uav_barriers> resources;
+    // If no resources are given, a full UAV barrier is issued
+
+    flat_vector<handle::resource, limits::max_uav_barriers> resources; // optional
 };
 
 

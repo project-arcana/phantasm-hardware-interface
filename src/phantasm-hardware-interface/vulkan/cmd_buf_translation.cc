@@ -436,8 +436,26 @@ void phi::vk::command_list_translator::execute(const phi::cmd::transition_image_
 
 void phi::vk::command_list_translator::execute(const phi::cmd::barrier_uav& barrier)
 {
-    (void)barrier;
-    PHI_LOG_WARN("cmd::barrier_uav is not supported on vulkan");
+    // There are no per-resource UAV barriers in vulkan, just issue a full memory barrier
+
+    VkMemoryBarrier desc = {};
+    desc.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+    desc.pNext = nullptr;
+    desc.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+    desc.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_SHADER_READ_BIT;
+
+    VkPipelineStageFlags src_stage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+    VkPipelineStageFlags dst_stage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+
+    if (this->_globals.has_raytracing)
+    {
+        desc.srcAccessMask |= VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR | VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
+        desc.dstAccessMask |= VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR | VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
+        src_stage |= VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR | VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR;
+        dst_stage |= VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR | VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR;
+    }
+
+    vkCmdPipelineBarrier(_cmd_list, src_stage, dst_stage, 0, 1u, &desc, 0, nullptr, 0, nullptr);
 }
 
 void phi::vk::command_list_translator::execute(const phi::cmd::copy_buffer& copy_buf)

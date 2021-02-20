@@ -519,7 +519,20 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::barrier_uav& b
     for (auto const res : barrier.resources)
     {
         auto const raw_res = _globals.pool_resources->getRawResource(res);
-        barriers.push_back(CD3DX12_RESOURCE_BARRIER::UAV(raw_res));
+
+        D3D12_RESOURCE_BARRIER& desc = barriers.emplace_back();
+        desc.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+        desc.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+        desc.UAV.pResource = raw_res;
+    }
+
+    if (barrier.resources.empty())
+    {
+        // full UAV barrier instead
+        D3D12_RESOURCE_BARRIER& desc = barriers.emplace_back();
+        desc.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+        desc.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+        desc.UAV.pResource = nullptr;
     }
 
     _cmd_list->ResourceBarrier(UINT(barriers.size()), barriers.data());

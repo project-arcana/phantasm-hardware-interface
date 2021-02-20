@@ -25,7 +25,14 @@ class QueryPool;
 
 struct translator_global_memory
 {
-    void initialize(VkDevice device, ShaderViewPool* sv_pool, ResourcePool* resource_pool, PipelinePool* pso_pool, CommandListPool* cmd_pool, QueryPool* query_pool, AccelStructPool* as_pool)
+    void initialize(VkDevice device,
+                    ShaderViewPool* sv_pool,
+                    ResourcePool* resource_pool,
+                    PipelinePool* pso_pool,
+                    CommandListPool* cmd_pool,
+                    QueryPool* query_pool,
+                    AccelStructPool* as_pool,
+                    bool has_rt)
     {
         this->device = device;
         this->pool_shader_views = sv_pool;
@@ -34,6 +41,7 @@ struct translator_global_memory
         this->pool_cmd_lists = cmd_pool;
         this->pool_queries = query_pool;
         this->pool_accel_structs = as_pool;
+        this->has_raytracing = has_rt;
     }
 
     VkDevice device = nullptr;
@@ -43,6 +51,7 @@ struct translator_global_memory
     CommandListPool* pool_cmd_lists = nullptr;
     QueryPool* pool_queries = nullptr;
     AccelStructPool* pool_accel_structs = nullptr;
+    bool has_raytracing = false;
 
     translator_global_memory() = default;
 };
@@ -50,9 +59,16 @@ struct translator_global_memory
 /// responsible for filling command lists, 1 per thread
 struct command_list_translator
 {
-    void initialize(VkDevice device, ShaderViewPool* sv_pool, ResourcePool* resource_pool, PipelinePool* pso_pool, CommandListPool* cmd_pool, QueryPool* query_pool, AccelStructPool* as_pool)
+    void initialize(VkDevice device,
+                    ShaderViewPool* sv_pool,
+                    ResourcePool* resource_pool,
+                    PipelinePool* pso_pool,
+                    CommandListPool* cmd_pool,
+                    QueryPool* query_pool,
+                    AccelStructPool* as_pool,
+                    bool has_rt)
     {
-        _globals.initialize(device, sv_pool, resource_pool, pso_pool, cmd_pool, query_pool, as_pool);
+        _globals.initialize(device, sv_pool, resource_pool, pso_pool, cmd_pool, query_pool, as_pool, has_rt);
     }
 
     void translateCommandList(VkCommandBuffer list, handle::command_list list_handle, vk_incomplete_state_cache* state_cache, std::byte const* buffer, size_t buffer_size);

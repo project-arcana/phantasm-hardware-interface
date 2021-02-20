@@ -138,11 +138,13 @@ void phi::d3d12::Adapter::initialize(const backend_config& config)
         }
         else
         {
+            // (prevent clangf from breaking the URL in code)
+            // clang-format off
             PHI_LOG_ERROR << "failed to enable validation\n"
                              "  verify that the D3D12 SDK is installed on this machine\n"
                              "  refer to "
-                             "https://docs.microsoft.com/en-us/windows/uwp/gaming/"
-                             "use-the-directx-runtime-and-visual-studio-graphics-diagnostic-features";
+                             "https://docs.microsoft.com/en-us/windows/uwp/gaming/use-the-directx-runtime-and-visual-studio-graphics-diagnostic-features";
+            // clang-format on
         }
     }
 }
