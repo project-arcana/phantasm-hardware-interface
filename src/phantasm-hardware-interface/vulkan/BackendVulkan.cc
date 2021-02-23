@@ -227,7 +227,7 @@ void phi::vk::BackendVulkan::destroy()
 
 phi::vk::BackendVulkan::~BackendVulkan() { destroy(); }
 
-phi::handle::swapchain phi::vk::BackendVulkan::createSwapchain(const phi::window_handle& window_handle, tg::isize2 initial_size, phi::present_mode mode, unsigned num_backbuffers)
+phi::handle::swapchain phi::vk::BackendVulkan::createSwapchain(const phi::window_handle& window_handle, tg::isize2 initial_size, phi::present_mode mode, uint32_t num_backbuffers)
 {
     return mPoolSwapchains.createSwapchain(window_handle, initial_size.width, initial_size.height, num_backbuffers, mode);
 }
@@ -271,23 +271,23 @@ phi::format phi::vk::BackendVulkan::getBackbufferFormat(phi::handle::swapchain s
 }
 
 phi::handle::resource phi::vk::BackendVulkan::createTexture(
-    phi::format format, tg::isize2 size, unsigned mips, phi::texture_dimension dim, unsigned depth_or_array_size, bool allow_uav, const char* debug_name)
+    phi::format format, tg::isize2 size, uint32_t mips, phi::texture_dimension dim, uint32_t depth_or_array_size, bool allow_uav, const char* debug_name)
 {
-    return mPoolResources.createTexture(format, unsigned(size.width), unsigned(size.height), mips, dim, depth_or_array_size, allow_uav, debug_name);
+    return mPoolResources.createTexture(format, uint32_t(size.width), uint32_t(size.height), mips, dim, depth_or_array_size, allow_uav, debug_name);
 }
 
 phi::handle::resource phi::vk::BackendVulkan::createRenderTarget(
-    phi::format format, tg::isize2 size, unsigned samples, unsigned array_size, const phi::rt_clear_value*, const char* debug_name)
+    phi::format format, tg::isize2 size, uint32_t samples, uint32_t array_size, const phi::rt_clear_value*, const char* debug_name)
 {
-    return mPoolResources.createRenderTarget(format, unsigned(size.width), unsigned(size.height), samples, array_size, debug_name);
+    return mPoolResources.createRenderTarget(format, uint32_t(size.width), uint32_t(size.height), samples, array_size, debug_name);
 }
 
-phi::handle::resource phi::vk::BackendVulkan::createBuffer(unsigned int size_bytes, unsigned int stride_bytes, phi::resource_heap heap, bool allow_uav, const char* debug_name)
+phi::handle::resource phi::vk::BackendVulkan::createBuffer(uint32_t size_bytes, uint32_t stride_bytes, phi::resource_heap heap, bool allow_uav, const char* debug_name)
 {
     return mPoolResources.createBuffer(size_bytes, stride_bytes, heap, allow_uav, debug_name);
 }
 
-phi::handle::resource phi::vk::BackendVulkan::createUploadBuffer(unsigned size_bytes, unsigned stride_bytes, const char* debug_name)
+phi::handle::resource phi::vk::BackendVulkan::createUploadBuffer(uint32_t size_bytes, uint32_t stride_bytes, const char* debug_name)
 {
     return createBuffer(size_bytes, stride_bytes, resource_heap::upload, false, debug_name);
 }
@@ -378,7 +378,7 @@ void phi::vk::BackendVulkan::submit(cc::span<const phi::handle::command_list> cl
                                     cc::span<const phi::fence_operation> fence_waits_before,
                                     cc::span<const phi::fence_operation> fence_signals_after)
 {
-    constexpr unsigned c_max_num_command_lists = 32u;
+    constexpr uint32_t c_max_num_command_lists = 32u;
     cc::capped_vector<VkCommandBuffer, c_max_num_command_lists * 2> cmd_bufs_to_submit;
     cc::capped_vector<handle::command_list, c_max_num_command_lists> barrier_lists;
     CC_ASSERT(cls.size() <= c_max_num_command_lists && "too many commandlists submitted at once");
@@ -440,7 +440,7 @@ void phi::vk::BackendVulkan::submit(cc::span<const phi::handle::command_list> cl
 
     // submission
 
-    constexpr unsigned c_max_num_signals_waits = 8;
+    constexpr uint32_t c_max_num_signals_waits = 8;
 
     uint64_t wait_values[c_max_num_signals_waits];
     VkSemaphore wait_semaphores[c_max_num_signals_waits];
@@ -474,7 +474,7 @@ void phi::vk::BackendVulkan::submit(cc::span<const phi::handle::command_list> cl
     submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submit_info.pNext = &timeline_info;
     // command buffers
-    submit_info.commandBufferCount = unsigned(cmd_bufs_to_submit.size());
+    submit_info.commandBufferCount = uint32_t(cmd_bufs_to_submit.size());
     submit_info.pCommandBuffers = cmd_bufs_to_submit.data();
     // wait semaphores
     submit_info.waitSemaphoreCount = uint32_t(fence_waits_before.size());
@@ -504,7 +504,7 @@ void phi::vk::BackendVulkan::waitFenceCPU(phi::handle::fence fence, uint64_t wai
 
 void phi::vk::BackendVulkan::free(cc::span<const phi::handle::fence> fences) { mPoolFences.free(fences); }
 
-phi::handle::query_range phi::vk::BackendVulkan::createQueryRange(phi::query_type type, unsigned int size) { return mPoolQueries.create(type, size); }
+phi::handle::query_range phi::vk::BackendVulkan::createQueryRange(phi::query_type type, uint32_t size) { return mPoolQueries.create(type, size); }
 
 void phi::vk::BackendVulkan::free(phi::handle::query_range query_range) { mPoolQueries.free(query_range); }
 
@@ -515,7 +515,7 @@ phi::handle::pipeline_state phi::vk::BackendVulkan::createRaytracingPipelineStat
                                                         description.max_payload_size_bytes, description.max_attribute_size_bytes, cc::system_allocator);
 }
 
-phi::handle::accel_struct phi::vk::BackendVulkan::createTopLevelAccelStruct(unsigned num_instances, accel_struct_build_flags_t flags)
+phi::handle::accel_struct phi::vk::BackendVulkan::createTopLevelAccelStruct(uint32_t num_instances, accel_struct_build_flags_t flags)
 {
     CC_ASSERT(isRaytracingEnabled() && "raytracing is not enabled");
     return mPoolAccelStructs.createTopLevelAS(num_instances);
@@ -549,7 +549,7 @@ phi::shader_table_strides phi::vk::BackendVulkan::calculateShaderTableStrides(co
     return {};
 }
 
-void phi::vk::BackendVulkan::writeShaderTable(std::byte* dest, handle::pipeline_state pso, unsigned stride, arg::shader_table_records records)
+void phi::vk::BackendVulkan::writeShaderTable(std::byte* dest, handle::pipeline_state pso, uint32_t stride, arg::shader_table_records records)
 {
     CC_ASSERT(false && "writeShaderTable unimplemented");
 }
@@ -568,7 +568,7 @@ void phi::vk::BackendVulkan::freeRange(cc::span<const phi::handle::accel_struct>
 
 void phi::vk::BackendVulkan::setDebugName(phi::handle::resource res, cc::string_view name)
 {
-    mPoolResources.setDebugName(res, name.data(), unsigned(name.length()));
+    mPoolResources.setDebugName(res, name.data(), uint32_t(name.length()));
 }
 
 void phi::vk::BackendVulkan::printInformation(phi::handle::resource res) const
@@ -582,7 +582,7 @@ void phi::vk::BackendVulkan::printInformation(phi::handle::resource res) const
         {
             auto const& info = mPoolResources.getImageInfo(res);
             PHI_LOG << " image, raw pointer: " << info.raw_image;
-            PHI_LOG << " " << info.num_mips << " mips, " << info.num_array_layers << " array layers, format: " << unsigned(info.pixel_format);
+            PHI_LOG << " " << info.num_mips << " mips, " << info.num_array_layers << " array layers, format: " << uint32_t(info.pixel_format);
         }
         else
         {

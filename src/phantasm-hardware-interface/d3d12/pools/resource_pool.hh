@@ -95,6 +95,11 @@ public:
     [[nodiscard]] resource_node::image_info const& getImageInfo(handle::resource res) const { return internalGet(res).image; }
     [[nodiscard]] resource_node::buffer_info const& getBufferInfo(handle::resource res) const { return internalGet(res).buffer; }
 
+    [[nodiscard]] D3D12_GPU_VIRTUAL_ADDRESS getBufferAddrVA(buffer_address address) const
+    {
+        return internalGet(address.buffer).buffer.gpu_va + address.offset_bytes;
+    }
+
     bool isBufferAccessInBounds(handle::resource res, size_t offset, size_t size) const
     {
         auto const& internal = internalGet(res);
@@ -103,6 +108,13 @@ public:
 
         return internal.buffer.is_access_in_bounds(offset, size);
     }
+
+    bool isBufferAccessInBounds(buffer_address address, size_t size) const
+    {
+        return isBufferAccessInBounds(address.buffer, address.offset_bytes, size);
+    }
+
+    bool isBufferAccessInBounds(buffer_range range) const { return isBufferAccessInBounds(range.buffer, range.offset_bytes, range.size_bytes); }
 
     //
     // Master state access

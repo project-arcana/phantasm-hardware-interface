@@ -50,27 +50,30 @@ phi::handle::accel_struct phi::vk::AccelStructPool::createBottomLevelAS(cc::span
     // build the VkGeometryNVs from the vertex/index buffer pairs
     for (auto const& elem : elements)
     {
-        auto const& vert_info = mResourcePool->getBufferInfo(elem.vertex_buffer);
+        auto const& vert_info = mResourcePool->getBufferInfo(elem.vertex_addr.buffer);
 
         VkGeometryNV& egeom = element_geometries.emplace_back();
         egeom = {};
         egeom.sType = VK_STRUCTURE_TYPE_GEOMETRY_NV;
         egeom.pNext = nullptr;
         egeom.geometryType = VK_GEOMETRY_TYPE_TRIANGLES_NV;
+
+        egeom.geometry.aabbs.sType = VK_STRUCTURE_TYPE_GEOMETRY_AABB_NV;
+
         egeom.geometry.triangles.sType = VK_STRUCTURE_TYPE_GEOMETRY_TRIANGLES_NV;
         egeom.geometry.triangles.vertexData = vert_info.raw_buffer;
-        egeom.geometry.triangles.vertexOffset = 0 * vert_info.stride;
+        egeom.geometry.triangles.vertexOffset = elem.vertex_addr.offset_bytes;
         egeom.geometry.triangles.vertexCount = elem.num_vertices;
         egeom.geometry.triangles.vertexStride = vert_info.stride;
         egeom.geometry.triangles.vertexFormat = VK_FORMAT_R32G32B32_SFLOAT;
 
-        if (elem.index_buffer.is_valid())
+        if (elem.index_addr.buffer.is_valid())
         {
-            auto const index_stride = mResourcePool->getBufferInfo(elem.index_buffer).stride;
+            auto const index_stride = mResourcePool->getBufferInfo(elem.index_addr.buffer).stride;
 
-            egeom.geometry.triangles.indexData = mResourcePool->getRawBuffer(elem.index_buffer);
+            egeom.geometry.triangles.indexData = mResourcePool->getRawBuffer(elem.index_addr.buffer);
             egeom.geometry.triangles.indexCount = elem.num_indices;
-            egeom.geometry.triangles.indexOffset = index_stride * 0;
+            egeom.geometry.triangles.indexOffset = elem.index_addr.offset_bytes;
             egeom.geometry.triangles.indexType = index_stride == sizeof(uint16_t) ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32;
         }
         else
@@ -81,13 +84,12 @@ phi::handle::accel_struct phi::vk::AccelStructPool::createBottomLevelAS(cc::span
             egeom.geometry.triangles.indexType = VK_INDEX_TYPE_NONE_NV;
         }
 
-        if (elem.transform_buffer.is_valid())
+        if (elem.transform_addr.buffer.is_valid())
         {
-            egeom.geometry.triangles.transformData = mResourcePool->getRawBuffer(elem.transform_buffer);
-            egeom.geometry.triangles.transformOffset = elem.transform_buffer_offset_bytes;
+            egeom.geometry.triangles.transformData = mResourcePool->getRawBuffer(elem.transform_addr.buffer);
+            egeom.geometry.triangles.transformOffset = elem.transform_addr.offset_bytes;
         }
 
-        egeom.geometry.aabbs.sType = VK_STRUCTURE_TYPE_GEOMETRY_AABB_NV;
         egeom.flags = elem.is_opaque ? VK_GEOMETRY_OPAQUE_BIT_NV : 0;
     }
 
@@ -101,7 +103,7 @@ phi::handle::accel_struct phi::vk::AccelStructPool::createBottomLevelAS(cc::span
     as_create_info.info.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_NV;
     as_create_info.info.flags = util::to_native_flags(flags);
     as_create_info.info.instanceCount = 0;
-    as_create_info.info.geometryCount = static_cast<uint32_t>(element_geometries.size());
+    as_create_info.info.geometryCount = uint32_t(element_geometries.size());
     as_create_info.info.pGeometries = element_geometries.data();
     as_create_info.compactedSize = 0;
 

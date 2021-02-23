@@ -23,25 +23,25 @@ phi::handle::accel_struct phi::d3d12::AccelStructPool::createBottomLevelAS(cc::s
     // build the D3D12_RAYTRACING_GEOMETRY_DESCs from the vertex/index buffer pairs
     for (auto const& elem : elements)
     {
-        auto const& vert_info = mResourcePool->getBufferInfo(elem.vertex_buffer);
+        auto const& vert_info = mResourcePool->getBufferInfo(elem.vertex_addr.buffer);
         CC_ASSERT(vert_info.stride > 0 && "vertex buffers used in bottom level accel struct elements must have been created with a specified stride");
 
         D3D12_RAYTRACING_GEOMETRY_DESC& egeom = new_node.geometries.emplace_back();
         egeom = {};
         egeom.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
         egeom.Triangles.Transform3x4 = 0;
-        egeom.Triangles.VertexBuffer.StartAddress = mResourcePool->getBufferInfo(elem.vertex_buffer).gpu_va;
+        egeom.Triangles.VertexBuffer.StartAddress = mResourcePool->getBufferAddrVA(elem.vertex_addr);
         egeom.Triangles.VertexBuffer.StrideInBytes = vert_info.stride;
         egeom.Triangles.VertexCount = elem.num_vertices;
         egeom.Triangles.VertexFormat = util::to_dxgi_format(elem.vertex_pos_format);
 
 
-        if (elem.index_buffer.is_valid())
+        if (elem.index_addr.buffer.is_valid())
         {
-            auto const index_stride = mResourcePool->getBufferInfo(elem.index_buffer).stride;
+            auto const index_stride = mResourcePool->getBufferInfo(elem.index_addr.buffer).stride;
             CC_ASSERT(index_stride > 0 && "index buffers used in bottom level accel struct elements must have been created with a specified stride");
 
-            egeom.Triangles.IndexBuffer = mResourcePool->getBufferInfo(elem.index_buffer).gpu_va;
+            egeom.Triangles.IndexBuffer = mResourcePool->getBufferAddrVA(elem.index_addr);
             egeom.Triangles.IndexCount = elem.num_indices;
             egeom.Triangles.IndexFormat = index_stride == sizeof(uint16_t) ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT;
         }
@@ -52,13 +52,11 @@ phi::handle::accel_struct phi::d3d12::AccelStructPool::createBottomLevelAS(cc::s
             egeom.Triangles.IndexFormat = DXGI_FORMAT_UNKNOWN;
         }
 
-        if (elem.transform_buffer.is_valid())
+        if (elem.transform_addr.buffer.is_valid())
         {
-            CC_ASSERT(elem.transform_buffer_offset_bytes + sizeof(float[3 * 4]) <= mResourcePool->getBufferInfo(elem.transform_buffer).width
-                      && "BLAS element transform buffer offset out of bounds");
+            CC_ASSERT(mResourcePool->isBufferAccessInBounds(elem.transform_addr, sizeof(float[3 * 4])) && "BLAS element transform address OOB");
 
-            auto const transform_va = mResourcePool->getBufferInfo(elem.transform_buffer).gpu_va;
-            egeom.Triangles.Transform3x4 = transform_va + elem.transform_buffer_offset_bytes;
+            egeom.Triangles.Transform3x4 = mResourcePool->getBufferAddrVA(elem.transform_addr);
 
             CC_ASSERT(phi::util::is_aligned(egeom.Triangles.Transform3x4, D3D12_RAYTRACING_TRANSFORM3X4_BYTE_ALIGNMENT)
                       && "BLAS elem transform address must be aligned to 16B");

@@ -769,6 +769,11 @@ struct accel_struct_instance
 
 static_assert(sizeof(accel_struct_instance) == 64, "accel_struct_instance compiles to incorrect size");
 
+struct buffer_address
+{
+    handle::resource buffer = handle::null_resource;
+    uint32_t offset_bytes = 0;
+};
 
 struct buffer_range
 {

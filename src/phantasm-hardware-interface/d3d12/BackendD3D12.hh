@@ -43,7 +43,7 @@ public:
     [[nodiscard]] handle::swapchain createSwapchain(window_handle const& window_handle,
                                                     tg::isize2 initial_size,
                                                     present_mode mode = present_mode::synced,
-                                                    unsigned num_backbuffers = 3) override;
+                                                    uint32_t num_backbuffers = 3) override;
 
     void free(handle::swapchain sc) override;
 
@@ -57,7 +57,7 @@ public:
         return {node.backbuf_width, node.backbuf_height};
     }
     format getBackbufferFormat(handle::swapchain sc) const override;
-    unsigned getNumBackbuffers(handle::swapchain sc) const override { return unsigned(mPoolSwapchains.get(sc).backbuffers.size()); }
+    uint32_t getNumBackbuffers(handle::swapchain sc) const override { return uint32_t(mPoolSwapchains.get(sc).backbuffers.size()); }
 
     [[nodiscard]] bool clearPendingResize(handle::swapchain sc) override { return mPoolSwapchains.clearResizeFlag(sc); }
 
@@ -66,18 +66,18 @@ public:
     //
 
     [[nodiscard]] handle::resource createTexture(
-        phi::format format, tg::isize2 size, unsigned mips, texture_dimension dim, unsigned depth_or_array_size, bool allow_uav, char const* debug_name = nullptr) override;
+        phi::format format, tg::isize2 size, uint32_t mips, texture_dimension dim, uint32_t depth_or_array_size, bool allow_uav, char const* debug_name = nullptr) override;
 
     [[nodiscard]] handle::resource createRenderTarget(phi::format format,
                                                       tg::isize2 size,
-                                                      unsigned samples,
-                                                      unsigned array_size,
+                                                      uint32_t samples,
+                                                      uint32_t array_size,
                                                       rt_clear_value const* optimized_clear_val = nullptr,
                                                       char const* debug_name = nullptr) override;
 
-    [[nodiscard]] handle::resource createBuffer(unsigned int size_bytes, unsigned int stride_bytes, resource_heap heap, bool allow_uav, char const* debug_name = nullptr) override;
+    [[nodiscard]] handle::resource createBuffer(uint32_t size_bytes, uint32_t stride_bytes, resource_heap heap, bool allow_uav, char const* debug_name = nullptr) override;
 
-    [[nodiscard]] handle::resource createUploadBuffer(unsigned size_bytes, unsigned stride_bytes = 0, char const* debug_name = nullptr) override;
+    [[nodiscard]] handle::resource createUploadBuffer(uint32_t size_bytes, uint32_t stride_bytes = 0, char const* debug_name = nullptr) override;
 
     [[nodiscard]] std::byte* mapBuffer(handle::resource res, int begin = 0, int end = -1) override;
 
@@ -164,7 +164,7 @@ public:
     // Query interface
     //
 
-    [[nodiscard]] handle::query_range createQueryRange(query_type type, unsigned int size) override;
+    [[nodiscard]] handle::query_range createQueryRange(query_type type, uint32_t size) override;
 
     void free(handle::query_range query_range) override;
 
@@ -174,7 +174,7 @@ public:
 
     [[nodiscard]] handle::pipeline_state createRaytracingPipelineState(arg::raytracing_pipeline_state_desc const& description) override;
 
-    [[nodiscard]] handle::accel_struct createTopLevelAccelStruct(unsigned num_instances, accel_struct_build_flags_t flags) override;
+    [[nodiscard]] handle::accel_struct createTopLevelAccelStruct(uint32_t num_instances, accel_struct_build_flags_t flags) override;
 
     [[nodiscard]] handle::accel_struct createBottomLevelAccelStruct(cc::span<arg::blas_element const> elements,
                                                                     accel_struct_build_flags_t flags,
@@ -187,7 +187,7 @@ public:
                                                                    arg::shader_table_records hit_group_records,
                                                                    arg::shader_table_records callable_records = {}) override;
 
-    void writeShaderTable(std::byte* dest, handle::pipeline_state pso, unsigned stride, arg::shader_table_records records) override;
+    void writeShaderTable(std::byte* dest, handle::pipeline_state pso, uint32_t stride, arg::shader_table_records records) override;
 
     void free(handle::accel_struct as) override;
 
@@ -260,7 +260,7 @@ private:
 
     // Logic
     per_thread_component* mThreadComponents;
-    unsigned mNumThreadComponents;
+    uint32_t mNumThreadComponents;
     void* mThreadComponentAlloc;
     phi::thread_association mThreadAssociation;
     ShaderTableConstructor mShaderTableCtor;

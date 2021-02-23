@@ -752,7 +752,8 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::update_top_lev
     as_create_info.Inputs.NumDescs = tlas_update.num_instances;
 
     as_create_info.Inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
-    as_create_info.Inputs.InstanceDescs = _globals.pool_resources->getBufferInfo(tlas_update.source_buffer_instances).gpu_va + tlas_update.source_buffer_offset_bytes;
+    as_create_info.Inputs.InstanceDescs
+        = _globals.pool_resources->getBufferInfo(tlas_update.source_instances_addr.buffer).gpu_va + tlas_update.source_instances_addr.offset_bytes;
 
     as_create_info.DestAccelerationStructureData = dest_node.buffer_as_va;
     as_create_info.ScratchAccelerationStructureData = _globals.pool_resources->getBufferInfo(dest_node.buffer_scratch).gpu_va;
@@ -802,9 +803,9 @@ void phi::d3d12::command_list_translator::execute(const cmd::dispatch_rays& disp
     f_fill_out_buffer_range(dispatch_rays.table_hit_groups, desc.HitGroupTable);
     f_fill_out_buffer_range(dispatch_rays.table_callable, desc.CallableShaderTable);
 
-    desc.Width = dispatch_rays.width;
-    desc.Height = dispatch_rays.height;
-    desc.Depth = dispatch_rays.depth;
+    desc.Width = dispatch_rays.dispatch_x;
+    desc.Height = dispatch_rays.dispatch_y;
+    desc.Depth = dispatch_rays.dispatch_z;
 
     _cmd_list->DispatchRays(&desc);
 }

@@ -32,7 +32,7 @@ public:
     [[nodiscard]] virtual handle::swapchain createSwapchain(window_handle const& window_handle,
                                                             tg::isize2 initial_size,
                                                             present_mode mode = present_mode::synced,
-                                                            unsigned num_backbuffers = 3)
+                                                            uint32_t num_backbuffers = 3)
         = 0;
 
     /// destroy a swapchain
@@ -57,7 +57,7 @@ public:
     virtual format getBackbufferFormat(handle::swapchain sc) const = 0;
 
     /// returns the amount of backbuffers
-    virtual unsigned getNumBackbuffers(handle::swapchain sc) const = 0;
+    virtual uint32_t getNumBackbuffers(handle::swapchain sc) const = 0;
 
     /// Clears pending internal resize events, returns true if the
     /// backbuffer has resized since the last call
@@ -72,9 +72,9 @@ public:
     /// if the texture will be used as a UAV, allow_uav must be true
     [[nodiscard]] virtual handle::resource createTexture(phi::format format,
                                                          tg::isize2 size,
-                                                         unsigned mips,
+                                                         uint32_t mips,
                                                          texture_dimension dim = texture_dimension::t2d,
-                                                         unsigned depth_or_array_size = 1,
+                                                         uint32_t depth_or_array_size = 1,
                                                          bool allow_uav = false,
                                                          char const* debug_name = nullptr)
         = 0;
@@ -82,19 +82,19 @@ public:
     /// create a [multisampled] 2D render- or depth-stencil target
     [[nodiscard]] virtual handle::resource createRenderTarget(phi::format format,
                                                               tg::isize2 size,
-                                                              unsigned samples = 1,
-                                                              unsigned array_size = 1,
+                                                              uint32_t samples = 1,
+                                                              uint32_t array_size = 1,
                                                               rt_clear_value const* optimized_clear_val = nullptr,
                                                               char const* debug_name = nullptr)
         = 0;
 
     /// create a buffer with optional element stride, allocation on an upload/readback heap, or allowing UAV access
     [[nodiscard]] virtual handle::resource createBuffer(
-        unsigned size_bytes, unsigned stride_bytes = 0, resource_heap heap = resource_heap::gpu, bool allow_uav = false, char const* debug_name = nullptr)
+        uint32_t size_bytes, uint32_t stride_bytes = 0, resource_heap heap = resource_heap::gpu, bool allow_uav = false, char const* debug_name = nullptr)
         = 0;
 
     /// create a buffer with optional element stride on resource_heap::upload (shorthand function)
-    [[nodiscard]] virtual handle::resource createUploadBuffer(unsigned size_bytes, unsigned stride_bytes = 0, char const* debug_name = nullptr) = 0;
+    [[nodiscard]] virtual handle::resource createUploadBuffer(uint32_t size_bytes, uint32_t stride_bytes = 0, char const* debug_name = nullptr) = 0;
 
     /// maps a buffer created on resource_heap::upload or ::readback to CPU-accessible memory and returns a pointer
     /// multiple (nested) maps are allowed, leaving a resource_heap::upload buffer persistently mapped is valid
@@ -200,7 +200,7 @@ public:
     // Query interface
     //
 
-    [[nodiscard]] virtual handle::query_range createQueryRange(query_type type, unsigned size) = 0;
+    [[nodiscard]] virtual handle::query_range createQueryRange(query_type type, uint32_t size) = 0;
 
     virtual void free(handle::query_range query_range) = 0;
 
@@ -218,7 +218,7 @@ public:
         = 0;
 
     /// create a top level acceleration structure (TLAS) holding BLAS instances
-    [[nodiscard]] virtual handle::accel_struct createTopLevelAccelStruct(unsigned num_instances, accel_struct_build_flags_t flags) = 0;
+    [[nodiscard]] virtual handle::accel_struct createTopLevelAccelStruct(uint32_t num_instances, accel_struct_build_flags_t flags) = 0;
 
     /// receive the native acceleration struct handle to be written to accel_struct_instance::native_bottom_level_as_handle
     [[nodiscard]] virtual uint64_t getAccelStructNativeHandle(handle::accel_struct as) = 0;
@@ -231,7 +231,7 @@ public:
         = 0;
 
     /// write shader table records to memory - usually a mapped buffer
-    virtual void writeShaderTable(std::byte* dest, handle::pipeline_state pso, unsigned stride, arg::shader_table_records records) = 0;
+    virtual void writeShaderTable(std::byte* dest, handle::pipeline_state pso, uint32_t stride, arg::shader_table_records records) = 0;
 
     virtual void free(handle::accel_struct as) = 0;
 

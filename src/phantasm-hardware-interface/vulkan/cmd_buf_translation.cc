@@ -676,8 +676,8 @@ void phi::vk::command_list_translator::execute(const phi::cmd::update_top_level&
     build_info.pGeometries = nullptr;
     build_info.instanceCount = tlas_update.num_instances;
 
-    vkCmdBuildAccelerationStructureNV(_cmd_list, &build_info, _globals.pool_resources->getRawBuffer(tlas_update.source_buffer_instances),
-                                      tlas_update.source_buffer_offset_bytes, VK_FALSE, dest_node.raw_as, nullptr, dest_scratch, 0);
+    vkCmdBuildAccelerationStructureNV(_cmd_list, &build_info, _globals.pool_resources->getRawBuffer(tlas_update.source_instances_addr.buffer),
+                                      tlas_update.source_instances_addr.offset_bytes, VK_FALSE, dest_node.raw_as, nullptr, dest_scratch, 0);
 
     VkMemoryBarrier mem_barrier = {};
     mem_barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
@@ -709,7 +709,7 @@ void phi::vk::command_list_translator::execute(const cmd::dispatch_rays& dispatc
                      miss_buf, dispatch_rays.table_miss.offset_bytes, dispatch_rays.table_miss.stride_bytes,               //
                      hitgrp_buf, dispatch_rays.table_hit_groups.offset_bytes, dispatch_rays.table_hit_groups.stride_bytes, //
                      callable_buf, dispatch_rays.table_callable.offset_bytes, dispatch_rays.table_callable.stride_bytes,   //
-                     dispatch_rays.width, dispatch_rays.height, dispatch_rays.depth);
+                     dispatch_rays.dispatch_x, dispatch_rays.dispatch_y, dispatch_rays.dispatch_z);
 }
 
 void phi::vk::command_list_translator::execute(const phi::cmd::clear_textures& clear_tex)

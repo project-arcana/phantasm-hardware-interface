@@ -172,7 +172,7 @@ void phi::d3d12::BackendD3D12::flushGPU()
     ::WaitForSingleObject(mFlushEvent, INFINITE);
 }
 
-phi::handle::swapchain phi::d3d12::BackendD3D12::createSwapchain(const phi::window_handle& window_handle, tg::isize2 initial_size, phi::present_mode mode, unsigned num_backbuffers)
+phi::handle::swapchain phi::d3d12::BackendD3D12::createSwapchain(const phi::window_handle& window_handle, tg::isize2 initial_size, phi::present_mode mode, uint32_t num_backbuffers)
 {
     ::HWND native_hwnd = nullptr;
     {
@@ -224,23 +224,23 @@ phi::format phi::d3d12::BackendD3D12::getBackbufferFormat(handle::swapchain /*sc
 }
 
 phi::handle::resource phi::d3d12::BackendD3D12::createTexture(
-    phi::format format, tg::isize2 size, unsigned mips, phi::texture_dimension dim, unsigned depth_or_array_size, bool allow_uav, const char* debug_name)
+    phi::format format, tg::isize2 size, uint32_t mips, phi::texture_dimension dim, uint32_t depth_or_array_size, bool allow_uav, const char* debug_name)
 {
-    return mPoolResources.createTexture(format, unsigned(size.width), unsigned(size.height), mips, dim, depth_or_array_size, allow_uav, debug_name);
+    return mPoolResources.createTexture(format, uint32_t(size.width), uint32_t(size.height), mips, dim, depth_or_array_size, allow_uav, debug_name);
 }
 
 phi::handle::resource phi::d3d12::BackendD3D12::createRenderTarget(
-    phi::format format, tg::isize2 size, unsigned samples, unsigned array_size, const phi::rt_clear_value* optimized_clear_val, const char* debug_name)
+    phi::format format, tg::isize2 size, uint32_t samples, uint32_t array_size, const phi::rt_clear_value* optimized_clear_val, const char* debug_name)
 {
-    return mPoolResources.createRenderTarget(format, unsigned(size.width), unsigned(size.height), samples, array_size, optimized_clear_val, debug_name);
+    return mPoolResources.createRenderTarget(format, uint32_t(size.width), uint32_t(size.height), samples, array_size, optimized_clear_val, debug_name);
 }
 
-phi::handle::resource phi::d3d12::BackendD3D12::createBuffer(unsigned int size_bytes, unsigned int stride_bytes, phi::resource_heap heap, bool allow_uav, const char* debug_name)
+phi::handle::resource phi::d3d12::BackendD3D12::createBuffer(uint32_t size_bytes, uint32_t stride_bytes, phi::resource_heap heap, bool allow_uav, const char* debug_name)
 {
     return mPoolResources.createBuffer(size_bytes, stride_bytes, heap, allow_uav, debug_name);
 }
 
-phi::handle::resource phi::d3d12::BackendD3D12::createUploadBuffer(unsigned size_bytes, unsigned stride_bytes, const char* debug_name)
+phi::handle::resource phi::d3d12::BackendD3D12::createUploadBuffer(uint32_t size_bytes, uint32_t stride_bytes, const char* debug_name)
 {
     return createBuffer(size_bytes, stride_bytes, resource_heap::upload, false, debug_name);
 }
@@ -331,7 +331,7 @@ void phi::d3d12::BackendD3D12::submit(cc::span<const phi::handle::command_list> 
                                       cc::span<const fence_operation> fence_waits_before,
                                       cc::span<const fence_operation> fence_signals_after)
 {
-    constexpr unsigned c_max_num_command_lists = 32u;
+    constexpr uint32_t c_max_num_command_lists = 32u;
     cc::capped_vector<ID3D12CommandList*, c_max_num_command_lists * 2> cmd_bufs_to_submit;
     cc::capped_vector<handle::command_list, c_max_num_command_lists> barrier_lists;
     CC_ASSERT(cls.size() <= c_max_num_command_lists && "too many commandlists submitted at once");
@@ -414,10 +414,7 @@ void phi::d3d12::BackendD3D12::waitFenceGPU(phi::handle::fence fence, uint64_t w
 
 void phi::d3d12::BackendD3D12::free(cc::span<const phi::handle::fence> fences) { mPoolFences.free(fences); }
 
-phi::handle::query_range phi::d3d12::BackendD3D12::createQueryRange(phi::query_type type, unsigned int size)
-{
-    return mPoolQueries.create(type, size);
-}
+phi::handle::query_range phi::d3d12::BackendD3D12::createQueryRange(phi::query_type type, uint32_t size) { return mPoolQueries.create(type, size); }
 
 void phi::d3d12::BackendD3D12::free(phi::handle::query_range query_range) { mPoolQueries.free(query_range); }
 
@@ -428,7 +425,7 @@ phi::handle::pipeline_state phi::d3d12::BackendD3D12::createRaytracingPipelineSt
                                                    description.max_payload_size_bytes, description.max_attribute_size_bytes, cc::system_allocator);
 }
 
-phi::handle::accel_struct phi::d3d12::BackendD3D12::createTopLevelAccelStruct(unsigned num_instances, accel_struct_build_flags_t flags)
+phi::handle::accel_struct phi::d3d12::BackendD3D12::createTopLevelAccelStruct(uint32_t num_instances, accel_struct_build_flags_t flags)
 {
     CC_ASSERT(isRaytracingEnabled() && "raytracing is not enabled");
     return mPoolAccelStructs.createTopLevelAS(num_instances, flags);
@@ -457,7 +454,7 @@ phi::shader_table_strides phi::d3d12::BackendD3D12::calculateShaderTableStrides(
     return mShaderTableCtor.calculateShaderTableSizes(ray_gen_record, miss_records, hit_group_records, callable_records);
 }
 
-void phi::d3d12::BackendD3D12::writeShaderTable(std::byte* dest, handle::pipeline_state pso, unsigned stride, arg::shader_table_records records)
+void phi::d3d12::BackendD3D12::writeShaderTable(std::byte* dest, handle::pipeline_state pso, uint32_t stride, arg::shader_table_records records)
 {
     mShaderTableCtor.writeShaderTable(dest, pso, stride, records);
 }
@@ -476,7 +473,7 @@ void phi::d3d12::BackendD3D12::freeRange(cc::span<const phi::handle::accel_struc
 
 void phi::d3d12::BackendD3D12::setDebugName(phi::handle::resource res, cc::string_view name)
 {
-    mPoolResources.setDebugName(res, name.data(), unsigned(name.length()));
+    mPoolResources.setDebugName(res, name.data(), uint32_t(name.length()));
 }
 
 void phi::d3d12::BackendD3D12::printInformation(phi::handle::resource res) const

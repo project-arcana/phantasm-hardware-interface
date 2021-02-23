@@ -162,11 +162,11 @@ PHI_DEFINE_CMD(draw)
     handle::resource index_buffer = handle::null_resource;  // optional
 
     /// amount of instances to draw
-    unsigned num_instances = 1;
+    uint32_t num_instances = 1;
     /// amount of indices drawn (or amount of vertices if no index buffer specified)
-    unsigned num_indices = 0;
+    uint32_t num_indices = 0;
     /// location of the first index (or first vertex if no index buffer specified)
-    unsigned index_offset = 0;
+    uint32_t index_offset = 0;
     /// added to the vertex index before indexing into the vertex buffer
     int vertex_offset = 0;
 
@@ -175,8 +175,8 @@ PHI_DEFINE_CMD(draw)
     tg::iaabb2 scissor = tg::iaabb2(-1, -1);
 
 public:
-    void init(handle::pipeline_state pso, unsigned num_ind, handle::resource vb = handle::null_resource, handle::resource ib = handle::null_resource,
-              unsigned ind_offset = 0, int vert_offset = 0)
+    void init(handle::pipeline_state pso, uint32_t num_ind, handle::resource vb = handle::null_resource, handle::resource ib = handle::null_resource,
+              uint32_t ind_offset = 0, int vert_offset = 0)
     {
         pipeline_state = pso;
         num_indices = num_ind;
@@ -186,7 +186,7 @@ public:
         vertex_offset = vert_offset;
     }
 
-    void add_shader_arg(handle::resource cbv, unsigned cbv_off = 0, handle::shader_view sv = handle::null_shader_view)
+    void add_shader_arg(handle::resource cbv, uint32_t cbv_off = 0, handle::shader_view sv = handle::null_shader_view)
     {
         shader_arguments.push_back(shader_argument{cbv, sv, cbv_off});
     }
@@ -218,14 +218,14 @@ PHI_DEFINE_CMD(draw_indirect)
     handle::pipeline_state pipeline_state = handle::null_pipeline_state;
 
     handle::resource indirect_argument_buffer = handle::null_resource; ///< the buffer from which to read arguments
-    unsigned argument_buffer_offset_bytes = 0;                         ///< offset in bytes into the argument buffer
-    unsigned num_arguments = 0;                                        ///< amount of arguments to read from the buffer
+    uint32_t argument_buffer_offset_bytes = 0;                         ///< offset in bytes into the argument buffer
+    uint32_t num_arguments = 0;                                        ///< amount of arguments to read from the buffer
 
     handle::resource vertex_buffer = handle::null_resource; ///< optional
     handle::resource index_buffer = handle::null_resource;  ///< optional
 
 public:
-    void add_shader_arg(handle::resource cbv, unsigned cbv_off = 0, handle::shader_view sv = handle::null_shader_view)
+    void add_shader_arg(handle::resource cbv, uint32_t cbv_off = 0, handle::shader_view sv = handle::null_shader_view)
     {
         shader_arguments.push_back(shader_argument{cbv, sv, cbv_off});
     }
@@ -248,12 +248,12 @@ PHI_DEFINE_CMD(dispatch)
     flat_vector<shader_argument, limits::max_shader_arguments> shader_arguments;
     handle::pipeline_state pipeline_state = handle::null_pipeline_state;
 
-    unsigned dispatch_x = 0;
-    unsigned dispatch_y = 0;
-    unsigned dispatch_z = 0;
+    uint32_t dispatch_x = 0;
+    uint32_t dispatch_y = 0;
+    uint32_t dispatch_z = 0;
 
 public:
-    void init(handle::pipeline_state pso, unsigned x, unsigned y = 1, unsigned z = 1)
+    void init(handle::pipeline_state pso, uint32_t x, uint32_t y = 1, uint32_t z = 1)
     {
         pipeline_state = pso;
         dispatch_x = x;
@@ -261,7 +261,7 @@ public:
         dispatch_z = z;
     }
 
-    void add_shader_arg(handle::resource cbv, unsigned cbv_off = 0, handle::shader_view sv = handle::null_shader_view)
+    void add_shader_arg(handle::resource cbv, uint32_t cbv_off = 0, handle::shader_view sv = handle::null_shader_view)
     {
         shader_arguments.push_back(shader_argument{cbv, sv, cbv_off});
     }
@@ -309,17 +309,17 @@ PHI_DEFINE_CMD(copy_texture)
 
     handle::resource source = handle::null_resource;
     handle::resource destination = handle::null_resource;
-    unsigned src_mip_index = 0;    ///< index of the MIP level to read from
-    unsigned src_array_index = 0;  ///< index of the first array element to read from (usually: 0)
-    unsigned dest_mip_index = 0;   ///< index of the MIP level to write to
-    unsigned dest_array_index = 0; ///< index of the first array element to write to (usually: 0)
-    unsigned width = 0;            ///< width of the destination texture (in the specified MIP map and array element(s))
-    unsigned height = 0;           ///< height of the destination texture (in the specified MIP map and array element(s))
-    unsigned num_array_slices = 0; ///< amount of array slices to copy, all other parameters staying equal (usually: 1)
+    uint32_t src_mip_index = 0;    ///< index of the MIP level to read from
+    uint32_t src_array_index = 0;  ///< index of the first array element to read from (usually: 0)
+    uint32_t dest_mip_index = 0;   ///< index of the MIP level to write to
+    uint32_t dest_array_index = 0; ///< index of the first array element to write to (usually: 0)
+    uint32_t width = 0;            ///< width of the destination texture (in the specified MIP map and array element(s))
+    uint32_t height = 0;           ///< height of the destination texture (in the specified MIP map and array element(s))
+    uint32_t num_array_slices = 0; ///< amount of array slices to copy, all other parameters staying equal (usually: 1)
 
 public:
-    void init_symmetric(handle::resource src, handle::resource dest, unsigned width, unsigned height, unsigned mip_index,
-                        unsigned first_array_index = 0, unsigned num_array_slices = 1)
+    void init_symmetric(handle::resource src, handle::resource dest, uint32_t width, uint32_t height, uint32_t mip_index,
+                        uint32_t first_array_index = 0, uint32_t num_array_slices = 1)
     {
         source = src;
         destination = dest;
@@ -340,13 +340,13 @@ PHI_DEFINE_CMD(copy_buffer_to_texture)
     handle::resource source = handle::null_resource;
     handle::resource destination = handle::null_resource;
     size_t source_offset_bytes = 0;
-    unsigned dest_width = 0;       ///< width of the destination texture (in the specified MIP level and array element)
-    unsigned dest_height = 0;      ///< height of the destination texture (in the specified MIP level and array element)
-    unsigned dest_mip_index = 0;   ///< index of the MIP level to copy
-    unsigned dest_array_index = 0; ///< index of the array element to copy (usually: 0)
+    uint32_t dest_width = 0;       ///< width of the destination texture (in the specified MIP level and array element)
+    uint32_t dest_height = 0;      ///< height of the destination texture (in the specified MIP level and array element)
+    uint32_t dest_mip_index = 0;   ///< index of the MIP level to copy
+    uint32_t dest_array_index = 0; ///< index of the array element to copy (usually: 0)
 
 public:
-    void init(handle::resource src, handle::resource dest, unsigned dest_w, unsigned dest_h, size_t src_offset = 0, unsigned dest_mip_i = 0, unsigned dest_arr_i = 0)
+    void init(handle::resource src, handle::resource dest, uint32_t dest_w, uint32_t dest_h, size_t src_offset = 0, uint32_t dest_mip_i = 0, uint32_t dest_arr_i = 0)
     {
         source = src;
         destination = dest;
@@ -365,13 +365,13 @@ PHI_DEFINE_CMD(copy_texture_to_buffer)
     handle::resource source = handle::null_resource;
     handle::resource destination = handle::null_resource;
     size_t dest_offset = 0;
-    unsigned src_width = 0;       ///< width of the source texture (in the specified MIP level and array element)
-    unsigned src_height = 0;      ///< height of the destination texture (in the specified MIP level and array element)
-    unsigned src_mip_index = 0;   ///< index of the MIP level to copy
-    unsigned src_array_index = 0; ///< index of the array element to copy (usually: 0)
+    uint32_t src_width = 0;       ///< width of the source texture (in the specified MIP level and array element)
+    uint32_t src_height = 0;      ///< height of the destination texture (in the specified MIP level and array element)
+    uint32_t src_mip_index = 0;   ///< index of the MIP level to copy
+    uint32_t src_array_index = 0; ///< index of the array element to copy (usually: 0)
 
 public:
-    void init(handle::resource src, handle::resource dest, unsigned src_w, unsigned src_h, size_t dest_off = 0, unsigned src_mip_i = 0, unsigned src_arr_i = 0)
+    void init(handle::resource src, handle::resource dest, uint32_t src_w, uint32_t src_h, size_t dest_off = 0, uint32_t src_mip_i = 0, uint32_t src_arr_i = 0)
     {
         source = src;
         destination = dest;
@@ -389,15 +389,15 @@ PHI_DEFINE_CMD(resolve_texture)
 
     handle::resource source = handle::null_resource;      ///< the multisampled source texture
     handle::resource destination = handle::null_resource; ///< the non-multisampled destination texture
-    unsigned src_mip_index = 0;                           ///< index of the MIP level to read from (usually: 0)
-    unsigned src_array_index = 0;                         ///< index of the array element to read from (usually: 0)
-    unsigned dest_mip_index = 0;                          ///< index of the MIP level to write to (usually: 0)
-    unsigned dest_array_index = 0;                        ///< index of the array element to write to (usually: 0)
-    unsigned width = 0;  ///< width of the destination texture (in the specified MIP map and array element) (ignored on d3d12)
-    unsigned height = 0; ///< height of the destination texture (in the specified MIP map and array element) (ignored on d3d12)
+    uint32_t src_mip_index = 0;                           ///< index of the MIP level to read from (usually: 0)
+    uint32_t src_array_index = 0;                         ///< index of the array element to read from (usually: 0)
+    uint32_t dest_mip_index = 0;                          ///< index of the MIP level to write to (usually: 0)
+    uint32_t dest_array_index = 0;                        ///< index of the array element to write to (usually: 0)
+    uint32_t width = 0;  ///< width of the destination texture (in the specified MIP map and array element) (ignored on d3d12)
+    uint32_t height = 0; ///< height of the destination texture (in the specified MIP map and array element) (ignored on d3d12)
 
 public:
-    void init_symmetric(handle::resource src, handle::resource dest, unsigned width, unsigned height, unsigned mip_index = 0, unsigned array_index = 0)
+    void init_symmetric(handle::resource src, handle::resource dest, uint32_t width, uint32_t height, uint32_t mip_index = 0, uint32_t array_index = 0)
     {
         source = src;
         destination = dest;
@@ -417,11 +417,11 @@ PHI_DEFINE_CMD(write_timestamp)
     // see cmd::resolve_queries to receive the data afterwards
 
     handle::query_range query_range = handle::null_query_range; ///< the query_range in which to write a timestamp query
-    unsigned index = 0;                                         ///< relative index into the query_range, element to write to
+    uint32_t index = 0;                                         ///< relative index into the query_range, element to write to
 
 public:
     write_timestamp() = default;
-    write_timestamp(handle::query_range qr, unsigned index = 0) : query_range(qr), index(index) {}
+    write_timestamp(handle::query_range qr, uint32_t index = 0) : query_range(qr), index(index) {}
 };
 
 PHI_DEFINE_CMD(resolve_queries)
@@ -434,12 +434,12 @@ PHI_DEFINE_CMD(resolve_queries)
 
     handle::resource dest_buffer = handle::null_resource;           ///< the buffer in which to write the resolve data
     handle::query_range src_query_range = handle::null_query_range; ///< the query_range from which to read
-    unsigned query_start = 0;                                       ///< relative index into the query_range, element to start the resolve from
-    unsigned num_queries = 1;                                       ///< amount of elements to resolve
-    unsigned dest_offset_bytes = 0;                                 ///< offset into the destination buffer
+    uint32_t query_start = 0;                                       ///< relative index into the query_range, element to start the resolve from
+    uint32_t num_queries = 1;                                       ///< amount of elements to resolve
+    uint32_t dest_offset_bytes = 0;                                 ///< offset into the destination buffer
 
 public:
-    void init(handle::resource dest, handle::query_range qr, unsigned start = 0, unsigned num = 1, unsigned dest_offset = 0)
+    void init(handle::resource dest, handle::query_range qr, uint32_t start = 0, uint32_t num = 1, uint32_t dest_offset = 0)
     {
         dest_buffer = dest;
         src_query_range = qr;
@@ -502,11 +502,10 @@ PHI_DEFINE_CMD(update_top_level)
     // filling it with instances of bottom level accel structs (BLAS)
 
     /// amount of instances to write
-    unsigned num_instances = 0;
+    uint32_t num_instances = 0;
 
     /// a buffer holding an array of accel_struct_instance structs (at least num_instances)
-    handle::resource source_buffer_instances = handle::null_resource;
-    unsigned source_buffer_offset_bytes = 0;
+    buffer_address source_instances_addr;
 
     /// the top level accel struct to update
     handle::accel_struct dest_accel_struct = handle::null_accel_struct;
@@ -524,9 +523,9 @@ PHI_DEFINE_CMD(dispatch_rays)
     buffer_range_and_stride table_hit_groups;
     buffer_range_and_stride table_callable; ///< optional
 
-    unsigned width = 1;
-    unsigned height = 1;
-    unsigned depth = 1;
+    uint32_t dispatch_x = 1;
+    uint32_t dispatch_y = 1;
+    uint32_t dispatch_z = 1;
 
 public:
     void set_strides(shader_table_strides const& strides)
