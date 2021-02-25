@@ -111,7 +111,7 @@ struct blas_element
     /// the index buffer to use, optional
     buffer_address index_addr;
     /// amount of indices to read
-    uint32_t num_indices;
+    uint32_t num_indices = 0;
 
     /// location in a buffer containing a 3x4 affine transform matrix (row major), optional
     buffer_address transform_addr;
