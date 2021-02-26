@@ -520,6 +520,7 @@ void phi::d3d12::PipelineStateObjectPool::initialize(
     // Create global (indirect drawing) command signatures for draw and indexed draw
     static_assert(sizeof(D3D12_DRAW_ARGUMENTS) == sizeof(gpu_indirect_command_draw), "gpu argument type compiles to incorrect size");
     static_assert(sizeof(D3D12_DRAW_INDEXED_ARGUMENTS) == sizeof(gpu_indirect_command_draw_indexed), "gpu argument type compiles to incorrect size");
+    static_assert(sizeof(D3D12_DISPATCH_ARGUMENTS) == sizeof(gpu_indirect_command_dispatch), "gpu argument type compiles to incorrect size");
 
     D3D12_INDIRECT_ARGUMENT_DESC indirect_arg;
     indirect_arg.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW;
@@ -529,11 +530,15 @@ void phi::d3d12::PipelineStateObjectPool::initialize(
     desc.pArgumentDescs = &indirect_arg;
     desc.ByteStride = sizeof(gpu_indirect_command_draw);
     desc.NodeMask = 0;
-    mDevice->CreateCommandSignature(&desc, nullptr, IID_PPV_ARGS(&mGlobalComSigDraw));
+    PHI_D3D12_VERIFY(mDevice->CreateCommandSignature(&desc, nullptr, IID_PPV_ARGS(&mGlobalComSigDraw)));
 
     indirect_arg.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW_INDEXED;
     desc.ByteStride = sizeof(gpu_indirect_command_draw_indexed);
-    mDevice->CreateCommandSignature(&desc, nullptr, IID_PPV_ARGS(&mGlobalComSigDrawIndexed));
+    PHI_D3D12_VERIFY(mDevice->CreateCommandSignature(&desc, nullptr, IID_PPV_ARGS(&mGlobalComSigDrawIndexed)));
+
+    indirect_arg.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH;
+    desc.ByteStride = sizeof(gpu_indirect_command_dispatch);
+    PHI_D3D12_VERIFY(mDevice->CreateCommandSignature(&desc, nullptr, IID_PPV_ARGS(&mGlobalComSigDispatch)));
 }
 
 void phi::d3d12::PipelineStateObjectPool::destroy()
@@ -559,6 +564,7 @@ void phi::d3d12::PipelineStateObjectPool::destroy()
 
     mGlobalComSigDraw->Release();
     mGlobalComSigDrawIndexed->Release();
+    mGlobalComSigDispatch->Release();
 }
 
 const phi::d3d12::PipelineStateObjectPool::rt_pso_node& phi::d3d12::PipelineStateObjectPool::getRaytrace(phi::handle::pipeline_state ps) const

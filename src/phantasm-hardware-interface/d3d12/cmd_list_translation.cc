@@ -462,6 +462,88 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::dispatch& disp
     _cmd_list->Dispatch(dispatch.dispatch_x, dispatch.dispatch_y, dispatch.dispatch_z);
 }
 
+void phi::d3d12::command_list_translator::execute(cmd::dispatch_indirect const& dispatch_indirect)
+{
+    auto const& pso_node = _globals.pool_pipeline_states->get(dispatch_indirect.pipeline_state);
+
+    // PSO
+    if (_bound.update_pso(dispatch_indirect.pipeline_state))
+    {
+        _cmd_list->SetPipelineState(pso_node.raw_pso);
+    }
+
+    // Root signature
+    if (_bound.update_root_sig(pso_node.associated_root_sig->raw_root_sig))
+    {
+        _cmd_list->SetComputeRootSignature(_bound.raw_root_sig);
+    }
+
+    // Shader arguments
+    {
+        auto const& root_sig = *pso_node.associated_root_sig;
+
+        // root constants
+        auto const root_constant_param = root_sig.argument_maps[0].root_const_param;
+        if (root_constant_param != unsigned(-1))
+        {
+            static_assert(sizeof(dispatch_indirect.root_constants) % sizeof(DWORD32) == 0, "root constant size not divisible by dword32 size");
+            _cmd_list->SetComputeRoot32BitConstants(root_constant_param, sizeof(dispatch_indirect.root_constants) / sizeof(DWORD32),
+                                                    dispatch_indirect.root_constants, 0);
+        }
+
+        // regular shader arguments
+        for (uint8_t i = 0; i < dispatch_indirect.shader_arguments.size(); ++i)
+        {
+            auto& bound_arg = _bound.shader_args[i];
+            auto const& arg = dispatch_indirect.shader_arguments[i];
+            auto const& map = root_sig.argument_maps[i];
+
+
+            if (map.cbv_param != uint32_t(-1))
+            {
+                // Set the CBV / offset if it has changed
+                if (bound_arg.update_cbv(arg.constant_buffer, arg.constant_buffer_offset))
+                {
+                    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(arg.constant_buffer, arg.constant_buffer_offset, 1) && "CBV offset OOB");
+
+                    auto const cbv_va = _globals.pool_resources->getBufferInfo(arg.constant_buffer).gpu_va;
+                    _cmd_list->SetComputeRootConstantBufferView(map.cbv_param, cbv_va + arg.constant_buffer_offset);
+                }
+            }
+
+            // Set the shader view if it has changed
+            if (bound_arg.update_shader_view(arg.shader_view))
+            {
+                if (map.srv_uav_table_param != uint32_t(-1))
+                {
+                    auto const sv_desc_table = _globals.pool_shader_views->getSRVUAVGPUHandle(arg.shader_view);
+                    _cmd_list->SetComputeRootDescriptorTable(map.srv_uav_table_param, sv_desc_table);
+                }
+
+                if (map.sampler_table_param != uint32_t(-1))
+                {
+                    auto const sampler_desc_table = _globals.pool_shader_views->getSamplerGPUHandle(arg.shader_view);
+                    _cmd_list->SetComputeRootDescriptorTable(map.sampler_table_param, sampler_desc_table);
+                }
+            }
+        }
+    }
+    auto const gpu_command_size_bytes = uint32_t(sizeof(gpu_indirect_command_dispatch));
+
+    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(dispatch_indirect.argument_buffer_addr, dispatch_indirect.num_arguments * gpu_command_size_bytes)
+              && "indirect argument buffer accessed OOB on GPU");
+
+    ID3D12Resource* const raw_arg_buffer = _globals.pool_resources->getRawResource(dispatch_indirect.argument_buffer_addr);
+    ID3D12CommandSignature* const comsig = _globals.pool_pipeline_states->getGlobalComSigDispatch();
+
+    // NOTE: We use no count buffer, which makes the second argument determine the actual amount of args, not the max
+    // NOTE: A global command sig is used, containing 256 dispatch arguments
+    // the global comsig require no association with a rootsig making things a lot simpler
+    // the amount of arguments configured in the rootsig is more or less arbitrary, could be increased possibly by a lot without cost
+    CC_ASSERT(dispatch_indirect.num_arguments <= 256 && "Too many indirect arguments, contact maintainers");
+    _cmd_list->ExecuteIndirect(comsig, dispatch_indirect.num_arguments, raw_arg_buffer, dispatch_indirect.argument_buffer_addr.offset_bytes, nullptr, 0);
+}
+
 void phi::d3d12::command_list_translator::execute(const phi::cmd::end_render_pass&)
 {
     CC_ASSERT(_current_queue_type == queue_type::direct && "graphics commands are only valid on queue_type::direct");

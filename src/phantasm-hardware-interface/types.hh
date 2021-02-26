@@ -718,6 +718,14 @@ struct gpu_indirect_command_draw_indexed
     uint32_t instance_offset;
 };
 
+/// indirect compute dispatch command, as it is laid out in a GPU buffer
+struct gpu_indirect_command_dispatch
+{
+    uint32_t dispatch_x;
+    uint32_t dispatch_y;
+    uint32_t dispatch_z;
+};
+
 /// flags to configure the building process of a raytracing acceleration structure
 enum class accel_struct_build_flags : uint8_t
 {

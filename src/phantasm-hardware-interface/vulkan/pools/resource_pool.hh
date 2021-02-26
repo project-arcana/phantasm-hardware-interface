@@ -105,6 +105,7 @@ public:
     //
 
     [[nodiscard]] VkBuffer getRawBuffer(handle::resource res) const { return internalGet(res).buffer.raw_buffer; }
+    [[nodiscard]] VkBuffer getRawBuffer(buffer_address addr) const { return internalGet(addr.buffer).buffer.raw_buffer; }
     [[nodiscard]] VkImage getRawImage(handle::resource res) const { return internalGet(res).image.raw_image; }
 
     [[nodiscard]] VkDeviceMemory getRawDeviceMemory(handle::resource res) const;
@@ -137,6 +138,13 @@ public:
 
         return internal.buffer.is_access_in_bounds(offset, size);
     }
+
+    bool isBufferAccessInBounds(buffer_address address, size_t size) const
+    {
+        return isBufferAccessInBounds(address.buffer, address.offset_bytes, size);
+    }
+
+    bool isBufferAccessInBounds(buffer_range range) const { return isBufferAccessInBounds(range.buffer, range.offset_bytes, range.size_bytes); }
 
     //
     // Master state access

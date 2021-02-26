@@ -116,6 +116,7 @@ public:
 
     ID3D12CommandSignature* getGlobalComSigDraw() const { return mGlobalComSigDraw; }
     ID3D12CommandSignature* getGlobalComSigDrawIndexed() const { return mGlobalComSigDrawIndexed; }
+    ID3D12CommandSignature* getGlobalComSigDispatch() const { return mGlobalComSigDrawIndexed; }
 
 private:
     ID3D12Device5* mDevice = nullptr;
@@ -125,6 +126,7 @@ private:
     ID3D12RootSignature* mEmptyRaytraceRootSignature = nullptr;
     ID3D12CommandSignature* mGlobalComSigDraw = nullptr;
     ID3D12CommandSignature* mGlobalComSigDrawIndexed = nullptr;
+    ID3D12CommandSignature* mGlobalComSigDispatch = nullptr;
 
     cc::atomic_linked_pool<pso_node> mPool;
     cc::atomic_linked_pool<rt_pso_node> mPoolRaytracing;

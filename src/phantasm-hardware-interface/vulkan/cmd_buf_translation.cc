@@ -357,6 +357,41 @@ void phi::vk::command_list_translator::execute(const phi::cmd::dispatch& dispatc
     vkCmdDispatch(_cmd_list, dispatch.dispatch_x, dispatch.dispatch_y, dispatch.dispatch_z);
 }
 
+void phi::vk::command_list_translator::execute(const phi::cmd::dispatch_indirect& dispatch_indirect)
+{
+    auto const& pso_node = _globals.pool_pipeline_states->get(dispatch_indirect.pipeline_state);
+
+    if (_bound.update_pso(dispatch_indirect.pipeline_state))
+    {
+        // a new handle::pipeline_state invalidates (!= always changes)
+        //      - The bound pipeline layout
+        //      - The bound pipeline
+
+        _bound.update_pipeline_layout(pso_node.associated_pipeline_layout->raw_layout);
+        vkCmdBindPipeline(_cmd_list, VK_PIPELINE_BIND_POINT_COMPUTE, pso_node.raw_pipeline);
+    }
+
+    // Shader arguments
+    bind_shader_arguments(dispatch_indirect.pipeline_state, dispatch_indirect.root_constants, dispatch_indirect.shader_arguments, VK_PIPELINE_BIND_POINT_COMPUTE);
+
+    constexpr auto gpu_command_size_bytes = uint32_t(sizeof(gpu_indirect_command_dispatch));
+    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(dispatch_indirect.argument_buffer_addr, dispatch_indirect.num_arguments * gpu_command_size_bytes)
+              && "indirect argument buffer accessed OOB on GPU");
+
+    auto const raw_argument_buffer = _globals.pool_resources->getRawBuffer(dispatch_indirect.argument_buffer_addr);
+
+    // Vulkan has no equivalent to D3D12 ExecuteIndirect
+    // (except for VK_NVX_device_generated_commands, nvidia only)
+    // that means we have to call this manually multiple times
+    // counter buffer would be impossible
+    auto bufferOffset = dispatch_indirect.argument_buffer_addr.offset_bytes;
+    for (auto i = 0u; i < dispatch_indirect.num_arguments; ++i)
+    {
+        vkCmdDispatchIndirect(_cmd_list, raw_argument_buffer, bufferOffset);
+        bufferOffset += gpu_command_size_bytes;
+    }
+}
+
 void phi::vk::command_list_translator::execute(const phi::cmd::end_render_pass&)
 {
     CC_ASSERT(_bound.raw_render_pass != nullptr && "cmd::end_render_pass while no render pass is active");
@@ -436,13 +471,15 @@ void phi::vk::command_list_translator::execute(const phi::cmd::transition_image_
 
 void phi::vk::command_list_translator::execute(const phi::cmd::barrier_uav& barrier)
 {
-    // There are no per-resource UAV barriers in vulkan, just issue a full memory barrier
+    CC_ASSERT(_bound.raw_render_pass == nullptr && "Vulkan UAV barriers must not occur during render passes");
+    // instead of using VkBuffer/ImageMemoryBarriers per resource, always issue a full memory barrier
+    // implementations do not care about per-buffer restrictions according to sources
 
     VkMemoryBarrier desc = {};
     desc.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
     desc.pNext = nullptr;
     desc.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT | VK_ACCESS_SHADER_WRITE_BIT;
-    desc.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_SHADER_READ_BIT;
+    desc.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_SHADER_READ_BIT; // UAV to UAV
 
     VkPipelineStageFlags src_stage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
     VkPipelineStageFlags dst_stage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;

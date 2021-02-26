@@ -8,6 +8,7 @@ namespace phi::cmd::detail
     PHI_X(draw)                    \
     PHI_X(draw_indirect)           \
     PHI_X(dispatch)                \
+    PHI_X(dispatch_indirect)       \
     PHI_X(transition_resources)    \
     PHI_X(barrier_uav)             \
     PHI_X(transition_image_slices) \

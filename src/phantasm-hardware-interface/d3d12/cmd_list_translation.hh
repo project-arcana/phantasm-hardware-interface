@@ -61,6 +61,8 @@ struct command_list_translator
 
     void execute(cmd::dispatch const& dispatch);
 
+    void execute(cmd::dispatch_indirect const& dispatch_indirect);
+
     void execute(cmd::end_render_pass const& end_rp);
 
     void execute(cmd::transition_resources const& transition_res);

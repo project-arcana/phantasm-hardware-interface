@@ -89,11 +89,13 @@ public:
     //
 
     [[nodiscard]] ID3D12Resource* getRawResource(handle::resource res) const { return internalGet(res).resource; }
+    [[nodiscard]] ID3D12Resource* getRawResource(buffer_address const& addr) const { return internalGet(addr.buffer).resource; }
 
     // Additional information
     [[nodiscard]] bool isImage(handle::resource res) const { return internalGet(res).type == resource_node::resource_type::image; }
     [[nodiscard]] resource_node::image_info const& getImageInfo(handle::resource res) const { return internalGet(res).image; }
     [[nodiscard]] resource_node::buffer_info const& getBufferInfo(handle::resource res) const { return internalGet(res).buffer; }
+    [[nodiscard]] resource_node::buffer_info const& getBufferInfo(buffer_address const& addr) const { return internalGet(addr.buffer).buffer; }
 
     [[nodiscard]] D3D12_GPU_VIRTUAL_ADDRESS getBufferAddrVA(buffer_address address) const
     {
