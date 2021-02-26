@@ -264,6 +264,7 @@ private:
     void* mThreadComponentAlloc;
     phi::thread_association mThreadAssociation;
     ShaderTableConstructor mShaderTableCtor;
+    cc::allocator* mDynamicAllocator;
 
     // Misc
     util::diagnostic_state mDiagnostics;

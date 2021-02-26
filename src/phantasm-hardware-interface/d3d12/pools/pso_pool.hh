@@ -116,7 +116,7 @@ public:
 
     ID3D12CommandSignature* getGlobalComSigDraw() const { return mGlobalComSigDraw; }
     ID3D12CommandSignature* getGlobalComSigDrawIndexed() const { return mGlobalComSigDrawIndexed; }
-    ID3D12CommandSignature* getGlobalComSigDispatch() const { return mGlobalComSigDrawIndexed; }
+    ID3D12CommandSignature* getGlobalComSigDispatch() const { return mGlobalComSigDispatch; }
 
 private:
     ID3D12Device5* mDevice = nullptr;

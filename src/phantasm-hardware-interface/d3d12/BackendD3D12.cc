@@ -38,6 +38,10 @@ void phi::d3d12::BackendD3D12::initialize(const phi::backend_config& config)
     mFlushEvent = CreateEventEx(nullptr, FALSE, FALSE, EVENT_ALL_ACCESS);
     CC_ASSERT(mFlushEvent != INVALID_HANDLE_VALUE && "failed to create win32 event");
 
+    CC_CONTRACT(config.static_allocator);
+    CC_CONTRACT(config.dynamic_allocator);
+    mDynamicAllocator = config.dynamic_allocator;
+
     // Core components
     {
         mAdapter.initialize(config);
@@ -345,7 +349,22 @@ void phi::d3d12::BackendD3D12::submit(cc::span<const phi::handle::command_list> 
             continue;
 
         auto const* const state_cache = mPoolCmdLists.getStateCache(cl);
-        cc::capped_vector<D3D12_RESOURCE_BARRIER, 32> barriers;
+
+        cc::alloc_array<D3D12_RESOURCE_BARRIER> barriers_heap;
+        D3D12_RESOURCE_BARRIER barriers_sbo[32];
+
+        constexpr auto barrierSize = sizeof(D3D12_RESOURCE_BARRIER);
+
+        uint32_t numBarriers = 0;
+        D3D12_RESOURCE_BARRIER* barrierPtr = barriers_sbo;
+
+        if (state_cache->num_entries > CC_COUNTOF(barriers_sbo))
+        {
+            barriers_heap.reset(mDynamicAllocator, state_cache->num_entries);
+            barrierPtr = barriers_heap.data();
+        }
+
+        auto f_addBarrier = [&](D3D12_RESOURCE_BARRIER const& barrier) -> void { barrierPtr[numBarriers++] = barrier; };
 
         for (auto i = 0u; i < state_cache->num_entries; ++i)
         {
@@ -356,18 +375,18 @@ void phi::d3d12::BackendD3D12::submit(cc::span<const phi::handle::command_list> 
             if (master_before != entry.required_initial)
             {
                 // transition to the state required as the initial one
-                barriers.push_back(util::get_barrier_desc(mPoolResources.getRawResource(entry.ptr), master_before, entry.required_initial));
+                f_addBarrier(util::get_barrier_desc(mPoolResources.getRawResource(entry.ptr), master_before, entry.required_initial));
             }
 
             // set the master state to the one in which this resource is left
             mPoolResources.setResourceState(entry.ptr, entry.current);
         }
 
-        if (!barriers.empty())
+        if (numBarriers > 0)
         {
             ID3D12GraphicsCommandList5* inserted_barrier_cmdlist;
             barrier_lists.push_back(mPoolCmdLists.create(inserted_barrier_cmdlist, thread_comp.cmd_list_allocator, queue));
-            inserted_barrier_cmdlist->ResourceBarrier(UINT(barriers.size()), barriers.data());
+            inserted_barrier_cmdlist->ResourceBarrier(numBarriers, barrierPtr);
             inserted_barrier_cmdlist->Close();
             cmd_bufs_to_submit.push_back(inserted_barrier_cmdlist);
         }
