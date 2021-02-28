@@ -51,7 +51,8 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createPipelineS
                                                                                      phi::arg::shader_arg_shapes shader_arg_shapes,
                                                                                      bool has_root_constants,
                                                                                      phi::arg::graphics_shaders shader_stages,
-                                                                                     const phi::pipeline_config& primitive_config)
+                                                                                     const phi::pipeline_config& primitive_config,
+                                                                                     char const* dbg_name)
 {
     root_signature* root_sig;
     // Do things requiring synchronization first
@@ -71,7 +72,7 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createPipelineS
         // Create PSO
         auto const vert_format_native = util::get_native_vertex_format(vertex_format.attributes);
         new_node.raw_pso = create_pipeline_state(*mDevice, root_sig->raw_root_sig, vert_format_native, framebuffer_format, shader_stages, primitive_config);
-        util::set_object_name(new_node.raw_pso, "pool graphics pso #%d", int(pool_index));
+        util::set_object_name(new_node.raw_pso, "phi graphics pso %s", dbg_name ? dbg_name : "");
     }
 
 
@@ -80,7 +81,8 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createPipelineS
 
 phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createComputePipelineState(phi::arg::shader_arg_shapes shader_arg_shapes,
                                                                                             arg::shader_binary compute_shader,
-                                                                                            bool has_root_constants)
+                                                                                            bool has_root_constants,
+                                                                                            char const* dbg_name)
 {
     root_signature* root_sig;
     // Do things requiring synchronization first
@@ -98,7 +100,7 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createComputePi
 
     // Create PSO
     new_node.raw_pso = create_compute_pipeline_state(*mDevice, root_sig->raw_root_sig, compute_shader.data, compute_shader.size);
-    util::set_object_name(new_node.raw_pso, "pool compute pso #%d", int(pool_index));
+    util::set_object_name(new_node.raw_pso, "pool compute pso %s", dbg_name ? dbg_name : "");
 
     auto const res = handle::pipeline_state{pool_index};
     CC_ASSERT(!isRaytracingPipeline(res));
@@ -111,7 +113,8 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracin
                                                                                                unsigned max_recursion,
                                                                                                unsigned max_payload_size_bytes,
                                                                                                unsigned max_attribute_size_bytes,
-                                                                                               cc::allocator* scratch_alloc)
+                                                                                               cc::allocator* scratch_alloc,
+                                                                                               char const* dbg_name)
 {
     CC_ASSERT(libraries.size() > 0 && arg_assocs.size() <= limits::max_raytracing_argument_assocs && "zero libraries or too many argument associations");
     CC_ASSERT(hit_groups.size() <= limits::max_raytracing_hit_groups && "too many hit groups");

@@ -335,25 +335,31 @@ phi::handle::pipeline_state phi::vk::BackendVulkan::createPipelineState(phi::arg
                                                                         phi::arg::shader_arg_shapes shader_arg_shapes,
                                                                         bool has_root_constants,
                                                                         phi::arg::graphics_shaders shaders,
-                                                                        const phi::pipeline_config& primitive_config)
+                                                                        const phi::pipeline_config& primitive_config,
+                                                                        char const* debug_name)
 {
-    return mPoolPipelines.createPipelineState(vertex_format, framebuffer_conf, shader_arg_shapes, has_root_constants, shaders, primitive_config, cc::system_allocator);
+    return mPoolPipelines.createPipelineState(vertex_format, framebuffer_conf, shader_arg_shapes, has_root_constants, shaders, primitive_config,
+                                              cc::system_allocator, debug_name);
 }
 
-phi::handle::pipeline_state phi::vk::BackendVulkan::createPipelineState(const phi::arg::graphics_pipeline_state_desc& description)
+phi::handle::pipeline_state phi::vk::BackendVulkan::createPipelineState(const phi::arg::graphics_pipeline_state_desc& description, char const* debug_name)
 {
-    return mPoolPipelines.createPipelineState(description.vertices, description.framebuffer, description.shader_arg_shapes,
-                                              description.has_root_constants, description.shader_binaries, description.config, cc::system_allocator);
+    return mPoolPipelines.createPipelineState(description.vertices, description.framebuffer, description.shader_arg_shapes, description.has_root_constants,
+                                              description.shader_binaries, description.config, cc::system_allocator, debug_name);
 }
 
-phi::handle::pipeline_state phi::vk::BackendVulkan::createComputePipelineState(phi::arg::shader_arg_shapes shader_arg_shapes, phi::arg::shader_binary shader, bool has_root_constants)
+phi::handle::pipeline_state phi::vk::BackendVulkan::createComputePipelineState(phi::arg::shader_arg_shapes shader_arg_shapes,
+                                                                               phi::arg::shader_binary shader,
+                                                                               bool has_root_constants,
+                                                                               char const* debug_name)
 {
-    return mPoolPipelines.createComputePipelineState(shader_arg_shapes, shader, has_root_constants, cc::system_allocator);
+    return mPoolPipelines.createComputePipelineState(shader_arg_shapes, shader, has_root_constants, cc::system_allocator, debug_name);
 }
 
-phi::handle::pipeline_state phi::vk::BackendVulkan::createComputePipelineState(const phi::arg::compute_pipeline_state_desc& description)
+phi::handle::pipeline_state phi::vk::BackendVulkan::createComputePipelineState(const phi::arg::compute_pipeline_state_desc& description, char const* debug_name)
 {
-    return mPoolPipelines.createComputePipelineState(description.shader_arg_shapes, description.shader, description.has_root_constants, cc::system_allocator);
+    return mPoolPipelines.createComputePipelineState(description.shader_arg_shapes, description.shader, description.has_root_constants,
+                                                     cc::system_allocator, debug_name);
 }
 
 void phi::vk::BackendVulkan::free(phi::handle::pipeline_state ps) { mPoolPipelines.free(ps); }

@@ -15,7 +15,8 @@ phi::handle::pipeline_state phi::vk::PipelinePool::createPipelineState(phi::arg:
                                                                        bool should_have_push_constants,
                                                                        phi::arg::graphics_shaders shader_stages,
                                                                        const phi::pipeline_config& primitive_config,
-                                                                       cc::allocator* scratch_alloc)
+                                                                       cc::allocator* scratch_alloc,
+                                                                       char const* dbg_name)
 {
     // Patch and reflect SPIR-V binaries
     cc::capped_vector<util::patched_spirv_stage, 6> patched_shader_stages;
@@ -76,6 +77,8 @@ phi::handle::pipeline_state phi::vk::PipelinePool::createPipelineState(phi::arg:
         new_node.raw_pipeline = create_pipeline(mDevice, dummy_render_pass, new_node.associated_pipeline_layout->raw_layout, patched_shader_stages,
                                                 primitive_config, vert_format_native, vertex_format.vertex_size_bytes, framebuffer_config);
 
+        util::set_object_name(mDevice, new_node.raw_pipeline, "phi graphics pso %s", dbg_name ? dbg_name : "");
+
         vkDestroyRenderPass(mDevice, dummy_render_pass, nullptr);
     }
 
@@ -85,7 +88,8 @@ phi::handle::pipeline_state phi::vk::PipelinePool::createPipelineState(phi::arg:
 phi::handle::pipeline_state phi::vk::PipelinePool::createComputePipelineState(phi::arg::shader_arg_shapes shader_arg_shapes,
                                                                               arg::shader_binary compute_shader,
                                                                               bool should_have_push_constants,
-                                                                              cc::allocator* scratch_alloc)
+                                                                              cc::allocator* scratch_alloc,
+                                                                              char const* dbg_name)
 {
     // Patch and reflect SPIR-V binary
     util::patched_spirv_stage patched_shader_stage;
@@ -123,6 +127,7 @@ phi::handle::pipeline_state phi::vk::PipelinePool::createComputePipelineState(ph
 
 
     new_node.raw_pipeline = create_compute_pipeline(mDevice, new_node.associated_pipeline_layout->raw_layout, patched_shader_stage);
+    util::set_object_name(mDevice, new_node.raw_pipeline, "phi compute pso %s", dbg_name ? dbg_name : "");
 
     return {pool_index};
 }

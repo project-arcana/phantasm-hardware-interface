@@ -147,16 +147,21 @@ public:
                                                                      arg::shader_arg_shapes shader_arg_shapes,
                                                                      bool has_root_constants,
                                                                      arg::graphics_shaders shaders,
-                                                                     phi::pipeline_config const& primitive_config)
+                                                                     phi::pipeline_config const& primitive_config,
+                                                                     char const* debug_name = nullptr)
         = 0;
 
     /// create a graphics pipeline state from a compact description struct
-    [[nodiscard]] virtual handle::pipeline_state createPipelineState(arg::graphics_pipeline_state_desc const& description) = 0;
+    [[nodiscard]] virtual handle::pipeline_state createPipelineState(arg::graphics_pipeline_state_desc const& description, char const* debug_name = nullptr) = 0;
 
-    [[nodiscard]] virtual handle::pipeline_state createComputePipelineState(arg::shader_arg_shapes shader_arg_shapes, arg::shader_binary shader, bool has_root_constants = false)
+    [[nodiscard]] virtual handle::pipeline_state createComputePipelineState(arg::shader_arg_shapes shader_arg_shapes,
+                                                                            arg::shader_binary shader,
+                                                                            bool has_root_constants = false,
+                                                                            char const* debug_name = nullptr)
         = 0;
 
-    [[nodiscard]] virtual handle::pipeline_state createComputePipelineState(arg::compute_pipeline_state_desc const& description) = 0;
+    [[nodiscard]] virtual handle::pipeline_state createComputePipelineState(arg::compute_pipeline_state_desc const& description, char const* debug_name = nullptr)
+        = 0;
 
     virtual void free(handle::pipeline_state ps) = 0;
 

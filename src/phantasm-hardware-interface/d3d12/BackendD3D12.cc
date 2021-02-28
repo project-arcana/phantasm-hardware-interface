@@ -294,27 +294,29 @@ phi::handle::pipeline_state phi::d3d12::BackendD3D12::createPipelineState(phi::a
                                                                           phi::arg::shader_arg_shapes shader_arg_shapes,
                                                                           bool has_root_constants,
                                                                           phi::arg::graphics_shaders shaders,
-                                                                          const phi::pipeline_config& primitive_config)
+                                                                          const phi::pipeline_config& primitive_config,
+                                                                          char const* debug_name)
 {
-    return mPoolPSOs.createPipelineState(vertex_format, framebuffer_conf, shader_arg_shapes, has_root_constants, shaders, primitive_config);
+    return mPoolPSOs.createPipelineState(vertex_format, framebuffer_conf, shader_arg_shapes, has_root_constants, shaders, primitive_config, debug_name);
 }
 
-phi::handle::pipeline_state phi::d3d12::BackendD3D12::createPipelineState(const phi::arg::graphics_pipeline_state_desc& description)
+phi::handle::pipeline_state phi::d3d12::BackendD3D12::createPipelineState(const phi::arg::graphics_pipeline_state_desc& description, char const* debug_name)
 {
     return mPoolPSOs.createPipelineState(description.vertices, description.framebuffer, description.shader_arg_shapes, description.has_root_constants,
-                                         description.shader_binaries, description.config);
+                                         description.shader_binaries, description.config, debug_name);
 }
 
 phi::handle::pipeline_state phi::d3d12::BackendD3D12::createComputePipelineState(phi::arg::shader_arg_shapes shader_arg_shapes,
                                                                                  phi::arg::shader_binary shader,
-                                                                                 bool has_root_constants)
+                                                                                 bool has_root_constants,
+                                                                                 char const* debug_name)
 {
-    return mPoolPSOs.createComputePipelineState(shader_arg_shapes, shader, has_root_constants);
+    return mPoolPSOs.createComputePipelineState(shader_arg_shapes, shader, has_root_constants, debug_name);
 }
 
-phi::handle::pipeline_state phi::d3d12::BackendD3D12::createComputePipelineState(const phi::arg::compute_pipeline_state_desc& description)
+phi::handle::pipeline_state phi::d3d12::BackendD3D12::createComputePipelineState(const phi::arg::compute_pipeline_state_desc& description, char const* debug_name)
 {
-    return mPoolPSOs.createComputePipelineState(description.shader_arg_shapes, description.shader, description.has_root_constants);
+    return mPoolPSOs.createComputePipelineState(description.shader_arg_shapes, description.shader, description.has_root_constants, debug_name);
 }
 
 void phi::d3d12::BackendD3D12::free(phi::handle::pipeline_state ps) { mPoolPSOs.free(ps); }
@@ -440,8 +442,9 @@ void phi::d3d12::BackendD3D12::free(phi::handle::query_range query_range) { mPoo
 phi::handle::pipeline_state phi::d3d12::BackendD3D12::createRaytracingPipelineState(const arg::raytracing_pipeline_state_desc& description)
 {
     CC_ASSERT(isRaytracingEnabled() && "raytracing is not enabled");
+    // TODO: debug name
     return mPoolPSOs.createRaytracingPipelineState(description.libraries, description.argument_associations, description.hit_groups, description.max_recursion,
-                                                   description.max_payload_size_bytes, description.max_attribute_size_bytes, cc::system_allocator);
+                                                   description.max_payload_size_bytes, description.max_attribute_size_bytes, mDynamicAllocator, nullptr);
 }
 
 phi::handle::accel_struct phi::d3d12::BackendD3D12::createTopLevelAccelStruct(uint32_t num_instances, accel_struct_build_flags_t flags)
