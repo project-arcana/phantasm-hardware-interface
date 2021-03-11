@@ -101,7 +101,7 @@ phi::handle::accel_struct phi::vk::AccelStructPool::createBottomLevelAS(cc::span
     as_create_info.info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_INFO_NV;
     as_create_info.info.pNext = nullptr;
     as_create_info.info.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_NV;
-    as_create_info.info.flags = util::to_native_flags(flags);
+    as_create_info.info.flags = util::to_native_accel_struct_build_flags(flags);
     as_create_info.info.instanceCount = 0;
     as_create_info.info.geometryCount = uint32_t(element_geometries.size());
     as_create_info.info.pGeometries = element_geometries.data();

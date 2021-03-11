@@ -3,6 +3,7 @@
 #include <clean-core/bit_cast.hh>
 #include <clean-core/utility.hh>
 
+#include <phantasm-hardware-interface/common/byte_util.hh>
 #include <phantasm-hardware-interface/common/format_size.hh>
 #include <phantasm-hardware-interface/common/log.hh>
 
@@ -118,96 +119,67 @@ phi::handle::resource phi::d3d12::ResourcePool::injectBackbufferResource(unsigne
     return {res_handle};
 }
 
-phi::handle::resource phi::d3d12::ResourcePool::createTexture(
-    format format, unsigned w, unsigned h, unsigned mips, texture_dimension dim, unsigned depth_or_array_size, bool allow_uav, const char* dbg_name)
+phi::handle::resource phi::d3d12::ResourcePool::createTexture(arg::texture_description const& description, char const* dbg_name)
 {
-    constexpr D3D12_RESOURCE_STATES initial_state = util::to_native(resource_state::copy_dest);
-
-    CC_CONTRACT(w > 0 && h > 0);
+    CC_CONTRACT(description.width > 0 && description.height > 0);
 
     D3D12_RESOURCE_DESC desc = {};
-    desc.Dimension = util::to_native(dim);
-    desc.Format = util::to_dxgi_format(format);
-    desc.Width = w;
-    desc.Height = h;
-    desc.DepthOrArraySize = UINT16(depth_or_array_size);
-    desc.MipLevels = UINT16(mips);
-    desc.SampleDesc.Count = 1;
-    desc.SampleDesc.Quality = 0;
-    desc.Flags = D3D12_RESOURCE_FLAG_NONE; // NOTE: more?
-    if (allow_uav)
-        desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+    desc.Dimension = util::to_native(description.dim);
+    desc.Format = util::to_dxgi_format(description.fmt);
+    desc.Width = description.width;
+    desc.Height = description.height;
+    desc.DepthOrArraySize = UINT16(description.depth_or_array_size);
+    desc.MipLevels = UINT16(description.num_mips);
+    desc.SampleDesc.Count = description.num_samples;
+    desc.SampleDesc.Quality = desc.SampleDesc.Count != 1 ? DXGI_STANDARD_MULTISAMPLE_QUALITY_PATTERN : 0;
+
+    desc.Flags = util::to_native_resource_usage_flags(description.usage);
 
     desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
     desc.Alignment = 0;
 
-    auto* const alloc = mAllocator.allocate(desc, initial_state);
-    auto const real_mip_levels = alloc->GetResource()->GetDesc().MipLevels;
-    util::set_object_name(alloc->GetResource(), "pool tex%s[%u] %s (%ux%u, %u mips)", d3d12_get_tex_dim_literal(dim), depth_or_array_size,
-                          dbg_name ? dbg_name : "", w, h, real_mip_levels);
-    return acquireImage(alloc, format, initial_state, real_mip_levels, desc.DepthOrArraySize);
-}
+    D3D12_RESOURCE_STATES initial_state;
+    D3D12_CLEAR_VALUE* clear_value_ptr = nullptr;
+    D3D12_CLEAR_VALUE clear_value;
+    clear_value.Format = desc.Format;
 
-phi::handle::resource phi::d3d12::ResourcePool::createRenderTarget(
-    phi::format format, unsigned w, unsigned h, unsigned samples, unsigned array_size, rt_clear_value const* optimized_clear_val, const char* dbg_name)
-{
-    CC_CONTRACT(w > 0 && h > 0);
+    auto const unpacked_clearval = ::phi::util::unpack_rgba8(description.optimized_clear_value);
 
-    auto const format_dxgi = util::to_dxgi_format(format);
-    if (phi::util::is_depth_format(format))
+    if (desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL)
     {
-        // Depth-stencil target
-        constexpr D3D12_RESOURCE_STATES initial_state = util::to_native(resource_state::depth_write);
+        initial_state = util::to_native(resource_state::depth_write);
 
-        D3D12_CLEAR_VALUE clear_value;
-        clear_value.Format = format_dxgi;
-        if (optimized_clear_val)
+        if (description.usage & phi::resource_usage_flags::use_optimized_clear_value)
         {
-            clear_value.DepthStencil.Depth = optimized_clear_val->red_or_depth / 255.f;
-            clear_value.DepthStencil.Stencil = optimized_clear_val->green_or_stencil;
+            clear_value.DepthStencil.Depth = float(unpacked_clearval.r) / 255.f;
+            clear_value.DepthStencil.Stencil = unpacked_clearval.g;
+            clear_value_ptr = &clear_value;
         }
-        else
+    }
+    else if (desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET)
+    {
+        initial_state = util::to_native(resource_state::render_target);
+
+        if (description.usage & phi::resource_usage_flags::use_optimized_clear_value)
         {
-            clear_value.DepthStencil.Depth = 1;
-            clear_value.DepthStencil.Stencil = 0;
+            clear_value.Color[0] = float(unpacked_clearval.r) / 255.f;
+            clear_value.Color[1] = float(unpacked_clearval.g) / 255.f;
+            clear_value.Color[2] = float(unpacked_clearval.b) / 255.f;
+            clear_value.Color[3] = float(unpacked_clearval.a) / 255.f;
+            clear_value_ptr = &clear_value;
         }
-
-        auto const desc = CD3DX12_RESOURCE_DESC::Tex2D(format_dxgi, w, h, UINT16(array_size), 1, samples,
-                                                       samples != 1 ? DXGI_STANDARD_MULTISAMPLE_QUALITY_PATTERN : 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
-
-        auto* const alloc = mAllocator.allocate(desc, initial_state, &clear_value);
-        util::set_object_name(alloc->GetResource(), "pool depth tgt %s (%ux%u, 2D[%u], fmt %u)", dbg_name ? dbg_name : "", w, h, array_size, unsigned(format));
-        return acquireImage(alloc, format, initial_state, desc.MipLevels, desc.ArraySize());
     }
     else
     {
-        // Render target
-        constexpr D3D12_RESOURCE_STATES initial_state = util::to_native(resource_state::render_target);
-
-        D3D12_CLEAR_VALUE clear_value;
-        clear_value.Format = format_dxgi;
-        if (optimized_clear_val)
-        {
-            clear_value.Color[0] = optimized_clear_val->red_or_depth / 255.f;
-            clear_value.Color[1] = optimized_clear_val->green_or_stencil / 255.f;
-            clear_value.Color[2] = optimized_clear_val->blue / 255.f;
-            clear_value.Color[3] = optimized_clear_val->alpha / 255.f;
-        }
-        else
-        {
-            clear_value.Color[0] = 0.0f;
-            clear_value.Color[1] = 0.0f;
-            clear_value.Color[2] = 0.0f;
-            clear_value.Color[3] = 1.0f;
-        }
-
-        auto const desc = CD3DX12_RESOURCE_DESC::Tex2D(format_dxgi, w, h, UINT16(array_size), 1, samples,
-                                                       samples != 1 ? DXGI_STANDARD_MULTISAMPLE_QUALITY_PATTERN : 0, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
-
-        auto* const alloc = mAllocator.allocate(desc, initial_state, &clear_value);
-        util::set_object_name(alloc->GetResource(), "pool render tgt %s (%ux%u, 2D[%u], fmt %u)", dbg_name ? dbg_name : "", w, h, array_size, unsigned(format));
-        return acquireImage(alloc, format, initial_state, desc.MipLevels, desc.ArraySize());
+        initial_state = util::to_native(resource_state::copy_dest);
     }
+
+    auto* const alloc = mAllocator.allocate(desc, initial_state, clear_value_ptr, D3D12_HEAP_TYPE_DEFAULT);
+    auto const real_mip_levels = alloc->GetResource()->GetDesc().MipLevels;
+    util::set_object_name(alloc->GetResource(), "pool tex%s[%u] %s (%ux%u, %u mips)", d3d12_get_tex_dim_literal(description.dim),
+                          description.depth_or_array_size, dbg_name ? dbg_name : "", description.width, description.height, real_mip_levels);
+
+    return acquireImage(alloc, description.fmt, initial_state, real_mip_levels, desc.DepthOrArraySize);
 }
 
 phi::handle::resource phi::d3d12::ResourcePool::createBuffer(uint64_t size_bytes, unsigned stride_bytes, resource_heap heap, bool allow_uav, const char* dbg_name)

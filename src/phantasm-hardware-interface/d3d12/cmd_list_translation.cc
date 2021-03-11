@@ -797,7 +797,7 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::update_bottom_
 
     D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC as_create_info = {};
     as_create_info.Inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
-    as_create_info.Inputs.Flags = util::to_native_flags(dest_node.flags);
+    as_create_info.Inputs.Flags = util::to_native_accel_struct_build_flags(dest_node.flags);
     as_create_info.Inputs.NumDescs = UINT(dest_node.geometries.size());
 
     as_create_info.Inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
@@ -830,7 +830,7 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::update_top_lev
 
     D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC as_create_info = {};
     as_create_info.Inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
-    as_create_info.Inputs.Flags = util::to_native_flags(dest_node.flags);
+    as_create_info.Inputs.Flags = util::to_native_accel_struct_build_flags(dest_node.flags);
     as_create_info.Inputs.NumDescs = tlas_update.num_instances;
 
     as_create_info.Inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;

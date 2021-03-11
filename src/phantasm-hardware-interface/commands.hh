@@ -218,9 +218,9 @@ PHI_DEFINE_CMD(draw_indirect)
     handle::pipeline_state pipeline_state = handle::null_pipeline_state;
 
     /// the buffer from which to read arguments, must be in resource_state::indirect_argument
-    handle::resource indirect_argument_buffer = handle::null_resource; 
-    uint32_t argument_buffer_offset_bytes = 0;                         ///< offset in bytes into the argument buffer
-    uint32_t num_arguments = 0;                                        ///< amount of arguments to read from the buffer
+    handle::resource indirect_argument_buffer = handle::null_resource;
+    uint32_t argument_buffer_offset_bytes = 0; ///< offset in bytes into the argument buffer
+    uint32_t num_arguments = 0;                ///< amount of arguments to read from the buffer
 
     handle::resource vertex_buffer = handle::null_resource; ///< optional
     handle::resource index_buffer = handle::null_resource;  ///< optional

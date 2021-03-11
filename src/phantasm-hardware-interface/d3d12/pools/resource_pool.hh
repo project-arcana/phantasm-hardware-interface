@@ -16,13 +16,7 @@ class ResourcePool
 public:
     // frontend-facing API
 
-    /// create a 1D, 2D or 3D texture, or a 1D/2D array
-    [[nodiscard]] handle::resource createTexture(
-        format format, unsigned w, unsigned h, unsigned mips, texture_dimension dim, unsigned depth_or_array_size, bool allow_uav, char const* dbg_name);
-
-    /// create a render- or depth-stencil target
-    [[nodiscard]] handle::resource createRenderTarget(
-        phi::format format, unsigned w, unsigned h, unsigned samples, unsigned array_size, rt_clear_value const* optimized_clear_val, char const* dbg_name);
+    [[nodiscard]] handle::resource createTexture(arg::texture_description const& desc, char const* dbg_name);
 
     /// create a buffer, with an element stride if its an index or vertex buffer
     [[nodiscard]] handle::resource createBuffer(uint64_t size_bytes, unsigned stride_bytes, resource_heap heap, bool allow_uav, char const* dbg_name);

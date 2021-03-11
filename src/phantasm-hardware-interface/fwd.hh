@@ -79,8 +79,8 @@ struct vertex_format;
 struct shader_arg_shape;
 struct shader_binary;
 struct graphics_shader;
-struct graphics_pipeline_state_desc;
-struct compute_pipeline_state_desc;
+struct graphics_pipeline_state_description;
+struct compute_pipeline_state_description;
 
 using shader_arg_shapes = cc::span<shader_arg_shape const>;
 using graphics_shaders = cc::span<graphics_shader const>;
@@ -89,14 +89,14 @@ struct blas_element;
 struct raytracing_shader_library;
 struct raytracing_argument_association;
 struct raytracing_hit_group;
-struct raytracing_pipeline_state_desc;
+struct raytracing_pipeline_state_description;
 struct shader_table_record;
 
 using shader_table_records = cc::span<shader_table_record const>;
 
-struct create_render_target_info;
-struct create_texture_info;
-struct create_buffer_info;
-struct create_resource_info;
+struct render_target_description;
+struct texture_description;
+struct buffer_description;
+struct resource_description;
 
 }

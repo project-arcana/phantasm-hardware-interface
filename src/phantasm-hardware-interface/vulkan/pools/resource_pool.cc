@@ -64,42 +64,55 @@ constexpr char const* vk_get_heap_type_literal(phi::resource_heap heap)
 }
 }
 
-phi::handle::resource phi::vk::ResourcePool::createTexture(
-    format format, unsigned w, unsigned h, unsigned mips, texture_dimension dim, unsigned depth_or_array_size, bool allow_uav, const char* dbg_name)
+phi::handle::resource phi::vk::ResourcePool::createTexture(arg::texture_description const& description, char const* dbg_name)
 {
-    CC_CONTRACT(w > 0 && h > 0);
+    CC_CONTRACT(description.width > 0 && description.height > 0);
     VkImageCreateInfo image_info = {};
     image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     image_info.pNext = nullptr;
 
-    image_info.imageType = util::to_native(dim);
-    image_info.format = util::to_vk_format(format);
+    image_info.imageType = util::to_native(description.dim);
+    image_info.format = util::to_vk_format(description.fmt);
 
-    image_info.extent.width = w;
-    image_info.extent.height = h;
-    image_info.extent.depth = dim == texture_dimension::t3d ? depth_or_array_size : 1;
-    image_info.mipLevels = mips < 1 ? phi::util::get_num_mips(w, h) : mips;
-    image_info.arrayLayers = dim == texture_dimension::t3d ? 1 : depth_or_array_size;
+    image_info.extent.width = description.width;
+    image_info.extent.height = description.height;
+    image_info.extent.depth = description.dim == texture_dimension::t3d ? description.depth_or_array_size : 1;
+    image_info.mipLevels = description.num_mips < 1 ? phi::util::get_num_mips(description.width, description.height) : description.num_mips;
+    image_info.arrayLayers = description.dim == texture_dimension::t3d ? 1 : description.depth_or_array_size;
 
-    image_info.samples = VK_SAMPLE_COUNT_1_BIT;
+    image_info.samples = util::to_native_sample_flags(description.num_samples);
     image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     image_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-    // SAMPLED: can be read with a sampler; TRANSFER_DST/SRC: can be copied
-    image_info.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+    // TRANSFER_DST/SRC: can be copied
+    image_info.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 
-    if (allow_uav)
+    if (description.usage & resource_usage_flags::allow_uav)
     {
         // STORAGE: can be used as a UAV in shaders
         image_info.usage |= VK_IMAGE_USAGE_STORAGE_BIT;
     }
+    if (description.usage & resource_usage_flags::allow_depth_stencil)
+    {
+        image_info.usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+    }
+    if (description.usage & resource_usage_flags::allow_render_target)
+    {
+        image_info.usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    }
+    if ((description.usage & resource_usage_flags::deny_shader_resource) == 0)
+    {
+        // SAMPLED: can be read with a sampler;
+        image_info.usage |= VK_IMAGE_USAGE_SAMPLED_BIT;
+    }
+
 
     image_info.tiling = VK_IMAGE_TILING_OPTIMAL;
 
     // MUTABLE_FORMAT: can be viewed with a different format
     image_info.flags = VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT;
 
-    if (dim == texture_dimension::t2d && depth_or_array_size == 6)
+    if (description.dim == texture_dimension::t2d && description.depth_or_array_size == 6)
     {
         // t2d[6] is likely used as a cubemap
         image_info.flags |= VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
@@ -111,52 +124,10 @@ phi::handle::resource phi::vk::ResourcePool::createTexture(
     VmaAllocation res_alloc;
     VkImage res_image;
     PHI_VK_VERIFY_SUCCESS(vmaCreateImage(mAllocator, &image_info, &alloc_info, &res_image, &res_alloc, nullptr));
-    util::set_object_name(mDevice, res_image, "pool tex%s[%u] %s (%ux%u, %u mips)", vk_get_tex_dim_literal(dim), depth_or_array_size,
-                          dbg_name ? dbg_name : "", w, h, image_info.mipLevels);
-    return acquireImage(res_alloc, res_image, format, image_info.mipLevels, image_info.arrayLayers, 1, w, h);
-}
-
-phi::handle::resource phi::vk::ResourcePool::createRenderTarget(phi::format format, unsigned w, unsigned h, unsigned samples, unsigned array_size, char const* dbg_name)
-{
-    CC_CONTRACT(w > 0 && h > 0);
-    VkImageCreateInfo image_info = {};
-    image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-    image_info.pNext = nullptr;
-    image_info.imageType = VK_IMAGE_TYPE_2D;
-    image_info.format = util::to_vk_format(format);
-    image_info.extent.width = static_cast<uint32_t>(w);
-    image_info.extent.height = static_cast<uint32_t>(h);
-    image_info.extent.depth = 1;
-    image_info.mipLevels = 1;
-    image_info.arrayLayers = array_size;
-
-    image_info.samples = util::to_native_sample_flags(samples);
-    image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    image_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-    // sampled bit for SRVs, transfer src for copy from, transfer dst for explicit clear (cmd::clear_textures)
-    image_info.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-
-    // Attachment bits so we can render to it
-    if (phi::util::is_depth_format(format))
-        image_info.usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-    else
-        image_info.usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-
-    image_info.flags = 0;
-    image_info.tiling = VK_IMAGE_TILING_OPTIMAL;
-
-    VmaAllocationCreateInfo alloc_info = {};
-    alloc_info.usage = VMA_MEMORY_USAGE_GPU_ONLY;
-
-    VmaAllocation res_alloc;
-    VkImage res_image;
-    PHI_VK_VERIFY_SUCCESS(vmaCreateImage(mAllocator, &image_info, &alloc_info, &res_image, &res_alloc, nullptr));
-
-    util::set_object_name(mDevice, res_image, "pool %s tgt %s (%ux%u, fmt %u)", phi::util::is_depth_format(format) ? "depth" : "render",
-                          dbg_name ? dbg_name : "", w, h, unsigned(format));
-
-    return acquireImage(res_alloc, res_image, format, image_info.mipLevels, image_info.arrayLayers, samples, w, h);
+    util::set_object_name(mDevice, res_image, "phi tex%s[%u] %s (%ux%u, %u mips)", vk_get_tex_dim_literal(description.dim),
+                          description.depth_or_array_size, dbg_name ? dbg_name : "", description.width, description.height, image_info.mipLevels);
+    return acquireImage(res_alloc, res_image, description.fmt, image_info.mipLevels, image_info.arrayLayers, description.num_samples,
+                        description.width, description.height);
 }
 
 phi::handle::resource phi::vk::ResourcePool::createBuffer(uint64_t size_bytes, unsigned stride_bytes, resource_heap heap, bool allow_uav, char const* dbg_name)

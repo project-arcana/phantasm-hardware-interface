@@ -72,7 +72,7 @@ phi::handle::accel_struct phi::d3d12::AccelStructPool::createBottomLevelAS(cc::s
     // Assemble the bottom level AS object
     D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS as_input_info = {};
     as_input_info.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
-    as_input_info.Flags = util::to_native_flags(flags);
+    as_input_info.Flags = util::to_native_accel_struct_build_flags(flags);
     as_input_info.NumDescs = UINT(new_node.geometries.size());
     as_input_info.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
     as_input_info.pGeometryDescs = new_node.geometries.data();
@@ -108,7 +108,7 @@ phi::handle::accel_struct phi::d3d12::AccelStructPool::createTopLevelAS(unsigned
     // Assemble the bottom level AS object
     D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS as_input_info = {};
     as_input_info.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
-    as_input_info.Flags = util::to_native_flags(flags);
+    as_input_info.Flags = util::to_native_accel_struct_build_flags(flags);
     as_input_info.NumDescs = num_instances;
     as_input_info.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
     as_input_info.pGeometryDescs = nullptr;

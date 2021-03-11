@@ -270,16 +270,9 @@ phi::format phi::vk::BackendVulkan::getBackbufferFormat(phi::handle::swapchain s
     return util::to_pr_format(mPoolSwapchains.get(sc).backbuf_format.format);
 }
 
-phi::handle::resource phi::vk::BackendVulkan::createTexture(
-    phi::format format, tg::isize2 size, uint32_t mips, phi::texture_dimension dim, uint32_t depth_or_array_size, bool allow_uav, const char* debug_name)
+phi::handle::resource phi::vk::BackendVulkan::createTexture(arg::texture_description const& desc, char const* debug_name)
 {
-    return mPoolResources.createTexture(format, uint32_t(size.width), uint32_t(size.height), mips, dim, depth_or_array_size, allow_uav, debug_name);
-}
-
-phi::handle::resource phi::vk::BackendVulkan::createRenderTarget(
-    phi::format format, tg::isize2 size, uint32_t samples, uint32_t array_size, const phi::rt_clear_value*, const char* debug_name)
-{
-    return mPoolResources.createRenderTarget(format, uint32_t(size.width), uint32_t(size.height), samples, array_size, debug_name);
+    return mPoolResources.createTexture(desc, debug_name);
 }
 
 phi::handle::resource phi::vk::BackendVulkan::createBuffer(uint32_t size_bytes, uint32_t stride_bytes, phi::resource_heap heap, bool allow_uav, const char* debug_name)
@@ -342,7 +335,7 @@ phi::handle::pipeline_state phi::vk::BackendVulkan::createPipelineState(phi::arg
                                               cc::system_allocator, debug_name);
 }
 
-phi::handle::pipeline_state phi::vk::BackendVulkan::createPipelineState(const phi::arg::graphics_pipeline_state_desc& description, char const* debug_name)
+phi::handle::pipeline_state phi::vk::BackendVulkan::createPipelineState(const phi::arg::graphics_pipeline_state_description& description, char const* debug_name)
 {
     return mPoolPipelines.createPipelineState(description.vertices, description.framebuffer, description.shader_arg_shapes, description.has_root_constants,
                                               description.shader_binaries, description.config, cc::system_allocator, debug_name);
@@ -356,7 +349,7 @@ phi::handle::pipeline_state phi::vk::BackendVulkan::createComputePipelineState(p
     return mPoolPipelines.createComputePipelineState(shader_arg_shapes, shader, has_root_constants, cc::system_allocator, debug_name);
 }
 
-phi::handle::pipeline_state phi::vk::BackendVulkan::createComputePipelineState(const phi::arg::compute_pipeline_state_desc& description, char const* debug_name)
+phi::handle::pipeline_state phi::vk::BackendVulkan::createComputePipelineState(const phi::arg::compute_pipeline_state_description& description, char const* debug_name)
 {
     return mPoolPipelines.createComputePipelineState(description.shader_arg_shapes, description.shader, description.has_root_constants,
                                                      cc::system_allocator, debug_name);
@@ -514,7 +507,7 @@ phi::handle::query_range phi::vk::BackendVulkan::createQueryRange(phi::query_typ
 
 void phi::vk::BackendVulkan::free(phi::handle::query_range query_range) { mPoolQueries.free(query_range); }
 
-phi::handle::pipeline_state phi::vk::BackendVulkan::createRaytracingPipelineState(const arg::raytracing_pipeline_state_desc& description)
+phi::handle::pipeline_state phi::vk::BackendVulkan::createRaytracingPipelineState(const arg::raytracing_pipeline_state_description& description)
 {
     CC_ASSERT(isRaytracingEnabled() && "raytracing is not enabled");
     return mPoolPipelines.createRaytracingPipelineState(description.libraries, description.argument_associations, description.hit_groups, description.max_recursion,

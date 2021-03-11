@@ -713,7 +713,7 @@ namespace phi::vk::util
     CC_UNREACHABLE_SWITCH_WORKAROUND(bf);
 }
 
-[[nodiscard]] constexpr VkBuildAccelerationStructureFlagsNV to_native_flags(accel_struct_build_flags_t flags)
+[[nodiscard]] constexpr VkBuildAccelerationStructureFlagsNV to_native_accel_struct_build_flags(accel_struct_build_flags_t flags)
 {
     VkBuildAccelerationStructureFlagsNV res = 0;
 

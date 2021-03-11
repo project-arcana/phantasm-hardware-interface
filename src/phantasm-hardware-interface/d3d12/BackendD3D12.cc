@@ -227,16 +227,9 @@ phi::format phi::d3d12::BackendD3D12::getBackbufferFormat(handle::swapchain /*sc
     return util::to_pr_format(mPoolSwapchains.getBackbufferFormat());
 }
 
-phi::handle::resource phi::d3d12::BackendD3D12::createTexture(
-    phi::format format, tg::isize2 size, uint32_t mips, phi::texture_dimension dim, uint32_t depth_or_array_size, bool allow_uav, const char* debug_name)
+phi::handle::resource phi::d3d12::BackendD3D12::createTexture(arg::texture_description const& desc, char const* debug_name)
 {
-    return mPoolResources.createTexture(format, uint32_t(size.width), uint32_t(size.height), mips, dim, depth_or_array_size, allow_uav, debug_name);
-}
-
-phi::handle::resource phi::d3d12::BackendD3D12::createRenderTarget(
-    phi::format format, tg::isize2 size, uint32_t samples, uint32_t array_size, const phi::rt_clear_value* optimized_clear_val, const char* debug_name)
-{
-    return mPoolResources.createRenderTarget(format, uint32_t(size.width), uint32_t(size.height), samples, array_size, optimized_clear_val, debug_name);
+    return mPoolResources.createTexture(desc, debug_name);
 }
 
 phi::handle::resource phi::d3d12::BackendD3D12::createBuffer(uint32_t size_bytes, uint32_t stride_bytes, phi::resource_heap heap, bool allow_uav, const char* debug_name)
@@ -300,7 +293,7 @@ phi::handle::pipeline_state phi::d3d12::BackendD3D12::createPipelineState(phi::a
     return mPoolPSOs.createPipelineState(vertex_format, framebuffer_conf, shader_arg_shapes, has_root_constants, shaders, primitive_config, debug_name);
 }
 
-phi::handle::pipeline_state phi::d3d12::BackendD3D12::createPipelineState(const phi::arg::graphics_pipeline_state_desc& description, char const* debug_name)
+phi::handle::pipeline_state phi::d3d12::BackendD3D12::createPipelineState(const phi::arg::graphics_pipeline_state_description& description, char const* debug_name)
 {
     return mPoolPSOs.createPipelineState(description.vertices, description.framebuffer, description.shader_arg_shapes, description.has_root_constants,
                                          description.shader_binaries, description.config, debug_name);
@@ -314,7 +307,7 @@ phi::handle::pipeline_state phi::d3d12::BackendD3D12::createComputePipelineState
     return mPoolPSOs.createComputePipelineState(shader_arg_shapes, shader, has_root_constants, debug_name);
 }
 
-phi::handle::pipeline_state phi::d3d12::BackendD3D12::createComputePipelineState(const phi::arg::compute_pipeline_state_desc& description, char const* debug_name)
+phi::handle::pipeline_state phi::d3d12::BackendD3D12::createComputePipelineState(const phi::arg::compute_pipeline_state_description& description, char const* debug_name)
 {
     return mPoolPSOs.createComputePipelineState(description.shader_arg_shapes, description.shader, description.has_root_constants, debug_name);
 }
@@ -439,7 +432,7 @@ phi::handle::query_range phi::d3d12::BackendD3D12::createQueryRange(phi::query_t
 
 void phi::d3d12::BackendD3D12::free(phi::handle::query_range query_range) { mPoolQueries.free(query_range); }
 
-phi::handle::pipeline_state phi::d3d12::BackendD3D12::createRaytracingPipelineState(const arg::raytracing_pipeline_state_desc& description)
+phi::handle::pipeline_state phi::d3d12::BackendD3D12::createRaytracingPipelineState(const arg::raytracing_pipeline_state_description& description)
 {
     CC_ASSERT(isRaytracingEnabled() && "raytracing is not enabled");
     // TODO: debug name

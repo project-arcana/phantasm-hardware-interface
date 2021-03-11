@@ -10,6 +10,12 @@
     using _flags_t_ = cc::flags<_enum_t_, uint32_t(_max_num_)>; \
     CC_FLAGS_ENUM_SIZED(_enum_t_, uint32_t(_max_num_));
 
+#define PHI_DEFINE_FLAG_OPERATORS(FlagT, RealT)                                                                  \
+    [[maybe_unused]] constexpr FlagT operator|(FlagT a, FlagT b) noexcept { return FlagT(RealT(a) | RealT(b)); } \
+    [[maybe_unused]] constexpr FlagT operator&(FlagT a, FlagT b) noexcept { return FlagT(RealT(a) & RealT(b)); } \
+    [[maybe_unused]] constexpr FlagT operator^(FlagT a, FlagT b) noexcept { return FlagT(RealT(a) ^ RealT(b)); } \
+    [[maybe_unused]] constexpr FlagT operator~(FlagT a) noexcept { return FlagT(~RealT(a)); }
+
 namespace phi
 {
 /// resources bound to a shader, up to 4 per draw or dispatch command
@@ -726,6 +732,22 @@ struct gpu_indirect_command_dispatch
     uint32_t dispatch_z;
 };
 
+struct resource_usage_flags
+{
+    enum : uint32_t
+    {
+        none = 0,
+        allow_uav = 1 << 0,
+        allow_render_target = 1 << 1,
+        allow_depth_stencil = 1 << 2,
+        deny_shader_resource = 1 << 3,
+        use_optimized_clear_value = 1 << 4,
+    };
+};
+using resource_usage_flags_t = uint32_t;
+
+// PHI_DEFINE_FLAG_OPERATORS(resource_usage_flags, uint32_t)
+
 /// flags to configure the building process of a raytracing acceleration structure
 enum class accel_struct_build_flags : uint8_t
 {
@@ -739,18 +761,18 @@ enum class accel_struct_build_flags : uint8_t
 PHI_DEFINE_FLAG_TYPE(accel_struct_build_flags_t, accel_struct_build_flags, 8);
 
 // these flags align exactly with both vulkan and d3d12, and are not translated
-using accel_struct_instance_flags_t = uint32_t;
-namespace accel_struct_instance_flags
+struct accel_struct_instance_flags
 {
-enum accel_struct_instance_flags_e : uint32_t
-{
-    none = 0x0000,
-    triangle_cull_disable = 0x0001,
-    triangle_front_counterclockwise = 0x0002,
-    force_opaque = 0x0004,
-    force_no_opaque = 0x0008
+    enum : uint32_t
+    {
+        none = 0,
+        triangle_cull_disable = 1 << 0,
+        triangle_front_counterclockwise = 1 << 1,
+        force_opaque = 1 << 2,
+        force_no_opaque = 1 << 3
+    };
 };
-}
+using accel_struct_instance_flags_t = uint32_t;
 
 /// bottom level accel struct instance within a top level accel struct (layout dictated by DXR/Vulkan RT Extension)
 struct accel_struct_instance

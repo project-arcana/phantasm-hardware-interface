@@ -64,11 +64,7 @@ public:
     // Resource interface
     //
 
-    [[nodiscard]] handle::resource createTexture(
-        phi::format format, tg::isize2 size, uint32_t mips, texture_dimension dim, uint32_t depth_or_array_size, bool allow_uav, char const* debug_name = nullptr) override;
-
-    [[nodiscard]] handle::resource createRenderTarget(
-        phi::format format, tg::isize2 size, uint32_t samples, uint32_t array_size, rt_clear_value const* = nullptr, char const* debug_name = nullptr) override;
+    [[nodiscard]] handle::resource createTexture(arg::texture_description const& desc, char const* debug_name = nullptr) override;
 
     [[nodiscard]] handle::resource createBuffer(uint32_t size_bytes, uint32_t stride_bytes, resource_heap heap, bool allow_uav, char const* debug_name = nullptr) override;
 
@@ -115,14 +111,15 @@ public:
                                                              phi::pipeline_config const& primitive_config,
                                                              char const* debug_name = nullptr) override;
 
-    [[nodiscard]] handle::pipeline_state createPipelineState(arg::graphics_pipeline_state_desc const& description, char const* debug_name = nullptr) override;
+    [[nodiscard]] handle::pipeline_state createPipelineState(arg::graphics_pipeline_state_description const& description, char const* debug_name = nullptr) override;
 
     [[nodiscard]] handle::pipeline_state createComputePipelineState(arg::shader_arg_shapes shader_arg_shapes,
                                                                     arg::shader_binary shader,
                                                                     bool has_root_constants,
                                                                     char const* debug_name = nullptr) override;
 
-    [[nodiscard]] handle::pipeline_state createComputePipelineState(arg::compute_pipeline_state_desc const& description, char const* debug_name = nullptr) override;
+    [[nodiscard]] handle::pipeline_state createComputePipelineState(arg::compute_pipeline_state_description const& description,
+                                                                    char const* debug_name = nullptr) override;
 
     void free(handle::pipeline_state ps) override;
 
@@ -166,7 +163,7 @@ public:
     // Raytracing interface
     //
 
-    [[nodiscard]] handle::pipeline_state createRaytracingPipelineState(arg::raytracing_pipeline_state_desc const& description) override;
+    [[nodiscard]] handle::pipeline_state createRaytracingPipelineState(arg::raytracing_pipeline_state_description const& description) override;
 
     handle::accel_struct createTopLevelAccelStruct(uint32_t num_instances, accel_struct_build_flags_t flags) override;
 

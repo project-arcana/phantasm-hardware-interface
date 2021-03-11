@@ -682,7 +682,7 @@ void phi::vk::command_list_translator::execute(const phi::cmd::update_bottom_lev
     VkAccelerationStructureInfoNV build_info = {};
     build_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_INFO_NV;
     build_info.pNext = nullptr;
-    build_info.flags = util::to_native_flags(dest_node.flags);
+    build_info.flags = util::to_native_accel_struct_build_flags(dest_node.flags);
     build_info.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_NV;
     build_info.geometryCount = uint32_t(dest_node.geometries.size());
     build_info.pGeometries = dest_node.geometries.empty() ? nullptr : dest_node.geometries.data();
@@ -707,7 +707,7 @@ void phi::vk::command_list_translator::execute(const phi::cmd::update_top_level&
     VkAccelerationStructureInfoNV build_info = {};
     build_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_INFO_NV;
     build_info.pNext = nullptr;
-    build_info.flags = util::to_native_flags(dest_node.flags);
+    build_info.flags = util::to_native_accel_struct_build_flags(dest_node.flags);
     build_info.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_NV;
     build_info.geometryCount = 0;
     build_info.pGeometries = nullptr;

@@ -67,26 +67,11 @@ public:
     // Resource interface
     //
 
-    /// create a 1D, 2D or 3D texture, or a 1D/2D array
+    /// create a 1D, 2D or 3D texture, or a 1D/2D texture array
+    /// for render- or depth targets, set the allow_render_target / allow_depth_stencil usage flags
+    /// for UAV usage, set the allow_uav usage flag
     /// if mips is 0, the maximum amount will be used
-    /// if the texture will be used as a UAV, allow_uav must be true
-    [[nodiscard]] virtual handle::resource createTexture(phi::format format,
-                                                         tg::isize2 size,
-                                                         uint32_t mips,
-                                                         texture_dimension dim = texture_dimension::t2d,
-                                                         uint32_t depth_or_array_size = 1,
-                                                         bool allow_uav = false,
-                                                         char const* debug_name = nullptr)
-        = 0;
-
-    /// create a [multisampled] 2D render- or depth-stencil target
-    [[nodiscard]] virtual handle::resource createRenderTarget(phi::format format,
-                                                              tg::isize2 size,
-                                                              uint32_t samples = 1,
-                                                              uint32_t array_size = 1,
-                                                              rt_clear_value const* optimized_clear_val = nullptr,
-                                                              char const* debug_name = nullptr)
-        = 0;
+    [[nodiscard]] virtual handle::resource createTexture(arg::texture_description const& desc, char const* debug_name = nullptr) = 0;
 
     /// create a buffer with optional element stride, allocation on an upload/readback heap, or allowing UAV access
     [[nodiscard]] virtual handle::resource createBuffer(
@@ -152,7 +137,8 @@ public:
         = 0;
 
     /// create a graphics pipeline state from a compact description struct
-    [[nodiscard]] virtual handle::pipeline_state createPipelineState(arg::graphics_pipeline_state_desc const& description, char const* debug_name = nullptr) = 0;
+    [[nodiscard]] virtual handle::pipeline_state createPipelineState(arg::graphics_pipeline_state_description const& description, char const* debug_name = nullptr)
+        = 0;
 
     [[nodiscard]] virtual handle::pipeline_state createComputePipelineState(arg::shader_arg_shapes shader_arg_shapes,
                                                                             arg::shader_binary shader,
@@ -160,7 +146,7 @@ public:
                                                                             char const* debug_name = nullptr)
         = 0;
 
-    [[nodiscard]] virtual handle::pipeline_state createComputePipelineState(arg::compute_pipeline_state_desc const& description, char const* debug_name = nullptr)
+    [[nodiscard]] virtual handle::pipeline_state createComputePipelineState(arg::compute_pipeline_state_description const& description, char const* debug_name = nullptr)
         = 0;
 
     virtual void free(handle::pipeline_state ps) = 0;
@@ -213,7 +199,7 @@ public:
     // Raytracing interface
     //
 
-    [[nodiscard]] virtual handle::pipeline_state createRaytracingPipelineState(arg::raytracing_pipeline_state_desc const& description) = 0;
+    [[nodiscard]] virtual handle::pipeline_state createRaytracingPipelineState(arg::raytracing_pipeline_state_description const& description) = 0;
 
     /// create a bottom level acceleration structure (BLAS) holding geometry elements
     /// out_native_handle receives the value to be written to accel_struct_instance::native_bottom_level_as_handle
@@ -286,10 +272,29 @@ public:
         (this->free(handles), ...);
     }
 
-    [[nodiscard]] handle::resource createBufferFromInfo(arg::create_buffer_info const& info, char const* debug_name = nullptr);
-    [[nodiscard]] handle::resource createRenderTargetFromInfo(arg::create_render_target_info const& info, char const* debug_name = nullptr);
-    [[nodiscard]] handle::resource createTextureFromInfo(arg::create_texture_info const& info, char const* debug_name = nullptr);
-    [[nodiscard]] handle::resource createResourceFromInfo(arg::create_resource_info const& info, char const* debug_name = nullptr);
+
+    /// create a 1D, 2D or 3D texture, or a 1D/2D array
+    /// if mips is 0, the maximum amount will be used
+    /// if the texture will be used as a UAV, allow_uav must be true
+    [[nodiscard]] handle::resource createTexture(phi::format format,
+                                                 tg::isize2 size,
+                                                 uint32_t mips,
+                                                 texture_dimension dim = texture_dimension::t2d,
+                                                 uint32_t depth_or_array_size = 1,
+                                                 bool allow_uav = false,
+                                                 char const* debug_name = nullptr);
+
+
+    /// create a [multisampled] 2D render- or depth-stencil target
+    [[nodiscard]] handle::resource createRenderTarget(phi::format format,
+                                                      tg::isize2 size,
+                                                      uint32_t samples = 1,
+                                                      uint32_t array_size = 1,
+                                                      rt_clear_value const* optimized_clear_val = nullptr,
+                                                      char const* debug_name = nullptr);
+
+    [[nodiscard]] handle::resource createBufferFromInfo(arg::buffer_description const& info, char const* debug_name = nullptr);
+    [[nodiscard]] handle::resource createResourceFromInfo(arg::resource_description const& info, char const* debug_name = nullptr);
 
     Backend(Backend const&) = delete;
     Backend(Backend&&) = delete;
