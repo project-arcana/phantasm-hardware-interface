@@ -3,6 +3,7 @@
 #include <mutex>
 
 #include <clean-core/array.hh>
+#include <clean-core/assertf.hh>
 #include <clean-core/atomic_linked_pool.hh>
 #include <clean-core/capped_vector.hh>
 #include <clean-core/span.hh>
@@ -48,7 +49,8 @@ public:
             return -1;
 
         auto const res_page = mPageAllocator.allocate(num_descriptors);
-        CC_RUNTIME_ASSERT(res_page != -1 && "DescriptorPageAllocator overcommitted!");
+        CC_RUNTIME_ASSERTF(res_page != -1, "DescriptorPageAllocator overcommitted! Reached limit of {} {}", mPageAllocator.get_num_elements(),
+                           mDescriptorType == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV ? "SRVs/UAVs/CBVs" : "Samplers");
         return res_page;
     }
 
@@ -91,6 +93,7 @@ private:
     D3D12_GPU_DESCRIPTOR_HANDLE mHeapStartGPU;
     phi::page_allocator mPageAllocator;
     unsigned mDescriptorSize = 0;
+    D3D12_DESCRIPTOR_HEAP_TYPE mDescriptorType;
 };
 
 class ResourcePool;

@@ -12,6 +12,7 @@ void phi::d3d12::DescriptorPageAllocator::initialize(ID3D12Device& device, D3D12
 {
     mPageAllocator.initialize(num_descriptors, page_size, static_alloc);
     mDescriptorSize = device.GetDescriptorHandleIncrementSize(type);
+    mDescriptorType = type;
 
     D3D12_DESCRIPTOR_HEAP_DESC desc;
     desc.NumDescriptors = UINT(num_descriptors);

@@ -57,10 +57,17 @@ struct page_allocator
     void free_all() { std::memset(_pages.data(), 0, _pages.size_bytes()); }
 
 public:
-    [[nodiscard]] int get_page_size() const { return _page_size; }
-    [[nodiscard]] int get_num_pages() const { return int(_pages.size()); }
+    /// returns amount of elements per page
+    int get_page_size() const { return _page_size; }
+
+    /// returns amount of pages
+    int get_num_pages() const { return int(_pages.size()); }
+
+    /// returns amount of elements in total
+    int get_num_elements() const { return get_page_size() * get_num_pages(); }
+
     /// NOTE: this is the size given to ::allocate, ceiled to _page_size
-    [[nodiscard]] int get_allocation_size_in_elements(int page) const { return _pages[unsigned(page)] * _page_size; }
+    int get_allocation_size_in_elements(int page) const { return _pages[unsigned(page)] * _page_size; }
 
 private:
     // pages, each element is a natural number n
