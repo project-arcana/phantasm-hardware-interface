@@ -74,12 +74,7 @@ public:
     [[nodiscard]] virtual handle::resource createTexture(arg::texture_description const& desc, char const* debug_name = nullptr) = 0;
 
     /// create a buffer with optional element stride, allocation on an upload/readback heap, or allowing UAV access
-    [[nodiscard]] virtual handle::resource createBuffer(
-        uint32_t size_bytes, uint32_t stride_bytes = 0, resource_heap heap = resource_heap::gpu, bool allow_uav = false, char const* debug_name = nullptr)
-        = 0;
-
-    /// create a buffer with optional element stride on resource_heap::upload (shorthand function)
-    [[nodiscard]] virtual handle::resource createUploadBuffer(uint32_t size_bytes, uint32_t stride_bytes = 0, char const* debug_name = nullptr) = 0;
+    [[nodiscard]] virtual handle::resource createBuffer(arg::buffer_description const& info, char const* debug_name = nullptr) = 0;
 
     /// maps a buffer created on resource_heap::upload or ::readback to CPU-accessible memory and returns a pointer
     /// multiple (nested) maps are allowed, leaving a resource_heap::upload buffer persistently mapped is valid
@@ -293,7 +288,14 @@ public:
                                                       rt_clear_value const* optimized_clear_val = nullptr,
                                                       char const* debug_name = nullptr);
 
-    [[nodiscard]] handle::resource createBufferFromInfo(arg::buffer_description const& info, char const* debug_name = nullptr);
+
+    /// create a buffer with optional element stride, allocation on an upload/readback heap, or allowing UAV access
+    [[nodiscard]] handle::resource createBuffer(
+        uint32_t size_bytes, uint32_t stride_bytes = 0, resource_heap heap = resource_heap::gpu, bool allow_uav = false, char const* debug_name = nullptr);
+
+    /// create a buffer with optional element stride on resource_heap::upload (shorthand function)
+    [[nodiscard]] handle::resource createUploadBuffer(uint32_t size_bytes, uint32_t stride_bytes = 0, char const* debug_name = nullptr);
+
     [[nodiscard]] handle::resource createResourceFromInfo(arg::resource_description const& info, char const* debug_name = nullptr);
 
     Backend(Backend const&) = delete;

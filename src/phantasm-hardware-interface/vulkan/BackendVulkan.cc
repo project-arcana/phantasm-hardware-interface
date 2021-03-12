@@ -275,14 +275,9 @@ phi::handle::resource phi::vk::BackendVulkan::createTexture(arg::texture_descrip
     return mPoolResources.createTexture(desc, debug_name);
 }
 
-phi::handle::resource phi::vk::BackendVulkan::createBuffer(uint32_t size_bytes, uint32_t stride_bytes, phi::resource_heap heap, bool allow_uav, const char* debug_name)
+phi::handle::resource phi::vk::BackendVulkan::createBuffer(arg::buffer_description const& desc, char const* debug_name)
 {
-    return mPoolResources.createBuffer(size_bytes, stride_bytes, heap, allow_uav, debug_name);
-}
-
-phi::handle::resource phi::vk::BackendVulkan::createUploadBuffer(uint32_t size_bytes, uint32_t stride_bytes, const char* debug_name)
-{
-    return createBuffer(size_bytes, stride_bytes, resource_heap::upload, false, debug_name);
+    return mPoolResources.createBuffer(desc.size_bytes, desc.stride_bytes, desc.heap, desc.allow_uav, debug_name);
 }
 
 std::byte* phi::vk::BackendVulkan::mapBuffer(phi::handle::resource res, int begin, int end) { return mPoolResources.mapBuffer(res, begin, end); }

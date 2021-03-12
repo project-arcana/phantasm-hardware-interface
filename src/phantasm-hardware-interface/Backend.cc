@@ -44,9 +44,26 @@ phi::handle::resource phi::Backend::createRenderTarget(
     return createTexture(desc, debug_name);
 }
 
-phi::handle::resource phi::Backend::createBufferFromInfo(const phi::arg::buffer_description& info, const char* debug_name)
+phi::handle::resource phi::Backend::createBuffer(uint32_t size_bytes, uint32_t stride_bytes, resource_heap heap, bool allow_uav, char const* debug_name)
 {
-    return createBuffer(info.size_bytes, info.stride_bytes, info.heap, info.allow_uav, debug_name);
+    arg::buffer_description desc = {};
+    desc.size_bytes = size_bytes;
+    desc.stride_bytes = stride_bytes;
+    desc.heap = heap;
+    desc.allow_uav = allow_uav;
+
+    return createBuffer(desc, debug_name);
+}
+
+phi::handle::resource phi::Backend::createUploadBuffer(uint32_t size_bytes, uint32_t stride_bytes, char const* debug_name)
+{
+    arg::buffer_description desc = {};
+    desc.size_bytes = size_bytes;
+    desc.stride_bytes = stride_bytes;
+    desc.heap = resource_heap::upload;
+    desc.allow_uav = false;
+
+    return createBuffer(desc, debug_name);
 }
 
 phi::handle::resource phi::Backend::createResourceFromInfo(const phi::arg::resource_description& info, const char* debug_name)
@@ -56,7 +73,7 @@ phi::handle::resource phi::Backend::createResourceFromInfo(const phi::arg::resou
     case arg::resource_description::e_resource_texture:
         return createTexture(info.info_texture, debug_name);
     case arg::resource_description::e_resource_buffer:
-        return createBufferFromInfo(info.info_buffer, debug_name);
+        return createBuffer(info.info_buffer, debug_name);
     default:
         CC_ASSERT(false && "invalid type");
         return handle::null_resource;

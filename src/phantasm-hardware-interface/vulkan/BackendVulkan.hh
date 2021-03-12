@@ -66,9 +66,7 @@ public:
 
     [[nodiscard]] handle::resource createTexture(arg::texture_description const& desc, char const* debug_name = nullptr) override;
 
-    [[nodiscard]] handle::resource createBuffer(uint32_t size_bytes, uint32_t stride_bytes, resource_heap heap, bool allow_uav, char const* debug_name = nullptr) override;
-
-    [[nodiscard]] handle::resource createUploadBuffer(uint32_t size_bytes, uint32_t stride_bytes = 0, char const* debug_name = nullptr) override;
+    [[nodiscard]] handle::resource createBuffer(arg::buffer_description const& desc, char const* debug_name = nullptr) override;
 
     [[nodiscard]] std::byte* mapBuffer(handle::resource res, int begin = 0, int end = -1) override;
 
