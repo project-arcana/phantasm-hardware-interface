@@ -234,6 +234,8 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::draw& draw)
 
             if (map.cbv_param != uint32_t(-1))
             {
+                CC_ASSERT(arg.constant_buffer.is_valid() && "argument CBV is missing");
+
                 // Set the CBV / offset if it has changed
                 if (bound_arg.update_cbv(arg.constant_buffer, arg.constant_buffer_offset))
                 {
