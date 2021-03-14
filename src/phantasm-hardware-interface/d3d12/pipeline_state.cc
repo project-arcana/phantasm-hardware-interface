@@ -42,7 +42,8 @@ ID3D12PipelineState* phi::d3d12::create_pipeline_state(ID3D12Device& device,
         }
     }
 
-    CC_ASSERT(framebuffer_format.render_targets.empty() ? true : pso_desc.PS.pShaderBytecode != nullptr && "creating a PSO with rendertargets, but missing pixel shader");
+    // this is not really a requirement
+    //CC_ASSERT(framebuffer_format.render_targets.empty() ? true : pso_desc.PS.pShaderBytecode != nullptr && "creating a PSO with rendertargets, but missing pixel shader");
 
     pso_desc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
     pso_desc.RasterizerState.CullMode = util::to_native(config.cull);

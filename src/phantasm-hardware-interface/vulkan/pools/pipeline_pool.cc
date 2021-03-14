@@ -75,7 +75,7 @@ phi::handle::pipeline_state phi::vk::PipelinePool::createPipelineState(phi::arg:
         VkRenderPass dummy_render_pass = create_render_pass(mDevice, framebuffer_config, primitive_config);
 
         new_node.raw_pipeline = create_pipeline(mDevice, dummy_render_pass, new_node.associated_pipeline_layout->raw_layout, patched_shader_stages,
-                                                primitive_config, vert_format_native, vertex_format.vertex_size_bytes, framebuffer_config);
+                                                primitive_config, vert_format_native, vertex_format.vertex_sizes_bytes, framebuffer_config);
 
         util::set_object_name(mDevice, new_node.raw_pipeline, "phi graphics pso %s", dbg_name ? dbg_name : "");
 

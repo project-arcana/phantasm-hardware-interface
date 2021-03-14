@@ -19,7 +19,7 @@ cc::capped_vector<D3D12_INPUT_ELEMENT_DESC, 16> phi::d3d12::util::get_native_ver
         elem.AlignedByteOffset = ai.offset;
         elem.Format = util::to_dxgi_format(ai.fmt);
         elem.SemanticIndex = 0;
-        elem.InputSlot = 0;
+        elem.InputSlot = ai.vertex_buffer_i;
         elem.InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
         elem.InstanceDataStepRate = 0;
     }

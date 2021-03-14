@@ -177,11 +177,10 @@ VkPipeline phi::vk::create_pipeline(VkDevice device,
                                     cc::span<const util::patched_spirv_stage> shaders,
                                     const phi::pipeline_config& config,
                                     cc::span<const VkVertexInputAttributeDescription> vertex_attribs,
-                                    uint32_t vertex_size,
+                                    uint32_t vertex_sizes[limits::max_vertex_buffers],
                                     arg::framebuffer_config const& framebuf_config)
 {
-    bool const no_vertices = vertex_size == 0;
-    CC_ASSERT(no_vertices ? vertex_attribs.empty() : true && "Did not expect vertex attributes for no-vertex mode");
+    CC_CONTRACT(vertex_sizes);
 
     cc::capped_vector<shader, 6> shader_stages;
     cc::capped_vector<VkPipelineShaderStageCreateInfo, 6> shader_stage_create_infos;
@@ -200,17 +199,30 @@ VkPipeline phi::vk::create_pipeline(VkDevice device,
 
     CC_ASSERT(framebuf_config.render_targets.empty() ? true : has_pixel_shader && "creating a PSO with rendertargets, but missing pixel shader");
 
-    VkVertexInputBindingDescription vertex_bind_desc = {};
-    vertex_bind_desc.binding = 0;
-    vertex_bind_desc.stride = vertex_size;
-    vertex_bind_desc.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+    cc::capped_vector<VkVertexInputBindingDescription, limits::max_vertex_buffers> vertex_bind_descs;
+
+    for (auto i = 0u; i < limits::max_vertex_buffers; ++i)
+    {
+        if (vertex_sizes[i] == 0)
+        {
+            break;
+        }
+
+        VkVertexInputBindingDescription& vertex_bind_desc = vertex_bind_descs.emplace_back();
+        vertex_bind_desc.binding = 0;
+        vertex_bind_desc.stride = vertex_sizes[i];
+        vertex_bind_desc.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+    }
+
+
+    CC_ASSERT(PHI_EQUIVALENCE(vertex_bind_descs.empty(), vertex_attribs.empty()) && "Did not expect vertex attributes without vertex sizes");
 
     VkPipelineVertexInputStateCreateInfo vertex_input_info = {};
     vertex_input_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    vertex_input_info.vertexBindingDescriptionCount = no_vertices ? 0 : 1;
-    vertex_input_info.pVertexBindingDescriptions = no_vertices ? nullptr : &vertex_bind_desc;
-    vertex_input_info.vertexAttributeDescriptionCount = no_vertices ? 0 : unsigned(vertex_attribs.size());
-    vertex_input_info.pVertexAttributeDescriptions = no_vertices ? nullptr : vertex_attribs.data();
+    vertex_input_info.vertexBindingDescriptionCount = vertex_bind_descs.size();
+    vertex_input_info.pVertexBindingDescriptions = vertex_bind_descs.empty() ? nullptr : vertex_bind_descs.data();
+    vertex_input_info.vertexAttributeDescriptionCount = uint32_t(vertex_attribs.size());
+    vertex_input_info.pVertexAttributeDescriptions = vertex_attribs.empty() ? nullptr : vertex_attribs.data();
 
     VkPipelineInputAssemblyStateCreateInfo input_assembly = {};
     input_assembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;

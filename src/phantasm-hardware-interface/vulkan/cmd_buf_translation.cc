@@ -8,6 +8,7 @@
 #include <phantasm-hardware-interface/common/command_reading.hh>
 #include <phantasm-hardware-interface/common/format_size.hh>
 #include <phantasm-hardware-interface/common/log.hh>
+#include <phantasm-hardware-interface/common/sse_hash.hh>
 #include <phantasm-hardware-interface/util.hh>
 
 #include "common/native_enum.hh"
@@ -240,17 +241,8 @@ void phi::vk::command_list_translator::execute(const phi::cmd::draw& draw)
         }
     }
 
-    // Vertex buffer
-    if (draw.vertex_buffer != _bound.vertex_buffer)
-    {
-        _bound.vertex_buffer = draw.vertex_buffer;
-        if (draw.vertex_buffer.is_valid())
-        {
-            VkBuffer vertex_buffers[] = {_globals.pool_resources->getRawBuffer(draw.vertex_buffer)};
-            VkDeviceSize offsets[] = {0};
-            vkCmdBindVertexBuffers(_cmd_list, 0, 1, vertex_buffers, offsets);
-        }
-    }
+    // Vertex buffers
+    bind_vertex_buffers(draw.vertex_buffers);
 
     // Shader arguments
     bind_shader_arguments(draw.pipeline_state, draw.root_constants, draw.shader_arguments, VK_PIPELINE_BIND_POINT_GRAPHICS);
@@ -299,16 +291,7 @@ void phi::vk::command_list_translator::execute(const phi::cmd::draw_indirect& dr
     }
 
     // Vertex buffer
-    if (draw_indirect.vertex_buffer != _bound.vertex_buffer)
-    {
-        _bound.vertex_buffer = draw_indirect.vertex_buffer;
-        if (draw_indirect.vertex_buffer.is_valid())
-        {
-            VkBuffer vertex_buffers[] = {_globals.pool_resources->getRawBuffer(draw_indirect.vertex_buffer)};
-            VkDeviceSize offsets[] = {0};
-            vkCmdBindVertexBuffers(_cmd_list, 0, 1, vertex_buffers, offsets);
-        }
-    }
+    bind_vertex_buffers(draw_indirect.vertex_buffers);
 
     // Shader arguments
     bind_shader_arguments(draw_indirect.pipeline_state, draw_indirect.root_constants, draw_indirect.shader_arguments, VK_PIPELINE_BIND_POINT_GRAPHICS);
@@ -788,6 +771,32 @@ void phi::vk::command_list_translator::execute(cmd::code_location_marker const& 
     _last_code_location.file = marker.file;
     _last_code_location.function = marker.function;
     _last_code_location.line = marker.line;
+}
+
+void phi::vk::command_list_translator::bind_vertex_buffers(handle::resource const vertex_buffers[limits::max_vertex_buffers])
+{
+    uint64_t const vert_hash = phi::util::sse_hash_type<handle::resource>(vertex_buffers, limits::max_vertex_buffers);
+    if (vert_hash != _bound.vertex_buffer_hash)
+    {
+        _bound.vertex_buffer_hash = vert_hash;
+        if (vertex_buffers[0].is_valid())
+        {
+            VkBuffer raw_buffers[limits::max_vertex_buffers];
+            VkDeviceSize offsets[limits::max_vertex_buffers] = {};
+            uint32_t numVertexBuffers = 0;
+
+            for (auto i = 0u; i < limits::max_vertex_buffers; ++i)
+            {
+                if (!vertex_buffers[i].is_valid())
+                    break;
+
+                raw_buffers[i] = _globals.pool_resources->getRawBuffer(vertex_buffers[i]);
+                ++numVertexBuffers;
+            }
+
+            vkCmdBindVertexBuffers(_cmd_list, 0, numVertexBuffers, raw_buffers, offsets);
+        }
+    }
 }
 
 void phi::vk::command_list_translator::bind_shader_arguments(phi::handle::pipeline_state pso,

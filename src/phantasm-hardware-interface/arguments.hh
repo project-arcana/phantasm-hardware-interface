@@ -38,8 +38,10 @@ public:
 
 struct vertex_format
 {
+    // vertex attribute descriptions
     cc::span<vertex_attribute_info const> attributes;
-    uint32_t vertex_size_bytes = 0;
+    // vertex data size in bytes, per vertex buffer (leave at 0 if none)
+    uint32_t vertex_sizes_bytes[limits::max_vertex_buffers] = {};
 };
 
 /// A shader argument consists of SRVs, UAVs, an optional CBV, and an offset into it

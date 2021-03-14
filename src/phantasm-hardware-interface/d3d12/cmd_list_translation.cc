@@ -8,6 +8,7 @@
 #include <phantasm-hardware-interface/common/command_reading.hh>
 #include <phantasm-hardware-interface/common/format_size.hh>
 #include <phantasm-hardware-interface/common/log.hh>
+#include <phantasm-hardware-interface/common/sse_hash.hh>
 
 #include "common/diagnostic_util.hh"
 #include "common/dxgi_format.hh"
@@ -202,16 +203,8 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::draw& draw)
         }
     }
 
-    // Vertex buffer
-    if (draw.vertex_buffer != _bound.vertex_buffer)
-    {
-        _bound.vertex_buffer = draw.vertex_buffer;
-        if (draw.vertex_buffer.is_valid())
-        {
-            auto const vbv = _globals.pool_resources->getVertexBufferView(draw.vertex_buffer);
-            _cmd_list->IASetVertexBuffers(0, 1, &vbv);
-        }
-    }
+    // Vertex buffers
+    bind_vertex_buffers(draw.vertex_buffers);
 
     // Shader arguments
     {
@@ -312,16 +305,8 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::draw_indirect&
         }
     }
 
-    // Vertex buffer
-    if (draw_indirect.vertex_buffer != _bound.vertex_buffer)
-    {
-        _bound.vertex_buffer = draw_indirect.vertex_buffer;
-        if (draw_indirect.vertex_buffer.is_valid())
-        {
-            auto const vbv = _globals.pool_resources->getVertexBufferView(draw_indirect.vertex_buffer);
-            _cmd_list->IASetVertexBuffers(0, 1, &vbv);
-        }
-    }
+    // Vertex buffers
+    bind_vertex_buffers(draw_indirect.vertex_buffers);
 
     // Shader arguments
     {
@@ -946,6 +931,31 @@ void phi::d3d12::command_list_translator::execute(cmd::code_location_marker cons
     _last_code_location.file = marker.file;
     _last_code_location.function = marker.function;
     _last_code_location.line = marker.line;
+}
+
+void phi::d3d12::command_list_translator::bind_vertex_buffers(handle::resource const vertex_buffers[limits::max_vertex_buffers])
+{
+    uint64_t const vert_hash = phi::util::sse_hash_type<handle::resource>(vertex_buffers, limits::max_vertex_buffers);
+    if (vert_hash != _bound.vertex_buffer_hash)
+    {
+        _bound.vertex_buffer_hash = vert_hash;
+        if (vertex_buffers[0].is_valid())
+        {
+            D3D12_VERTEX_BUFFER_VIEW vbvs[limits::max_vertex_buffers];
+            uint32_t numVertexBuffers = 0;
+
+            for (auto i = 0u; i < limits::max_vertex_buffers; ++i)
+            {
+                if (!vertex_buffers[i].is_valid())
+                    break;
+
+                vbvs[i] = _globals.pool_resources->getVertexBufferView(vertex_buffers[i]);
+                ++numVertexBuffers;
+            }
+
+            _cmd_list->IASetVertexBuffers(0, numVertexBuffers, vbvs);
+        }
+    }
 }
 
 void phi::d3d12::translator_thread_local_memory::initialize(ID3D12Device& device)

@@ -100,6 +100,7 @@ public:
     // Raw VkBuffer / VkImage access
     //
 
+    [[nodiscard]] VkBuffer getRawBufferOrNull(handle::resource res) const { return res.is_valid() ? internalGet(res).buffer.raw_buffer : nullptr; }
     [[nodiscard]] VkBuffer getRawBuffer(handle::resource res) const { return internalGet(res).buffer.raw_buffer; }
     [[nodiscard]] VkBuffer getRawBuffer(buffer_address addr) const { return internalGet(addr.buffer).buffer.raw_buffer; }
     [[nodiscard]] VkImage getRawImage(handle::resource res) const { return internalGet(res).image.raw_image; }

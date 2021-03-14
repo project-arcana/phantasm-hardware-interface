@@ -27,7 +27,7 @@ struct patched_shader_intermediates;
                                          cc::span<util::patched_spirv_stage const> shaders,
                                          phi::pipeline_config const& config,
                                          cc::span<VkVertexInputAttributeDescription const> vertex_attribs,
-                                         uint32_t vertex_size,
+                                         uint32_t vertex_sizes[limits::max_vertex_buffers],
                                          const arg::framebuffer_config& framebuf_config);
 
 [[nodiscard]] VkPipeline create_compute_pipeline(VkDevice device, VkPipelineLayout pipeline_layout, const util::patched_spirv_stage& compute_shader);

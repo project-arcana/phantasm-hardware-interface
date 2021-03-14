@@ -116,8 +116,8 @@ PHI_DEFINE_CMD(transition_image_slices)
         resource_state target_state;
         shader_stage_flags_t source_dependencies;
         shader_stage_flags_t target_dependencies;
-        int mip_level;
-        int array_slice;
+        int32_t mip_level;
+        int32_t array_slice;
     };
 
     flat_vector<slice_transition_info, limits::max_resource_transitions> transitions;
@@ -128,12 +128,12 @@ public:
     /// must be the union of shaders {previously accessing the resource (source) / depending upon this resource next (target)}
     /// (both can be omitted on d3d12)
     void add(handle::resource res, resource_state source, resource_state target, shader_stage_flags_t source_dep, shader_stage_flags_t target_dep,
-             int level, int slice)
+             int32_t level, int32_t slice)
     {
         transitions.push_back(slice_transition_info{res, source, target, source_dep, target_dep, level, slice});
     }
 
-    void add(handle::resource res, resource_state source, resource_state target, int level, int slice)
+    void add(handle::resource res, resource_state source, resource_state target, int32_t level, int32_t slice)
     {
         add(res, source, target, {}, {}, level, slice);
     }
@@ -142,7 +142,6 @@ public:
 PHI_DEFINE_CMD(barrier_uav)
 {
     // Explicitly record UAV barriers on the spot, no tracking
-
     // If no resources are given, a full UAV barrier is issued
 
     flat_vector<handle::resource, limits::max_uav_barriers> resources; // optional
@@ -152,14 +151,18 @@ PHI_DEFINE_CMD(barrier_uav)
 PHI_DEFINE_CMD(draw)
 {
     // Execute a draw call
-
     // must occur inside of a render pass
 
     std::byte root_constants[limits::max_root_constant_bytes];                   // optional
     flat_vector<shader_argument, limits::max_shader_arguments> shader_arguments; // optional
+
     handle::pipeline_state pipeline_state = handle::null_pipeline_state;
-    handle::resource vertex_buffer = handle::null_resource; // optional
-    handle::resource index_buffer = handle::null_resource;  // optional
+
+    handle::resource vertex_buffers[limits::max_vertex_buffers] = {handle::null_resource,  // vertex buffers - optional
+                                                                   handle::null_resource,  //
+                                                                   handle::null_resource,  //
+                                                                   handle::null_resource}; //
+    handle::resource index_buffer = handle::null_resource;                                 // optional
 
     /// amount of instances to draw
     uint32_t num_instances = 1;
@@ -168,7 +171,7 @@ PHI_DEFINE_CMD(draw)
     /// location of the first index (or first vertex if no index buffer specified)
     uint32_t index_offset = 0;
     /// added to the vertex index before indexing into the vertex buffer
-    int vertex_offset = 0;
+    int32_t vertex_offset = 0;
 
     /// the scissor rectangle to set, none if -1
     /// left, top, right, bottom of the rectangle in absolute pixel values
@@ -176,11 +179,11 @@ PHI_DEFINE_CMD(draw)
 
 public:
     void init(handle::pipeline_state pso, uint32_t num_ind, handle::resource vb = handle::null_resource, handle::resource ib = handle::null_resource,
-              uint32_t ind_offset = 0, int vert_offset = 0)
+              uint32_t ind_offset = 0, int32_t vert_offset = 0)
     {
         pipeline_state = pso;
         num_indices = num_ind;
-        vertex_buffer = vb;
+        vertex_buffers[0] = vb;
         index_buffer = ib;
         index_offset = ind_offset;
         vertex_offset = vert_offset;
@@ -200,7 +203,7 @@ public:
         std::memcpy(root_constants, &data, sizeof(T));
     }
 
-    void set_scissor(int left, int top, int right, int bot) { scissor = tg::iaabb2({left, top}, {right, bot}); }
+    void set_scissor(int32_t left, int32_t top, int32_t right, int32_t bot) { scissor = tg::iaabb2({left, top}, {right, bot}); }
 };
 
 PHI_DEFINE_CMD(draw_indirect)
@@ -222,8 +225,11 @@ PHI_DEFINE_CMD(draw_indirect)
     uint32_t argument_buffer_offset_bytes = 0; ///< offset in bytes into the argument buffer
     uint32_t num_arguments = 0;                ///< amount of arguments to read from the buffer
 
-    handle::resource vertex_buffer = handle::null_resource; ///< optional
-    handle::resource index_buffer = handle::null_resource;  ///< optional
+    handle::resource vertex_buffers[limits::max_vertex_buffers] = {handle::null_resource,  // vertex buffers - optional
+                                                                   handle::null_resource,  //
+                                                                   handle::null_resource,  //
+                                                                   handle::null_resource}; //
+    handle::resource index_buffer = handle::null_resource;                                 // optional
 
 public:
     void add_shader_arg(handle::resource cbv, uint32_t cbv_off = 0, handle::shader_view sv = handle::null_shader_view)
@@ -623,9 +629,9 @@ PHI_DEFINE_CMD(code_location_marker)
 
     char const* function = "NO_DEBUG_LOCATION";
     char const* file = "NO_DEBUG_LOCATION";
-    int line = 0;
+    int32_t line = 0;
 
-    code_location_marker(char const* func, char const* file, int line) : function(func), file(file), line(line) {}
+    code_location_marker(char const* func, char const* file, int32_t line) : function(func), file(file), line(line) {}
 };
 
 #define PHI_CMD_CODE_LOCATION() \
@@ -691,7 +697,7 @@ public:
 
     bool empty() const { return _cursor == 0; }
 
-    int remaining_bytes() const { return static_cast<int>(_max_size) - static_cast<int>(_cursor); }
+    int32_t remaining_bytes() const { return static_cast<int>(_max_size) - static_cast<int>(_cursor); }
 
     template <class CMDT>
     bool can_accomodate_t() const

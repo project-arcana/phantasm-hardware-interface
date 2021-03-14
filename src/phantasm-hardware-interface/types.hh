@@ -224,9 +224,10 @@ constexpr bool is_valid_format(format fmt) { return fmt > format::none && fmt < 
 /// information about a single vertex attribute
 struct vertex_attribute_info
 {
-    char const* semantic_name;
-    uint32_t offset;
-    format fmt;
+    char const* semantic_name = nullptr;
+    uint32_t offset = 0;
+    format fmt = format::none;
+    uint8_t vertex_buffer_i = 0;
 };
 
 enum class texture_dimension : uint8_t

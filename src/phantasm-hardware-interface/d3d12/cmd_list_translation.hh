@@ -104,6 +104,9 @@ struct command_list_translator
     void execute(cmd::code_location_marker const& marker);
 
 private:
+    void bind_vertex_buffers(handle::resource const vertex_buffers[limits::max_vertex_buffers]);
+
+private:
     // non-owning constant (global)
     translator_global_memory _globals;
 
@@ -120,7 +123,7 @@ private:
     {
         handle::pipeline_state pipeline_state;
         handle::resource index_buffer;
-        handle::resource vertex_buffer;
+        uint64_t vertex_buffer_hash = uint64_t(-1);
 
         ID3D12RootSignature* raw_root_sig;
 
@@ -167,7 +170,7 @@ private:
         {
             pipeline_state = handle::null_pipeline_state;
             index_buffer = handle::null_resource;
-            vertex_buffer = handle::null_resource;
+            vertex_buffer_hash = uint64_t(-1);
 
             set_root_sig(nullptr);
         }

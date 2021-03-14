@@ -124,6 +124,8 @@ struct command_list_translator
     void execute(cmd::code_location_marker const& marker);
 
 private:
+    void bind_vertex_buffers(handle::resource const vertex_buffers[limits::max_vertex_buffers]);
+
     void bind_shader_arguments(handle::pipeline_state pso, std::byte const* root_consts, cc::span<shader_argument const> shader_args, VkPipelineBindPoint bind_point);
 
     VkBuffer get_buffer_or_null(handle::resource buf) const;
@@ -142,7 +144,7 @@ private:
     {
         handle::pipeline_state pipeline_state = handle::null_pipeline_state;
         handle::resource index_buffer = handle::null_resource;
-        handle::resource vertex_buffer = handle::null_resource;
+        uint64_t vertex_buffer_hash = uint64_t(-1);
 
         struct shader_arg_info
         {
@@ -192,7 +194,7 @@ private:
         {
             pipeline_state = handle::null_pipeline_state;
             index_buffer = handle::null_resource;
-            vertex_buffer = handle::null_resource;
+            vertex_buffer_hash = uint64_t(-1);
 
             raw_render_pass = nullptr;
             raw_framebuffer = nullptr;

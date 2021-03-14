@@ -29,6 +29,9 @@ enum limits_e : unsigned
     /// configurable in increments of 4, also concerns CPU memory (cmd::draw, cmd::dispatch)
     max_root_constant_bytes = 16u,
 
+    /// the maximum amount of usable vertex buffers (per drawcall and in a graphics PSO)
+    max_vertex_buffers = 4u,
+
     /// the maximum amount of argument associations
     /// configurable
     max_raytracing_argument_assocs = 8u,
