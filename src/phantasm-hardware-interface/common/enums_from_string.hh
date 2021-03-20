@@ -15,6 +15,7 @@ namespace phi
 #define PHI_LIST_PRIMITIVE_TOPOLOGY(X) X(triangles) X(lines) X(points) X(patches)
 #define PHI_LIST_DEPTH_FUNCTION(X) X(none) X(less) X(less_equal) X(greater) X(greater_equal) X(equal) X(not_equal) X(always) X(never)
 #define PHI_LIST_CULL_MODE(X) X(none) X(back) X(front)
+#define PHI_LIST_PRESENT_MODE(X) X(synced) X(synced_2nd_vblank) X(unsynced) X(unsynced_allow_tearing)
 
 
 #define PHI_X_TOSTRING_CASE(Val, ...) \
@@ -66,4 +67,12 @@ PHI_DECLARE_FROMSTRING(enum_from_string, depth_function, PHI_LIST_DEPTH_FUNCTION
 
 PHI_DECLARE_TOSTRING(enum_to_string, cull_mode, PHI_LIST_CULL_MODE);
 PHI_DECLARE_FROMSTRING(enum_from_string, cull_mode, PHI_LIST_CULL_MODE);
+
+PHI_DECLARE_TOSTRING(enum_to_string, present_mode, PHI_LIST_PRESENT_MODE);
+PHI_DECLARE_FROMSTRING(enum_from_string, present_mode, PHI_LIST_PRESENT_MODE);
+
+#undef PHI_X_TOSTRING_CASE
+#undef PHI_X_FROMSTRING_IF
+#undef PHI_DECLARE_TOSTRING
+#undef PHI_DECLARE_FROMSTRING
 }
