@@ -89,6 +89,7 @@ PHI_DEFINE_CMD(transition_resources)
 
     // Resource state transitions are simplified - only the after-state is given
     // the before state is internally managed, and submit-order-safe
+    //
     // NOTE: the first transition of each resource in a commandlist is implicit,
     // it is inserted last-minute at submission - thus, that resource is in that state
     // not just after the transition, but right away from the beginning of the cmdlist
@@ -109,6 +110,12 @@ PHI_DEFINE_CMD(transition_image_slices)
 {
     // Image slice transitions are entirely explicit, and require the user to synchronize before/after resource states
 
+    // in order to re-synchronize with PHI state caching, use state resets (second field in this command)
+    // example:
+    // 1. cmd::transition_resources: transition X to shader_resource
+    // 2. cmd::transition_image_slices: transition X slice-by-slice to unordered_access
+    // 3. cmd::transition_image_slices: reset X to unordered_access
+
     struct slice_transition_info
     {
         handle::resource resource;
@@ -120,7 +127,16 @@ PHI_DEFINE_CMD(transition_image_slices)
         int32_t array_slice;
     };
 
+    struct state_reset_info
+    {
+        // once a resource is entirely transitioned slice-by-slice, use a state reset to realign it with state caching
+        handle::resource resource;
+        resource_state new_state;
+        shader_stage_flags_t new_dependencies;
+    };
+
     flat_vector<slice_transition_info, limits::max_resource_transitions> transitions;
+    flat_vector<state_reset_info, limits::max_resource_transitions> state_resets;
 
 public:
     /// add a barrier for image [res] subresource at [mip_level] and [array_slice] from state [source] into new state [target]
@@ -136,6 +152,13 @@ public:
     void add(handle::resource res, resource_state source, resource_state target, int32_t level, int32_t slice)
     {
         add(res, source, target, {}, {}, level, slice);
+    }
+
+    /// reset the PHI-internal state of resource [res] to a new state and depending on a new shader stage
+    /// use to re-synchronize with PHI state management after fully transitioning [res] slice-by-slice to a new state
+    void add_state_reset(handle::resource res, resource_state new_state, shader_stage_flags_t new_deps)
+    {
+        state_resets.push_back(state_reset_info{res, new_state, new_deps});
     }
 };
 

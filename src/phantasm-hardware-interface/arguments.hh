@@ -239,18 +239,19 @@ struct texture_description
     uint32_t optimized_clear_value;
 
 public:
-    static texture_description create_tex(phi::format fmt,
-                                          tg::isize2 size,
-                                          uint32_t num_mips = 1,
-                                          phi::texture_dimension dim = phi::texture_dimension::t2d,
-                                          uint32_t depth_or_array_size = 1,
-                                          bool allow_uav = false)
+    [[nodiscard]] static texture_description create_tex(phi::format fmt,
+                                                        tg::isize2 size,
+                                                        uint32_t num_mips = 1,
+                                                        phi::texture_dimension dim = phi::texture_dimension::t2d,
+                                                        uint32_t depth_or_array_size = 1,
+                                                        bool allow_uav = false)
     {
         return texture_description{fmt, dim, allow_uav ? resource_usage_flags::allow_uav : 0, size.width, size.height, depth_or_array_size, num_mips,
                                    1u,  0u};
     }
 
-    static texture_description create_rt(phi::format fmt, tg::isize2 size, uint32_t num_samples = 1, uint32_t array_size = 1, rt_clear_value clear_val = {0.f, 0.f, 0.f, 1.f})
+    [[nodiscard]] static texture_description create_rt(
+        phi::format fmt, tg::isize2 size, uint32_t num_samples = 1, uint32_t array_size = 1, rt_clear_value clear_val = {0.f, 0.f, 0.f, 1.f})
     {
         arg::texture_description res = {};
         res.fmt = fmt;

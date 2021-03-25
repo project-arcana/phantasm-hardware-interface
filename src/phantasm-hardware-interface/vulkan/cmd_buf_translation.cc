@@ -450,6 +450,17 @@ void phi::vk::command_list_translator::execute(const phi::cmd::transition_image_
     }
 
     barriers.record(_cmd_list);
+
+    for (auto const& state_reset : transition_images.state_resets)
+    {
+        auto const after_dep = util::to_pipeline_stage_dependency(state_reset.new_state, util::to_pipeline_stage_flags_bitwise(state_reset.new_dependencies));
+        CC_ASSERT(after_dep != 0 && "Transition shader dependencies must be specified if transitioning to a CBV/SRV/UAV");
+
+        resource_state before;
+        VkPipelineStageFlags before_dep;
+        bool before_known = _state_cache->transition_resource(state_reset.resource, state_reset.new_state, after_dep, before, before_dep);
+        CC_ASSERT(before_known && "state resets require a locally known before-state. transition the resources normally before using slice transitions");
+    }
 }
 
 void phi::vk::command_list_translator::execute(const phi::cmd::barrier_uav& barrier)

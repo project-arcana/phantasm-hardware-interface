@@ -579,6 +579,15 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::transition_ima
     {
         _cmd_list->ResourceBarrier(UINT(barriers.size()), barriers.data());
     }
+
+    for (auto const& state_reset : transition_images.state_resets)
+    {
+        D3D12_RESOURCE_STATES const after = util::to_native(state_reset.new_state);
+        D3D12_RESOURCE_STATES before;
+
+        bool const before_known = _state_cache->transition_resource(state_reset.resource, after, before);
+        CC_ASSERT(before_known && "state resets require a locally known before-state. transition the resources normally before using slice transitions");
+    }
 }
 
 void phi::d3d12::command_list_translator::execute(const phi::cmd::barrier_uav& barrier)
