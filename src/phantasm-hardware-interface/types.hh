@@ -531,7 +531,7 @@ struct pipeline_config
     cull_mode cull = cull_mode::none;
     int32_t samples = 1;
     bool conservative_raster = false;
-    bool frontface_counterclockwise = true;
+    bool frontface_counterclockwise = true; // TODO: this default should be flipped
     bool wireframe = false;
 };
 

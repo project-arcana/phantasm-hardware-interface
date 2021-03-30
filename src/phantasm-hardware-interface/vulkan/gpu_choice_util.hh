@@ -18,7 +18,7 @@ struct vulkan_gpu_info
     VkPhysicalDevice physical_device;
     VkPhysicalDeviceProperties physical_device_props;
     VkPhysicalDeviceMemoryProperties mem_props;
-    lay_ext_set available_layers_extensions;
+    layer_extension_set available_layers_extensions;
     suitable_queues queues;
 
     bool is_suitable = false;

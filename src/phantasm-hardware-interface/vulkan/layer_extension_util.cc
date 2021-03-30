@@ -58,9 +58,9 @@ void phi::vk::write_device_extensions(cc::vector<VkExtensionProperties>& out_ext
     out_extensions.resize(res_count);
 }
 
-phi::vk::lay_ext_set phi::vk::get_available_instance_lay_ext()
+phi::vk::layer_extension_set phi::vk::get_available_instance_lay_ext()
 {
-    lay_ext_set available_res;
+    layer_extension_set available_res;
 
     // Add global instance layer's extensions
     {
@@ -104,9 +104,9 @@ phi::vk::lay_ext_set phi::vk::get_available_instance_lay_ext()
 }
 
 
-phi::vk::lay_ext_set phi::vk::get_available_device_lay_ext(VkPhysicalDevice physical)
+phi::vk::layer_extension_set phi::vk::get_available_device_lay_ext(VkPhysicalDevice physical)
 {
-    lay_ext_set available_res;
+    layer_extension_set available_res;
 
     cc::vector<layer_extension_bundle> layer_extensions;
 
@@ -150,9 +150,9 @@ phi::vk::lay_ext_set phi::vk::get_available_device_lay_ext(VkPhysicalDevice phys
 }
 
 
-phi::vk::lay_ext_array phi::vk::get_used_instance_lay_ext(const phi::vk::lay_ext_set& available, const phi::backend_config& config)
+phi::vk::layer_extension_array phi::vk::get_used_instance_lay_ext(const phi::vk::layer_extension_set& available, const phi::backend_config& config)
 {
-    lay_ext_array used_res;
+    layer_extension_array used_res;
 
     auto const add_layer = [&](char const* layer_name) {
         if (available.layers.contains(layer_name))
@@ -226,9 +226,9 @@ phi::vk::lay_ext_array phi::vk::get_used_instance_lay_ext(const phi::vk::lay_ext
     return used_res;
 }
 
-phi::vk::lay_ext_array phi::vk::get_used_device_lay_ext(const phi::vk::lay_ext_set& available, const phi::backend_config& config, bool& has_raytracing, bool& has_conservative_raster)
+phi::vk::layer_extension_array phi::vk::get_used_device_lay_ext(const phi::vk::layer_extension_set& available, const phi::backend_config& config, bool& has_raytracing, bool& has_conservative_raster)
 {
-    lay_ext_array used_res;
+    layer_extension_array used_res;
 
     [[maybe_unused]] auto const f_add_layer = [&](char const* layer_name) {
         if (available.layers.contains(layer_name))

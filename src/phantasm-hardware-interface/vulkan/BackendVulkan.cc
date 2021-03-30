@@ -59,10 +59,10 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg)
 
     VkApplicationInfo app_info = {};
     app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    app_info.pApplicationName = "phantasm-hardware-interface application";
+    app_info.pApplicationName = "Phantasm Hardware Interface Application";
     app_info.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-    app_info.pEngineName = "phantasm-hardware-interface";
-    app_info.engineVersion = VK_MAKE_VERSION(1, 0, 0);
+    app_info.pEngineName = "Phantasm Hardware Interface";
+    app_info.engineVersion = VK_MAKE_VERSION(1, 2, 0);
     app_info.apiVersion = VK_API_VERSION_1_1;
 
     VkInstanceCreateInfo instance_info = {};
@@ -73,14 +73,9 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg)
     instance_info.enabledLayerCount = uint32_t(active_lay_ext.layers.size());
     instance_info.ppEnabledLayerNames = active_lay_ext.layers.empty() ? nullptr : active_lay_ext.layers.data();
 
-#ifdef VK_VALIDATION_FEATURE_ENABLE_BEST_PRACTICES_EXT
-    cc::array<VkValidationFeatureEnableEXT, 3> extended_validation_enables
+    VkValidationFeatureEnableEXT extended_validation_enables[]
         = {VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT, VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_RESERVE_BINDING_SLOT_EXT,
            VK_VALIDATION_FEATURE_ENABLE_BEST_PRACTICES_EXT};
-#else
-    cc::array<VkValidationFeatureEnableEXT, 2> extended_validation_enables
-        = {VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT, VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_RESERVE_BINDING_SLOT_EXT};
-#endif
 
     VkValidationFeaturesEXT extended_validation_features = {};
 
@@ -88,8 +83,8 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg)
     {
         // enable GPU-assisted validation
         extended_validation_features.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT;
-        extended_validation_features.enabledValidationFeatureCount = static_cast<uint32_t>(extended_validation_enables.size());
-        extended_validation_features.pEnabledValidationFeatures = extended_validation_enables.data();
+        extended_validation_features.enabledValidationFeatureCount = CC_COUNTOF(extended_validation_enables);
+        extended_validation_features.pEnabledValidationFeatures = extended_validation_enables;
 
         instance_info.pNext = &extended_validation_features;
     }
