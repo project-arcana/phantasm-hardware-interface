@@ -139,22 +139,7 @@ void phi::d3d12::Device::destroy()
             PHI_LOG("destroying ID3D12Device, spurious crash at shutdown might be imminent");
             PHI_LOG("device destruction can be skipped by enabling d3d12_workaround_device_release_crash in the backend config native features");
 
-            try
-            {
-                detail::perform_safe_seh_call(
-                    [&] {
-                        //
-                        PHI_D3D12_SAFE_RELEASE(mDevice);
-                    },
-                    [&] {
-                        //
-                        PHI_LOG_WARN("survived a crash in SEH __try/__except");
-                    });
-            }
-            catch (...)
-            {
-                PHI_LOG_WARN("survived a crash in try/catch");
-            }
+            PHI_D3D12_SAFE_RELEASE(mDevice);
         }
         else
         {
