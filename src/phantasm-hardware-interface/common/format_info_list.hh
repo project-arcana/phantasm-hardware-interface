@@ -38,6 +38,9 @@ enum format_property_flags_e
     X(rgba16f, 4, 8, efp_none, DXGI_FORMAT_R16G16B16A16_FLOAT, VK_FORMAT_R16G16B16A16_SFLOAT, 0x00)                          \
     X(rg16f, 2, 4, efp_none, DXGI_FORMAT_R16G16_FLOAT, VK_FORMAT_R16G16_SFLOAT, 0x00)                                        \
     X(r16f, 1, 2, efp_none, DXGI_FORMAT_R16_FLOAT, VK_FORMAT_R16_SFLOAT, 0x00)                                               \
+    X(rgba16un, 4, 8, efp_none, DXGI_FORMAT_R16G16B16A16_UNORM, VK_FORMAT_R16G16B16A16_UNORM, 0x00)                          \
+    X(rg16un, 2, 4, efp_none, DXGI_FORMAT_R16G16_UNORM, VK_FORMAT_R16G16_UNORM, 0x00)                                        \
+    X(r16un, 1, 2, efp_none, DXGI_FORMAT_R16_UNORM, VK_FORMAT_R16_UNORM, 0x00)                                               \
     X(rgba8i, 4, 4, efp_none, DXGI_FORMAT_R8G8B8A8_SINT, VK_FORMAT_R8G8B8A8_SINT, 0x00)                                      \
     X(rg8i, 2, 2, efp_none, DXGI_FORMAT_R8G8_SINT, VK_FORMAT_R8G8_SINT, 0x00)                                                \
     X(r8i, 1, 1, efp_none, DXGI_FORMAT_R8_SINT, VK_FORMAT_R8_SINT, 0x00)                                                     \

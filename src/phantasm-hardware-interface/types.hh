@@ -166,6 +166,10 @@ enum class format : uint8_t
     rg16f,
     r16f,
 
+    rgba16un,
+    rg16un,
+    r16un,
+
     rgba8i,
     rg8i,
     r8i,
