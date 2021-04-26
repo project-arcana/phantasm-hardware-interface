@@ -72,8 +72,7 @@ void phi::d3d12::BackendD3D12::initialize(const phi::backend_config& config)
             mShaderTableCtor.initialize(device, &mPoolShaderViews, &mPoolResources, &mPoolPSOs, &mPoolAccelStructs);
         }
 
-        mPoolSwapchains.initialize(&mAdapter.getFactory(), device, config.present_from_compute_queue ? mComputeQueue.command_queue : mDirectQueue.command_queue,
-                                   config.max_num_swapchains, config.static_allocator);
+        mPoolSwapchains.initialize(&mAdapter.getFactory(), device, mDirectQueue.command_queue, config.max_num_swapchains, config.static_allocator);
     }
 
     // Per-thread components and command list pool

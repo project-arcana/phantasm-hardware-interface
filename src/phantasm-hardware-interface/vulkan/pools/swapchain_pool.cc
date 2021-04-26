@@ -211,8 +211,10 @@ void phi::vk::SwapchainPool::initialize(VkInstance instance, const phi::vk::Devi
     mInstance = instance;
     mDevice = device.getDevice();
     mPhysicalDevice = device.getPhysicalDevice();
-    mPresentQueue = config.present_from_compute_queue ? device.getRawQueue(queue_type::compute) : device.getRawQueue(queue_type::direct);
-    mPresentQueueFamilyIndex = config.present_from_compute_queue ? device.getQueueFamilyCompute() : device.getQueueFamilyDirect();
+
+    bool presentFromCompute = (config.native_features & phi::backend_config::native_feature_vk_present_from_compute) != 0;
+    mPresentQueue = presentFromCompute ? device.getRawQueue(queue_type::compute) : device.getRawQueue(queue_type::direct);
+    mPresentQueueFamilyIndex = presentFromCompute ? device.getQueueFamilyCompute() : device.getQueueFamilyDirect();
 
     mPool.initialize(config.max_num_swapchains, config.static_allocator);
 

@@ -121,17 +121,17 @@ private:
     // dynamic state
     struct
     {
-        handle::pipeline_state pipeline_state;
-        handle::resource index_buffer;
+        handle::pipeline_state pipeline_state = handle::null_pipeline_state;
+        handle::resource index_buffer = handle::null_resource;
         uint64_t vertex_buffer_hash = uint64_t(-1);
 
-        ID3D12RootSignature* raw_root_sig;
+        ID3D12RootSignature* raw_root_sig = nullptr;
 
         struct shader_arg_info
         {
-            handle::shader_view sv;
-            handle::resource cbv;
-            unsigned cbv_offset;
+            handle::shader_view sv = handle::null_shader_view;
+            handle::resource cbv = handle::null_resource;
+            unsigned cbv_offset = 0;
 
             void reset()
             {
