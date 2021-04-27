@@ -226,7 +226,10 @@ phi::vk::layer_extension_array phi::vk::get_used_instance_lay_ext(const phi::vk:
     return used_res;
 }
 
-phi::vk::layer_extension_array phi::vk::get_used_device_lay_ext(const phi::vk::layer_extension_set& available, const phi::backend_config& config, bool& has_raytracing, bool& has_conservative_raster)
+phi::vk::layer_extension_array phi::vk::get_used_device_lay_ext(const phi::vk::layer_extension_set& available,
+                                                                const phi::backend_config& config,
+                                                                bool& has_raytracing,
+                                                                bool& has_conservative_raster)
 {
     layer_extension_array used_res;
 
