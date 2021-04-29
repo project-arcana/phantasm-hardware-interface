@@ -642,6 +642,8 @@ void phi::vk::command_list_translator::execute(const phi::cmd::end_debug_label&)
 
 void phi::vk::command_list_translator::execute(cmd::begin_profile_scope const& scope)
 {
+    (void)scope;
+
 #ifdef PHI_HAS_OPTICK
     if (_current_optick_event)
     {

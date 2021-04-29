@@ -104,6 +104,11 @@ if (NOT MSVC)
     find_package(Threads REQUIRED)
 
     target_link_libraries(phantasm-hardware-interface PRIVATE -lX11 Threads::Threads -ldl)
+
+    # Enable SSE 4.2 (available starting from Intel Nehalem (Nov 2008) and AMD Bulldozer (Oct 2011))
+    # Used in sse_hash.hh
+    # Could be made optional if necessary
+    target_compile_options(phantasm-hardware-interface PRIVATE -msse4.2)
 endif()
 
 # =========================================
