@@ -257,7 +257,7 @@ void phi::vk::AccelStructPool::moveGeometriesToAS(phi::handle::accel_struct as, 
 
 void phi::vk::AccelStructPool::internalFree(phi::vk::AccelStructPool::accel_struct_node& node)
 {
-    cc::array const buffers_to_free = {node.buffer_as, node.buffer_scratch};
+    handle::resource const buffers_to_free[] = {node.buffer_as, node.buffer_scratch};
     mResourcePool->free(buffers_to_free);
 
     vkDestroyAccelerationStructureNV(mDevice, node.raw_as, nullptr);
