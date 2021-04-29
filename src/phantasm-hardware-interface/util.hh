@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <clean-core/bits.hh>
 #include <clean-core/utility.hh>
 
@@ -26,7 +28,7 @@ constexpr tg::isize2 get_mip_size(tg::isize2 size, int mip_level)
 }
 
 /// returns the amount of levels in a full mip chain for a texture of the given size
-inline int get_num_mips(int width, int height) { return int(cc::bit_log2(cc::uint32(cc::max(width, height)))) + 1; }
+inline int get_num_mips(int width, int height) { return int(cc::bit_log2(uint32_t(cc::max(width, height)))) + 1; }
 inline int get_num_mips(tg::isize2 size) { return get_num_mips(size.width, size.height); }
 
 /// returns the amount of bytes needed to store the contents of a texture in a GPU buffer

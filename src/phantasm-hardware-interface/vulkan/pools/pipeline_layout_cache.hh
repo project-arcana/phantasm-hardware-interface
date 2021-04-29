@@ -53,7 +53,7 @@ private:
 
     struct pipeline_layout_hasher
     {
-        cc::hash_t operator()(pipeline_layout_key_readonly const& v) const noexcept
+        uint64_t operator()(pipeline_layout_key_readonly const& v) const noexcept
         {
             size_t res = cc::make_hash(v.has_push_constants);
             for (auto const& elem : v.ranges)
@@ -64,7 +64,7 @@ private:
             return res;
         }
 
-        cc::hash_t operator()(pipeline_layout_key const& v) const noexcept
+        uint64_t operator()(pipeline_layout_key const& v) const noexcept
         {
             size_t res = cc::make_hash(v.has_push_constants);
             for (auto const& elem : v.ranges)
