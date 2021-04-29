@@ -24,7 +24,7 @@
 
 namespace phi::d3d12
 {
-class BackendD3D12 final : public Backend
+class PHI_API BackendD3D12 final : public Backend
 {
 public:
     void initialize(backend_config const& config) override;
@@ -43,7 +43,7 @@ public:
     [[nodiscard]] handle::swapchain createSwapchain(window_handle const& window_handle,
                                                     tg::isize2 initial_size,
                                                     present_mode mode = present_mode::synced,
-                                                    unsigned num_backbuffers = 3) override;
+                                                    uint32_t num_backbuffers = 3) override;
 
     void free(handle::swapchain sc) override;
 
@@ -57,7 +57,7 @@ public:
         return {node.backbuf_width, node.backbuf_height};
     }
     format getBackbufferFormat(handle::swapchain sc) const override;
-    unsigned getNumBackbuffers(handle::swapchain sc) const override { return unsigned(mPoolSwapchains.get(sc).backbuffers.size()); }
+    uint32_t getNumBackbuffers(handle::swapchain sc) const override { return uint32_t(mPoolSwapchains.get(sc).backbuffers.size()); }
 
     [[nodiscard]] bool clearPendingResize(handle::swapchain sc) override { return mPoolSwapchains.clearResizeFlag(sc); }
 
@@ -65,19 +65,9 @@ public:
     // Resource interface
     //
 
-    [[nodiscard]] handle::resource createTexture(
-        phi::format format, tg::isize2 size, unsigned mips, texture_dimension dim, unsigned depth_or_array_size, bool allow_uav, char const* debug_name = nullptr) override;
+    [[nodiscard]] handle::resource createTexture(arg::texture_description const& desc, char const* debug_name = nullptr) override;
 
-    [[nodiscard]] handle::resource createRenderTarget(phi::format format,
-                                                      tg::isize2 size,
-                                                      unsigned samples,
-                                                      unsigned array_size,
-                                                      rt_clear_value const* optimized_clear_val = nullptr,
-                                                      char const* debug_name = nullptr) override;
-
-    [[nodiscard]] handle::resource createBuffer(unsigned int size_bytes, unsigned int stride_bytes, resource_heap heap, bool allow_uav, char const* debug_name = nullptr) override;
-
-    [[nodiscard]] handle::resource createUploadBuffer(unsigned size_bytes, unsigned stride_bytes = 0, char const* debug_name = nullptr) override;
+    [[nodiscard]] handle::resource createBuffer(arg::buffer_description const& desc, char const* debug_name = nullptr) override;
 
     [[nodiscard]] std::byte* mapBuffer(handle::resource res, int begin = 0, int end = -1) override;
 
@@ -95,7 +85,15 @@ public:
     [[nodiscard]] handle::shader_view createShaderView(cc::span<resource_view const> srvs,
                                                        cc::span<resource_view const> uavs,
                                                        cc::span<sampler_config const> samplers,
-                                                       bool /*usage_compute*/) override;
+                                                       bool usage_compute) override;
+
+    [[nodiscard]] handle::shader_view createEmptyShaderView(uint32_t num_srvs_uavs, uint32_t num_samplers, bool usage_compute) override;
+
+    void writeShaderViewSRVs(handle::shader_view sv, uint32_t offset, cc::span<resource_view const> srvs) override;
+
+    void writeShaderViewUAVs(handle::shader_view sv, uint32_t offset, cc::span<resource_view const> uavs) override;
+
+    void writeShaderViewSamplers(handle::shader_view sv, uint32_t offset, cc::span<sampler_config const> samplers) override;
 
     void free(handle::shader_view sv) override;
 
@@ -110,13 +108,18 @@ public:
                                                              arg::shader_arg_shapes shader_arg_shapes,
                                                              bool has_root_constants,
                                                              arg::graphics_shaders shaders,
-                                                             phi::pipeline_config const& primitive_config) override;
+                                                             phi::pipeline_config const& primitive_config,
+                                                             char const* debug_name = nullptr) override;
 
-    [[nodiscard]] handle::pipeline_state createPipelineState(arg::graphics_pipeline_state_desc const& description) override;
+    [[nodiscard]] handle::pipeline_state createPipelineState(arg::graphics_pipeline_state_description const& description, char const* debug_name = nullptr) override;
 
-    [[nodiscard]] handle::pipeline_state createComputePipelineState(arg::shader_arg_shapes shader_arg_shapes, arg::shader_binary shader, bool has_root_constants) override;
+    [[nodiscard]] handle::pipeline_state createComputePipelineState(arg::shader_arg_shapes shader_arg_shapes,
+                                                                    arg::shader_binary shader,
+                                                                    bool has_root_constants,
+                                                                    char const* debug_name = nullptr) override;
 
-    [[nodiscard]] handle::pipeline_state createComputePipelineState(arg::compute_pipeline_state_desc const& description) override;
+    [[nodiscard]] handle::pipeline_state createComputePipelineState(arg::compute_pipeline_state_description const& description,
+                                                                    char const* debug_name = nullptr) override;
 
     void free(handle::pipeline_state ps) override;
 
@@ -156,7 +159,7 @@ public:
     // Query interface
     //
 
-    [[nodiscard]] handle::query_range createQueryRange(query_type type, unsigned int size) override;
+    [[nodiscard]] handle::query_range createQueryRange(query_type type, uint32_t size) override;
 
     void free(handle::query_range query_range) override;
 
@@ -164,9 +167,9 @@ public:
     // Raytracing interface
     //
 
-    [[nodiscard]] handle::pipeline_state createRaytracingPipelineState(arg::raytracing_pipeline_state_desc const& description) override;
+    [[nodiscard]] handle::pipeline_state createRaytracingPipelineState(arg::raytracing_pipeline_state_description const& description) override;
 
-    [[nodiscard]] handle::accel_struct createTopLevelAccelStruct(unsigned num_instances, accel_struct_build_flags_t flags) override;
+    [[nodiscard]] handle::accel_struct createTopLevelAccelStruct(uint32_t num_instances, accel_struct_build_flags_t flags) override;
 
     [[nodiscard]] handle::accel_struct createBottomLevelAccelStruct(cc::span<arg::blas_element const> elements,
                                                                     accel_struct_build_flags_t flags,
@@ -179,7 +182,7 @@ public:
                                                                    arg::shader_table_records hit_group_records,
                                                                    arg::shader_table_records callable_records = {}) override;
 
-    void writeShaderTable(std::byte* dest, handle::pipeline_state pso, unsigned stride, arg::shader_table_records records) override;
+    void writeShaderTable(std::byte* dest, handle::pipeline_state pso, uint32_t stride, arg::shader_table_records records) override;
 
     void free(handle::accel_struct as) override;
 
@@ -204,17 +207,24 @@ public:
 
     backend_type getBackendType() const override { return backend_type::d3d12; }
 
+    gpu_info const& getGPUInfo() const override { return mAdapter.getGPUInfo(); }
+
 public:
-    // backend-internal
+    // non virtual - d3d12 specific
 
-    [[nodiscard]] ID3D12Device5* getDevice5() { return mDevice.getDevice(); }
-    [[nodiscard]] ID3D12CommandQueue& getDirectQueue() { return *mDirectQueue.command_queue; }
+    ID3D12Device5* nativeGetDevice() { return mDevice.getDevice(); }
+    ID3D12CommandQueue* nativeGetDirectQueue() { return mDirectQueue.command_queue; }
+    ID3D12CommandQueue* nativeGetCopyQueue() { return mCopyQueue.command_queue; }
+    ID3D12CommandQueue* nativeGetComputeQueue() { return mComputeQueue.command_queue; }
 
+    ID3D12Resource* nativeGetResource(handle::resource res) { return mPoolResources.getRawResource(res); }
+    IDXGISwapChain3* nativeGetSwapchain(handle::swapchain sc) { return mPoolSwapchains.get(sc).swapchain_com; }
+    ID3D12GraphicsCommandList5* nativeGetCommandList(handle::command_list cl) { return mPoolCmdLists.getRawList(cl); }
 
 private:
-    ID3D12CommandQueue& getQueueByType(queue_type type) const
+    ID3D12CommandQueue* getQueueByType(queue_type type) const
     {
-        return (type == queue_type::direct ? *mDirectQueue.command_queue : (type == queue_type::compute ? *mComputeQueue.command_queue : *mCopyQueue.command_queue));
+        return (type == queue_type::direct ? mDirectQueue.command_queue : (type == queue_type::compute ? mComputeQueue.command_queue : mCopyQueue.command_queue));
     }
 
     struct per_thread_component;
@@ -245,10 +255,11 @@ private:
 
     // Logic
     per_thread_component* mThreadComponents;
-    unsigned mNumThreadComponents;
+    uint32_t mNumThreadComponents;
     void* mThreadComponentAlloc;
     phi::thread_association mThreadAssociation;
     ShaderTableConstructor mShaderTableCtor;
+    cc::allocator* mDynamicAllocator;
 
     // Misc
     util::diagnostic_state mDiagnostics;

@@ -47,7 +47,6 @@ D3D12MA::Allocation* phi::d3d12::ResourceAllocator::allocate(const D3D12_RESOURC
     allocation_desc.HeapType = heap_type;
 
     D3D12MA::Allocation* res;
-    auto const hr = mAllocator->CreateResource(&allocation_desc, &desc, initial_state, clear_value, &res, __uuidof(ID3D12Resource), nullptr);
-    PHI_D3D12_ASSERT_FULL(hr, mDevice);
+    PHI_D3D12_VERIFY_FULL(mAllocator->CreateResource(&allocation_desc, &desc, initial_state, clear_value, &res, __uuidof(ID3D12Resource), nullptr), mDevice);
     return res;
 }

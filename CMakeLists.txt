@@ -12,14 +12,17 @@ endif()
 option(PHI_BACKEND_VULKAN "enable Vulkan backend" ON)
 option(PHI_BACKEND_D3D12 "enable DirectX 12 backend" ON)
 
-# If disabled, cmd::debug_marker is ignored
-option(PHI_ENABLE_DEBUG_MARKERS "enable API debug markers" ON)
-
 # Enables PIX detection, marker support and capture forcing
 # requires WinPixEventRuntime.dll to be available to the executable (in the same folder)
 # this dll is included in extern/win32_pix_runtime/bin/ and is automatically copied if enabled
 option(PHI_ENABLE_D3D12_PIX "enable DirectX 12 PIX integration" ON)
+
+# Enables support for surface creation from SDL_Window*
 option(PHI_ENABLE_SDL2 "enable SDL2 integration" ON)
+
+# Enables Optick profiler GPU integration
+# Set GPU scopes via cmd::begin_profile_scope and cmd::end_profile_scope
+option(PHI_ENABLE_OPTICK "enable Optick profiler integration" OFF)
 
 # =========================================
 # post-process options
@@ -91,10 +94,6 @@ target_link_libraries(phantasm-hardware-interface PUBLIC
     rich-log
 )
 
-if (PHI_ENABLE_DEBUG_MARKERS)
-    target_compile_definitions(phantasm-hardware-interface PUBLIC PHI_ENABLE_DEBUG_MARKERS)
-endif()
-
 
 # =========================================
 # set up compile flags
@@ -152,10 +151,20 @@ endif()
 
 if (PHI_ENABLE_SDL2)
     if (NOT TARGET sdl2)
-        message(FATAL_ERROR "[phantasm hardware interface] no target sdl2 found (wrong add_subdirectory order?)")
+        message(FATAL_ERROR "[phantasm hardware interface] PHI_ENABLE_SDL2 is active, but target sdl2 can't be found (wrong add_subdirectory order?)")
     endif()
 
     message(STATUS "[phantasm hardware interface] SDL2 support enabled")
     target_link_libraries(phantasm-hardware-interface PUBLIC sdl2)
     target_compile_definitions(phantasm-hardware-interface PUBLIC PHI_HAS_SDL2)
+endif()
+
+if (PHI_ENABLE_OPTICK)
+    if (NOT TARGET OptickCore)
+        message(FATAL_ERROR "[phantasm hardware interface] PHI_ENABLE_OPTICK is active, but target OptickCore can't be found (wrong add_subdirectory order?)")
+    endif()
+    
+    message(STATUS "[phantasm hardware interface] Optick support enabled")
+    target_link_libraries(phantasm-hardware-interface PUBLIC OptickCore)
+    target_compile_definitions(phantasm-hardware-interface PUBLIC PHI_HAS_OPTICK)
 endif()

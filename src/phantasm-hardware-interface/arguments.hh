@@ -4,7 +4,9 @@
 
 #include <typed-geometry/types/size.hh>
 
+#include <phantasm-hardware-interface/common/byte_util.hh>
 #include <phantasm-hardware-interface/common/container/flat_vector.hh>
+#include <phantasm-hardware-interface/common/format_size.hh>
 
 #include "limits.hh"
 #include "types.hh"
@@ -36,20 +38,22 @@ public:
 
 struct vertex_format
 {
+    // vertex attribute descriptions
     cc::span<vertex_attribute_info const> attributes;
-    unsigned vertex_size_bytes = 0;
+    // vertex data size in bytes, per vertex buffer (leave at 0 if none)
+    uint32_t vertex_sizes_bytes[limits::max_vertex_buffers] = {};
 };
 
 /// A shader argument consists of SRVs, UAVs, an optional CBV, and an offset into it
 struct shader_arg_shape
 {
-    unsigned num_srvs = 0;
-    unsigned num_uavs = 0;
-    unsigned num_samplers = 0;
+    uint32_t num_srvs = 0;
+    uint32_t num_uavs = 0;
+    uint32_t num_samplers = 0;
     bool has_cbv = false;
 
 public:
-    shader_arg_shape(unsigned srvs, unsigned uavs = 0, unsigned samplers = 0, bool cbv = false)
+    constexpr shader_arg_shape(uint32_t srvs, uint32_t uavs = 0, uint32_t samplers = 0, bool cbv = false)
       : num_srvs(srvs), num_uavs(uavs), num_samplers(samplers), has_cbv(cbv)
     {
     }
@@ -79,7 +83,7 @@ struct graphics_shader
 /// A graphics shader bundle consists of up to 1 shader per graphics stage
 using graphics_shaders = cc::span<graphics_shader const>;
 
-struct graphics_pipeline_state_desc
+struct graphics_pipeline_state_description
 {
     pipeline_config config;
     framebuffer_config framebuffer;
@@ -90,7 +94,7 @@ struct graphics_pipeline_state_desc
     bool has_root_constants = false;
 };
 
-struct compute_pipeline_state_desc
+struct compute_pipeline_state_description
 {
     shader_binary shader;
     flat_vector<shader_arg_shape, limits::max_shader_arguments> shader_arg_shapes;
@@ -100,13 +104,24 @@ struct compute_pipeline_state_desc
 /// an element in a bottom-level acceleration strucutre
 struct blas_element
 {
-    handle::resource vertex_buffer = handle::null_resource;
-    handle::resource index_buffer = handle::null_resource; ///< optional
-    unsigned num_vertices = 0;
-    unsigned num_indices = 0;
-    handle::resource transform_buffer = handle::null_resource; ///< optional
-    unsigned transform_buffer_offset_bytes = 0;
+    /// the vertex buffer containing positions
+    buffer_address vertex_addr;
+    /// amount of vertices to use
+    uint32_t num_vertices = 0;
+    /// the vertex position format
+    /// positions must come first in the vertex struct
     format vertex_pos_format = format::rgb32f;
+
+    /// the index buffer to use, optional
+    buffer_address index_addr;
+    /// amount of indices to read
+    uint32_t num_indices = 0;
+
+    /// location in a buffer containing a 3x4 affine transform matrix (row major), optional
+    buffer_address transform_addr;
+
+    /// if true, the geometry acts as if no any-hit shader is present when hit
+    /// enable wherever possible (can be overriden using flags in TraceRay)
     bool is_opaque = true;
 };
 
@@ -136,7 +151,7 @@ struct raytracing_argument_association
     e_arg_association_target target_type = e_target_identifiable_shader;
     /// order corresponds to the order of exports/hitgroups at PSO creation
     /// NOTE: identifiable shaders are indexed contiguously across libraries, and non-identifiable shaders are skipped
-    flat_vector<unsigned, 16> target_indices;
+    flat_vector<uint32_t, 16> target_indices;
 
     flat_vector<shader_arg_shape, limits::max_shader_arguments> argument_shapes;
     bool has_root_constants = false;
@@ -145,7 +160,7 @@ public:
     void set_target_identifiable() { target_type = e_target_identifiable_shader; }
     void set_target_hitgroup() { target_type = e_target_hitgroup; }
 
-    void add_shader_arg(unsigned num_srvs, unsigned num_uavs, unsigned num_samplers, bool has_cbv)
+    void add_shader_arg(uint32_t num_srvs, uint32_t num_uavs, uint32_t num_samplers, bool has_cbv)
     {
         argument_shapes.push_back(shader_arg_shape{num_srvs, num_uavs, num_samplers, has_cbv});
     }
@@ -162,15 +177,15 @@ struct raytracing_hit_group
     int intersection_export_index = -1; ///< optional
 };
 
-struct raytracing_pipeline_state_desc
+struct raytracing_pipeline_state_description
 {
     cc::span<raytracing_shader_library const> libraries;
     cc::span<raytracing_argument_association const> argument_associations;
     cc::span<raytracing_hit_group const> hit_groups;
 
-    unsigned max_recursion = 0;
-    unsigned max_payload_size_bytes = 0;
-    unsigned max_attribute_size_bytes = 0;
+    uint32_t max_recursion = 0;
+    uint32_t max_payload_size_bytes = 0;
+    uint32_t max_attribute_size_bytes = 0;
 };
 
 struct shader_table_record
@@ -185,25 +200,25 @@ struct shader_table_record
     e_table_record_target target_type = e_target_identifiable_shader;
     /// order corresponds to the order of exports/hitgroups at PSO creation
     /// NOTE: identifiable shaders are indexed contiguously across libraries, and non-identifiable shaders are skipped
-    unsigned target_index = 0;
+    uint32_t target_index = 0;
 
     void const* root_arg_data = nullptr; ///< optional, data of the root constant data
-    unsigned root_arg_size_bytes = 0;    ///< size of the root constant data
+    uint32_t root_arg_size_bytes = 0;    ///< size of the root constant data
     flat_vector<shader_argument, limits::max_shader_arguments> shader_arguments;
 
-    void set_shader(unsigned index)
+    void set_shader(uint32_t index)
     {
         target_type = e_target_identifiable_shader;
         target_index = index;
     }
 
-    void set_hitgroup(unsigned index)
+    void set_hitgroup(uint32_t index)
     {
         target_type = e_target_hitgroup;
         target_index = index;
     }
 
-    void add_shader_arg(handle::resource cbv, unsigned cbv_off = 0, handle::shader_view sv = handle::null_shader_view)
+    void add_shader_arg(handle::resource cbv, uint32_t cbv_off = 0, handle::shader_view sv = handle::null_shader_view)
     {
         shader_arguments.push_back(shader_argument{cbv, sv, cbv_off});
     }
@@ -211,79 +226,79 @@ struct shader_table_record
 
 // resource creation info
 
-struct create_render_target_info
-{
-    phi::format format;
-    int width;
-    int height;
-    unsigned num_samples;
-    unsigned array_size;
-    rt_clear_value clear_value;
-
-public:
-    static create_render_target_info create(
-        phi::format fmt, tg::isize2 size, unsigned num_samples = 1, unsigned array_size = 1, rt_clear_value clear_val = {0.f, 0.f, 0.f, 1.f})
-    {
-        return create_render_target_info{fmt, size.width, size.height, num_samples, array_size, clear_val};
-    }
-    constexpr bool operator==(create_render_target_info const& rhs) const noexcept
-    {
-        return format == rhs.format && width == rhs.width && height == rhs.height && num_samples == rhs.num_samples && array_size == rhs.array_size;
-    }
-};
-
-struct create_texture_info
+struct texture_description
 {
     phi::format fmt;
     phi::texture_dimension dim;
-    bool allow_uav;
+    resource_usage_flags_t usage;
     int width;
     int height;
-    unsigned depth_or_array_size;
-    unsigned num_mips;
+    uint32_t depth_or_array_size;
+    uint32_t num_mips;
+    uint32_t num_samples;
+    uint32_t optimized_clear_value;
 
 public:
-    static create_texture_info create(phi::format fmt,
-                                      tg::isize2 size,
-                                      unsigned num_mips = 1,
-                                      phi::texture_dimension dim = phi::texture_dimension::t2d,
-                                      unsigned depth_or_array_size = 1,
-                                      bool allow_uav = false)
+    [[nodiscard]] static texture_description create_tex(phi::format fmt,
+                                                        tg::isize2 size,
+                                                        uint32_t num_mips = 1,
+                                                        phi::texture_dimension dim = phi::texture_dimension::t2d,
+                                                        uint32_t depth_or_array_size = 1,
+                                                        bool allow_uav = false)
     {
-        return create_texture_info{fmt, dim, allow_uav, size.width, size.height, depth_or_array_size, num_mips};
+        return texture_description{fmt, dim, allow_uav ? resource_usage_flags::allow_uav : 0, size.width, size.height, depth_or_array_size, num_mips,
+                                   1u,  0u};
     }
 
-    constexpr bool operator==(create_texture_info const& rhs) const noexcept
+    [[nodiscard]] static texture_description create_rt(
+        phi::format fmt, tg::isize2 size, uint32_t num_samples = 1, uint32_t array_size = 1, rt_clear_value clear_val = {0.f, 0.f, 0.f, 1.f})
     {
-        return fmt == rhs.fmt && dim == rhs.dim && allow_uav == rhs.allow_uav && width == rhs.width && height == rhs.height
-               && depth_or_array_size == rhs.depth_or_array_size && num_mips == rhs.num_mips;
+        arg::texture_description res = {};
+        res.fmt = fmt;
+        res.dim = texture_dimension::t2d;
+        res.usage = util::is_depth_format(fmt) ? resource_usage_flags::allow_depth_stencil : resource_usage_flags::allow_render_target;
+        res.width = size.width;
+        res.height = size.height;
+        res.depth_or_array_size = array_size;
+        res.num_mips = 1;
+        res.num_samples = num_samples;
+
+        res.usage |= resource_usage_flags::use_optimized_clear_value;
+        res.optimized_clear_value = util::pack_rgba8(clear_val.red_or_depth, clear_val.green_or_stencil, clear_val.blue, clear_val.alpha);
+
+        return res;
+    }
+
+    constexpr bool operator==(texture_description const& rhs) const noexcept
+    {
+        return fmt == rhs.fmt && dim == rhs.dim && usage == rhs.usage && width == rhs.width && height == rhs.height && depth_or_array_size == rhs.depth_or_array_size
+               && num_mips == rhs.num_mips && num_samples == rhs.num_samples && optimized_clear_value == rhs.optimized_clear_value;
     }
 };
 
-struct create_buffer_info
+struct buffer_description
 {
-    unsigned size_bytes;
-    unsigned stride_bytes;
+    uint32_t size_bytes;
+    uint32_t stride_bytes;
     bool allow_uav;
     phi::resource_heap heap;
 
 public:
-    static create_buffer_info create(unsigned size_bytes, unsigned stride_bytes, phi::resource_heap heap = phi::resource_heap::gpu, bool allow_uav = false)
+    static buffer_description create(uint32_t size_bytes, uint32_t stride_bytes, phi::resource_heap heap = phi::resource_heap::gpu, bool allow_uav = false)
     {
-        return create_buffer_info{size_bytes, stride_bytes, allow_uav, heap};
+        return buffer_description{size_bytes, stride_bytes, allow_uav, heap};
     }
-    constexpr bool operator==(create_buffer_info const& rhs) const noexcept
+    constexpr bool operator==(buffer_description const& rhs) const noexcept
     {
         return size_bytes == rhs.size_bytes && stride_bytes == rhs.stride_bytes && allow_uav == rhs.allow_uav && heap == rhs.heap;
     }
 };
 
-struct create_resource_info
+struct resource_description
 {
     enum e_resource_type
     {
         e_resource_undefined,
-        e_resource_render_target,
         e_resource_texture,
         e_resource_buffer
     };
@@ -291,55 +306,47 @@ struct create_resource_info
     e_resource_type type = e_resource_undefined;
 
     union {
-        create_render_target_info info_render_target;
-        create_texture_info info_texture;
-        create_buffer_info info_buffer;
+        texture_description info_texture;
+        buffer_description info_buffer;
     };
 
 public:
     // static convenience
 
-    static create_resource_info create(create_render_target_info const& rt_info)
+    static resource_description create(texture_description const& tex_info)
     {
-        create_resource_info res;
-        res.type = e_resource_render_target;
-        res.info_render_target = rt_info;
-        return res;
-    }
-    static create_resource_info create(create_texture_info const& tex_info)
-    {
-        create_resource_info res;
+        resource_description res;
         res.type = e_resource_texture;
         res.info_texture = tex_info;
         return res;
     }
-    static create_resource_info create(create_buffer_info const& buf_info)
+    static resource_description create(buffer_description const& buf_info)
     {
-        create_resource_info res;
+        resource_description res;
         res.type = e_resource_buffer;
         res.info_buffer = buf_info;
         return res;
     }
 
-    static create_resource_info render_target(
-        phi::format fmt, tg::isize2 size, unsigned num_samples = 1, unsigned array_size = 1, rt_clear_value clear_val = {0.f, 0.f, 0.f, 1.f})
+    static resource_description render_target(
+        phi::format fmt, tg::isize2 size, uint32_t num_samples = 1, uint32_t array_size = 1, rt_clear_value clear_val = {0.f, 0.f, 0.f, 1.f})
     {
-        return create(create_render_target_info::create(fmt, size, num_samples, array_size, clear_val));
+        return create(texture_description::create_rt(fmt, size, num_samples, array_size, clear_val));
     }
 
-    static create_resource_info texture(phi::format fmt,
+    static resource_description texture(phi::format fmt,
                                         tg::isize2 size,
-                                        unsigned num_mips = 1,
+                                        uint32_t num_mips = 1,
                                         phi::texture_dimension dim = phi::texture_dimension::t2d,
-                                        unsigned depth_or_array_size = 1,
+                                        uint32_t depth_or_array_size = 1,
                                         bool allow_uav = false)
     {
-        return create(create_texture_info::create(fmt, size, num_mips, dim, depth_or_array_size, allow_uav));
+        return create(texture_description::create_tex(fmt, size, num_mips, dim, depth_or_array_size, allow_uav));
     }
 
-    static create_resource_info buffer(unsigned size_bytes, unsigned stride_bytes, phi::resource_heap heap = phi::resource_heap::gpu, bool allow_uav = false)
+    static resource_description buffer(uint32_t size_bytes, uint32_t stride_bytes, phi::resource_heap heap = phi::resource_heap::gpu, bool allow_uav = false)
     {
-        return create(create_buffer_info::create(size_bytes, stride_bytes, heap, allow_uav));
+        return create(buffer_description::create(size_bytes, stride_bytes, heap, allow_uav));
     }
 };
 }

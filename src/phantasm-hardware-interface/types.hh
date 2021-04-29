@@ -1,12 +1,20 @@
 #pragma once
 
+#include <cstdint>
+
 #include <clean-core/flags.hh>
 
 #include <phantasm-hardware-interface/handles.hh>
 
 #define PHI_DEFINE_FLAG_TYPE(_flags_t_, _enum_t_, _max_num_)    \
-    using _flags_t_ = cc::flags<_enum_t_, unsigned(_max_num_)>; \
-    CC_FLAGS_ENUM_SIZED(_enum_t_, unsigned(_max_num_));
+    using _flags_t_ = cc::flags<_enum_t_, uint32_t(_max_num_)>; \
+    CC_FLAGS_ENUM_SIZED(_enum_t_, uint32_t(_max_num_));
+
+#define PHI_DEFINE_FLAG_OPERATORS(FlagT, RealT)                                                                  \
+    [[maybe_unused]] constexpr FlagT operator|(FlagT a, FlagT b) noexcept { return FlagT(RealT(a) | RealT(b)); } \
+    [[maybe_unused]] constexpr FlagT operator&(FlagT a, FlagT b) noexcept { return FlagT(RealT(a) & RealT(b)); } \
+    [[maybe_unused]] constexpr FlagT operator^(FlagT a, FlagT b) noexcept { return FlagT(RealT(a) ^ RealT(b)); } \
+    [[maybe_unused]] constexpr FlagT operator~(FlagT a) noexcept { return FlagT(~RealT(a)); }
 
 namespace phi
 {
@@ -15,7 +23,7 @@ struct shader_argument
 {
     handle::resource constant_buffer;
     handle::shader_view shader_view;
-    unsigned constant_buffer_offset;
+    uint32_t constant_buffer_offset;
 };
 
 /// the type of a single shader
@@ -158,6 +166,10 @@ enum class format : uint8_t
     rg16f,
     r16f,
 
+    rgba16un,
+    rg16un,
+    r16un,
+
     rgba8i,
     rg8i,
     r8i,
@@ -170,22 +182,30 @@ enum class format : uint8_t
     rg8un,
     r8un,
 
-    // sRGB formats
+    // sRGB versions of regular formats
     rgba8un_srgb,
 
     // swizzled and irregular formats
     bgra8un,
+    bgra4un,
     b10g11r11uf,
+    r10g10b10a2u,
+    r10g10b10a2un,
+    b5g6r5un,
+    b5g5r5a1un,
+    r9g9b9e5_sharedexp_uf, // three ufloats sharing a single 5 bit exponent, 32b in total
 
     // block-compressed formats
-    bc1_8un,
-    bc1_8un_srgb,
-    bc2_8un,
-    bc2_8un_srgb,
-    bc3_8un,
-    bc3_8un_srgb,
+    bc1,
+    bc1_srgb,
+    bc2,
+    bc2_srgb,
+    bc3,
+    bc3_srgb,
     bc6h_16f,
     bc6h_16uf,
+    bc7,
+    bc7_srgb,
 
     // view-only formats - depth
     r24un_g8t, // view the depth part of depth24un_stencil8u
@@ -205,24 +225,13 @@ enum class format : uint8_t
 
 constexpr bool is_valid_format(format fmt) { return fmt > format::none && fmt < format::MAX_FORMAT_RANGE; }
 
-/// returns true if the format is a view-only format
-constexpr bool is_view_format(format fmt) { return fmt >= format::r24un_g8t && fmt < format::depth32f; }
-
-/// returns true if the format is a block-compressed format
-constexpr bool is_block_compressed_format(format fmt) { return fmt >= format::bc1_8un && fmt <= format::bc6h_16uf; }
-
-/// returns true if the format is a depth OR depth stencil format
-constexpr bool is_depth_format(format fmt) { return fmt >= format::depth32f; }
-
-/// returns true if the format is a depth stencil format
-constexpr bool is_depth_stencil_format(format fmt) { return fmt >= format::depth32f_stencil8u; }
-
 /// information about a single vertex attribute
 struct vertex_attribute_info
 {
-    char const* semantic_name;
-    unsigned offset;
-    format fmt;
+    char const* semantic_name = nullptr;
+    uint32_t offset = 0;
+    format fmt = format::none;
+    uint8_t vertex_buffer_i = 0;
 };
 
 enum class texture_dimension : uint8_t
@@ -259,17 +268,17 @@ struct resource_view
     struct texture_info_t
     {
         format pixel_format;
-        unsigned mip_start;   ///< index of the first usable mipmap (usually: 0)
-        unsigned mip_size;    ///< amount of usable mipmaps, starting from mip_start (usually: -1 / all)
-        unsigned array_start; ///< index of the first usable array element [if applicable] (usually: 0)
-        unsigned array_size;  ///< amount of usable array elements [if applicable]
+        uint32_t mip_start;   ///< index of the first usable mipmap (usually: 0)
+        uint32_t mip_size;    ///< amount of usable mipmaps, starting from mip_start (usually: -1 / all)
+        uint32_t array_start; ///< index of the first usable array element [if applicable] (usually: 0)
+        uint32_t array_size;  ///< amount of usable array elements [if applicable]
     };
 
     struct buffer_info_t
     {
-        unsigned element_start;        ///< index of the first element in the buffer
-        unsigned num_elements;         ///< amount of elements in the buffer
-        unsigned element_stride_bytes; ///< the stride of elements in bytes
+        uint32_t element_start;        ///< index of the first element in the buffer
+        uint32_t num_elements;         ///< amount of elements in the buffer
+        uint32_t element_stride_bytes; ///< the stride of elements in bytes
     };
 
     struct accel_struct_info_t
@@ -301,15 +310,37 @@ public:
         // no need to specify
     }
 
-    void init_as_tex2d(handle::resource res, format pf, bool multisampled = false, unsigned mip_start = 0, unsigned mip_size = unsigned(-1))
+    void init_as_tex2d(handle::resource res, format pf, bool multisampled = false, uint32_t mip_slice = 0)
     {
         dimension = multisampled ? resource_view_dimension::texture2d_ms : resource_view_dimension::texture2d;
         resource = res;
         texture_info.pixel_format = pf;
-        texture_info.mip_start = mip_start;
-        texture_info.mip_size = mip_size;
+        texture_info.mip_start = mip_slice;
+        texture_info.mip_size = 1;
         texture_info.array_start = 0;
         texture_info.array_size = 1;
+    }
+
+    void init_as_tex2d_array(handle::resource res, format pf, bool multisampled, uint32_t array_start = 0, uint32_t array_size = 1, uint32_t mip_slice = 0)
+    {
+        dimension = multisampled ? resource_view_dimension::texture2d_ms_array : resource_view_dimension::texture2d_array;
+        resource = res;
+        texture_info.pixel_format = pf;
+        texture_info.mip_start = mip_slice;
+        texture_info.mip_size = 1;
+        texture_info.array_start = array_start;
+        texture_info.array_size = array_size;
+    }
+
+    void init_as_tex3d(handle::resource res, format pf, uint32_t array_start, uint32_t array_size, uint32_t mip_slice = 0)
+    {
+        dimension = resource_view_dimension::texture3d;
+        resource = res;
+        texture_info.pixel_format = pf;
+        texture_info.mip_start = mip_slice;
+        texture_info.mip_size = 1;
+        texture_info.array_start = array_start;
+        texture_info.array_size = array_size;
     }
 
     void init_as_texcube(handle::resource res, format pf)
@@ -318,12 +349,12 @@ public:
         resource = res;
         texture_info.pixel_format = pf;
         texture_info.mip_start = 0;
-        texture_info.mip_size = unsigned(-1);
+        texture_info.mip_size = uint32_t(-1);
         texture_info.array_start = 0;
         texture_info.array_size = 1;
     }
 
-    void init_as_structured_buffer(handle::resource res, unsigned num_elements, unsigned stride_bytes, unsigned element_start = 0)
+    void init_as_structured_buffer(handle::resource res, uint32_t num_elements, uint32_t stride_bytes, uint32_t element_start = 0)
     {
         dimension = resource_view_dimension::buffer;
         resource = res;
@@ -354,10 +385,10 @@ public:
         rv.init_as_backbuffer(res);
         return rv;
     }
-    static resource_view tex2d(handle::resource res, format pf, bool multisampled = false, unsigned mip_start = 0, unsigned mip_size = unsigned(-1))
+    static resource_view tex2d(handle::resource res, format pf, bool multisampled = false, uint32_t mip_slice = 0)
     {
         resource_view rv;
-        rv.init_as_tex2d(res, pf, multisampled, mip_start, mip_size);
+        rv.init_as_tex2d(res, pf, multisampled, mip_slice);
         return rv;
     }
     static resource_view texcube(handle::resource res, format pf)
@@ -366,7 +397,7 @@ public:
         rv.init_as_texcube(res, pf);
         return rv;
     }
-    static resource_view structured_buffer(handle::resource res, unsigned num_elements, unsigned stride_bytes)
+    static resource_view structured_buffer(handle::resource res, uint32_t num_elements, uint32_t stride_bytes)
     {
         resource_view rv;
         rv.init_as_structured_buffer(res, num_elements, stride_bytes);
@@ -439,11 +470,11 @@ struct sampler_config
     float min_lod;
     float max_lod;
     float lod_bias;          ///< offset from the calculated MIP level (sampled = calculated + lod_bias)
-    unsigned max_anisotropy; ///< maximum amount of anisotropy in [1, 16], req. sampler_filter::anisotropic
+    uint32_t max_anisotropy; ///< maximum amount of anisotropy in [1, 16], req. sampler_filter::anisotropic
     sampler_compare_func compare_func;
     sampler_border_color border_color; ///< the border color to use, req. sampler_address_mode::clamp_border
 
-    void init_default(sampler_filter filter, unsigned anisotropy = 16u, sampler_address_mode address_mode = sampler_address_mode::wrap)
+    void init_default(sampler_filter filter, uint32_t anisotropy = 16u, sampler_address_mode address_mode = sampler_address_mode::wrap)
     {
         this->filter = filter;
         address_u = address_mode;
@@ -457,7 +488,7 @@ struct sampler_config
         border_color = sampler_border_color::white_float;
     }
 
-    sampler_config(sampler_filter filter, unsigned anisotropy = 16u, sampler_address_mode address_mode = sampler_address_mode::wrap)
+    sampler_config(sampler_filter filter, uint32_t anisotropy = 16u, sampler_address_mode address_mode = sampler_address_mode::wrap)
     {
         init_default(filter, anisotropy, address_mode);
     }
@@ -502,9 +533,9 @@ struct pipeline_config
     depth_function depth = depth_function::none;
     bool depth_readonly = false;
     cull_mode cull = cull_mode::none;
-    int samples = 1;
+    int32_t samples = 1;
     bool conservative_raster = false;
-    bool frontface_counterclockwise = true;
+    bool frontface_counterclockwise = true; // TODO: this default should be flipped
     bool wireframe = false;
 };
 
@@ -698,6 +729,30 @@ struct gpu_indirect_command_draw_indexed
     uint32_t instance_offset;
 };
 
+/// indirect compute dispatch command, as it is laid out in a GPU buffer
+struct gpu_indirect_command_dispatch
+{
+    uint32_t dispatch_x;
+    uint32_t dispatch_y;
+    uint32_t dispatch_z;
+};
+
+struct resource_usage_flags
+{
+    enum : uint32_t
+    {
+        none = 0,
+        allow_uav = 1 << 0,
+        allow_render_target = 1 << 1,
+        allow_depth_stencil = 1 << 2,
+        deny_shader_resource = 1 << 3,
+        use_optimized_clear_value = 1 << 4,
+    };
+};
+using resource_usage_flags_t = uint32_t;
+
+// PHI_DEFINE_FLAG_OPERATORS(resource_usage_flags, uint32_t)
+
 /// flags to configure the building process of a raytracing acceleration structure
 enum class accel_struct_build_flags : uint8_t
 {
@@ -711,18 +766,18 @@ enum class accel_struct_build_flags : uint8_t
 PHI_DEFINE_FLAG_TYPE(accel_struct_build_flags_t, accel_struct_build_flags, 8);
 
 // these flags align exactly with both vulkan and d3d12, and are not translated
-using accel_struct_instance_flags_t = uint32_t;
-namespace accel_struct_instance_flags
+struct accel_struct_instance_flags
 {
-enum accel_struct_instance_flags_e : uint32_t
-{
-    none = 0x0000,
-    triangle_cull_disable = 0x0001,
-    triangle_front_counterclockwise = 0x0002,
-    force_opaque = 0x0004,
-    force_no_opaque = 0x0008
+    enum : uint32_t
+    {
+        none = 0,
+        triangle_cull_disable = 1 << 0,
+        triangle_front_counterclockwise = 1 << 1,
+        force_opaque = 1 << 2,
+        force_no_opaque = 1 << 3
+    };
 };
-}
+using accel_struct_instance_flags_t = uint32_t;
 
 /// bottom level accel struct instance within a top level accel struct (layout dictated by DXR/Vulkan RT Extension)
 struct accel_struct_instance
@@ -749,6 +804,11 @@ struct accel_struct_instance
 
 static_assert(sizeof(accel_struct_instance) == 64, "accel_struct_instance compiles to incorrect size");
 
+struct buffer_address
+{
+    handle::resource buffer = handle::null_resource;
+    uint32_t offset_bytes = 0;
+};
 
 struct buffer_range
 {

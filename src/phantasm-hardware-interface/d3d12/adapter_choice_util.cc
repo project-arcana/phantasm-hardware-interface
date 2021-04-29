@@ -75,16 +75,14 @@ cc::vector<phi::gpu_info> phi::d3d12::get_adapter_candidates()
 
 
                 auto& new_candidate = res.emplace_back();
-                new_candidate.vendor = get_gpu_vendor_from_id(adapter_desc.VendorId);
+                new_candidate.vendor = get_gpu_info_from_pcie_id(adapter_desc.VendorId);
                 new_candidate.index = i;
 
                 new_candidate.dedicated_video_memory_bytes = adapter_desc.DedicatedVideoMemory;
                 new_candidate.dedicated_system_memory_bytes = adapter_desc.DedicatedSystemMemory;
                 new_candidate.shared_system_memory_bytes = adapter_desc.SharedSystemMemory;
 
-                char description_nonwide[sizeof(adapter_desc.Description) + 8];
-                std::snprintf(description_nonwide, sizeof(description_nonwide), "%ws", adapter_desc.Description);
-                new_candidate.description = cc::string(description_nonwide);
+                std::snprintf(new_candidate.name, sizeof(new_candidate.name), "%ws", adapter_desc.Description);
 
                 if (max_feature_level < D3D_FEATURE_LEVEL_12_0)
                     new_candidate.capabilities = gpu_capabilities::insufficient;
@@ -101,7 +99,7 @@ cc::vector<phi::gpu_info> phi::d3d12::get_adapter_candidates()
     return res;
 }
 
-phi::gpu_feature_info phi::d3d12::get_gpu_features(ID3D12Device5* device)
+phi::d3d12::gpu_feature_info phi::d3d12::get_gpu_features(ID3D12Device5* device)
 {
     gpu_feature_info res;
 

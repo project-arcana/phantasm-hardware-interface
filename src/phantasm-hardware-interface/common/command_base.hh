@@ -8,6 +8,7 @@ namespace phi::cmd::detail
     PHI_X(draw)                    \
     PHI_X(draw_indirect)           \
     PHI_X(dispatch)                \
+    PHI_X(dispatch_indirect)       \
     PHI_X(transition_resources)    \
     PHI_X(barrier_uav)             \
     PHI_X(transition_image_slices) \
@@ -25,7 +26,10 @@ namespace phi::cmd::detail
     PHI_X(update_bottom_level)     \
     PHI_X(update_top_level)        \
     PHI_X(dispatch_rays)           \
-    PHI_X(clear_textures)
+    PHI_X(clear_textures)          \
+    PHI_X(code_location_marker)    \
+    PHI_X(begin_profile_scope)     \
+    PHI_X(end_profile_scope)
 
 enum class cmd_type : uint8_t
 {

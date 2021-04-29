@@ -1,5 +1,9 @@
 #include "swapchain_pool.hh"
 
+#ifdef PHI_HAS_OPTICK
+#include <optick/optick.h>
+#endif
+
 #include <clean-core/assert.hh>
 #include <clean-core/utility.hh>
 
@@ -146,6 +150,10 @@ bool phi::vk::SwapchainPool::present(phi::handle::swapchain handle)
         PHI_VK_VERIFY_SUCCESS(vkQueueSubmit(mPresentQueue, 1, &submit_info, active_backbuffer.fence_command_buf_executed));
     }
 
+#ifdef PHI_HAS_OPTICK
+    OPTICK_GPU_FLIP(node.swapchain);
+#endif
+
     // present proper
     {
         VkPresentInfoKHR present = {};
@@ -177,9 +185,11 @@ bool phi::vk::SwapchainPool::present(phi::handle::swapchain handle)
     }
 }
 
-bool phi::vk::SwapchainPool::waitForBackbuffer(phi::handle::swapchain handle)
+bool phi::vk::SwapchainPool::acquireBackbuffer(phi::handle::swapchain handle)
 {
     auto& node = mPool.get(handle._value);
+    // according to NVidia, this can never block (despite having a timeout param)
+    // it thus doesn't sync anything at all
     auto const res = vkAcquireNextImageKHR(mDevice, node.swapchain, UINT64_MAX, node.backbuffers[node.active_fence_index].sem_image_available,
                                            nullptr, &node.active_image_index);
 
@@ -201,8 +211,10 @@ void phi::vk::SwapchainPool::initialize(VkInstance instance, const phi::vk::Devi
     mInstance = instance;
     mDevice = device.getDevice();
     mPhysicalDevice = device.getPhysicalDevice();
-    mPresentQueue = config.present_from_compute_queue ? device.getRawQueue(queue_type::compute) : device.getRawQueue(queue_type::direct);
-    mPresentQueueFamilyIndex = config.present_from_compute_queue ? device.getQueueFamilyCompute() : device.getQueueFamilyDirect();
+
+    bool presentFromCompute = (config.native_features & phi::backend_config::native_feature_vk_present_from_compute) != 0;
+    mPresentQueue = presentFromCompute ? device.getRawQueue(queue_type::compute) : device.getRawQueue(queue_type::direct);
+    mPresentQueueFamilyIndex = presentFromCompute ? device.getQueueFamilyCompute() : device.getQueueFamilyDirect();
 
     mPool.initialize(config.max_num_swapchains, config.static_allocator);
 

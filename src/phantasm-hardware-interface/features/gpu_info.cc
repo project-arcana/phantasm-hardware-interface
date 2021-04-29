@@ -2,9 +2,11 @@
 
 #include <clean-core/assert.hh>
 
-#include <phantasm-hardware-interface/common/log.hh>
 #include <phantasm-hardware-interface/config.hh>
 #include <phantasm-hardware-interface/types.hh>
+
+#include <phantasm-hardware-interface/common/enums_from_string.hh>
+#include <phantasm-hardware-interface/common/log.hh>
 
 namespace
 {
@@ -25,22 +27,6 @@ constexpr char const* get_preference_literal(phi::adapter_preference pref)
     }
     CC_UNREACHABLE_SWITCH_WORKAROUND(pref);
 }
-
-constexpr char const* get_validation_literal(phi::validation_level level)
-{
-    switch (level)
-    {
-    case phi::validation_level::off:
-        return "off";
-    case phi::validation_level::on:
-        return "on";
-    case phi::validation_level::on_extended:
-        return "on_extended";
-    case phi::validation_level::on_extended_dred:
-        return "on_extended_dred";
-    }
-    CC_UNREACHABLE_SWITCH_WORKAROUND(level);
-}
 }
 
 size_t phi::get_preferred_gpu(cc::span<const phi::gpu_info> candidates, phi::adapter_preference preference)
@@ -52,6 +38,7 @@ size_t phi::get_preferred_gpu(cc::span<const phi::gpu_info> candidates, phi::ada
                 return i;
         }
 
+        PHI_LOG_ERROR("Fatal: Found no suitable GPU (in {} candidate{})", candidates.size(), candidates.size() == 1 ? "" : "s");
         return candidates.size();
     };
 
@@ -77,7 +64,7 @@ size_t phi::get_preferred_gpu(cc::span<const phi::gpu_info> candidates, phi::ada
         {
             auto highest_vram_index = get_first_capable();
 
-            for (auto i = 1u; i < candidates.size(); ++i)
+            for (auto i = 0u; i < candidates.size(); ++i)
             {
                 if (candidates[i].capabilities != gpu_capabilities::insufficient
                     && candidates[i].dedicated_video_memory_bytes > candidates[highest_vram_index].dedicated_video_memory_bytes)
@@ -88,7 +75,8 @@ size_t phi::get_preferred_gpu(cc::span<const phi::gpu_info> candidates, phi::ada
         }
         case adapter_preference::highest_feature_level:
         {
-            auto highest_capability_index = 0u;
+            auto highest_capability_index = get_first_capable();
+
             for (auto i = 1u; i < candidates.size(); ++i)
             {
                 if (candidates[i].capabilities > candidates[highest_capability_index].capabilities)
@@ -109,7 +97,7 @@ size_t phi::get_preferred_gpu(cc::span<const phi::gpu_info> candidates, phi::ada
     return make_choice();
 }
 
-phi::gpu_vendor phi::get_gpu_vendor_from_id(unsigned vendor_id)
+phi::gpu_vendor phi::get_gpu_info_from_pcie_id(unsigned vendor_id)
 {
     switch (vendor_id)
     {
@@ -136,7 +124,7 @@ void phi::print_startup_message(cc::span<const phi::gpu_info> gpu_candidates, si
         return;
 
     PHI_LOG("{} backend initialized, validation: {}", //
-            is_d3d12 ? "d3d12" : "vulkan", get_validation_literal(config.validation));
+            is_d3d12 ? "d3d12" : "vulkan", enum_to_string(config.validation));
 
     PHI_LOG("   {} threads, max {} resources, max {} PSOs", //
             config.num_threads, config.max_num_resources, config.max_num_pipeline_states);
@@ -144,7 +132,7 @@ void phi::print_startup_message(cc::span<const phi::gpu_info> gpu_candidates, si
     if (chosen_index < gpu_candidates.size())
     {
         PHI_LOG("   chose gpu #{} ({}) from {} candidate{}, preference: {}", //
-                chosen_index, gpu_candidates[chosen_index].description.c_str(), gpu_candidates.size(), (gpu_candidates.size() == 1 ? "" : "s"),
+                chosen_index, gpu_candidates[chosen_index].name, gpu_candidates.size(), (gpu_candidates.size() == 1 ? "" : "s"),
                 get_preference_literal(config.adapter));
     }
     else

@@ -28,9 +28,13 @@ public:
                                                              arg::shader_arg_shapes shader_arg_shapes,
                                                              bool has_root_constants,
                                                              arg::graphics_shaders shader_stages,
-                                                             phi::pipeline_config const& primitive_config);
+                                                             phi::pipeline_config const& primitive_config,
+                                                             char const* dbg_name);
 
-    [[nodiscard]] handle::pipeline_state createComputePipelineState(arg::shader_arg_shapes shader_arg_shapes, arg::shader_binary compute_shader, bool has_root_constants);
+    [[nodiscard]] handle::pipeline_state createComputePipelineState(arg::shader_arg_shapes shader_arg_shapes,
+                                                                    arg::shader_binary compute_shader,
+                                                                    bool has_root_constants,
+                                                                    char const* dbg_name);
 
     [[nodiscard]] handle::pipeline_state createRaytracingPipelineState(cc::span<arg::raytracing_shader_library const> libraries,
                                                                        cc::span<arg::raytracing_argument_association const> arg_assocs,
@@ -38,7 +42,8 @@ public:
                                                                        unsigned max_recursion,
                                                                        unsigned max_payload_size_bytes,
                                                                        unsigned max_attribute_size_bytes,
-                                                                       cc::allocator* scratch_alloc);
+                                                                       cc::allocator* scratch_alloc,
+                                                                       char const* dbg_name);
 
     void free(handle::pipeline_state ps);
 
@@ -116,6 +121,7 @@ public:
 
     ID3D12CommandSignature* getGlobalComSigDraw() const { return mGlobalComSigDraw; }
     ID3D12CommandSignature* getGlobalComSigDrawIndexed() const { return mGlobalComSigDrawIndexed; }
+    ID3D12CommandSignature* getGlobalComSigDispatch() const { return mGlobalComSigDispatch; }
 
 private:
     ID3D12Device5* mDevice = nullptr;
@@ -125,6 +131,7 @@ private:
     ID3D12RootSignature* mEmptyRaytraceRootSignature = nullptr;
     ID3D12CommandSignature* mGlobalComSigDraw = nullptr;
     ID3D12CommandSignature* mGlobalComSigDrawIndexed = nullptr;
+    ID3D12CommandSignature* mGlobalComSigDispatch = nullptr;
 
     cc::atomic_linked_pool<pso_node> mPool;
     cc::atomic_linked_pool<rt_pso_node> mPoolRaytracing;

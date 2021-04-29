@@ -66,10 +66,10 @@ void phi::d3d12::FencePool::signalCPU(phi::handle::fence fence, uint64_t new_val
     internalGet(fence).fence->Signal(new_val);
 }
 
-void phi::d3d12::FencePool::signalGPU(phi::handle::fence fence, uint64_t new_val, ID3D12CommandQueue& queue) const
+void phi::d3d12::FencePool::signalGPU(phi::handle::fence fence, uint64_t new_val, ID3D12CommandQueue* queue) const
 {
     //
-    queue.Signal(internalGet(fence).fence, new_val);
+    queue->Signal(internalGet(fence).fence, new_val);
 }
 
 void phi::d3d12::FencePool::waitCPU(phi::handle::fence fence, uint64_t val) const
@@ -82,10 +82,10 @@ void phi::d3d12::FencePool::waitCPU(phi::handle::fence fence, uint64_t val) cons
     }
 }
 
-void phi::d3d12::FencePool::waitGPU(phi::handle::fence fence, uint64_t val, ID3D12CommandQueue& queue) const
+void phi::d3d12::FencePool::waitGPU(phi::handle::fence fence, uint64_t val, ID3D12CommandQueue* queue) const
 {
     //
-    PHI_D3D12_VERIFY(queue.Wait(internalGet(fence).fence, val));
+    PHI_D3D12_VERIFY(queue->Wait(internalGet(fence).fence, val));
 }
 
 uint64_t phi::d3d12::FencePool::getValue(phi::handle::fence fence) const
@@ -96,6 +96,18 @@ uint64_t phi::d3d12::FencePool::getValue(phi::handle::fence fence) const
     PHI_D3D12_DRED_ASSERT(res != UINT64_MAX, nd.fence);
 #endif
     return res;
+}
+
+phi::d3d12::FencePool::node& phi::d3d12::FencePool::internalGet(handle::fence fence)
+{
+    CC_ASSERT(fence.is_valid() && "invalid handle::fence");
+    return mPool.get(fence._value);
+}
+
+phi::d3d12::FencePool::node const& phi::d3d12::FencePool::internalGet(handle::fence fence) const
+{
+    CC_ASSERT(fence.is_valid() && "invalid handle::fence");
+    return mPool.get(fence._value);
 }
 
 void phi::d3d12::FencePool::node::create(ID3D12Device* dev)

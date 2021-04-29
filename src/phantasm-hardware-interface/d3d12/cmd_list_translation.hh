@@ -7,6 +7,13 @@
 #include <phantasm-hardware-interface/d3d12/fwd.hh>
 #include <phantasm-hardware-interface/d3d12/pools/linear_descriptor_allocator.hh>
 
+#ifdef PHI_HAS_OPTICK
+namespace Optick
+{
+struct EventData;
+}
+#endif
+
 namespace phi::d3d12
 {
 struct translator_thread_local_memory
@@ -44,7 +51,7 @@ struct command_list_translator
     void initialize(ID3D12Device* device, ShaderViewPool* sv_pool, ResourcePool* resource_pool, PipelineStateObjectPool* pso_pool, AccelStructPool* as_pool, QueryPool* query_pool);
     void destroy();
 
-    void translateCommandList(ID3D12GraphicsCommandList5* list, queue_type type, d3d12_incomplete_state_cache* state_cache, std::byte const* buffer, size_t buffer_size);
+    void translateCommandList(ID3D12GraphicsCommandList5* list, queue_type type, incomplete_state_cache* state_cache, std::byte const* buffer, size_t buffer_size);
 
     void execute(cmd::begin_render_pass const& begin_rp);
 
@@ -53,6 +60,8 @@ struct command_list_translator
     void execute(cmd::draw_indirect const& draw_indirect);
 
     void execute(cmd::dispatch const& dispatch);
+
+    void execute(cmd::dispatch_indirect const& dispatch_indirect);
 
     void execute(cmd::end_render_pass const& end_rp);
 
@@ -80,6 +89,10 @@ struct command_list_translator
 
     void execute(cmd::end_debug_label const&);
 
+    void execute(cmd::begin_profile_scope const& scope);
+
+    void execute(cmd::end_profile_scope const&);
+
     void execute(cmd::update_bottom_level const& blas_update);
 
     void execute(cmd::update_top_level const& tlas_update);
@@ -87,6 +100,11 @@ struct command_list_translator
     void execute(cmd::dispatch_rays const& dispatch_rays);
 
     void execute(cmd::clear_textures const& clear_tex);
+
+    void execute(cmd::code_location_marker const& marker);
+
+private:
+    void bind_vertex_buffers(handle::resource const vertex_buffers[limits::max_vertex_buffers]);
 
 private:
     // non-owning constant (global)
@@ -96,24 +114,24 @@ private:
     translator_thread_local_memory _thread_local;
 
     // non-owning dynamic
-    d3d12_incomplete_state_cache* _state_cache = nullptr;
+    incomplete_state_cache* _state_cache = nullptr;
     ID3D12GraphicsCommandList5* _cmd_list = nullptr;
     queue_type _current_queue_type = queue_type::direct;
 
     // dynamic state
     struct
     {
-        handle::pipeline_state pipeline_state;
-        handle::resource index_buffer;
-        handle::resource vertex_buffer;
+        handle::pipeline_state pipeline_state = handle::null_pipeline_state;
+        handle::resource index_buffer = handle::null_resource;
+        uint64_t vertex_buffer_hash = uint64_t(-1);
 
-        ID3D12RootSignature* raw_root_sig;
+        ID3D12RootSignature* raw_root_sig = nullptr;
 
         struct shader_arg_info
         {
-            handle::shader_view sv;
-            handle::resource cbv;
-            unsigned cbv_offset;
+            handle::shader_view sv = handle::null_shader_view;
+            handle::resource cbv = handle::null_resource;
+            unsigned cbv_offset = 0;
 
             void reset()
             {
@@ -152,7 +170,7 @@ private:
         {
             pipeline_state = handle::null_pipeline_state;
             index_buffer = handle::null_resource;
-            vertex_buffer = handle::null_resource;
+            vertex_buffer_hash = uint64_t(-1);
 
             set_root_sig(nullptr);
         }
@@ -188,6 +206,27 @@ private:
         }
 
     } _bound;
+
+    // debug state - cmd::code_location_marker
+    struct
+    {
+        char const* function;
+        char const* file;
+        int line;
+
+        void reset()
+        {
+            function = "NONE";
+            file = "NONE";
+            line = 0;
+        }
+
+    } _last_code_location;
+
+// debug state - current Optick GPU Event
+#ifdef PHI_HAS_OPTICK
+    Optick::EventData* _current_optick_event = nullptr;
+#endif
 };
 
 }

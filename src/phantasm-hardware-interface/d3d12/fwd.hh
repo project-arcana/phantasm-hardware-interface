@@ -18,6 +18,5 @@ class QueryPool;
 class CPUDescriptorLinearAllocator;
 
 struct command_list_translator;
-
-using d3d12_incomplete_state_cache = phi::detail::generic_incomplete_state_cache<D3D12_RESOURCE_STATES>;
+struct incomplete_state_cache;
 }

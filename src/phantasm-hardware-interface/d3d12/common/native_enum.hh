@@ -570,7 +570,7 @@ namespace phi::d3d12::util
     return D3D12_BLEND_ZERO;
 }
 
-[[nodiscard]] constexpr D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS to_native_flags(accel_struct_build_flags_t flags)
+[[nodiscard]] constexpr D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS to_native_accel_struct_build_flags(accel_struct_build_flags_t flags)
 {
     D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS res = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_NONE;
 
@@ -584,6 +584,22 @@ namespace phi::d3d12::util
         res |= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_BUILD;
     if (flags & accel_struct_build_flags::minimize_memory)
         res |= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_MINIMIZE_MEMORY;
+
+    return res;
+}
+
+[[nodiscard]] constexpr D3D12_RESOURCE_FLAGS to_native_resource_usage_flags(resource_usage_flags_t flags)
+{
+    D3D12_RESOURCE_FLAGS res = D3D12_RESOURCE_FLAG_NONE;
+
+    if (flags & resource_usage_flags::allow_uav)
+        res |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+    if (flags & resource_usage_flags::allow_depth_stencil)
+        res |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+    if (flags & resource_usage_flags::allow_render_target)
+        res |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+    if (flags & resource_usage_flags::deny_shader_resource)
+        res |= D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
 
     return res;
 }

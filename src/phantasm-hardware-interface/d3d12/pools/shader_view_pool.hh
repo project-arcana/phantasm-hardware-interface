@@ -3,9 +3,10 @@
 #include <mutex>
 
 #include <clean-core/array.hh>
+#include <clean-core/assertf.hh>
+#include <clean-core/atomic_linked_pool.hh>
 #include <clean-core/capped_vector.hh>
 #include <clean-core/span.hh>
-#include <clean-core/atomic_linked_pool.hh>
 
 #include <phantasm-hardware-interface/arguments.hh>
 #include <phantasm-hardware-interface/common/page_allocator.hh>
@@ -48,7 +49,8 @@ public:
             return -1;
 
         auto const res_page = mPageAllocator.allocate(num_descriptors);
-        CC_RUNTIME_ASSERT(res_page != -1 && "DescriptorPageAllocator overcommitted!");
+        CC_RUNTIME_ASSERTF(res_page != -1, "DescriptorPageAllocator overcommitted! Reached limit of {} {}", mPageAllocator.get_num_elements(),
+                           mDescriptorType == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV ? "SRVs/UAVs/CBVs" : "Samplers");
         return res_page;
     }
 
@@ -91,6 +93,7 @@ private:
     D3D12_GPU_DESCRIPTOR_HANDLE mHeapStartGPU;
     phi::page_allocator mPageAllocator;
     unsigned mDescriptorSize = 0;
+    D3D12_DESCRIPTOR_HEAP_TYPE mDescriptorType;
 };
 
 class ResourcePool;
@@ -102,7 +105,15 @@ class ShaderViewPool
 public:
     // frontend-facing API
 
-    [[nodiscard]] handle::shader_view create(cc::span<resource_view const> srvs, cc::span<resource_view const> uavs, cc::span<sampler_config const> samplers);
+    handle::shader_view createEmpty(uint32_t num_srvs_uavs, uint32_t num_samplers);
+
+    handle::shader_view create(cc::span<resource_view const> srvs, cc::span<resource_view const> uavs, cc::span<sampler_config const> samplers);
+
+    void writeShaderViewSRVs(handle::shader_view sv, uint32_t offset, cc::span<resource_view const> srvs);
+
+    void writeShaderViewUAVs(handle::shader_view sv, uint32_t offset, cc::span<resource_view const> uavs);
+
+    void writeShaderViewSamplers(handle::shader_view sv, uint32_t offset, cc::span<sampler_config const> samplers);
 
     void free(handle::shader_view sv);
     void free(cc::span<handle::shader_view const> svs);
@@ -159,6 +170,12 @@ private:
         CC_ASSERT(res.is_valid() && "invalid shader_view handle");
         return mPool.get(res._value);
     }
+
+    void writeSRV(D3D12_CPU_DESCRIPTOR_HANDLE handle, resource_view const& srv);
+
+    void writeUAV(D3D12_CPU_DESCRIPTOR_HANDLE handle, resource_view const& uav);
+
+    void writeSampler(D3D12_CPU_DESCRIPTOR_HANDLE handle, sampler_config const& sampler);
 
 private:
     // non-owning

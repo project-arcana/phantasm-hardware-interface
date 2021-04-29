@@ -15,14 +15,22 @@ namespace
 [[nodiscard]] bool test_device_properties(VkPhysicalDeviceProperties const& props)
 {
     if (props.limits.maxBoundDescriptorSets < phi::limits::max_shader_arguments * 2)
+    {
+        PHI_LOG_TRACE("GPU {} is unsuitable: Only supports {} max bound descriptor states ({} required)", props.deviceName,
+                      props.limits.maxBoundDescriptorSets, phi::limits::max_shader_arguments * 2);
         return false;
-
+    }
     if (props.limits.maxColorAttachments < phi::limits::max_render_targets)
+    {
+        PHI_LOG_TRACE("GPU {} is unsuitable: Only supports {} max render targets ({} required)", props.deviceName, props.limits.maxColorAttachments,
+                      phi::limits::max_render_targets);
         return false;
-
+    }
     if (props.apiVersion < VK_VERSION_1_1)
+    {
+        PHI_LOG_TRACE("GPU {} is unsuitable: Only supports Vulkan version {} ({} required)", props.deviceName, props.apiVersion, VK_VERSION_1_1);
         return false;
-
+    }
     return true;
 }
 }
@@ -41,24 +49,29 @@ phi::vk::vulkan_gpu_info phi::vk::get_vulkan_gpu_info(VkPhysicalDevice device)
     vulkan_gpu_info res;
     res.physical_device = device;
     res.is_suitable = true;
+    vkGetPhysicalDeviceProperties(device, &res.physical_device_props);
 
     // queue capability
     res.queues = get_suitable_queues(device);
     if (!res.queues.has_direct_queue)
+    {
+        PHI_LOG_TRACE("GPU {} is unsuitable: Has no direct Queue", res.physical_device_props.deviceName);
         res.is_suitable = false;
+    }
 
     res.available_layers_extensions = get_available_device_lay_ext(device);
 
     // swapchain extensions
     if (!res.available_layers_extensions.extensions.contains(VK_KHR_SWAPCHAIN_EXTENSION_NAME))
+    {
+        PHI_LOG_TRACE("GPU {} is unsuitable: Has no Swapchain extension", res.physical_device_props.deviceName);
         res.is_suitable = false;
-
+    }
 
     // device properties
+    if (!test_device_properties(res.physical_device_props))
     {
-        vkGetPhysicalDeviceProperties(device, &res.physical_device_props);
-        if (!test_device_properties(res.physical_device_props))
-            res.is_suitable = false;
+        res.is_suitable = false;
     }
 
     // required features
@@ -67,9 +80,11 @@ phi::vk::vulkan_gpu_info phi::vk::get_vulkan_gpu_info(VkPhysicalDevice device)
         vkGetPhysicalDeviceFeatures2(device, feat_bundle.get());
 
         // always require GBV features right now (second arg)
-        auto const has_required_features = set_or_test_device_features(feat_bundle.get(), true, true);
+        auto const has_required_features = set_or_test_device_features(feat_bundle.get(), true, true, res.physical_device_props.deviceName);
         if (!has_required_features)
+        {
             res.is_suitable = false;
+        }
     }
 
     // other queries
@@ -182,8 +197,8 @@ cc::vector<phi::gpu_info> phi::vk::get_available_gpus(cc::span<const vulkan_gpu_
 
         auto& new_gpu = res.emplace_back();
         new_gpu.index = i;
-        new_gpu.vendor = get_gpu_vendor_from_id(ll_info.physical_device_props.vendorID);
-        new_gpu.description = cc::string(ll_info.physical_device_props.deviceName);
+        new_gpu.vendor = get_gpu_info_from_pcie_id(ll_info.physical_device_props.vendorID);
+        std::snprintf(new_gpu.name, sizeof(new_gpu.name), "%s", ll_info.physical_device_props.deviceName);
 
         // TODO: differentiate this somehow
         new_gpu.capabilities = ll_info.is_suitable ? gpu_capabilities::level_1 : gpu_capabilities::insufficient;
@@ -197,16 +212,20 @@ cc::vector<phi::gpu_info> phi::vk::get_available_gpus(cc::span<const vulkan_gpu_
             auto const& heap = ll_info.mem_props.memoryHeaps[i];
 
             if (heap.flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT && ll_info.physical_device_props.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+            {
                 new_gpu.dedicated_video_memory_bytes += heap.size;
+            }
             else
+            {
                 new_gpu.shared_system_memory_bytes += heap.size;
+            }
         }
     }
 
     return res;
 }
 
-bool phi::vk::set_or_test_device_features(VkPhysicalDeviceFeatures2* arg, bool enable_gbv, bool test_mode)
+bool phi::vk::set_or_test_device_features(VkPhysicalDeviceFeatures2* arg, bool enable_gbv, bool test_mode, const char* gpu_name_for_logging)
 {
     // a single place to both test for existing features and set the features required
 
@@ -217,71 +236,93 @@ bool phi::vk::set_or_test_device_features(VkPhysicalDeviceFeatures2* arg, bool e
 
     VkPhysicalDeviceTimelineSemaphoreFeatures& p_next_chain_1 = *static_cast<VkPhysicalDeviceTimelineSemaphoreFeatures*>(arg->pNext);
     CC_ASSERT(p_next_chain_1.sType == VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TIMELINE_SEMAPHORE_FEATURES && "pNext chain ordered unexpectedly");
+    CC_ASSERT(p_next_chain_1.pNext != nullptr && "pNext chain not long enough");
+    VkPhysicalDeviceDescriptorIndexingFeatures& p_next_chain_2 = *static_cast<VkPhysicalDeviceDescriptorIndexingFeatures*>(p_next_chain_1.pNext);
+    CC_ASSERT(p_next_chain_2.sType == VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES && "pNext chain ordered unexpectedly");
 
-    // clang-format off
-#define PHI_LOC_ST(_prop_) \
-    if (test_mode) { if (_prop_ != VK_TRUE) return false; } \
-    else { _prop_ = VK_TRUE; } (void)0
-    // clang-format on
+#define PHI_VK_SET_OR_TEST_PROPERTY(_prop_, _prop_name_)                                                                           \
+    if (test_mode)                                                                                                                 \
+    {                                                                                                                              \
+        if (_prop_ != VK_TRUE)                                                                                                     \
+        {                                                                                                                          \
+            if (gpu_name_for_logging)                                                                                              \
+            {                                                                                                                      \
+                PHI_LOG_TRACE("GPU {} is unsuitable: Device feature \"" #_prop_name_ "\" is not supported", gpu_name_for_logging); \
+            }                                                                                                                      \
+            return false;                                                                                                          \
+        }                                                                                                                          \
+    }                                                                                                                              \
+    else                                                                                                                           \
+    {                                                                                                                              \
+        _prop_ = VK_TRUE;                                                                                                          \
+    }                                                                                                                              \
+    (void)0
 
-#define PHI_LOC_ST_MAIN(_feat_) PHI_LOC_ST(arg->features._feat_)
+#define PHI_VK_SET_OR_TEST(_feat_) PHI_VK_SET_OR_TEST_PROPERTY(arg->features._feat_, _feat_)
 
 
     // == set and test features ==
 
     // added by discovered necessity
-    PHI_LOC_ST_MAIN(samplerAnisotropy);
-    PHI_LOC_ST_MAIN(geometryShader);
+    PHI_VK_SET_OR_TEST(samplerAnisotropy);
+    PHI_VK_SET_OR_TEST(geometryShader);
 
     // 100% support
-    PHI_LOC_ST_MAIN(fillModeNonSolid);
-    PHI_LOC_ST_MAIN(fragmentStoresAndAtomics);
-    PHI_LOC_ST_MAIN(independentBlend);
-    PHI_LOC_ST_MAIN(robustBufferAccess);
+    PHI_VK_SET_OR_TEST(fillModeNonSolid);
+    PHI_VK_SET_OR_TEST(fragmentStoresAndAtomics);
+    PHI_VK_SET_OR_TEST(independentBlend);
+    PHI_VK_SET_OR_TEST(robustBufferAccess);
 
     // > 98% support
-    PHI_LOC_ST_MAIN(drawIndirectFirstInstance);
-    PHI_LOC_ST_MAIN(fullDrawIndexUint32);
-    PHI_LOC_ST_MAIN(vertexPipelineStoresAndAtomics);
-    PHI_LOC_ST_MAIN(imageCubeArray);
-    PHI_LOC_ST_MAIN(multiDrawIndirect);
-    PHI_LOC_ST_MAIN(shaderClipDistance);
-    PHI_LOC_ST_MAIN(shaderCullDistance);
-    PHI_LOC_ST_MAIN(dualSrcBlend);
-    PHI_LOC_ST_MAIN(largePoints);
-    PHI_LOC_ST_MAIN(logicOp);
-    PHI_LOC_ST_MAIN(multiViewport);
-    PHI_LOC_ST_MAIN(occlusionQueryPrecise);
-    PHI_LOC_ST_MAIN(shaderSampledImageArrayDynamicIndexing);
-    PHI_LOC_ST_MAIN(shaderStorageBufferArrayDynamicIndexing);
-    PHI_LOC_ST_MAIN(shaderStorageImageArrayDynamicIndexing);
-    PHI_LOC_ST_MAIN(shaderStorageImageWriteWithoutFormat);
-    PHI_LOC_ST_MAIN(shaderTessellationAndGeometryPointSize);
-    PHI_LOC_ST_MAIN(shaderUniformBufferArrayDynamicIndexing);
-    PHI_LOC_ST_MAIN(textureCompressionBC);
-    PHI_LOC_ST_MAIN(wideLines);
-    PHI_LOC_ST_MAIN(depthBiasClamp);
-    PHI_LOC_ST_MAIN(depthClamp);
-    PHI_LOC_ST_MAIN(variableMultisampleRate);
-    PHI_LOC_ST_MAIN(inheritedQueries);
-    PHI_LOC_ST_MAIN(pipelineStatisticsQuery);
-    PHI_LOC_ST_MAIN(sampleRateShading);
-    PHI_LOC_ST_MAIN(shaderImageGatherExtended);
-    PHI_LOC_ST_MAIN(shaderStorageImageExtendedFormats);
-    PHI_LOC_ST_MAIN(tessellationShader);
+    PHI_VK_SET_OR_TEST(drawIndirectFirstInstance);
+    PHI_VK_SET_OR_TEST(fullDrawIndexUint32);
+    PHI_VK_SET_OR_TEST(vertexPipelineStoresAndAtomics);
+    PHI_VK_SET_OR_TEST(imageCubeArray);
+    PHI_VK_SET_OR_TEST(multiDrawIndirect);
+    PHI_VK_SET_OR_TEST(shaderClipDistance);
+    PHI_VK_SET_OR_TEST(shaderCullDistance);
+    PHI_VK_SET_OR_TEST(dualSrcBlend);
+    PHI_VK_SET_OR_TEST(largePoints);
+    PHI_VK_SET_OR_TEST(logicOp);
+    PHI_VK_SET_OR_TEST(multiViewport);
+    PHI_VK_SET_OR_TEST(occlusionQueryPrecise);
+    PHI_VK_SET_OR_TEST(shaderSampledImageArrayDynamicIndexing);
+    PHI_VK_SET_OR_TEST(shaderStorageBufferArrayDynamicIndexing);
+    PHI_VK_SET_OR_TEST(shaderStorageImageArrayDynamicIndexing);
+    PHI_VK_SET_OR_TEST(shaderStorageImageWriteWithoutFormat);
+    PHI_VK_SET_OR_TEST(shaderTessellationAndGeometryPointSize);
+    PHI_VK_SET_OR_TEST(shaderUniformBufferArrayDynamicIndexing);
+    PHI_VK_SET_OR_TEST(textureCompressionBC);
+    PHI_VK_SET_OR_TEST(wideLines);
+    PHI_VK_SET_OR_TEST(depthBiasClamp);
+    PHI_VK_SET_OR_TEST(depthClamp);
+    PHI_VK_SET_OR_TEST(variableMultisampleRate);
+    PHI_VK_SET_OR_TEST(inheritedQueries);
+    PHI_VK_SET_OR_TEST(pipelineStatisticsQuery);
+    PHI_VK_SET_OR_TEST(sampleRateShading);
+    PHI_VK_SET_OR_TEST(shaderImageGatherExtended);
+    PHI_VK_SET_OR_TEST(shaderStorageImageExtendedFormats);
+    PHI_VK_SET_OR_TEST(tessellationShader);
 
 
     if (enable_gbv)
     {
         // features required for GBV
-        PHI_LOC_ST_MAIN(fragmentStoresAndAtomics);
-        PHI_LOC_ST_MAIN(vertexPipelineStoresAndAtomics);
+        PHI_VK_SET_OR_TEST(fragmentStoresAndAtomics);
+        PHI_VK_SET_OR_TEST(vertexPipelineStoresAndAtomics);
     }
 
-    PHI_LOC_ST(p_next_chain_1.timelineSemaphore);
+    // timeline semaphores (hard requirement for fence API)
+    PHI_VK_SET_OR_TEST_PROPERTY(p_next_chain_1.timelineSemaphore, timelineSemaphore);
+
+    // dynamic descriptor indexing (required for empty shader view API / "bindless", currently hard requirement)
+    PHI_VK_SET_OR_TEST_PROPERTY(p_next_chain_2.shaderSampledImageArrayNonUniformIndexing, shaderSampledImageArrayNonUniformIndexing);
+    PHI_VK_SET_OR_TEST_PROPERTY(p_next_chain_2.runtimeDescriptorArray, runtimeDescriptorArray);
+    PHI_VK_SET_OR_TEST_PROPERTY(p_next_chain_2.descriptorBindingVariableDescriptorCount, descriptorBindingVariableDescriptorCount);
+    PHI_VK_SET_OR_TEST_PROPERTY(p_next_chain_2.descriptorBindingPartiallyBound, descriptorBindingPartiallyBound);
 
     return true;
 
-#undef PHI_LOC_ST_MAIN
-#undef PHI_LOC_ST
+#undef PHI_VK_SET_OR_TEST
+#undef PHI_VK_SET_OR_TEST_PROPERTY
 }

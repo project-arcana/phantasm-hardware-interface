@@ -1,13 +1,18 @@
 #include "cmd_list_translation.hh"
 
+#ifdef PHI_HAS_OPTICK
+#include <optick/optick.h>
+#endif
+
 #include <phantasm-hardware-interface/common/byte_util.hh>
 #include <phantasm-hardware-interface/common/command_reading.hh>
 #include <phantasm-hardware-interface/common/format_size.hh>
-#include <phantasm-hardware-interface/common/incomplete_state_cache.hh>
 #include <phantasm-hardware-interface/common/log.hh>
+#include <phantasm-hardware-interface/common/sse_hash.hh>
 
 #include "common/diagnostic_util.hh"
 #include "common/dxgi_format.hh"
+#include "common/incomplete_state_cache.hh"
 #include "common/native_enum.hh"
 #include "common/shared_com_ptr.hh"
 #include "common/util.hh"
@@ -20,6 +25,25 @@
 #include "pools/root_sig_cache.hh"
 #include "pools/shader_view_pool.hh"
 
+namespace
+{
+#ifdef PHI_HAS_OPTICK
+Optick::GPUQueueType phiQueueTypeToOptickD3D12(phi::queue_type type)
+{
+    switch (type)
+    {
+    case phi::queue_type::direct:
+    default:
+        return Optick::GPU_QUEUE_GRAPHICS;
+    case phi::queue_type::compute:
+        return Optick::GPU_QUEUE_COMPUTE;
+    case phi::queue_type::copy:
+        return Optick::GPU_QUEUE_TRANSFER;
+    }
+}
+#endif
+}
+
 void phi::d3d12::command_list_translator::initialize(
     ID3D12Device* device, ShaderViewPool* sv_pool, ResourcePool* resource_pool, PipelineStateObjectPool* pso_pool, AccelStructPool* as_pool, QueryPool* query_pool)
 {
@@ -30,7 +54,7 @@ void phi::d3d12::command_list_translator::initialize(
 void phi::d3d12::command_list_translator::destroy() { _thread_local.destroy(); }
 
 void phi::d3d12::command_list_translator::translateCommandList(
-    ID3D12GraphicsCommandList5* list, queue_type type, d3d12_incomplete_state_cache* state_cache, std::byte const* buffer, size_t buffer_size)
+    ID3D12GraphicsCommandList5* list, queue_type type, incomplete_state_cache* state_cache, std::byte const* buffer, size_t buffer_size)
 {
     _cmd_list = list;
     _current_queue_type = type;
@@ -38,17 +62,38 @@ void phi::d3d12::command_list_translator::translateCommandList(
 
     _bound.reset();
     _state_cache->reset();
+    _last_code_location.reset();
 
-    auto const gpu_heaps = _globals.pool_shader_views->getGPURelevantHeaps();
-    _cmd_list->SetDescriptorHeaps(UINT(gpu_heaps.size()), gpu_heaps.data());
+    {
+        // start Optick context
+#ifdef PHI_HAS_OPTICK
+        OPTICK_GPU_CONTEXT(_cmd_list, phiQueueTypeToOptickD3D12(_current_queue_type));
+        _current_optick_event = nullptr;
+        OPTICK_GPU_EVENT("PHI Command List");
+#endif
 
-    // translate all contained commands
-    command_stream_parser parser(buffer, buffer_size);
-    for (auto const& cmd : parser)
-        cmd::detail::dynamic_dispatch(cmd, *this);
+        auto const gpu_heaps = _globals.pool_shader_views->getGPURelevantHeaps();
+        _cmd_list->SetDescriptorHeaps(UINT(gpu_heaps.size()), gpu_heaps.data());
+
+        // translate all contained commands
+        command_stream_parser parser(buffer, buffer_size);
+        for (auto const& cmd : parser)
+        {
+            cmd::detail::dynamic_dispatch(cmd, *this);
+        }
+
+        // end last pending optick event
+#ifdef PHI_HAS_OPTICK
+        if (_current_optick_event)
+        {
+            Optick::GPUEvent::Stop(*_current_optick_event);
+            _current_optick_event = nullptr;
+        }
+#endif
+    }
 
     // close the list
-    _cmd_list->Close();
+    PHI_D3D12_VERIFY(_cmd_list->Close());
 
     // done
 }
@@ -130,6 +175,8 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::begin_render_p
 void phi::d3d12::command_list_translator::execute(const phi::cmd::draw& draw)
 {
     CC_ASSERT(_current_queue_type == queue_type::direct && "graphics commands are only valid on queue_type::direct");
+    CC_ASSERT(draw.pipeline_state.is_valid() && "invalid PSO handle");
+
     auto const& pso_node = _globals.pool_pipeline_states->get(draw.pipeline_state);
 
     // PSO
@@ -156,16 +203,8 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::draw& draw)
         }
     }
 
-    // Vertex buffer
-    if (draw.vertex_buffer != _bound.vertex_buffer)
-    {
-        _bound.vertex_buffer = draw.vertex_buffer;
-        if (draw.vertex_buffer.is_valid())
-        {
-            auto const vbv = _globals.pool_resources->getVertexBufferView(draw.vertex_buffer);
-            _cmd_list->IASetVertexBuffers(0, 1, &vbv);
-        }
-    }
+    // Vertex buffers
+    bind_vertex_buffers(draw.vertex_buffers);
 
     // Shader arguments
     {
@@ -188,6 +227,8 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::draw& draw)
 
             if (map.cbv_param != uint32_t(-1))
             {
+                CC_ASSERT(arg.constant_buffer.is_valid() && "argument CBV is missing");
+
                 // Set the CBV / offset if it has changed
                 if (bound_arg.update_cbv(arg.constant_buffer, arg.constant_buffer_offset))
                 {
@@ -227,11 +268,11 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::draw& draw)
     // Draw command
     if (draw.index_buffer.is_valid())
     {
-        _cmd_list->DrawIndexedInstanced(draw.num_indices, 1, draw.index_offset, draw.vertex_offset, 0);
+        _cmd_list->DrawIndexedInstanced(draw.num_indices, draw.num_instances, draw.index_offset, draw.vertex_offset, 0);
     }
     else
     {
-        _cmd_list->DrawInstanced(draw.num_indices, 1, draw.vertex_offset, 0);
+        _cmd_list->DrawInstanced(draw.num_indices, draw.num_instances, draw.index_offset, 0);
     }
 }
 
@@ -244,13 +285,13 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::draw_indirect&
     if (_bound.update_pso(draw_indirect.pipeline_state))
     {
         _cmd_list->SetPipelineState(pso_node.raw_pso);
+        _cmd_list->IASetPrimitiveTopology(pso_node.primitive_topology);
     }
 
     // Root signature
     if (_bound.update_root_sig(pso_node.associated_root_sig->raw_root_sig))
     {
         _cmd_list->SetGraphicsRootSignature(_bound.raw_root_sig);
-        _cmd_list->IASetPrimitiveTopology(pso_node.primitive_topology);
     }
 
     // Index buffer (optional)
@@ -264,16 +305,8 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::draw_indirect&
         }
     }
 
-    // Vertex buffer
-    if (draw_indirect.vertex_buffer != _bound.vertex_buffer)
-    {
-        _bound.vertex_buffer = draw_indirect.vertex_buffer;
-        if (draw_indirect.vertex_buffer.is_valid())
-        {
-            auto const vbv = _globals.pool_resources->getVertexBufferView(draw_indirect.vertex_buffer);
-            _cmd_list->IASetVertexBuffers(0, 1, &vbv);
-        }
-    }
+    // Vertex buffers
+    bind_vertex_buffers(draw_indirect.vertex_buffers);
 
     // Shader arguments
     {
@@ -416,6 +449,88 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::dispatch& disp
     _cmd_list->Dispatch(dispatch.dispatch_x, dispatch.dispatch_y, dispatch.dispatch_z);
 }
 
+void phi::d3d12::command_list_translator::execute(cmd::dispatch_indirect const& dispatch_indirect)
+{
+    auto const& pso_node = _globals.pool_pipeline_states->get(dispatch_indirect.pipeline_state);
+
+    // PSO
+    if (_bound.update_pso(dispatch_indirect.pipeline_state))
+    {
+        _cmd_list->SetPipelineState(pso_node.raw_pso);
+    }
+
+    // Root signature
+    if (_bound.update_root_sig(pso_node.associated_root_sig->raw_root_sig))
+    {
+        _cmd_list->SetComputeRootSignature(_bound.raw_root_sig);
+    }
+
+    // Shader arguments
+    {
+        auto const& root_sig = *pso_node.associated_root_sig;
+
+        // root constants
+        auto const root_constant_param = root_sig.argument_maps[0].root_const_param;
+        if (root_constant_param != unsigned(-1))
+        {
+            static_assert(sizeof(dispatch_indirect.root_constants) % sizeof(DWORD32) == 0, "root constant size not divisible by dword32 size");
+            _cmd_list->SetComputeRoot32BitConstants(root_constant_param, sizeof(dispatch_indirect.root_constants) / sizeof(DWORD32),
+                                                    dispatch_indirect.root_constants, 0);
+        }
+
+        // regular shader arguments
+        for (uint8_t i = 0; i < dispatch_indirect.shader_arguments.size(); ++i)
+        {
+            auto& bound_arg = _bound.shader_args[i];
+            auto const& arg = dispatch_indirect.shader_arguments[i];
+            auto const& map = root_sig.argument_maps[i];
+
+
+            if (map.cbv_param != uint32_t(-1))
+            {
+                // Set the CBV / offset if it has changed
+                if (bound_arg.update_cbv(arg.constant_buffer, arg.constant_buffer_offset))
+                {
+                    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(arg.constant_buffer, arg.constant_buffer_offset, 1) && "CBV offset OOB");
+
+                    auto const cbv_va = _globals.pool_resources->getBufferInfo(arg.constant_buffer).gpu_va;
+                    _cmd_list->SetComputeRootConstantBufferView(map.cbv_param, cbv_va + arg.constant_buffer_offset);
+                }
+            }
+
+            // Set the shader view if it has changed
+            if (bound_arg.update_shader_view(arg.shader_view))
+            {
+                if (map.srv_uav_table_param != uint32_t(-1))
+                {
+                    auto const sv_desc_table = _globals.pool_shader_views->getSRVUAVGPUHandle(arg.shader_view);
+                    _cmd_list->SetComputeRootDescriptorTable(map.srv_uav_table_param, sv_desc_table);
+                }
+
+                if (map.sampler_table_param != uint32_t(-1))
+                {
+                    auto const sampler_desc_table = _globals.pool_shader_views->getSamplerGPUHandle(arg.shader_view);
+                    _cmd_list->SetComputeRootDescriptorTable(map.sampler_table_param, sampler_desc_table);
+                }
+            }
+        }
+    }
+    auto const gpu_command_size_bytes = uint32_t(sizeof(gpu_indirect_command_dispatch));
+
+    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(dispatch_indirect.argument_buffer_addr, dispatch_indirect.num_arguments * gpu_command_size_bytes)
+              && "indirect argument buffer accessed OOB on GPU");
+
+    ID3D12Resource* const raw_arg_buffer = _globals.pool_resources->getRawResource(dispatch_indirect.argument_buffer_addr);
+    ID3D12CommandSignature* const comsig = _globals.pool_pipeline_states->getGlobalComSigDispatch();
+
+    // NOTE: We use no count buffer, which makes the second argument determine the actual amount of args, not the max
+    // NOTE: A global command sig is used, containing 256 dispatch arguments
+    // the global comsig require no association with a rootsig making things a lot simpler
+    // the amount of arguments configured in the rootsig is more or less arbitrary, could be increased possibly by a lot without cost
+    CC_ASSERT(dispatch_indirect.num_arguments <= 256 && "Too many indirect arguments, contact maintainers");
+    _cmd_list->ExecuteIndirect(comsig, dispatch_indirect.num_arguments, raw_arg_buffer, dispatch_indirect.argument_buffer_addr.offset_bytes, nullptr, 0);
+}
+
 void phi::d3d12::command_list_translator::execute(const phi::cmd::end_render_pass&)
 {
     CC_ASSERT(_current_queue_type == queue_type::direct && "graphics commands are only valid on queue_type::direct");
@@ -464,6 +579,15 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::transition_ima
     {
         _cmd_list->ResourceBarrier(UINT(barriers.size()), barriers.data());
     }
+
+    for (auto const& state_reset : transition_images.state_resets)
+    {
+        D3D12_RESOURCE_STATES const after = util::to_native(state_reset.new_state);
+        D3D12_RESOURCE_STATES before;
+
+        bool const before_known = _state_cache->transition_resource(state_reset.resource, after, before);
+        CC_ASSERT(before_known && "state resets require a locally known before-state. transition the resources normally before using slice transitions");
+    }
 }
 
 void phi::d3d12::command_list_translator::execute(const phi::cmd::barrier_uav& barrier)
@@ -473,7 +597,20 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::barrier_uav& b
     for (auto const res : barrier.resources)
     {
         auto const raw_res = _globals.pool_resources->getRawResource(res);
-        barriers.push_back(CD3DX12_RESOURCE_BARRIER::UAV(raw_res));
+
+        D3D12_RESOURCE_BARRIER& desc = barriers.emplace_back();
+        desc.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+        desc.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+        desc.UAV.pResource = raw_res;
+    }
+
+    if (barrier.resources.empty())
+    {
+        // full UAV barrier instead
+        D3D12_RESOURCE_BARRIER& desc = barriers.emplace_back();
+        desc.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+        desc.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+        desc.UAV.pResource = nullptr;
     }
 
     _cmd_list->ResourceBarrier(UINT(barriers.size()), barriers.data());
@@ -515,7 +652,7 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::copy_buffer_to
     footprint.Height = copy_text.dest_height;
     footprint.Depth = 1;
     // footprint.RowPitch:
-    if (is_block_compressed_format(dest_info.pixel_format))
+    if (phi::util::is_block_compressed_format(dest_info.pixel_format))
     {
         // calculated differently for block-compressed textures
         unsigned const num_blocks = cc::int_div_ceil(copy_text.dest_width, 4u);
@@ -598,9 +735,44 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::resolve_querie
     _cmd_list->ResolveQueryData(heap, util::to_query_type(type), query_index_start, resolve.num_queries, raw_dest_buffer, resolve.dest_offset_bytes);
 }
 
-void phi::d3d12::command_list_translator::execute(const phi::cmd::begin_debug_label& label) { util::begin_pix_marker(_cmd_list, 0, label.string); }
+void phi::d3d12::command_list_translator::execute(const phi::cmd::begin_debug_label& label)
+{
+    //
+    util::begin_pix_marker(_cmd_list, 0, label.string);
+}
 
-void phi::d3d12::command_list_translator::execute(const phi::cmd::end_debug_label&) { util::end_pix_marker(_cmd_list); }
+void phi::d3d12::command_list_translator::execute(const phi::cmd::end_debug_label&)
+{
+    //
+    util::end_pix_marker(_cmd_list);
+}
+
+void phi::d3d12::command_list_translator::execute(cmd::begin_profile_scope const& scope)
+{
+#ifdef PHI_HAS_OPTICK
+    if (_current_optick_event)
+    {
+        Optick::GPUEvent::Stop(*_current_optick_event);
+        _current_optick_event = nullptr;
+    }
+
+    if (scope.optick_event)
+    {
+        _current_optick_event = Optick::GPUEvent::Start(*scope.optick_event);
+    }
+#endif
+}
+
+void phi::d3d12::command_list_translator::execute(cmd::end_profile_scope const&)
+{
+#ifdef PHI_HAS_OPTICK
+    if (_current_optick_event)
+    {
+        Optick::GPUEvent::Stop(*_current_optick_event);
+        _current_optick_event = nullptr;
+    }
+#endif
+}
 
 void phi::d3d12::command_list_translator::execute(const phi::cmd::update_bottom_level& blas_update)
 {
@@ -621,7 +793,7 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::update_bottom_
 
     D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC as_create_info = {};
     as_create_info.Inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
-    as_create_info.Inputs.Flags = util::to_native_flags(dest_node.flags);
+    as_create_info.Inputs.Flags = util::to_native_accel_struct_build_flags(dest_node.flags);
     as_create_info.Inputs.NumDescs = UINT(dest_node.geometries.size());
 
     as_create_info.Inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
@@ -654,11 +826,12 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::update_top_lev
 
     D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC as_create_info = {};
     as_create_info.Inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
-    as_create_info.Inputs.Flags = util::to_native_flags(dest_node.flags);
+    as_create_info.Inputs.Flags = util::to_native_accel_struct_build_flags(dest_node.flags);
     as_create_info.Inputs.NumDescs = tlas_update.num_instances;
 
     as_create_info.Inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
-    as_create_info.Inputs.InstanceDescs = _globals.pool_resources->getBufferInfo(tlas_update.source_buffer_instances).gpu_va + tlas_update.source_buffer_offset_bytes;
+    as_create_info.Inputs.InstanceDescs
+        = _globals.pool_resources->getBufferInfo(tlas_update.source_instances_addr.buffer).gpu_va + tlas_update.source_instances_addr.offset_bytes;
 
     as_create_info.DestAccelerationStructureData = dest_node.buffer_as_va;
     as_create_info.ScratchAccelerationStructureData = _globals.pool_resources->getBufferInfo(dest_node.buffer_scratch).gpu_va;
@@ -708,9 +881,9 @@ void phi::d3d12::command_list_translator::execute(const cmd::dispatch_rays& disp
     f_fill_out_buffer_range(dispatch_rays.table_hit_groups, desc.HitGroupTable);
     f_fill_out_buffer_range(dispatch_rays.table_callable, desc.CallableShaderTable);
 
-    desc.Width = dispatch_rays.width;
-    desc.Height = dispatch_rays.height;
-    desc.Depth = dispatch_rays.depth;
+    desc.Width = dispatch_rays.dispatch_x;
+    desc.Height = dispatch_rays.dispatch_y;
+    desc.Depth = dispatch_rays.dispatch_z;
 
     _cmd_list->DispatchRays(&desc);
 }
@@ -725,7 +898,7 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::clear_textures
         auto const& op = clear_tex.clear_ops[i];
         auto* const resource = _globals.pool_resources->getRawResource(op.rv.resource);
 
-        if (is_depth_format(op.rv.texture_info.pixel_format))
+        if (phi::util::is_depth_format(op.rv.texture_info.pixel_format))
         {
             auto const dsv = dynamic_dsvs.get_index(i);
 
@@ -760,6 +933,38 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::clear_textures
 
     _thread_local.lin_alloc_rtvs.reset();
     _thread_local.lin_alloc_dsvs.reset();
+}
+
+void phi::d3d12::command_list_translator::execute(cmd::code_location_marker const& marker)
+{
+    _last_code_location.file = marker.file;
+    _last_code_location.function = marker.function;
+    _last_code_location.line = marker.line;
+}
+
+void phi::d3d12::command_list_translator::bind_vertex_buffers(handle::resource const vertex_buffers[limits::max_vertex_buffers])
+{
+    uint64_t const vert_hash = phi::util::sse_hash_type<handle::resource>(vertex_buffers, limits::max_vertex_buffers);
+    if (vert_hash != _bound.vertex_buffer_hash)
+    {
+        _bound.vertex_buffer_hash = vert_hash;
+        if (vertex_buffers[0].is_valid())
+        {
+            D3D12_VERTEX_BUFFER_VIEW vbvs[limits::max_vertex_buffers];
+            uint32_t numVertexBuffers = 0;
+
+            for (auto i = 0u; i < limits::max_vertex_buffers; ++i)
+            {
+                if (!vertex_buffers[i].is_valid())
+                    break;
+
+                vbvs[i] = _globals.pool_resources->getVertexBufferView(vertex_buffers[i]);
+                ++numVertexBuffers;
+            }
+
+            _cmd_list->IASetVertexBuffers(0, numVertexBuffers, vbvs);
+        }
+    }
 }
 
 void phi::d3d12::translator_thread_local_memory::initialize(ID3D12Device& device)

@@ -6,8 +6,9 @@
 #include <phantasm-hardware-interface/handles.hh>
 #include <phantasm-hardware-interface/types.hh>
 
+#include <phantasm-hardware-interface/d3d12/common/d3d12_sanitized.hh>
+
 #include <phantasm-hardware-interface/d3d12/Fence.hh>
-#include <phantasm-hardware-interface/d3d12/fwd.hh>
 
 namespace phi::d3d12
 {
@@ -16,20 +17,21 @@ class SwapchainPool
 public:
     struct backbuffer
     {
-        Fence fence;                     ///< present fence
-        D3D12_CPU_DESCRIPTOR_HANDLE rtv; ///< CPU RTV
-        ID3D12Resource* resource;        ///< resource ptr
-        D3D12_RESOURCE_STATES state;     ///< current state
+        Fence fence;                     // present fence - GPU signalled on present, CPU waited on acquire
+        D3D12_CPU_DESCRIPTOR_HANDLE rtv; // CPU RTV
+        ID3D12Resource* resource;        // resource ptr
+        D3D12_RESOURCE_STATES state;     // current state
     };
 
     struct swapchain
     {
-        IDXGISwapChain3* swapchain_com; ///< Swapchain COM Ptr
+        IDXGISwapChain3* swapchain_com; // Swapchain COM Ptr
         int backbuf_width;
         int backbuf_height;
         present_mode mode;
         bool has_resized;
-        cc::capped_array<backbuffer, 6> backbuffers; ///< all backbuffers
+        cc::capped_array<backbuffer, 6> backbuffers; // all backbuffers
+        uint32_t last_acquired_backbuf_i = 0;
     };
 
 public:
@@ -53,7 +55,7 @@ public:
 
     void present(handle::swapchain handle);
 
-    unsigned waitForBackbuffer(handle::swapchain handle);
+    unsigned acquireBackbuffer(handle::swapchain handle);
 
     swapchain const& get(handle::swapchain handle) const { return mPool.get(handle._value); }
 

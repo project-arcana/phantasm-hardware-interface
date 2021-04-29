@@ -18,7 +18,7 @@ struct vulkan_gpu_info
     VkPhysicalDevice physical_device;
     VkPhysicalDeviceProperties physical_device_props;
     VkPhysicalDeviceMemoryProperties mem_props;
-    lay_ext_set available_layers_extensions;
+    layer_extension_set available_layers_extensions;
     suitable_queues queues;
 
     bool is_suitable = false;
@@ -35,17 +35,23 @@ struct physical_device_feature_bundle
 {
     VkPhysicalDeviceFeatures2 features = {};
     VkPhysicalDeviceTimelineSemaphoreFeatures features_time_sem = {};
+    VkPhysicalDeviceDescriptorIndexingFeatures features_descriptor_indexing = {};
 
     physical_device_feature_bundle()
     {
         features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
         features.pNext = &features_time_sem;
         features_time_sem.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TIMELINE_SEMAPHORE_FEATURES;
+        features_time_sem.pNext = &features_descriptor_indexing;
+        features_descriptor_indexing.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
     }
     VkPhysicalDeviceFeatures2* get() { return &features; }
+
+    physical_device_feature_bundle(physical_device_feature_bundle const&) = delete;
+    physical_device_feature_bundle(physical_device_feature_bundle&&) = delete;
 };
 
-bool set_or_test_device_features(VkPhysicalDeviceFeatures2* arg, bool enable_gbv, bool test_mode);
+bool set_or_test_device_features(VkPhysicalDeviceFeatures2* arg, bool enable_gbv, bool test_mode, char const* gpu_name_for_logging = nullptr);
 
 /// receive all physical devices visible to the instance
 [[nodiscard]] cc::array<VkPhysicalDevice> get_physical_devices(VkInstance instance);

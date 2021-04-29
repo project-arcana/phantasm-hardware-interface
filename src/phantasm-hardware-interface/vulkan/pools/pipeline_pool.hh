@@ -29,12 +29,14 @@ public:
                                                              bool should_have_push_constants,
                                                              arg::graphics_shaders shader_stages,
                                                              phi::pipeline_config const& primitive_config,
-                                                             cc::allocator* scratch_alloc);
+                                                             cc::allocator* scratch_alloc,
+                                                             char const* dbg_name);
 
     [[nodiscard]] handle::pipeline_state createComputePipelineState(arg::shader_arg_shapes shader_arg_shapes,
                                                                     arg::shader_binary compute_shader,
                                                                     bool should_have_push_constants,
-                                                                    cc::allocator* scratch_alloc);
+                                                                    cc::allocator* scratch_alloc,
+                                                                    char const* dbg_name);
 
     [[nodiscard]] handle::pipeline_state createRaytracingPipelineState(cc::span<arg::raytracing_shader_library const> libraries,
                                                                        cc::span<arg::raytracing_argument_association const> arg_assocs,

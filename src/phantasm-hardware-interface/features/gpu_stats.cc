@@ -166,7 +166,10 @@ phi::gpustats::gpu_handle_t phi::gpustats::get_gpu_by_index(unsigned index)
 {
     CC_ASSERT(g_nvml._dll != nullptr && "gpustats not initialized");
     nvmlDevice_t ret;
-    if (g_nvml._nvmlDeviceGetHandleByIndex(index, &ret) == 0)
+
+    auto const operationResult = g_nvml._nvmlDeviceGetHandleByIndex(index, &ret);
+
+    if (operationResult == 0)
     {
         return static_cast<void*>(ret);
     }

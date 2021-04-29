@@ -8,6 +8,7 @@
 
 #include "adapter_choice_util.hh"
 #include "common/d3d12_sanitized.hh"
+#include "common/shared_com_ptr.hh"
 #include "common/verify.hh"
 
 void phi::d3d12::Adapter::initialize(const backend_config& config)
@@ -59,21 +60,34 @@ void phi::d3d12::Adapter::initialize(const backend_config& config)
     {
         // choose the adapter
         auto const candidates = get_adapter_candidates();
-        auto const chosen_adapter_index = config.adapter == adapter_preference::explicit_index
-                                              ? config.explicit_adapter_index
-                                              : candidates[get_preferred_gpu(candidates, config.adapter)].index;
+        CC_RUNTIME_ASSERT(!candidates.empty() && "Found no GPU candidates");
 
-        CC_RUNTIME_ASSERT(chosen_adapter_index != uint32_t(-1));
+        uint32_t chosen_adapter_index;
+
+        if (config.adapter == adapter_preference::explicit_index)
+        {
+            chosen_adapter_index = config.explicit_adapter_index;
+        }
+        else
+        {
+            auto const preferred_candidate_i = get_preferred_gpu(candidates, config.adapter);
+            CC_RUNTIME_ASSERT(preferred_candidate_i < candidates.size() && "Found no GPU candidates");
+            chosen_adapter_index = candidates[preferred_candidate_i].index;
+        }
 
         // detect intel GPUs for GBV workaround
+        bool found_chosen_index = false;
         for (auto const& candidate : candidates)
         {
             if (candidate.index == chosen_adapter_index)
             {
+                found_chosen_index = true;
                 is_intel_gpu = candidate.vendor == gpu_vendor::intel;
                 break;
             }
         }
+
+        CC_RUNTIME_ASSERT(found_chosen_index && "Given GPU adapter index invalid");
 
         // create the adapter
         shared_com_ptr<IDXGIAdapter> temp_adapter;
@@ -81,6 +95,7 @@ void phi::d3d12::Adapter::initialize(const backend_config& config)
         PHI_D3D12_VERIFY(temp_adapter->QueryInterface(IID_PPV_ARGS(&mAdapter)));
 
         print_startup_message(candidates, chosen_adapter_index, config, true);
+        mGPUInfo = candidates[chosen_adapter_index];
     }
 
     // Debug layer init
@@ -123,11 +138,13 @@ void phi::d3d12::Adapter::initialize(const backend_config& config)
         }
         else
         {
+            // (prevent clangf from breaking the URL in code)
+            // clang-format off
             PHI_LOG_ERROR << "failed to enable validation\n"
                              "  verify that the D3D12 SDK is installed on this machine\n"
                              "  refer to "
-                             "https://docs.microsoft.com/en-us/windows/uwp/gaming/"
-                             "use-the-directx-runtime-and-visual-studio-graphics-diagnostic-features";
+                             "https://docs.microsoft.com/en-us/windows/uwp/gaming/use-the-directx-runtime-and-visual-studio-graphics-diagnostic-features";
+            // clang-format on
         }
     }
 }

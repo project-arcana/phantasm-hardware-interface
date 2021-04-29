@@ -23,11 +23,7 @@ public:
     // frontend-facing API
 
     /// create a 1D, 2D or 3D texture, or a 1D/2D array
-    [[nodiscard]] handle::resource createTexture(
-        format format, unsigned w, unsigned h, unsigned mips, texture_dimension dim, unsigned depth_or_array_size, bool allow_uav, char const* dbg_name);
-
-    /// create a render- or depth-stencil target
-    [[nodiscard]] handle::resource createRenderTarget(format format, unsigned w, unsigned h, unsigned samples, unsigned array_size, char const* dbg_name);
+    handle::resource createTexture(arg::texture_description const& description, char const* dbg_name);
 
     /// create a buffer, with an element stride if its an index or vertex buffer
     [[nodiscard]] handle::resource createBuffer(uint64_t size_bytes, unsigned stride_bytes, resource_heap heap, bool allow_uav, char const* dbg_name);
@@ -104,7 +100,9 @@ public:
     // Raw VkBuffer / VkImage access
     //
 
+    [[nodiscard]] VkBuffer getRawBufferOrNull(handle::resource res) const { return res.is_valid() ? internalGet(res).buffer.raw_buffer : nullptr; }
     [[nodiscard]] VkBuffer getRawBuffer(handle::resource res) const { return internalGet(res).buffer.raw_buffer; }
+    [[nodiscard]] VkBuffer getRawBuffer(buffer_address addr) const { return internalGet(addr.buffer).buffer.raw_buffer; }
     [[nodiscard]] VkImage getRawImage(handle::resource res) const { return internalGet(res).image.raw_image; }
 
     [[nodiscard]] VkDeviceMemory getRawDeviceMemory(handle::resource res) const;
@@ -137,6 +135,13 @@ public:
 
         return internal.buffer.is_access_in_bounds(offset, size);
     }
+
+    bool isBufferAccessInBounds(buffer_address address, size_t size) const
+    {
+        return isBufferAccessInBounds(address.buffer, address.offset_bytes, size);
+    }
+
+    bool isBufferAccessInBounds(buffer_range range) const { return isBufferAccessInBounds(range.buffer, range.offset_bytes, range.size_bytes); }
 
     //
     // Master state access

@@ -16,13 +16,7 @@ class ResourcePool
 public:
     // frontend-facing API
 
-    /// create a 1D, 2D or 3D texture, or a 1D/2D array
-    [[nodiscard]] handle::resource createTexture(
-        format format, unsigned w, unsigned h, unsigned mips, texture_dimension dim, unsigned depth_or_array_size, bool allow_uav, char const* dbg_name);
-
-    /// create a render- or depth-stencil target
-    [[nodiscard]] handle::resource createRenderTarget(
-        phi::format format, unsigned w, unsigned h, unsigned samples, unsigned array_size, rt_clear_value const* optimized_clear_val, char const* dbg_name);
+    [[nodiscard]] handle::resource createTexture(arg::texture_description const& desc, char const* dbg_name);
 
     /// create a buffer, with an element stride if its an index or vertex buffer
     [[nodiscard]] handle::resource createBuffer(uint64_t size_bytes, unsigned stride_bytes, resource_heap heap, bool allow_uav, char const* dbg_name);
@@ -51,18 +45,17 @@ public:
 
         struct buffer_info
         {
-            D3D12_GPU_VIRTUAL_ADDRESS gpu_va;
-            uint32_t width;
-            uint32_t stride; // vertex/index size, structured buffer stride
+            D3D12_GPU_VIRTUAL_ADDRESS gpu_va; // cached
+            uint32_t width;                   // for bound checks, copy ranges, VBVs
+            uint32_t stride;                  // vertex/index size, structured buffer stride
 
             bool is_access_in_bounds(size_t offset, size_t size) const { return offset + size <= size_t(width); }
         };
 
         struct image_info
         {
-            format pixel_format;
-            unsigned num_mips;
-            unsigned num_array_layers;
+            format pixel_format; // for byte size of image
+            unsigned num_mips;   // for subresource index
         };
 
     public:
@@ -90,11 +83,18 @@ public:
     //
 
     [[nodiscard]] ID3D12Resource* getRawResource(handle::resource res) const { return internalGet(res).resource; }
+    [[nodiscard]] ID3D12Resource* getRawResource(buffer_address const& addr) const { return internalGet(addr.buffer).resource; }
 
     // Additional information
     [[nodiscard]] bool isImage(handle::resource res) const { return internalGet(res).type == resource_node::resource_type::image; }
     [[nodiscard]] resource_node::image_info const& getImageInfo(handle::resource res) const { return internalGet(res).image; }
     [[nodiscard]] resource_node::buffer_info const& getBufferInfo(handle::resource res) const { return internalGet(res).buffer; }
+    [[nodiscard]] resource_node::buffer_info const& getBufferInfo(buffer_address const& addr) const { return internalGet(addr.buffer).buffer; }
+
+    [[nodiscard]] D3D12_GPU_VIRTUAL_ADDRESS getBufferAddrVA(buffer_address address) const
+    {
+        return internalGet(address.buffer).buffer.gpu_va + address.offset_bytes;
+    }
 
     bool isBufferAccessInBounds(handle::resource res, size_t offset, size_t size) const
     {
@@ -104,6 +104,13 @@ public:
 
         return internal.buffer.is_access_in_bounds(offset, size);
     }
+
+    bool isBufferAccessInBounds(buffer_address address, size_t size) const
+    {
+        return isBufferAccessInBounds(address.buffer, address.offset_bytes, size);
+    }
+
+    bool isBufferAccessInBounds(buffer_range range) const { return isBufferAccessInBounds(range.buffer, range.offset_bytes, range.size_bytes); }
 
     //
     // Master state access

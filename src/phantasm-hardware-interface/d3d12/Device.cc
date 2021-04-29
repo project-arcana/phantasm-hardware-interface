@@ -122,6 +122,8 @@ void phi::d3d12::Device::initialize(IDXGIAdapter& adapter, const backend_config&
             shared_com_ptr<ID3D12InfoQueue> info_queue;
             PHI_D3D12_VERIFY(mDevice->QueryInterface(PHI_COM_WRITE(info_queue)));
             PHI_D3D12_VERIFY(info_queue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, TRUE));
+            PHI_D3D12_VERIFY(info_queue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE));
+            PHI_D3D12_VERIFY(info_queue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE));
             PHI_LOG("d3d12_break_on_warn enabled");
         }
     }
@@ -137,22 +139,7 @@ void phi::d3d12::Device::destroy()
             PHI_LOG("destroying ID3D12Device, spurious crash at shutdown might be imminent");
             PHI_LOG("device destruction can be skipped by enabling d3d12_workaround_device_release_crash in the backend config native features");
 
-            try
-            {
-                detail::perform_safe_seh_call(
-                    [&] {
-                        //
-                        PHI_D3D12_SAFE_RELEASE(mDevice);
-                    },
-                    [&] {
-                        //
-                        PHI_LOG_WARN("survived a crash in SEH __try/__except");
-                    });
-            }
-            catch (...)
-            {
-                PHI_LOG_WARN("survived a crash in try/catch");
-            }
+            PHI_D3D12_SAFE_RELEASE(mDevice);
         }
         else
         {

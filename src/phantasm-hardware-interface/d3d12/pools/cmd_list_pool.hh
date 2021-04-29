@@ -3,16 +3,16 @@
 #include <atomic>
 #include <cstdint>
 
-#include <clean-core/array.hh>
+#include <clean-core/alloc_array.hh>
+#include <clean-core/atomic_linked_pool.hh>
 #include <clean-core/bits.hh>
 #include <clean-core/capped_array.hh>
-#include <clean-core/atomic_linked_pool.hh>
 
 #include <phantasm-hardware-interface/arguments.hh>
-#include <phantasm-hardware-interface/common/incomplete_state_cache.hh>
 
 #include <phantasm-hardware-interface/d3d12/Fence.hh>
 #include <phantasm-hardware-interface/d3d12/common/d3d12_sanitized.hh>
+#include <phantasm-hardware-interface/d3d12/common/incomplete_state_cache.hh>
 #include <phantasm-hardware-interface/d3d12/fwd.hh>
 
 namespace phi::d3d12
@@ -93,7 +93,7 @@ private:
 class CommandAllocatorBundle
 {
 public:
-    void initialize(ID3D12Device5& device, D3D12_COMMAND_LIST_TYPE type, int num_allocs, int num_lists_per_alloc, cc::span<ID3D12GraphicsCommandList5*> out_list);
+    void initialize(ID3D12Device5& device, cc::allocator* static_alloc, D3D12_COMMAND_LIST_TYPE type, int num_allocs, int num_lists_per_alloc, cc::span<ID3D12GraphicsCommandList5*> out_list);
     void destroy();
 
     /// Resets the given command list to use memory by an appropriate allocator
@@ -107,7 +107,7 @@ private:
     void internalInit(ID3D12Device5& device, cmd_allocator_node& node, D3D12_COMMAND_LIST_TYPE list_type, unsigned num_cmdlists, cc::span<ID3D12GraphicsCommandList5*> out_cmdlists);
 
 private:
-    cc::array<cmd_allocator_node> mAllocators;
+    cc::alloc_array<cmd_allocator_node> mAllocators;
     size_t mActiveIndex = 0u;
 };
 
@@ -152,7 +152,7 @@ private:
         // - the command list is freshly reset using an appropriate allocator
         // - the responsible_allocator must be informed on submit or discard
         cmd_allocator_node* responsible_allocator;
-        d3d12_incomplete_state_cache state_cache;
+        incomplete_state_cache state_cache;
     };
 
     using cmdlist_linked_pool_t = cc::atomic_linked_pool<cmd_list_node>;
@@ -164,7 +164,7 @@ private:
         return queue_type(num_leading_zeroes);
     }
 
-    static constexpr handle::command_list IndexToHandle(uint32_t pool_handle, queue_type type)
+    static constexpr handle::command_list AddHandlePaddingFlags(uint32_t pool_handle, queue_type type)
     {
         // we rely on underlying values here
         static_assert(int(queue_type::direct) == 0, "unexpected enum ordering");
@@ -203,6 +203,21 @@ private:
         CC_UNREACHABLE("invalid queue_type");
     }
 
+    unsigned getFlatIndexOffset(queue_type type) const
+    {
+        switch (type)
+        {
+        case queue_type::direct:
+            return 0;
+        case queue_type::compute:
+            return mPoolDirect.max_size();
+        case queue_type::copy:
+            return mPoolDirect.max_size() + mPoolCompute.max_size();
+        }
+
+        CC_UNREACHABLE("invalid queue_type");
+    }
+
     ID3D12GraphicsCommandList5* getList(handle::command_list cl, queue_type type) const
     {
         switch (type)
@@ -236,16 +251,18 @@ public:
         return getList(cl, type);
     }
 
-    d3d12_incomplete_state_cache* getStateCache(handle::command_list cl) { return &getNodeInternal(cl)->state_cache; }
+    incomplete_state_cache* getStateCache(handle::command_list cl) { return &getNodeInternal(cl)->state_cache; }
 
 public:
     void initialize(BackendD3D12& backend,
+                    cc::allocator* static_alloc,
                     int num_direct_allocs,
                     int num_direct_lists_per_alloc,
                     int num_compute_allocs,
                     int num_compute_lists_per_alloc,
                     int num_copy_allocs,
                     int num_copy_lists_per_alloc,
+                    int max_num_unique_transitions_per_cmdlist,
                     cc::span<CommandAllocatorsPerThread*> thread_allocators);
     void destroy();
 
@@ -268,16 +285,20 @@ private:
     }
 
 private:
-    /// the linked pools per cmdlist type, managing handle association as well as additional
-    /// bookkeeping data structures
+    // the linked pools per cmdlist type, managing handle association as well as additional
+    // bookkeeping data structures
     cmdlist_linked_pool_t mPoolDirect;
     cmdlist_linked_pool_t mPoolCompute;
     cmdlist_linked_pool_t mPoolCopy;
 
-    /// parallel arrays to the pools, identically indexed
-    /// the cmdlists must stay alive even while "unallocated"
-    cc::array<ID3D12GraphicsCommandList5*> mRawListsDirect;
-    cc::array<ID3D12GraphicsCommandList5*> mRawListsCompute;
-    cc::array<ID3D12GraphicsCommandList5*> mRawListsCopy;
+    // flat memory for the state caches
+    int mNumStateCacheEntriesPerCmdlist;
+    cc::alloc_array<incomplete_state_cache::cache_entry> mFlatStateCacheEntries;
+
+    // parallel arrays to the pools, identically indexed
+    // the cmdlists must stay alive even while "unallocated"
+    cc::alloc_array<ID3D12GraphicsCommandList5*> mRawListsDirect;
+    cc::alloc_array<ID3D12GraphicsCommandList5*> mRawListsCompute;
+    cc::alloc_array<ID3D12GraphicsCommandList5*> mRawListsCopy;
 };
 }

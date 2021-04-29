@@ -4,6 +4,7 @@
 
 #include <typed-geometry/types/size.hh>
 
+#include <phantasm-hardware-interface/common/api.hh>
 #include <phantasm-hardware-interface/fwd.hh>
 #include <phantasm-hardware-interface/types.hh>
 
@@ -15,7 +16,7 @@ enum class backend_type : uint8_t
     vulkan
 };
 
-class Backend
+class PHI_API Backend
 {
 public:
     virtual void initialize(backend_config const& config) = 0;
@@ -31,19 +32,18 @@ public:
     [[nodiscard]] virtual handle::swapchain createSwapchain(window_handle const& window_handle,
                                                             tg::isize2 initial_size,
                                                             present_mode mode = present_mode::synced,
-                                                            unsigned num_backbuffers = 3)
+                                                            uint32_t num_backbuffers = 3)
         = 0;
 
     /// destroy a swapchain
     virtual void free(handle::swapchain sc) = 0;
 
     /// acquire the next available backbuffer on the given swapchain
-    /// blocks on CPU until a backbuffer is available
     /// if the returned handle is handle::null_resource, the current frame must be discarded
     /// can cause an internal resize on the swapchain
     [[nodiscard]] virtual handle::resource acquireBackbuffer(handle::swapchain sc) = 0;
 
-    /// attempts to present on the swapchain
+    /// attempts to present on the swapchain (blocking)
     /// can fail and cause an internal resize
     virtual void present(handle::swapchain sc) = 0;
 
@@ -57,7 +57,7 @@ public:
     virtual format getBackbufferFormat(handle::swapchain sc) const = 0;
 
     /// returns the amount of backbuffers
-    virtual unsigned getNumBackbuffers(handle::swapchain sc) const = 0;
+    virtual uint32_t getNumBackbuffers(handle::swapchain sc) const = 0;
 
     /// Clears pending internal resize events, returns true if the
     /// backbuffer has resized since the last call
@@ -67,34 +67,14 @@ public:
     // Resource interface
     //
 
-    /// create a 1D, 2D or 3D texture, or a 1D/2D array
+    /// create a 1D, 2D or 3D texture, or a 1D/2D texture array
+    /// for render- or depth targets, set the allow_render_target / allow_depth_stencil usage flags
+    /// for UAV usage, set the allow_uav usage flag
     /// if mips is 0, the maximum amount will be used
-    /// if the texture will be used as a UAV, allow_uav must be true
-    [[nodiscard]] virtual handle::resource createTexture(phi::format format,
-                                                         tg::isize2 size,
-                                                         unsigned mips,
-                                                         texture_dimension dim = texture_dimension::t2d,
-                                                         unsigned depth_or_array_size = 1,
-                                                         bool allow_uav = false,
-                                                         char const* debug_name = nullptr)
-        = 0;
-
-    /// create a [multisampled] 2D render- or depth-stencil target
-    [[nodiscard]] virtual handle::resource createRenderTarget(phi::format format,
-                                                              tg::isize2 size,
-                                                              unsigned samples = 1,
-                                                              unsigned array_size = 1,
-                                                              rt_clear_value const* optimized_clear_val = nullptr,
-                                                              char const* debug_name = nullptr)
-        = 0;
+    [[nodiscard]] virtual handle::resource createTexture(arg::texture_description const& desc, char const* debug_name = nullptr) = 0;
 
     /// create a buffer with optional element stride, allocation on an upload/readback heap, or allowing UAV access
-    [[nodiscard]] virtual handle::resource createBuffer(
-        unsigned size_bytes, unsigned stride_bytes = 0, resource_heap heap = resource_heap::gpu, bool allow_uav = false, char const* debug_name = nullptr)
-        = 0;
-
-    /// create a buffer with optional element stride on resource_heap::upload (shorthand function)
-    [[nodiscard]] virtual handle::resource createUploadBuffer(unsigned size_bytes, unsigned stride_bytes = 0, char const* debug_name = nullptr) = 0;
+    [[nodiscard]] virtual handle::resource createBuffer(arg::buffer_description const& info, char const* debug_name = nullptr) = 0;
 
     /// maps a buffer created on resource_heap::upload or ::readback to CPU-accessible memory and returns a pointer
     /// multiple (nested) maps are allowed, leaving a resource_heap::upload buffer persistently mapped is valid
@@ -124,6 +104,15 @@ public:
                                                                bool usage_compute = false)
         = 0;
 
+    // WARNING: This API is subject to change (will have to get more verbose for Vulkan)
+    [[nodiscard]] virtual handle::shader_view createEmptyShaderView(uint32_t num_srvs_uavs, uint32_t num_samplers, bool usage_compute = false) = 0;
+
+    virtual void writeShaderViewSRVs(handle::shader_view sv, uint32_t offset, cc::span<resource_view const> srvs) = 0;
+
+    virtual void writeShaderViewUAVs(handle::shader_view sv, uint32_t offset, cc::span<resource_view const> uavs) = 0;
+
+    virtual void writeShaderViewSamplers(handle::shader_view sv, uint32_t offset, cc::span<sampler_config const> samplers) = 0;
+
     virtual void free(handle::shader_view sv) = 0;
 
     virtual void freeRange(cc::span<handle::shader_view const> svs) = 0;
@@ -138,16 +127,22 @@ public:
                                                                      arg::shader_arg_shapes shader_arg_shapes,
                                                                      bool has_root_constants,
                                                                      arg::graphics_shaders shaders,
-                                                                     phi::pipeline_config const& primitive_config)
+                                                                     phi::pipeline_config const& primitive_config,
+                                                                     char const* debug_name = nullptr)
         = 0;
 
     /// create a graphics pipeline state from a compact description struct
-    [[nodiscard]] virtual handle::pipeline_state createPipelineState(arg::graphics_pipeline_state_desc const& description) = 0;
-
-    [[nodiscard]] virtual handle::pipeline_state createComputePipelineState(arg::shader_arg_shapes shader_arg_shapes, arg::shader_binary shader, bool has_root_constants = false)
+    [[nodiscard]] virtual handle::pipeline_state createPipelineState(arg::graphics_pipeline_state_description const& description, char const* debug_name = nullptr)
         = 0;
 
-    [[nodiscard]] virtual handle::pipeline_state createComputePipelineState(arg::compute_pipeline_state_desc const& description) = 0;
+    [[nodiscard]] virtual handle::pipeline_state createComputePipelineState(arg::shader_arg_shapes shader_arg_shapes,
+                                                                            arg::shader_binary shader,
+                                                                            bool has_root_constants = false,
+                                                                            char const* debug_name = nullptr)
+        = 0;
+
+    [[nodiscard]] virtual handle::pipeline_state createComputePipelineState(arg::compute_pipeline_state_description const& description, char const* debug_name = nullptr)
+        = 0;
 
     virtual void free(handle::pipeline_state ps) = 0;
 
@@ -191,7 +186,7 @@ public:
     // Query interface
     //
 
-    [[nodiscard]] virtual handle::query_range createQueryRange(query_type type, unsigned size) = 0;
+    [[nodiscard]] virtual handle::query_range createQueryRange(query_type type, uint32_t size) = 0;
 
     virtual void free(handle::query_range query_range) = 0;
 
@@ -199,7 +194,7 @@ public:
     // Raytracing interface
     //
 
-    [[nodiscard]] virtual handle::pipeline_state createRaytracingPipelineState(arg::raytracing_pipeline_state_desc const& description) = 0;
+    [[nodiscard]] virtual handle::pipeline_state createRaytracingPipelineState(arg::raytracing_pipeline_state_description const& description) = 0;
 
     /// create a bottom level acceleration structure (BLAS) holding geometry elements
     /// out_native_handle receives the value to be written to accel_struct_instance::native_bottom_level_as_handle
@@ -209,7 +204,7 @@ public:
         = 0;
 
     /// create a top level acceleration structure (TLAS) holding BLAS instances
-    [[nodiscard]] virtual handle::accel_struct createTopLevelAccelStruct(unsigned num_instances, accel_struct_build_flags_t flags) = 0;
+    [[nodiscard]] virtual handle::accel_struct createTopLevelAccelStruct(uint32_t num_instances, accel_struct_build_flags_t flags) = 0;
 
     /// receive the native acceleration struct handle to be written to accel_struct_instance::native_bottom_level_as_handle
     [[nodiscard]] virtual uint64_t getAccelStructNativeHandle(handle::accel_struct as) = 0;
@@ -222,7 +217,7 @@ public:
         = 0;
 
     /// write shader table records to memory - usually a mapped buffer
-    virtual void writeShaderTable(std::byte* dest, handle::pipeline_state pso, unsigned stride, arg::shader_table_records records) = 0;
+    virtual void writeShaderTable(std::byte* dest, handle::pipeline_state pso, uint32_t stride, arg::shader_table_records records) = 0;
 
     virtual void free(handle::accel_struct as) = 0;
 
@@ -258,6 +253,8 @@ public:
 
     virtual backend_type getBackendType() const = 0;
 
+    virtual gpu_info const& getGPUInfo() const = 0;
+
     //
     // Non-virtual utility
     //
@@ -270,10 +267,36 @@ public:
         (this->free(handles), ...);
     }
 
-    [[nodiscard]] handle::resource createBufferFromInfo(arg::create_buffer_info const& info, char const* debug_name = nullptr);
-    [[nodiscard]] handle::resource createRenderTargetFromInfo(arg::create_render_target_info const& info, char const* debug_name = nullptr);
-    [[nodiscard]] handle::resource createTextureFromInfo(arg::create_texture_info const& info, char const* debug_name = nullptr);
-    [[nodiscard]] handle::resource createResourceFromInfo(arg::create_resource_info const& info, char const* debug_name = nullptr);
+
+    /// create a 1D, 2D or 3D texture, or a 1D/2D array
+    /// if mips is 0, the maximum amount will be used
+    /// if the texture will be used as a UAV, allow_uav must be true
+    [[nodiscard]] handle::resource createTexture(phi::format format,
+                                                 tg::isize2 size,
+                                                 uint32_t mips,
+                                                 texture_dimension dim = texture_dimension::t2d,
+                                                 uint32_t depth_or_array_size = 1,
+                                                 bool allow_uav = false,
+                                                 char const* debug_name = nullptr);
+
+
+    /// create a [multisampled] 2D render- or depth-stencil target
+    [[nodiscard]] handle::resource createRenderTarget(phi::format format,
+                                                      tg::isize2 size,
+                                                      uint32_t samples = 1,
+                                                      uint32_t array_size = 1,
+                                                      rt_clear_value const* optimized_clear_val = nullptr,
+                                                      char const* debug_name = nullptr);
+
+
+    /// create a buffer with optional element stride, allocation on an upload/readback heap, or allowing UAV access
+    [[nodiscard]] handle::resource createBuffer(
+        uint32_t size_bytes, uint32_t stride_bytes = 0, resource_heap heap = resource_heap::gpu, bool allow_uav = false, char const* debug_name = nullptr);
+
+    /// create a buffer with optional element stride on resource_heap::upload (shorthand function)
+    [[nodiscard]] handle::resource createUploadBuffer(uint32_t size_bytes, uint32_t stride_bytes = 0, char const* debug_name = nullptr);
+
+    [[nodiscard]] handle::resource createResourceFromInfo(arg::resource_description const& info, char const* debug_name = nullptr);
 
     Backend(Backend const&) = delete;
     Backend(Backend&&) = delete;

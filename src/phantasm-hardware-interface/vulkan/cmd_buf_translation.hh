@@ -7,6 +7,13 @@
 #include <phantasm-hardware-interface/vulkan/common/vk_incomplete_state_cache.hh>
 #include <phantasm-hardware-interface/vulkan/loader/volk.hh>
 
+#ifdef PHI_HAS_OPTICK
+namespace Optick
+{
+struct EventData;
+}
+#endif
+
 namespace phi::vk
 {
 class ShaderViewPool;
@@ -18,7 +25,14 @@ class QueryPool;
 
 struct translator_global_memory
 {
-    void initialize(VkDevice device, ShaderViewPool* sv_pool, ResourcePool* resource_pool, PipelinePool* pso_pool, CommandListPool* cmd_pool, QueryPool* query_pool, AccelStructPool* as_pool)
+    void initialize(VkDevice device,
+                    ShaderViewPool* sv_pool,
+                    ResourcePool* resource_pool,
+                    PipelinePool* pso_pool,
+                    CommandListPool* cmd_pool,
+                    QueryPool* query_pool,
+                    AccelStructPool* as_pool,
+                    bool has_rt)
     {
         this->device = device;
         this->pool_shader_views = sv_pool;
@@ -27,6 +41,7 @@ struct translator_global_memory
         this->pool_cmd_lists = cmd_pool;
         this->pool_queries = query_pool;
         this->pool_accel_structs = as_pool;
+        this->has_raytracing = has_rt;
     }
 
     VkDevice device = nullptr;
@@ -36,6 +51,7 @@ struct translator_global_memory
     CommandListPool* pool_cmd_lists = nullptr;
     QueryPool* pool_queries = nullptr;
     AccelStructPool* pool_accel_structs = nullptr;
+    bool has_raytracing = false;
 
     translator_global_memory() = default;
 };
@@ -43,9 +59,16 @@ struct translator_global_memory
 /// responsible for filling command lists, 1 per thread
 struct command_list_translator
 {
-    void initialize(VkDevice device, ShaderViewPool* sv_pool, ResourcePool* resource_pool, PipelinePool* pso_pool, CommandListPool* cmd_pool, QueryPool* query_pool, AccelStructPool* as_pool)
+    void initialize(VkDevice device,
+                    ShaderViewPool* sv_pool,
+                    ResourcePool* resource_pool,
+                    PipelinePool* pso_pool,
+                    CommandListPool* cmd_pool,
+                    QueryPool* query_pool,
+                    AccelStructPool* as_pool,
+                    bool has_rt)
     {
-        _globals.initialize(device, sv_pool, resource_pool, pso_pool, cmd_pool, query_pool, as_pool);
+        _globals.initialize(device, sv_pool, resource_pool, pso_pool, cmd_pool, query_pool, as_pool, has_rt);
     }
 
     void translateCommandList(VkCommandBuffer list, handle::command_list list_handle, vk_incomplete_state_cache* state_cache, std::byte const* buffer, size_t buffer_size);
@@ -57,6 +80,8 @@ struct command_list_translator
     void execute(cmd::draw_indirect const& draw_indirect);
 
     void execute(cmd::dispatch const& dispatch);
+
+    void execute(cmd::dispatch_indirect const& dispatch_indirect);
 
     void execute(cmd::end_render_pass const& end_rp);
 
@@ -84,6 +109,10 @@ struct command_list_translator
 
     void execute(cmd::end_debug_label const&);
 
+    void execute(cmd::begin_profile_scope const& scope);
+
+    void execute(cmd::end_profile_scope const&);
+
     void execute(cmd::update_bottom_level const& blas_update);
 
     void execute(cmd::update_top_level const& tlas_update);
@@ -92,7 +121,11 @@ struct command_list_translator
 
     void execute(cmd::clear_textures const& clear_tex);
 
+    void execute(cmd::code_location_marker const& marker);
+
 private:
+    void bind_vertex_buffers(handle::resource const vertex_buffers[limits::max_vertex_buffers]);
+
     void bind_shader_arguments(handle::pipeline_state pso, std::byte const* root_consts, cc::span<shader_argument const> shader_args, VkPipelineBindPoint bind_point);
 
     VkBuffer get_buffer_or_null(handle::resource buf) const;
@@ -111,7 +144,7 @@ private:
     {
         handle::pipeline_state pipeline_state = handle::null_pipeline_state;
         handle::resource index_buffer = handle::null_resource;
-        handle::resource vertex_buffer = handle::null_resource;
+        uint64_t vertex_buffer_hash = uint64_t(-1);
 
         struct shader_arg_info
         {
@@ -161,7 +194,7 @@ private:
         {
             pipeline_state = handle::null_pipeline_state;
             index_buffer = handle::null_resource;
-            vertex_buffer = handle::null_resource;
+            vertex_buffer_hash = uint64_t(-1);
 
             raw_render_pass = nullptr;
             raw_framebuffer = nullptr;
@@ -201,6 +234,27 @@ private:
         }
 
     } _bound;
+
+    // debug state - cmd::code_location_marker
+    struct
+    {
+        char const* function;
+        char const* file;
+        int line;
+
+        void reset()
+        {
+            function = "NONE";
+            file = "NONE";
+            line = 0;
+        }
+
+    } _last_code_location;
+
+// debug state - current Optick GPU Event
+#ifdef PHI_HAS_OPTICK
+    Optick::EventData* _current_optick_event = nullptr;
+#endif
 };
 
 }

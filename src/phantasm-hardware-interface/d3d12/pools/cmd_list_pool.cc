@@ -174,12 +174,14 @@ void phi::d3d12::CommandListPool::freeOnDiscard(cc::span<const phi::handle::comm
 }
 
 void phi::d3d12::CommandListPool::initialize(phi::d3d12::BackendD3D12& backend,
+                                             cc::allocator* static_alloc,
                                              int num_direct_allocs,
                                              int num_direct_lists_per_alloc,
                                              int num_compute_allocs,
                                              int num_compute_lists_per_alloc,
                                              int num_copy_allocs,
                                              int num_copy_lists_per_alloc,
+                                             int max_num_unique_transitions_per_cmdlist,
                                              cc::span<CommandAllocatorsPerThread*> thread_allocators)
 {
     auto const num_direct_lists_per_thread = size_t(num_direct_allocs * num_direct_lists_per_alloc);
@@ -190,24 +192,31 @@ void phi::d3d12::CommandListPool::initialize(phi::d3d12::BackendD3D12& backend,
     auto const num_compute_lists_total = num_compute_lists_per_thread * thread_allocators.size();
     auto const num_copy_lists_total = num_copy_lists_per_thread * thread_allocators.size();
 
+    auto const num_lists_total = num_direct_lists_total + num_compute_lists_total + num_copy_lists_total;
+
     // initialize data structures
-    mPoolDirect.initialize(num_direct_lists_total);
-    mRawListsDirect = mRawListsDirect.uninitialized(num_direct_lists_total);
-    mPoolCompute.initialize(num_compute_lists_total);
-    mRawListsCompute = mRawListsCompute.uninitialized(num_compute_lists_total);
-    mPoolCopy.initialize(num_copy_lists_total);
-    mRawListsCopy = mRawListsCopy.uninitialized(num_copy_lists_total);
+    mPoolDirect.initialize(num_direct_lists_total, static_alloc);
+    mRawListsDirect = mRawListsDirect.uninitialized(num_direct_lists_total, static_alloc);
+    mPoolCompute.initialize(num_compute_lists_total, static_alloc);
+    mRawListsCompute = mRawListsCompute.uninitialized(num_compute_lists_total, static_alloc);
+    mPoolCopy.initialize(num_copy_lists_total, static_alloc);
+    mRawListsCopy = mRawListsCopy.uninitialized(num_copy_lists_total, static_alloc);
+
+    mNumStateCacheEntriesPerCmdlist = max_num_unique_transitions_per_cmdlist;
+    mFlatStateCacheEntries = mFlatStateCacheEntries.uninitialized(num_lists_total * max_num_unique_transitions_per_cmdlist, static_alloc);
 
     // initialize the three allocator bundles (direct, compute, copy)
     for (auto i = 0u; i < thread_allocators.size(); ++i)
     {
-        thread_allocators[i]->bundle_direct.initialize(*backend.getDevice5(), D3D12_COMMAND_LIST_TYPE_DIRECT, num_direct_allocs, num_direct_lists_per_alloc,
+        thread_allocators[i]->bundle_direct.initialize(*backend.nativeGetDevice(), static_alloc, D3D12_COMMAND_LIST_TYPE_DIRECT, num_direct_allocs,
+                                                       num_direct_lists_per_alloc,
                                                        cc::span{mRawListsDirect}.subspan(i * num_direct_lists_per_thread, num_direct_lists_per_thread));
 
-        thread_allocators[i]->bundle_compute.initialize(*backend.getDevice5(), D3D12_COMMAND_LIST_TYPE_COMPUTE, num_compute_allocs, num_compute_lists_per_alloc,
-                                                        cc::span{mRawListsCompute}.subspan(i * num_compute_lists_per_thread, num_compute_lists_per_thread));
+        thread_allocators[i]->bundle_compute.initialize(
+            *backend.nativeGetDevice(), static_alloc, D3D12_COMMAND_LIST_TYPE_COMPUTE, num_compute_allocs, num_compute_lists_per_alloc,
+            cc::span{mRawListsCompute}.subspan(i * num_compute_lists_per_thread, num_compute_lists_per_thread));
 
-        thread_allocators[i]->bundle_copy.initialize(*backend.getDevice5(), D3D12_COMMAND_LIST_TYPE_COPY, num_copy_allocs, num_copy_lists_per_alloc,
+        thread_allocators[i]->bundle_copy.initialize(*backend.nativeGetDevice(), static_alloc, D3D12_COMMAND_LIST_TYPE_COPY, num_copy_allocs, num_copy_lists_per_alloc,
                                                      cc::span{mRawListsCopy}.subspan(i * num_copy_lists_per_thread, num_copy_lists_per_thread));
     }
 }
@@ -229,18 +238,26 @@ phi::handle::command_list phi::d3d12::CommandListPool::acquireNodeInternal(phi::
                                                                            ID3D12GraphicsCommandList5*& out_cmdlist)
 {
     auto& pool = getPool(type);
-    unsigned const res_index = pool.acquire();
+    unsigned const res = pool.acquire();
 
-    out_node = &pool.get(res_index);
-    auto const res_handle = IndexToHandle(res_index, type);
-    out_cmdlist = getList(res_handle, type);
-    return res_handle;
+    unsigned const res_flat_index = pool.get_handle_index(res) + getFlatIndexOffset(type);
+
+    out_node = &pool.get(res);
+    out_node->state_cache.initialize(cc::span(mFlatStateCacheEntries).subspan(res_flat_index * mNumStateCacheEntriesPerCmdlist, mNumStateCacheEntriesPerCmdlist));
+
+    auto const res_with_padding_flags = AddHandlePaddingFlags(res, type);
+    out_cmdlist = getList(res_with_padding_flags, type);
+    return res_with_padding_flags;
 }
 
-void phi::d3d12::CommandAllocatorBundle::initialize(
-    ID3D12Device5& device, D3D12_COMMAND_LIST_TYPE type, int num_allocs, int num_lists_per_alloc, cc::span<ID3D12GraphicsCommandList5*> out_list)
+void phi::d3d12::CommandAllocatorBundle::initialize(ID3D12Device5& device,
+                                                    cc::allocator* static_alloc,
+                                                    D3D12_COMMAND_LIST_TYPE type,
+                                                    int num_allocs,
+                                                    int num_lists_per_alloc,
+                                                    cc::span<ID3D12GraphicsCommandList5*> out_list)
 {
-    mAllocators = mAllocators.defaulted(static_cast<size_t>(num_allocs));
+    mAllocators = mAllocators.defaulted(size_t(num_allocs), static_alloc);
 
     // Initialize allocators, create command lists
 
@@ -317,6 +334,6 @@ void phi::d3d12::CommandAllocatorBundle::internalInit(ID3D12Device5& device,
     {
         PHI_D3D12_VERIFY(device.CreateCommandList(0, list_type, raw_alloc, nullptr, IID_PPV_ARGS(&out_cmdlists[i])));
         out_cmdlists[i]->Close();
-        util::set_object_name(out_cmdlists[i], "pooled %s cmdlist #%d, alloc_bundle %zx", queuetype_literal, i, this);
+        util::set_object_name(out_cmdlists[i], "pooled %s cmdlist #%d, alloc_bundle %p", queuetype_literal, i, this);
     }
 }

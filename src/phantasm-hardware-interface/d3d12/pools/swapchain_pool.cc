@@ -1,9 +1,16 @@
 #include "swapchain_pool.hh"
 
+#ifdef PHI_HAS_OPTICK
+#include <optick/optick.h>
+#endif
+
 #include <clean-core/assert.hh>
 
 #include <phantasm-hardware-interface/common/log.hh>
+
+#include <phantasm-hardware-interface/d3d12/common/shared_com_ptr.hh>
 #include <phantasm-hardware-interface/d3d12/common/util.hh>
+#include <phantasm-hardware-interface/d3d12/common/verify.hh>
 
 namespace
 {
@@ -126,7 +133,6 @@ phi::handle::swapchain phi::d3d12::SwapchainPool::createSwapchain(HWND window_ha
 
 void phi::d3d12::SwapchainPool::free(phi::handle::swapchain handle)
 {
-    // This requires no synchronization, as D3D12MA internally syncs
     swapchain& freed_node = mPool.get(handle._value);
     internalFree(freed_node);
 
@@ -156,21 +162,28 @@ void phi::d3d12::SwapchainPool::present(phi::handle::swapchain handle)
 {
     swapchain& node = mPool.get(handle._value);
 
-    UINT sync_interval = get_sync_interval(node.mode);
-    UINT flags = node.mode == present_mode::unsynced_allow_tearing ? DXGI_PRESENT_ALLOW_TEARING : 0;
+    // CPU-wait on currently acquired backbuffer
+    node.backbuffers[node.last_acquired_backbuf_i].fence.waitOnCPU(0);
 
+#ifdef PHI_HAS_OPTICK
+    OPTICK_GPU_FLIP(node.swapchain_com);
+#endif
+
+    // present
+    UINT const sync_interval = get_sync_interval(node.mode);
+    UINT const flags = node.mode == present_mode::unsynced_allow_tearing ? DXGI_PRESENT_ALLOW_TEARING : 0;
     PHI_D3D12_VERIFY_FULL(node.swapchain_com->Present(sync_interval, flags), mParentDevice);
 
+    // issue present fence on GPU for the next backbuffer in line
     auto const backbuffer_i = node.swapchain_com->GetCurrentBackBufferIndex();
     node.backbuffers[backbuffer_i].fence.issueFence(*mParentQueue);
 }
 
-unsigned phi::d3d12::SwapchainPool::waitForBackbuffer(phi::handle::swapchain handle)
+unsigned phi::d3d12::SwapchainPool::acquireBackbuffer(phi::handle::swapchain handle)
 {
     swapchain& node = mPool.get(handle._value);
-    auto const backbuffer_i = node.swapchain_com->GetCurrentBackBufferIndex();
-    node.backbuffers[backbuffer_i].fence.waitOnCPU(0);
-    return backbuffer_i;
+    node.last_acquired_backbuf_i = node.swapchain_com->GetCurrentBackBufferIndex();
+    return node.last_acquired_backbuf_i;
 }
 
 DXGI_FORMAT phi::d3d12::SwapchainPool::getBackbufferFormat() const { return gc_pool_backbuffer_format; }

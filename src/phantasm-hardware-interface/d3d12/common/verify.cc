@@ -146,8 +146,17 @@ DWORD get_hresult_error_message(HRESULT error_code, char* out_string, DWORD out_
     // this is a more verbose way of calling _com_error(hr).ErrorMessage(), made for two reasons:
     // 1. FORMAT_MESSAGE_MAX_WIDTH_MASK strips the \r symbol from the string
     // 2. The language can be forced to english with the fourth arg (MAKELANGID(...))
-    return FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_MAX_WIDTH_MASK, nullptr, error_code, MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US), // always english
-                          out_string, out_length, nullptr);
+    //      HOWEVER, under some circumstances this requires a loaded MUI file which is unlikely in general
+    //      thus, use zero
+
+    auto const res = FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_MAX_WIDTH_MASK, nullptr, error_code, 0, out_string, out_length, nullptr);
+
+    if (res == 0)
+    {
+        PHI_LOG_ASSERT("FormatMessageA failed: {}", GetLastError());
+    }
+
+    return res;
 }
 
 void print_dred_information(ID3D12Device* device)
@@ -259,13 +268,17 @@ void print_dred_information(ID3D12Device* device)
 
 void show_error_alert_box(char const* /*expression*/, char const* error, char const* filename, int line)
 {
-    char buf[1024];
-    snprintf(buf, sizeof(buf), "Fatal D3D12 error:\n\n%s\n\nFile:\n%s:%d", error, filename, line);
-
-    ::MessageBeep(MB_ICONERROR);
-    ::MessageBoxA(nullptr, buf, "PHI D3D12 Error", MB_OK | MB_ICONERROR);
+#if defined(_DEBUG)
+    if (!IsDebuggerPresent())
+    {
+        // MessageBeep(MB_ICONERROR);
+        _CrtDbgReport(_CRT_ERROR, filename, line, "phantasm-hardware-interface.dll", "%s", error);
+        // we only survive this call if Retry or Ignore was clicked
+        // let control run into the __debugbreak next
+    }
+#endif // CC_OS_WINDOWS && _DEBUG
 }
-}
+} // anon namespace
 
 
 void phi::d3d12::detail::verify_failure_handler(HRESULT hr, const char* expression, const char* filename, int line, ID3D12Device* device)
@@ -295,15 +308,12 @@ void phi::d3d12::detail::verify_failure_handler(HRESULT hr, const char* expressi
     }
 
     show_error_alert_box(expression, error_string, filename, line);
-
-    // TODO: Graceful shutdown
-    std::abort();
 }
 
 void phi::d3d12::detail::dred_assert_handler(void* device_child, const char* expression, const char* filename, int line)
 {
-    PHI_LOG_ASSERT("device-removal related assert on {} failed", expression);
-    PHI_LOG_ASSERT("  file {}:{}", filename, line);
+    PHI_LOG_ASSERT("device removed - assert on {} failed", expression);
+    PHI_LOG_ASSERT("  in file {}:{}", filename, line);
 
     auto* const as_device_child = static_cast<ID3D12DeviceChild*>(device_child);
 
@@ -315,11 +325,13 @@ void phi::d3d12::detail::dred_assert_handler(void* device_child, const char* exp
     }
     else
     {
-        PHI_LOG_ASSERT("Failed to recover device from ID3D12DeviceChild {} (error: {})", device_child, static_cast<char const*>(_com_error(hr).Description()));
+        char error_string[1024];
+        error_string[0] = '\0';
+        get_hresult_error_message(hr, error_string, sizeof(error_string));
+        PHI_LOG_ASSERT("Failed to recover device from ID3D12DeviceChild {}", device_child);
+        PHI_LOG_ASSERT("  error:");
+        PHI_LOG_ASSERT("    {}: \"{}\"", get_hresult_literal(hr), static_cast<char const*>(error_string));
     }
 
-    show_error_alert_box(expression, "DRED Assert (device removed)", filename, line);
-
-    // TODO: Graceful shutdown
-    std::abort();
+    show_error_alert_box(expression, "DRED Assert - Device Removed", filename, line);
 }

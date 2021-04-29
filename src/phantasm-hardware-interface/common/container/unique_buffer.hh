@@ -5,9 +5,11 @@
 
 #include <clean-core/bit_cast.hh>
 
+#include <phantasm-hardware-interface/common/api.hh>
+
 namespace phi
 {
-struct unique_buffer
+struct PHI_API unique_buffer
 {
     explicit unique_buffer() = default;
     explicit unique_buffer(size_t size) : _ptr(size > 0 ? static_cast<std::byte*>(std::malloc(size)) : nullptr), _size(size) {}
