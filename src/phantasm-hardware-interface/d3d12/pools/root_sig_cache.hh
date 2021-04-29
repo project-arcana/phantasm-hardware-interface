@@ -56,10 +56,7 @@ private:
             return cc::make_hash(hash::compute(v.arg_shapes), v.type, v.has_root_constants);
         }
 
-        uint64_t operator()(rootsig_key const& v) const noexcept
-        {
-            return cc::make_hash(hash::compute(v.arg_shapes), v.type, v.has_root_constants);
-        }
+        uint64_t operator()(rootsig_key const& v) const noexcept { return cc::make_hash(hash::compute(v.arg_shapes), v.type, v.has_root_constants); }
     };
 
     phi::detail::stable_map<rootsig_key, root_signature, rootsig_hasher> mCache;
