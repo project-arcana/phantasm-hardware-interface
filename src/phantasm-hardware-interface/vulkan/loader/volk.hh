@@ -30,4 +30,5 @@ enum vkver_e
 #endif
 };
 
+static_assert(major >= 1 && minor >= 2 && patch >= 148, "Vulkan SDK version 1.2.148 or newer is required, please update: https://vulkan.lunarg.com/");
 }

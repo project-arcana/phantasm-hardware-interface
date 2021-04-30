@@ -7,7 +7,7 @@ namespace phi
 struct byte_reader
 {
     byte_reader() = default;
-    byte_reader(cc::span<cc::byte const> buffer) : _buffer(buffer.data()), _head(buffer.data()), _buffer_end(buffer.data() + buffer.size()) {}
+    byte_reader(cc::span<std::byte const> buffer) : _buffer(buffer.data()), _head(buffer.data()), _buffer_end(buffer.data() + buffer.size()) {}
 
     template <class T>
     void read_t(T& out_t)
@@ -18,7 +18,7 @@ struct byte_reader
         _head += sizeof(T);
     }
 
-    void read(cc::span<cc::byte> out_data)
+    void read(cc::span<std::byte> out_data)
     {
         CC_ASSERT(_head + out_data.size() <= _buffer_end && "read OOB");
         std::memcpy(out_data.data(), _head, out_data.size());

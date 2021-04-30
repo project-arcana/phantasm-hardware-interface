@@ -153,7 +153,7 @@ DWORD get_hresult_error_message(HRESULT error_code, char* out_string, DWORD out_
 
     if (res == 0)
     {
-        PHI_LOG_ASSERT("FormatMessageA failed: {}", GetLastError());
+        PHI_LOG_ASSERT("FormatMessageA failed: {}", uint32_t(GetLastError()));
     }
 
     return res;

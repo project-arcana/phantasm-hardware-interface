@@ -34,7 +34,7 @@ public:
     void reset(VkDevice device);
 
 private:
-    static cc::hash_t hashKey(cmd::begin_render_pass const& brp, unsigned num_samples, cc::span<const format> override_rt_formats);
+    static uint64_t hashKey(cmd::begin_render_pass const& brp, unsigned num_samples, cc::span<const format> override_rt_formats);
 
     struct render_pass_key_readonly
     {
@@ -56,8 +56,8 @@ private:
 
     struct render_pass_hasher
     {
-        cc::hash_t operator()(render_pass_key_readonly const& v) const noexcept { return hashKey(v.brp, v.num_samples, v.override_formats); }
-        cc::hash_t operator()(render_pass_key const& v) const noexcept { return hashKey(v.brp, v.num_samples, v.override_formats); }
+        uint64_t operator()(render_pass_key_readonly const& v) const noexcept { return hashKey(v.brp, v.num_samples, v.override_formats); }
+        uint64_t operator()(render_pass_key const& v) const noexcept { return hashKey(v.brp, v.num_samples, v.override_formats); }
     };
 
     phi::detail::stable_map<render_pass_key, VkRenderPass, render_pass_hasher> mCache;

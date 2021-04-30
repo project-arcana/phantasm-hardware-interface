@@ -31,9 +31,9 @@ void phi::vk::RenderPassCache::reset(VkDevice device)
     mCache.memset_values_zero();
 }
 
-cc::hash_t phi::vk::RenderPassCache::hashKey(cmd::begin_render_pass const& brp, unsigned num_samples, cc::span<const format> override_rt_formats)
+uint64_t phi::vk::RenderPassCache::hashKey(cmd::begin_render_pass const& brp, unsigned num_samples, cc::span<const format> override_rt_formats)
 {
-    cc::hash_t res = 0;
+    uint64_t res = 0;
     for (uint8_t i = 0u; i < brp.render_targets.size(); ++i)
     {
         res = cc::hash_combine(res, cc::make_hash(brp.render_targets[i].clear_type, override_rt_formats[i]));

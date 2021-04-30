@@ -463,7 +463,7 @@ void phi::vk::command_list_translator::execute(const phi::cmd::transition_image_
     }
 }
 
-void phi::vk::command_list_translator::execute(const phi::cmd::barrier_uav& barrier)
+void phi::vk::command_list_translator::execute(const phi::cmd::barrier_uav&)
 {
     CC_ASSERT(_bound.raw_render_pass == nullptr && "Vulkan UAV barriers must not occur during render passes");
     // instead of using VkBuffer/ImageMemoryBarriers per resource, always issue a full memory barrier
@@ -642,6 +642,8 @@ void phi::vk::command_list_translator::execute(const phi::cmd::end_debug_label&)
 
 void phi::vk::command_list_translator::execute(cmd::begin_profile_scope const& scope)
 {
+    (void)scope;
+
 #ifdef PHI_HAS_OPTICK
     if (_current_optick_event)
     {
