@@ -253,22 +253,22 @@ phi::vk::layer_extension_array phi::vk::get_used_device_lay_ext(const phi::vk::l
 
     if (!f_add_ext(VK_KHR_SWAPCHAIN_EXTENSION_NAME))
     {
-        PHI_LOG_ERROR << "missing swapchain extension";
+        PHI_LOG_ERROR(R"(Fatal: Missing vulkan swapchain extension "{}")", VK_KHR_SWAPCHAIN_EXTENSION_NAME);
     }
 
     if (!f_add_ext(VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME))
     {
-        PHI_LOG_ERROR << "missing timeline semaphore extension, try updating GPU drivers";
+        PHI_LOG_ERROR(R"(Missing vulkan timeline semaphore extension "{}", try updating GPU drivers)", VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME);
     }
 
-    // VK_KHR_relaxed_block_layout
-    // prevents debug layers from warning about non-std430 layouts,
-    // which occur ie. with the -fvk-use-dx-layout DXC flag
-    // spec: https://www.khronos.org/registry/vulkan/specs/1.2-extensions/man/html/VK_KHR_relaxed_block_layout.html
-    if (!f_add_ext(VK_KHR_RELAXED_BLOCK_LAYOUT_EXTENSION_NAME))
-    {
-        PHI_LOG_WARN("missing relaxed block layout extension");
-    }
+    // VK_KHR_relaxed_block_layout - core in Vk 1.1
+    // https://www.khronos.org/registry/vulkan/specs/1.2-extensions/man/html/VK_KHR_relaxed_block_layout.html
+    //// prevents debug layers from warning about non-std430 layouts,
+    //// which occur ie. with the -fvk-use-dx-layout DXC flag
+    // if (!f_add_ext(VK_KHR_RELAXED_BLOCK_LAYOUT_EXTENSION_NAME))
+    //{
+    //    PHI_LOG_WARN("missing relaxed block layout extension");
+    //}
 
     // additional extensions
     has_conservative_raster = false;
@@ -290,12 +290,17 @@ phi::vk::layer_extension_array phi::vk::get_used_device_lay_ext(const phi::vk::l
                 if (!f_add_ext(name))
                 {
                     all_dependencies_present = false;
-                    PHI_LOG_ERROR("missing raytracing extension dependency {}, try updating GPU drivers", name);
+                    PHI_LOG_ERROR(R"(missing raytracing extension dependency "{}", try updating GPU drivers)", name);
                 }
             };
 
-            // f_add_rt_dependency(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME); part of Vulkan 1.1
-            f_add_rt_dependency(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME);
+            // VK_KHR_get_physical_device_properties2 - core in Vk 1.1
+            // https://www.khronos.org/registry/vulkan/specs/1.2-extensions/man/html/VK_KHR_get_physical_device_properties2.html
+            // f_add_rt_dependency(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
+
+            // VK_KHR_get_memory_requirements2 - core in Vk 1.1
+            // https://www.khronos.org/registry/vulkan/specs/1.2-extensions/man/html/VK_KHR_get_memory_requirements2.html
+            // f_add_rt_dependency(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME);
 
             // extensions below are required for KHR, but not NV
             // f_add_rt_dependency(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME);
