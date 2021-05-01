@@ -55,7 +55,7 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg)
         config.validation = validation_level::off;
     }
 
-    auto const active_lay_ext = get_used_instance_lay_ext(get_available_instance_lay_ext(), config);
+    auto const active_lay_ext = getUsedInstanceExtensions(getAvailableInstanceExtensions(), config);
 
     VkApplicationInfo app_info = {};
     app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -73,18 +73,35 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg)
     instance_info.enabledLayerCount = uint32_t(active_lay_ext.layers.size());
     instance_info.ppEnabledLayerNames = active_lay_ext.layers.empty() ? nullptr : active_lay_ext.layers.data();
 
-    VkValidationFeatureEnableEXT extended_validation_enables[]
-        = {VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT, VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_RESERVE_BINDING_SLOT_EXT,
-           VK_VALIDATION_FEATURE_ENABLE_BEST_PRACTICES_EXT};
-
-    VkValidationFeaturesEXT extended_validation_features = {};
+    cc::capped_vector<VkValidationFeatureEnableEXT, 4> extended_validation_enables;
 
     if (config.validation >= validation_level::on_extended)
     {
-        // enable GPU-assisted validation
+        // Enable GPU based validation (GBV)
+        extended_validation_enables.push_back(VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT);
+        extended_validation_enables.push_back(VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_RESERVE_BINDING_SLOT_EXT);
+    }
+
+    if (config.native_features & backend_config::native_feature_vk_best_practices_layer)
+    {
+        if (config.validation < validation_level::on)
+        {
+            PHI_LOG_WARN("Vulkan best practices layer requires validation_level::on or higher (native_feature_vk_best_practices_layer)");
+        }
+        else
+        {
+            PHI_LOG("Vulkan best practices layer enabled (native_feature_vk_best_practices_layer)");
+            extended_validation_enables.push_back(VK_VALIDATION_FEATURE_ENABLE_BEST_PRACTICES_EXT);
+        }
+    }
+
+    VkValidationFeaturesEXT extended_validation_features = {};
+
+    if (extended_validation_enables.size() > 0)
+    {
         extended_validation_features.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT;
-        extended_validation_features.enabledValidationFeatureCount = CC_COUNTOF(extended_validation_enables);
-        extended_validation_features.pEnabledValidationFeatures = extended_validation_enables;
+        extended_validation_features.enabledValidationFeatureCount = uint32_t(extended_validation_enables.size());
+        extended_validation_features.pEnabledValidationFeatures = extended_validation_enables.data();
 
         instance_info.pNext = &extended_validation_features;
     }

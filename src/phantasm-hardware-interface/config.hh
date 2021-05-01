@@ -76,6 +76,10 @@ struct backend_config
 
         // Vulkan: present from the discrete compute queue (instead of the default direct queue)
         native_feature_vk_present_from_compute = 1 << 3,
+
+        // Vulkan: Enable the best practices validation layer (VK_VALIDATION_FEATURE_ENABLE_BEST_PRACTICES_EXT)
+        // has proved to be of questionable reliability, requires at least validation_level::on
+        native_feature_vk_best_practices_layer = 1 << 4
     };
 
     /// native features to enable

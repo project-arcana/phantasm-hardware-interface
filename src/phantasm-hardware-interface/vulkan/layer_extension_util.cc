@@ -10,12 +10,12 @@
 #include "common/verify.hh"
 #include "surface_util.hh"
 
-void phi::vk::write_instance_extensions(cc::vector<VkExtensionProperties>& out_extensions, const char* layername)
+void phi::vk::writeInstanceExtensions(cc::vector<VkExtensionProperties>& out_extensions, const char* layername)
 {
     uint32_t res_count = cc::max<uint32_t>(10, uint32_t(out_extensions.capacity()));
     out_extensions.resize(res_count);
 
-    VkResult res = vkEnumerateInstanceExtensionProperties(layername, &res_count, out_extensions.data());
+    VkResult const res = vkEnumerateInstanceExtensionProperties(layername, &res_count, out_extensions.data());
     PHI_VK_ASSERT_NONERROR(res);
 
     if (res == VK_INCOMPLETE)
@@ -34,7 +34,7 @@ void phi::vk::write_instance_extensions(cc::vector<VkExtensionProperties>& out_e
     out_extensions.resize(res_count);
 }
 
-void phi::vk::write_device_extensions(cc::vector<VkExtensionProperties>& out_extensions, VkPhysicalDevice device, const char* layername)
+void phi::vk::writeDeviceExtensions(cc::vector<VkExtensionProperties>& out_extensions, VkPhysicalDevice device, const char* layername)
 {
     uint32_t res_count = cc::max<uint32_t>(10, uint32_t(out_extensions.capacity()));
     out_extensions.resize(res_count);
@@ -58,14 +58,14 @@ void phi::vk::write_device_extensions(cc::vector<VkExtensionProperties>& out_ext
     out_extensions.resize(res_count);
 }
 
-phi::vk::layer_extension_set phi::vk::get_available_instance_lay_ext()
+phi::vk::LayerExtensionSet phi::vk::getAvailableInstanceExtensions()
 {
-    layer_extension_set available_res;
+    LayerExtensionSet available_res;
 
     // Add global instance layer's extensions
     {
         cc::vector<VkExtensionProperties> global_extensions;
-        write_instance_extensions(global_extensions, nullptr);
+        writeInstanceExtensions(global_extensions, nullptr);
         available_res.extensions.add(global_extensions);
     }
 
@@ -92,10 +92,10 @@ phi::vk::layer_extension_set phi::vk::get_available_instance_lay_ext()
 
         for (auto const& layer_prop : global_layer_properties)
         {
-            layer_extension_bundle layer;
-            layer.layer_properties = layer_prop;
-            write_instance_extensions(layer.extension_properties, layer_prop.layerName);
-            available_res.extensions.add(layer.extension_properties);
+            LayerExtensionBundle layer;
+            layer.layerProperties = layer_prop;
+            writeInstanceExtensions(layer.extensionProperties, layer_prop.layerName);
+            available_res.extensions.add(layer.extensionProperties);
             available_res.layers.add(layer_prop.layerName);
         }
     }
@@ -104,11 +104,11 @@ phi::vk::layer_extension_set phi::vk::get_available_instance_lay_ext()
 }
 
 
-phi::vk::layer_extension_set phi::vk::get_available_device_lay_ext(VkPhysicalDevice physical)
+phi::vk::LayerExtensionSet phi::vk::getAvailableDeviceExtensions(VkPhysicalDevice physical)
 {
-    layer_extension_set available_res;
+    LayerExtensionSet available_res;
 
-    cc::vector<layer_extension_bundle> layer_extensions;
+    cc::vector<LayerExtensionBundle> layer_extensions;
 
     // Add global device layer
     layer_extensions.emplace_back();
@@ -135,24 +135,27 @@ phi::vk::layer_extension_set phi::vk::get_available_device_lay_ext(VkPhysicalDev
         auto& layer = layer_extensions[i];
         if (i == 0)
         {
-            write_device_extensions(layer.extension_properties, physical, nullptr);
+            writeDeviceExtensions(layer.extensionProperties, physical, nullptr);
         }
         else
         {
-            available_res.layers.add(layer.layer_properties.layerName);
-            write_device_extensions(layer.extension_properties, physical, layer.layer_properties.layerName);
+            available_res.layers.add(layer.layerProperties.layerName);
+            writeDeviceExtensions(layer.extensionProperties, physical, layer.layerProperties.layerName);
         }
 
-        available_res.extensions.add(layer.extension_properties);
+        available_res.extensions.add(layer.extensionProperties);
     }
 
     return available_res;
 }
 
 
-phi::vk::layer_extension_array phi::vk::get_used_instance_lay_ext(const phi::vk::layer_extension_set& available, const phi::backend_config& config)
+phi::vk::LayerExtensionArray phi::vk::getUsedInstanceExtensions(const phi::vk::LayerExtensionSet& available, const phi::backend_config& config)
 {
-    layer_extension_array used_res;
+    // All layers and extensions enabled in this function are instance-specific
+    // Missing ones are not related to hardware, but most likely to the installed Vulkan SDK
+
+    LayerExtensionArray used_res;
 
     auto const add_layer = [&](char const* layer_name) {
         if (available.layers.contains(layer_name))
@@ -172,17 +175,25 @@ phi::vk::layer_extension_array phi::vk::get_used_instance_lay_ext(const phi::vk:
         return false;
     };
 
+    bool has_shown_sdk_help_warning = false;
+    auto f_show_sdk_help_warning = [&]() {
+        if (has_shown_sdk_help_warning)
+            return;
+        has_shown_sdk_help_warning = true;
+        PHI_LOG_WARN("  try downloaing the latest LunarG SDK for your operating system,");
+        PHI_LOG_WARN("  then set these environment variables: (all paths absolute)");
+        PHI_LOG_WARN("  VK_LAYER_PATH - <sdk>/x86_64/etc/vulkan/explicit_layer.d/");
+        PHI_LOG_WARN("  VULKAN_SDK - <sdk>/x86_64/bin");
+        PHI_LOG_WARN("  LD_LIBRARY_PATH - <VALUE>:<sdk>/x86_64/lib (append)");
+    };
+
     // Decide upon active instance layers and extensions based on configuration and availability
     if (config.validation >= validation_level::on)
     {
         if (!add_layer("VK_LAYER_KHRONOS_validation"))
         {
-            PHI_LOG_ERROR << "validation enabled, but no layers available on Vulkan instance\n"
-                             "  download the latest LunarG SDK for your operating system,\n"
-                             "  then set these environment variables: (all paths absolute)\n"
-                             "  VK_LAYER_PATH - <sdk>/x86_64/etc/vulkan/explicit_layer.d/\n"
-                             "  VULKAN_SDK - <sdk>/x86_64/bin\n"
-                             "  LD_LIBRARY_PATH - <VALUE>:<sdk>/x86_64/lib (append)";
+            PHI_LOG_ERROR(R"(Validation is enabled (validation_level::on or higher), but "VK_LAYER_KHRONOS_validation" is missing on this Vulkan instance)");
+            f_show_sdk_help_warning();
         }
     }
 
@@ -190,7 +201,8 @@ phi::vk::layer_extension_array phi::vk::get_used_instance_lay_ext(const phi::vk:
     {
         if (!add_ext("VK_EXT_validation_features"))
         {
-            PHI_LOG_ERROR << "missing GPU-assisted validation extension";
+            PHI_LOG_ERROR(R"(GPU based validation is enabled (validation_level::on_extended or higher), but "VK_EXT_validation_features" is missing on this Vulkan instance)");
+            f_show_sdk_help_warning();
         }
     }
 
@@ -198,11 +210,12 @@ phi::vk::layer_extension_array phi::vk::get_used_instance_lay_ext(const phi::vk:
     {
         if (!add_layer("VK_LAYER_LUNARG_api_dump"))
         {
-            PHI_LOG_ERROR << "missing API dump layer";
+            PHI_LOG_ERROR(R"(Vulkan API dump is enabled (native_feature_vk_api_dump), but "VK_LAYER_LUNARG_api_dump" is missing on this Vulkan instance)");
+            f_show_sdk_help_warning();
         }
         else
         {
-            PHI_LOG("vk_api_dump enabled");
+            PHI_LOG("Vulkan API dump enabled - all calls are printed to stdout (native_feature_vk_api_dump)");
         }
     }
 
@@ -212,26 +225,30 @@ phi::vk::layer_extension_array phi::vk::get_used_instance_lay_ext(const phi::vk:
     // this is the revised version of VK_EXT_DEBUG_MARKER_EXTENSION_NAME (which is more or less deprecated)
     if (!add_ext(VK_EXT_DEBUG_UTILS_EXTENSION_NAME))
     {
-        PHI_LOG_ERROR << "missing debug utils extension";
+        PHI_LOG_ERROR(R"(Missing debug utility extension "{}")", VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+        f_show_sdk_help_warning();
     }
 
     // platform extensions
     for (char const* const required_device_ext : get_platform_instance_extensions())
     {
         if (!add_ext(required_device_ext))
-            PHI_LOG_ERROR << "missing required extension" << required_device_ext;
+        {
+            PHI_LOG_ERROR(R"(Missing platform-specific required Vulkan extension "{}")", required_device_ext);
+            f_show_sdk_help_warning();
+        }
     }
 
 
     return used_res;
 }
 
-phi::vk::layer_extension_array phi::vk::get_used_device_lay_ext(const phi::vk::layer_extension_set& available,
-                                                                const phi::backend_config& config,
-                                                                bool& has_raytracing,
-                                                                bool& has_conservative_raster)
+phi::vk::LayerExtensionArray phi::vk::getUsedDeviceExtensions(const phi::vk::LayerExtensionSet& available,
+                                                              const phi::backend_config& config,
+                                                              bool& outHasRaytracing,
+                                                              bool& outHasConservativeRaster)
 {
-    layer_extension_array used_res;
+    LayerExtensionArray used_res;
 
     [[maybe_unused]] auto const f_add_layer = [&](char const* layer_name) {
         if (available.layers.contains(layer_name))
@@ -271,13 +288,13 @@ phi::vk::layer_extension_array phi::vk::get_used_device_lay_ext(const phi::vk::l
     //}
 
     // additional extensions
-    has_conservative_raster = false;
+    outHasConservativeRaster = false;
     if (f_add_ext(VK_EXT_CONSERVATIVE_RASTERIZATION_EXTENSION_NAME))
     {
-        has_conservative_raster = true;
+        outHasConservativeRaster = true;
     }
 
-    has_raytracing = false;
+    outHasRaytracing = false;
     if (config.enable_raytracing)
     {
         // Note on Vk Ray tracing extensions:
@@ -309,7 +326,7 @@ phi::vk::layer_extension_array phi::vk::get_used_device_lay_ext(const phi::vk::l
             // f_add_rt_dependency("VK_KHR_pipeline_library");
 
             if (all_dependencies_present)
-                has_raytracing = true;
+                outHasRaytracing = true;
         }
     }
 

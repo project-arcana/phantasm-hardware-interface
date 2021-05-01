@@ -17,7 +17,7 @@ void phi::vk::Device::initialize(vulkan_gpu_info const& device, backend_config c
 
     mHasRaytracing = false;
     mHasConservativeRaster = false;
-    auto const active_lay_ext = get_used_device_lay_ext(device.available_layers_extensions, config, mHasRaytracing, mHasConservativeRaster);
+    auto const active_lay_ext = getUsedDeviceExtensions(device.available_layers_extensions, config, mHasRaytracing, mHasConservativeRaster);
 
     // chose queues
     mQueueIndices = get_chosen_queues(device.queues);
