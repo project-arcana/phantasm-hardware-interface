@@ -25,7 +25,7 @@ phi::handle::shader_view phi::vk::ShaderViewPool::create(cc::span<resource_view 
     // UAV:
     //      Texture* -> VK_DESCRIPTOR_TYPE_STORAGE_IMAGE
     //      Buffer   -> VK_DESCRIPTOR_TYPE_STORAGE_BUFFER
-    auto const layout = mAllocator.createLayoutFromShaderViewArgs(srvs, uavs, static_cast<unsigned>(sampler_configs.size()), usage_compute);
+    auto const layout = mAllocator.createLayoutFromShaderViewArgs(srvs, uavs, uint32_t(sampler_configs.size()), usage_compute);
 
     // Do acquires requiring synchronization
     VkDescriptorSet res_raw;
