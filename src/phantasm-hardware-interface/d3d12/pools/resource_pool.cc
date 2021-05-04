@@ -62,10 +62,12 @@ constexpr D3D12_RESOURCE_STATES d3d12_get_initial_state_by_heap(phi::resource_he
 }
 }
 
-void phi::d3d12::ResourcePool::initialize(ID3D12Device* device, unsigned max_num_resources, unsigned max_num_swapchains, cc::allocator* static_alloc, cc::allocator* dynamic_alloc)
+void phi::d3d12::ResourcePool::initialize(ID3D12Device* device, uint32_t max_num_resources, uint32_t max_num_swapchains, cc::allocator* static_alloc, cc::allocator* dynamic_alloc)
 {
     mAllocator.initialize(device, dynamic_alloc);
     mPool.initialize(max_num_resources + max_num_swapchains, static_alloc); // additional resources for swapchain backbuffers
+
+    mParallelResourceDescriptions.reset(static_alloc, mPool.max_size());
 
     mNumReservedBackbuffers = max_num_swapchains;
     for (auto i = 0u; i < mNumReservedBackbuffers; ++i)
@@ -105,10 +107,13 @@ void phi::d3d12::ResourcePool::destroy()
         PHI_LOG("leaked {} handle::resource object{}", num_leaks, (num_leaks == 1 ? "" : "s"));
     }
 
+    mPool.destroy();
+    mParallelResourceDescriptions = {};
+
     mAllocator.destroy();
 }
 
-phi::handle::resource phi::d3d12::ResourcePool::injectBackbufferResource(unsigned swapchain_index, ID3D12Resource* raw_resource, D3D12_RESOURCE_STATES state)
+phi::handle::resource phi::d3d12::ResourcePool::injectBackbufferResource(unsigned swapchain_index, tg::isize2 size, ID3D12Resource* raw_resource, D3D12_RESOURCE_STATES state)
 {
     CC_ASSERT(swapchain_index < mNumReservedBackbuffers && "swapchain index OOB");
     auto const res_handle = mPool.unsafe_construct_handle_for_index(swapchain_index);
@@ -116,6 +121,12 @@ phi::handle::resource phi::d3d12::ResourcePool::injectBackbufferResource(unsigne
     backbuffer_node.type = resource_node::resource_type::image;
     backbuffer_node.resource = raw_resource;
     backbuffer_node.master_state = state;
+
+
+    arg::resource_description& storedDesc = mParallelResourceDescriptions[swapchain_index];
+    storedDesc.type = arg::resource_description::e_resource_texture;
+    storedDesc.texture(format::bgra8un, size);
+
     return {res_handle};
 }
 
@@ -175,28 +186,28 @@ phi::handle::resource phi::d3d12::ResourcePool::createTexture(arg::texture_descr
     }
 
     auto* const alloc = mAllocator.allocate(desc, initial_state, clear_value_ptr, D3D12_HEAP_TYPE_DEFAULT);
-    auto const real_mip_levels = alloc->GetResource()->GetDesc().MipLevels;
-    util::set_object_name(alloc->GetResource(), "pool tex%s[%u] %s (%ux%u, %u mips)", d3d12_get_tex_dim_literal(description.dim),
-                          description.depth_or_array_size, dbg_name ? dbg_name : "", description.width, description.height, real_mip_levels);
+    auto const realNumMipmaps = alloc->GetResource()->GetDesc().MipLevels;
+    util::set_object_name(alloc->GetResource(), "tex%s[%u] %s (%ux%u, %u mips)", d3d12_get_tex_dim_literal(description.dim),
+                          description.depth_or_array_size, dbg_name ? dbg_name : "", description.width, description.height, realNumMipmaps);
 
-    return acquireImage(alloc, description.fmt, initial_state, real_mip_levels, desc.DepthOrArraySize);
+    return acquireImage(alloc, initial_state, description, realNumMipmaps);
 }
 
-phi::handle::resource phi::d3d12::ResourcePool::createBuffer(uint64_t size_bytes, unsigned stride_bytes, resource_heap heap, bool allow_uav, const char* dbg_name)
+phi::handle::resource phi::d3d12::ResourcePool::createBuffer(arg::buffer_description const& description, const char* dbg_name)
 {
-    CC_CONTRACT(size_bytes > 0);
-    D3D12_RESOURCE_STATES const initial_state = d3d12_get_initial_state_by_heap(heap);
+    CC_CONTRACT(description.size_bytes > 0);
+    D3D12_RESOURCE_STATES const initial_state = d3d12_get_initial_state_by_heap(description.heap);
 
-    auto desc = CD3DX12_RESOURCE_DESC::Buffer(size_bytes);
+    auto desc = CD3DX12_RESOURCE_DESC::Buffer(description.size_bytes);
 
-    if (allow_uav)
+    if (description.allow_uav)
         desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
-    auto* const alloc = mAllocator.allocate(desc, initial_state, nullptr, util::to_native(heap));
-    util::set_object_name(alloc->GetResource(), "pool buf %s (%uB, %uB stride, %s heap)", dbg_name ? dbg_name : "", unsigned(size_bytes),
-                          stride_bytes, d3d12_get_heap_type_literal(heap));
+    auto* const alloc = mAllocator.allocate(desc, initial_state, nullptr, util::to_native(description.heap));
+    util::set_object_name(alloc->GetResource(), "buf %s (%uB, %uB stride, %s heap)", dbg_name ? dbg_name : "", uint32_t(description.size_bytes),
+                          description.stride_bytes, d3d12_get_heap_type_literal(description.heap));
 
-    auto const res = acquireBuffer(alloc, initial_state, size_bytes, stride_bytes, heap);
+    auto const res = acquireBuffer(alloc, initial_state, description);
     return res;
 }
 
@@ -239,7 +250,13 @@ phi::handle::resource phi::d3d12::ResourcePool::createBufferInternal(
 
     auto* const alloc = mAllocator.allocate(desc, initial_state);
     util::set_object_name(alloc->GetResource(), "phi internal: %s", debug_name);
-    return acquireBuffer(alloc, initial_state, size_bytes, stride_bytes, resource_heap::gpu);
+
+    arg::buffer_description bufferDesc;
+    bufferDesc.heap = phi::resource_heap::gpu;
+    bufferDesc.allow_uav = allow_uav;
+    bufferDesc.size_bytes = uint32_t(size_bytes);
+    bufferDesc.stride_bytes = stride_bytes;
+    return acquireBuffer(alloc, initial_state, bufferDesc);
 }
 
 void phi::d3d12::ResourcePool::free(phi::handle::resource res)
@@ -269,26 +286,29 @@ void phi::d3d12::ResourcePool::setDebugName(phi::handle::resource res, const cha
     util::set_object_name(internalGet(res).resource, "%*s [respool named]", name_length, name);
 }
 
-phi::handle::resource phi::d3d12::ResourcePool::acquireBuffer(
-    D3D12MA::Allocation* alloc, D3D12_RESOURCE_STATES initial_state, uint64_t buffer_width, unsigned buffer_stride, phi::resource_heap heap)
+phi::handle::resource phi::d3d12::ResourcePool::acquireBuffer(D3D12MA::Allocation* alloc, D3D12_RESOURCE_STATES initial_state, arg::buffer_description const& desc)
 {
-    unsigned const res = mPool.acquire();
+    uint32_t const res = mPool.acquire();
 
     resource_node& new_node = mPool.get(res);
     new_node.allocation = alloc;
     new_node.resource = alloc->GetResource();
     new_node.type = resource_node::resource_type::buffer;
-    new_node.heap = heap;
+    new_node.heap = desc.heap;
     new_node.master_state = initial_state;
     new_node.buffer.gpu_va = new_node.resource->GetGPUVirtualAddress();
-    new_node.buffer.width = unsigned(buffer_width);
-    new_node.buffer.stride = buffer_stride;
+    new_node.buffer.width = desc.size_bytes;
+    new_node.buffer.stride = desc.stride_bytes;
 
-    return {static_cast<handle::handle_t>(res)};
+    uint32_t descriptionIndex = mPool.get_handle_index(res);
+    arg::resource_description& storedDesc = mParallelResourceDescriptions[descriptionIndex];
+    storedDesc.type = arg::resource_description::e_resource_buffer;
+    storedDesc.info_buffer = desc;
+
+    return {res};
 }
 
-phi::handle::resource phi::d3d12::ResourcePool::acquireImage(
-    D3D12MA::Allocation* alloc, phi::format pixel_format, D3D12_RESOURCE_STATES initial_state, unsigned num_mips, unsigned num_array_layers)
+phi::handle::resource phi::d3d12::ResourcePool::acquireImage(D3D12MA::Allocation* alloc, D3D12_RESOURCE_STATES initial_state, arg::texture_description const& desc, UINT16 realNumMipmaps)
 {
     unsigned const res = mPool.acquire();
 
@@ -298,8 +318,14 @@ phi::handle::resource phi::d3d12::ResourcePool::acquireImage(
     new_node.type = resource_node::resource_type::image;
     new_node.heap = resource_heap::gpu;
     new_node.master_state = initial_state;
-    new_node.image.num_mips = num_mips;
-    new_node.image.pixel_format = pixel_format;
+    new_node.image.num_mips = desc.num_mips;
+    new_node.image.pixel_format = desc.fmt;
 
-    return {static_cast<handle::handle_t>(res)};
+    uint32_t descriptionIndex = mPool.get_handle_index(res);
+    arg::resource_description& storedDesc = mParallelResourceDescriptions[descriptionIndex];
+    storedDesc.type = arg::resource_description::e_resource_texture;
+    storedDesc.info_texture = desc;
+    storedDesc.info_texture.num_mips = uint32_t(realNumMipmaps);
+
+    return {res};
 }

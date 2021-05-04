@@ -224,15 +224,22 @@ public:
     virtual void freeRange(cc::span<handle::accel_struct const> as) = 0;
 
     //
+    // Resource info interface
+    //
+
+    virtual arg::resource_description const& getResourceDescription(handle::resource res) const = 0;
+
+    virtual arg::texture_description const& getResourceTextureDescription(handle::resource res) const = 0;
+
+    virtual arg::buffer_description const& getResourceBufferDescription(handle::resource res) const = 0;
+
+    //
     // Debug interface
     //
 
     /// resets the debug name of a resource
     /// this is the name visible to diagnostic tools and referred to by validation warnings
     virtual void setDebugName(handle::resource res, cc::string_view name) = 0;
-
-    /// prints diagnostic information about the given resource
-    virtual void printInformation(handle::resource res) const = 0;
 
     /// attempts to detect graphics diagnostic tools (PIX, NSight, Renderdoc)
     /// and forces a capture start, returns true on success

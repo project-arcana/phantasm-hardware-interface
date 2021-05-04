@@ -289,7 +289,7 @@ phi::handle::resource phi::vk::BackendVulkan::createTexture(arg::texture_descrip
 
 phi::handle::resource phi::vk::BackendVulkan::createBuffer(arg::buffer_description const& desc, char const* debug_name)
 {
-    return mPoolResources.createBuffer(desc.size_bytes, desc.stride_bytes, desc.heap, desc.allow_uav, debug_name);
+    return mPoolResources.createBuffer(desc, debug_name);
 }
 
 std::byte* phi::vk::BackendVulkan::mapBuffer(phi::handle::resource res, int begin, int end) { return mPoolResources.mapBuffer(res, begin, end); }
@@ -572,32 +572,24 @@ void phi::vk::BackendVulkan::freeRange(cc::span<const phi::handle::accel_struct>
     mPoolAccelStructs.free(as);
 }
 
+phi::arg::resource_description const& phi::vk::BackendVulkan::getResourceDescription(handle::resource res) const
+{
+    return mPoolResources.getResourceDescription(res);
+}
+
+phi::arg::texture_description const& phi::vk::BackendVulkan::getResourceTextureDescription(handle::resource res) const
+{
+    return mPoolResources.getTextureDescription(res);
+}
+
+phi::arg::buffer_description const& phi::vk::BackendVulkan::getResourceBufferDescription(handle::resource res) const
+{
+    return mPoolResources.getBufferDescription(res);
+}
+
 void phi::vk::BackendVulkan::setDebugName(phi::handle::resource res, cc::string_view name)
 {
     mPoolResources.setDebugName(res, name.data(), uint32_t(name.length()));
-}
-
-void phi::vk::BackendVulkan::printInformation(phi::handle::resource res) const
-{
-    PHI_LOG << "Inspecting resource " << res._value;
-    if (!res.is_valid())
-        PHI_LOG << "  invalid (== handle::null_resource)";
-    else
-    {
-        if (mPoolResources.isImage(res))
-        {
-            auto const& info = mPoolResources.getImageInfo(res);
-            PHI_LOG << " image, raw pointer: " << info.raw_image;
-            PHI_LOG << " " << info.num_mips << " mips, " << info.num_array_layers << " array layers, format: " << uint32_t(info.pixel_format);
-        }
-        else
-        {
-            auto const& info = mPoolResources.getBufferInfo(res);
-            PHI_LOG << " buffer, raw pointer: " << info.raw_buffer;
-            PHI_LOG << " " << info.width << " width, " << info.stride << " stride";
-            PHI_LOG << " raw dynamic CBV descriptor set: " << info.raw_uniform_dynamic_ds;
-        }
-    }
 }
 
 bool phi::vk::BackendVulkan::startForcedDiagnosticCapture() { return mDiagnostics.start_capture(); }
