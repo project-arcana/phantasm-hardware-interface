@@ -255,7 +255,10 @@ enum class resource_view_dimension : uint8_t
     texture3d,
     texturecube,
     texturecube_array,
-    raytracing_accel_struct
+    raytracing_accel_struct,
+
+    MAX_DIMENSION_RANGE,
+    NUM_DIMENSIONS = MAX_DIMENSION_RANGE - 1
 };
 
 /// describes an element (either SRV or UAV) of a handle::shader_view
@@ -286,7 +289,8 @@ struct resource_view
         handle::accel_struct accel_struct;
     };
 
-    union {
+    union
+    {
         texture_info_t texture_info;
         buffer_info_t buffer_info;
         accel_struct_info_t accel_struct_info;

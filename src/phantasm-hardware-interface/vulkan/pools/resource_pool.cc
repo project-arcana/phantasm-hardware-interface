@@ -360,8 +360,7 @@ phi::handle::resource phi::vk::ResourcePool::injectBackbufferResource(
     CC_ASSERT(backbuffer_node.master_state_dependency != VK_PIPELINE_STAGE_FLAG_BITS_MAX_ENUM && "backbuffer in invalid resource state");
 
     arg::resource_description& storedDesc = mParallelResourceDescriptions[swapchain_index];
-    storedDesc.type = arg::resource_description::e_resource_texture;
-    storedDesc.texture(format::bgra8un, tg::isize2(width, height));
+    storedDesc = arg::resource_description::texture(format::bgra8un, tg::isize2(width, height));
 
     return {res_handle};
 }

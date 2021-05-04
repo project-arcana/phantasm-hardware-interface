@@ -124,8 +124,7 @@ phi::handle::resource phi::d3d12::ResourcePool::injectBackbufferResource(unsigne
 
 
     arg::resource_description& storedDesc = mParallelResourceDescriptions[swapchain_index];
-    storedDesc.type = arg::resource_description::e_resource_texture;
-    storedDesc.texture(format::bgra8un, size);
+    storedDesc = arg::resource_description::texture(format::bgra8un, size);
 
     return {res_handle};
 }
