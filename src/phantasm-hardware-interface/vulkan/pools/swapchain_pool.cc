@@ -65,7 +65,7 @@ phi::handle::swapchain phi::vk::SwapchainPool::createSwapchain(const window_hand
     }
 
     // Create synchronization primitives and assign dummy command buffers
-    new_node.backbuffers.emplace(num_backbuffers);
+    new_node.backbuffers.resize(num_backbuffers);
     for (auto i = 0u; i < new_node.backbuffers.size(); ++i)
     {
         auto& backbuffer = new_node.backbuffers[i];
@@ -327,13 +327,13 @@ void phi::vk::SwapchainPool::setupSwapchain(phi::handle::swapchain handle, int w
     }
 
     // Query backbuffer VkImages
-    cc::capped_array<VkImage, 6> backbuffer_images(node.backbuffers.size());
+    VkImage backbuffer_images[6];
     {
         uint32_t num_backbuffers;
         // This is redundant, but the validation layer warns if we don't do this
         vkGetSwapchainImagesKHR(mDevice, node.swapchain, &num_backbuffers, nullptr);
         CC_ASSERT(num_backbuffers == node.backbuffers.size());
-        vkGetSwapchainImagesKHR(mDevice, node.swapchain, &num_backbuffers, backbuffer_images.data());
+        vkGetSwapchainImagesKHR(mDevice, node.swapchain, &num_backbuffers, backbuffer_images);
     }
 
     // Set images, create RTVs and framebuffers

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <clean-core/atomic_linked_pool.hh>
-#include <clean-core/capped_array.hh>
+#include <clean-core/capped_vector.hh>
 
 #include <phantasm-hardware-interface/handles.hh>
 #include <phantasm-hardware-interface/types.hh>
@@ -30,7 +30,7 @@ public:
         int backbuf_height;
         present_mode mode;
         bool has_resized;
-        cc::capped_array<backbuffer, 6> backbuffers; // all backbuffers
+        cc::capped_vector<backbuffer, 6> backbuffers; // all backbuffers
         uint32_t last_acquired_backbuf_i = 0;
     };
 

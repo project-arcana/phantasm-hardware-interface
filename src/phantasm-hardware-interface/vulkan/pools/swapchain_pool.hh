@@ -1,7 +1,7 @@
 #pragma once
 
 #include <clean-core/atomic_linked_pool.hh>
-#include <clean-core/capped_array.hh>
+#include <clean-core/capped_vector.hh>
 
 #include <phantasm-hardware-interface/fwd.hh>
 #include <phantasm-hardware-interface/types.hh>
@@ -48,7 +48,7 @@ public:
         bool has_resized;
         unsigned active_fence_index;
         unsigned active_image_index;
-        cc::capped_array<backbuffer, 6> backbuffers; ///< all backbuffers
+        cc::capped_vector<backbuffer, 6> backbuffers; ///< all backbuffers
     };
 
 public:
