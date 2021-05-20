@@ -842,4 +842,13 @@ struct shader_table_strides
     uint32_t size_callable = 0;
     uint32_t stride_callable = 0;
 };
+
+struct vram_state_info
+{
+    // OS-provided VRAM budget in bytes, usage should stay below this
+    uint64_t os_budget_bytes = 0;
+    uint64_t current_usage_bytes = 0;
+    uint64_t available_for_reservation_bytes = 0;
+    uint64_t current_reservation_bytes = 0;
+};
 }

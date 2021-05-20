@@ -16,14 +16,14 @@ public:
 
     bool isValid() const { return mAdapter != nullptr; }
 
-    IDXGIAdapter& getAdapter() const { return *mAdapter; }
+    IDXGIAdapter3& getAdapter() const { return *mAdapter; }
     IDXGIFactory4& getFactory() const { return *mFactory; }
 
     gpu_info const& getGPUInfo() const { return mGPUInfo; }
 
 private:
     gpu_info mGPUInfo;
-    IDXGIAdapter* mAdapter = nullptr;
+    IDXGIAdapter3* mAdapter = nullptr;
     IDXGIFactory4* mFactory = nullptr;
     IDXGIInfoQueue* mInfoQueue = nullptr;
 };

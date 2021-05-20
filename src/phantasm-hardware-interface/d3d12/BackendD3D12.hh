@@ -219,6 +219,8 @@ public:
 public:
     // non virtual - d3d12 specific
 
+    vram_state_info nativeGetVRAMStateInfo();
+
     ID3D12Device5* nativeGetDevice() { return mDevice.getDevice(); }
     ID3D12CommandQueue* nativeGetDirectQueue() { return mDirectQueue.command_queue; }
     ID3D12CommandQueue* nativeGetCopyQueue() { return mCopyQueue.command_queue; }

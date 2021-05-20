@@ -513,6 +513,19 @@ uint64_t phi::d3d12::BackendD3D12::getGPUTimestampFrequency() const
 
 bool phi::d3d12::BackendD3D12::isRaytracingEnabled() const { return mDevice.hasRaytracing(); }
 
+phi::vram_state_info phi::d3d12::BackendD3D12::nativeGetVRAMStateInfo()
+{
+    DXGI_QUERY_VIDEO_MEMORY_INFO nativeInfo = {};
+    PHI_D3D12_VERIFY(mAdapter.getAdapter().QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &nativeInfo));
+
+    vram_state_info res;
+    res.os_budget_bytes = nativeInfo.Budget;
+    res.current_usage_bytes = nativeInfo.CurrentUsage;
+    res.available_for_reservation_bytes = nativeInfo.AvailableForReservation;
+    res.current_reservation_bytes = nativeInfo.CurrentReservation;
+    return res;
+}
+
 phi::d3d12::BackendD3D12::per_thread_component& phi::d3d12::BackendD3D12::getCurrentThreadComponent()
 {
     auto const current_index = mThreadAssociation.get_current_index();
