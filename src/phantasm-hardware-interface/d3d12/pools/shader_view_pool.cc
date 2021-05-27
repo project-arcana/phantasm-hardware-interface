@@ -147,7 +147,7 @@ void phi::d3d12::ShaderViewPool::writeShaderViewSamplers(handle::shader_view sv,
 {
     auto const& node = internalGet(sv);
     CC_ASSERT(node.sampler_alloc_handle != -1 && "writing resource view to shader_view without SRV/UAV slots");
-    uint32_t maxNumDescriptors = mSamplerAllocator.getNumDescriptorsInAllocation(node.srv_uav_alloc_handle);
+    uint32_t maxNumDescriptors = mSamplerAllocator.getNumDescriptorsInAllocation(node.sampler_alloc_handle);
     CC_ASSERT(samplers.size() + offset <= maxNumDescriptors && "writeShaderViewSamplers: write OOB");
 
     auto const sampler_base = mSamplerAllocator.getCPUStart(node.sampler_alloc_handle);
