@@ -104,11 +104,15 @@ public:
                                                                bool usage_compute = false)
         = 0;
 
-    // WARNING: This API is subject to change (will have to get more verbose for Vulkan)
-    [[nodiscard]] virtual handle::shader_view createEmptyShaderView(uint32_t num_srvs_uavs, uint32_t num_samplers, bool usage_compute = false) = 0;
+    /// create an empty shader view without specific resources written to it
+    [[nodiscard]] virtual handle::shader_view createEmptyShaderView(arg::shader_view_description const& desc, bool usage_compute = false) = 0;
 
+    /// write resources as contiguous SRVs to a shader view at a specified offset
+    /// SRVs are indexed flat, meaning descriptor arrays are treated as sequential regular descriptors
     virtual void writeShaderViewSRVs(handle::shader_view sv, uint32_t offset, cc::span<resource_view const> srvs) = 0;
 
+    /// write resources as contiguous UAVs to a shader view at a specified offset
+    /// UAVs are indexed flat, meaning descriptor arrays are treated as sequential regular descriptors
     virtual void writeShaderViewUAVs(handle::shader_view sv, uint32_t offset, cc::span<resource_view const> uavs) = 0;
 
     virtual void writeShaderViewSamplers(handle::shader_view sv, uint32_t offset, cc::span<sampler_config const> samplers) = 0;
@@ -314,4 +318,4 @@ public:
 protected:
     Backend() = default;
 };
-}
+} // namespace phi

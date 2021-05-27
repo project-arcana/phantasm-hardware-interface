@@ -101,6 +101,46 @@ struct compute_pipeline_state_description
     bool has_root_constants = false;
 };
 
+/// the category of a SRV or UAV descriptor slot in a shader
+enum class descriptor_category
+{
+    NONE = 0,
+
+    // HLSL: [RW]Texture1D/2D/3D/Cube[MS][Array]
+    texture,
+
+    // HLSL: [RW][Append][ByteAddress/Structured]Buffer
+    buffer,
+
+    // HLSL: RaytracingAccelerationStructure
+    raytracing_accel_struct,
+};
+
+/// properties of a single descriptor or descriptor array in a shader view
+struct descriptor_entry
+{
+    descriptor_category category = descriptor_category::NONE;
+    uint32_t array_size = 0;
+};
+
+/// describes the shape of a shader view
+/// used in createEmptyShaderView
+struct shader_view_description
+{
+    /// total amount of SRVs in the shader view
+    uint32_t num_srvs = 0;
+    /// properties of the SRV descriptors (in order) [optional in D3D12]
+    cc::span<descriptor_entry const> srv_entries = {};
+
+    /// total amount of UAVs in the shader view
+    uint32_t num_uavs = 0;
+    /// properties of the UAV descriptors (in order) [optional in D3D12]
+    cc::span<descriptor_entry const> uav_entries = {};
+
+    /// total amount of samplers in the shader view
+    uint32_t num_samplers = 0;
+};
+
 /// an element in a bottom-level acceleration strucutre
 struct blas_element
 {
@@ -305,7 +345,8 @@ struct resource_description
 
     e_resource_type type = e_resource_undefined;
 
-    union {
+    union
+    {
         texture_description info_texture;
         buffer_description info_buffer;
     };
@@ -349,4 +390,4 @@ public:
         return create(buffer_description::create(size_bytes, stride_bytes, heap, allow_uav));
     }
 };
-}
+} // namespace phi::arg

@@ -9,6 +9,34 @@
 #include <phantasm-hardware-interface/vulkan/render_pass_pipeline.hh>
 #include <phantasm-hardware-interface/vulkan/shader.hh>
 
+#define PHI_VK_DEBUG_PRINT_PSO_DESCRIPTOR_LAYOUT false
+
+namespace
+{
+void verifyReflectionDataConsistencyInDebug(cc::span<const phi::vk::util::spirv_desc_info> reflectedDescriptors,
+                                            phi::arg::shader_arg_shapes argShapes,
+                                            bool hasPushConstants,
+                                            bool shouldHavePushConstants)
+{
+#ifdef CC_ENABLE_ASSERTIONS
+    // Since we reflect all of the descriptor info from SPIR-V, arg shapes and root const flags are
+    // not strictly required here, however in debug check if they are consistent
+    phi::vk::util::warnIfReflectionIsIncosistent(reflectedDescriptors, argShapes);
+
+    if (!!hasPushConstants != !!shouldHavePushConstants)
+    {
+        PHI_LOG_WARN("createPipelineState: Call {} root constants but SPIR-V reflection {}", shouldHavePushConstants ? "enables" : "disables",
+                     hasPushConstants ? "finds push constants" : "finds none");
+    }
+#else
+    (void)reflectedDescriptors;
+    (void)argShapes;
+    (void)hasPushConstants;
+    (void)shouldHavePushConstants;
+#endif
+}
+} // namespace
+
 phi::handle::pipeline_state phi::vk::PipelinePool::createPipelineState(phi::arg::vertex_format vertex_format,
                                                                        phi::arg::framebuffer_config const& framebuffer_config,
                                                                        phi::arg::shader_arg_shapes shader_arg_shapes,
@@ -41,17 +69,31 @@ phi::handle::pipeline_state phi::vk::PipelinePool::createPipelineState(phi::arg:
         has_push_constants = spirv_info.has_push_constants;
     }
 
-    // In debug, calculate the amount of descriptors in the SPIR-V reflection and assert that the
-    // amount declared in the shader arg shapes is the same
-    CC_ASSERT(util::is_consistent_with_reflection(shader_descriptor_ranges, shader_arg_shapes) && "Given shader argument shapes inconsistent with SPIR-V reflection");
-
-    if (!!has_push_constants != !!should_have_push_constants)
+#if PHI_VK_DEBUG_PRINT_PSO_DESCRIPTOR_LAYOUT
     {
-        PHI_LOG_WARN("createPipelineState: Call {} root constants but SPIR-V reflection {}", should_have_push_constants ? "enables" : "disables",
-                     has_push_constants ? "finds push constants" : "finds none");
-        CC_ASSERT(!!has_push_constants == !!should_have_push_constants && "Given root constant state inconsistent with SPIR-V reflection");
-    }
+        PHI_LOG_TRACE("PSO Debug Descriptor Layout Print:");
+        PHI_LOG_TRACE(R"(Graphics PSO "{}")", dbg_name);
 
+        PHI_LOG_TRACE("Given Configuration:");
+        PHI_LOG_TRACE("{} Shader args, Root consts {}", shader_arg_shapes.size(), should_have_push_constants ? "enabled" : "disabled");
+        for (auto const& argshape : shader_arg_shapes)
+        {
+            PHI_LOG_TRACE("Shape: {} SRVs, {} UAVs, {} Samplers, CBV: {}", argshape.num_srvs, argshape.num_uavs, argshape.num_samplers, argshape.has_cbv);
+        }
+
+        PHI_LOG_TRACE("Reflected Configuration:");
+        PHI_LOG_TRACE("Push consts {}", has_push_constants ? "present" : "not present");
+
+        for (auto i = 0u; i < shader_descriptor_ranges.size(); ++i)
+        {
+            auto const& range = shader_descriptor_ranges[i];
+
+            PHI_LOG_TRACE("Descriptor #{}: Set {}, Binding {}, Array size {}, Type {}", i, range.set, range.binding, range.binding_array_size, range.type);
+        }
+    }
+#endif
+
+    verifyReflectionDataConsistencyInDebug(shader_descriptor_ranges, shader_arg_shapes, has_push_constants, should_have_push_constants);
 
     pipeline_layout* layout;
     // Do things requiring synchronization
@@ -105,10 +147,7 @@ phi::handle::pipeline_state phi::vk::PipelinePool::createComputePipelineState(ph
         shader_descriptor_ranges = util::merge_spirv_descriptors(spirv_info.descriptor_infos, scratch_alloc);
         has_push_constants = spirv_info.has_push_constants;
 
-        // In debug, calculate the amount of descriptors in the SPIR-V reflection and assert that the
-        // amount declared in the shader arg shapes is the same
-        CC_ASSERT(util::is_consistent_with_reflection(shader_descriptor_ranges, shader_arg_shapes) && "Given shader argument shapes inconsistent with SPIR-V reflection");
-        CC_ASSERT(has_push_constants == should_have_push_constants && "Shader push constant reflection inconsistent with creation argument");
+        verifyReflectionDataConsistencyInDebug(shader_descriptor_ranges, shader_arg_shapes, has_push_constants, should_have_push_constants);
     }
 
 

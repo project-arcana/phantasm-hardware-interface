@@ -57,3 +57,6 @@ CommentPragmas: '!Api.*'
 
 # Includes
 IncludeBlocks: Preserve
+
+# Closing namespace comments
+FixNamespaceComments: true

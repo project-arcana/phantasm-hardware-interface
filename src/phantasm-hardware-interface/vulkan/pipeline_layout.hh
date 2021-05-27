@@ -1,6 +1,7 @@
 #pragma once
 
-#include <clean-core/array.hh>
+#include <cstdint>
+
 #include <clean-core/capped_vector.hh>
 
 #include <phantasm-hardware-interface/arguments.hh>
@@ -41,10 +42,12 @@ struct pipeline_layout_params
     {
         cc::capped_vector<VkDescriptorSetLayoutBinding, 64> bindings;
 
-        void add_descriptor(VkDescriptorType type, unsigned binding, unsigned array_size, VkShaderStageFlags visibility);
+        void add_descriptor(VkDescriptorType type, uint32_t binding, uint32_t array_size, VkShaderStageFlags visibility);
 
         // this function is no longer in use
-        [[deprecated("dropped support for immutable samplers")]] void fill_in_immutable_samplers(cc::span<VkSampler const> samplers);
+        [[deprecated("dropped support for immutable samplers")]] //
+        void
+        fill_in_immutable_samplers(cc::span<VkSampler const> samplers);
 
         VkDescriptorSetLayout create_layout(VkDevice device) const;
     };
@@ -57,7 +60,7 @@ struct pipeline_layout_params
 
     void initialize_from_reflection_info(cc::span<util::spirv_desc_info const> reflection_info);
 };
-}
+} // namespace detail
 
 struct pipeline_layout
 {
@@ -81,4 +84,4 @@ struct pipeline_layout
     void print() const;
 };
 
-}
+} // namespace phi::vk

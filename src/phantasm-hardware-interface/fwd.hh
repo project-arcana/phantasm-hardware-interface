@@ -69,7 +69,7 @@ enum class accel_struct_build_flags : uint8_t;
 // helpers
 struct command_stream_parser;
 struct command_stream_writer;
-}
+} // namespace phi
 
 namespace phi::arg
 {
@@ -81,6 +81,7 @@ struct shader_binary;
 struct graphics_shader;
 struct graphics_pipeline_state_description;
 struct compute_pipeline_state_description;
+struct shader_view_description;
 
 using shader_arg_shapes = cc::span<shader_arg_shape const>;
 using graphics_shaders = cc::span<graphics_shader const>;
@@ -99,4 +100,4 @@ struct texture_description;
 struct buffer_description;
 struct resource_description;
 
-}
+} // namespace phi::arg

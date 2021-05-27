@@ -7,7 +7,7 @@
 #include <phantasm-hardware-interface/vulkan/resources/descriptor_allocator.hh>
 #include <phantasm-hardware-interface/vulkan/resources/transition_barrier.hh>
 
-void phi::vk::detail::pipeline_layout_params::descriptor_set_params::add_descriptor(VkDescriptorType type, unsigned binding, unsigned array_size, VkShaderStageFlags visibility)
+void phi::vk::detail::pipeline_layout_params::descriptor_set_params::add_descriptor(VkDescriptorType type, uint32_t binding, uint32_t array_size, VkShaderStageFlags visibility)
 {
     VkDescriptorSetLayoutBinding& new_binding = bindings.emplace_back();
     new_binding = {};

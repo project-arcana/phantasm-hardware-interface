@@ -1,5 +1,7 @@
 #include "spirv_patch_util.hh"
 
+#include <cstdio>
+
 #include <algorithm>
 #include <fstream>
 
@@ -166,8 +168,8 @@ void patchSpvReflectShader(SpvReflectShaderModule& module,
 }
 
 
-constexpr unsigned gc_patched_spirv_binary_version = 0xDEAD0001;
-}
+constexpr uint32_t gc_patched_spirv_binary_version = 0xDEAD0001;
+} // namespace
 
 phi::vk::util::patched_spirv_stage phi::vk::util::create_patched_spirv(std::byte const* bytecode, size_t bytecode_size, spirv_refl_info& out_info, cc::allocator* scratch_alloc)
 {
@@ -268,14 +270,14 @@ cc::alloc_vector<phi::vk::util::spirv_desc_info> phi::vk::util::merge_spirv_desc
     return sorted_merged_res;
 }
 
-bool phi::vk::util::is_consistent_with_reflection(cc::span<const phi::vk::util::spirv_desc_info> reflected_descriptors, phi::arg::shader_arg_shapes arg_shapes)
+void phi::vk::util::warnIfReflectionIsIncosistent(cc::span<const phi::vk::util::spirv_desc_info> reflected_descriptors, phi::arg::shader_arg_shapes arg_shapes)
 {
     struct reflected_range_infos
     {
-        unsigned num_cbvs = 0;
-        unsigned num_srvs = 0;
-        unsigned num_uavs = 0;
-        unsigned num_samplers = 0;
+        uint32_t num_cbvs = 0;
+        uint32_t num_srvs = 0;
+        uint32_t num_uavs = 0;
+        uint32_t num_samplers = 0;
     };
 
     cc::array<reflected_range_infos, limits::max_shader_arguments> range_infos;
@@ -293,22 +295,22 @@ bool phi::vk::util::is_consistent_with_reflection(cc::span<const phi::vk::util::
         if (descriptor.binding >= spv::sampler_binding_start)
         {
             // Sampler
-            info.num_samplers = cc::max(info.num_samplers, 1 + (descriptor.binding - spv::sampler_binding_start));
+            info.num_samplers += descriptor.binding_array_size;
         }
         else if (descriptor.binding >= spv::uav_binding_start)
         {
             // UAV
-            info.num_uavs = cc::max(info.num_uavs, 1 + (descriptor.binding - spv::uav_binding_start));
+            info.num_uavs += descriptor.binding_array_size;
         }
         else if (descriptor.binding >= spv::srv_binding_start)
         {
             // SRV
-            info.num_srvs = cc::max(info.num_srvs, 1 + (descriptor.binding - spv::srv_binding_start));
+            info.num_srvs += descriptor.binding_array_size;
         }
         else /*if (range.binding >= spv::cbv_binding_start)*/
         {
             // CBV
-            info.num_cbvs = cc::max(info.num_cbvs, 1 + (descriptor.binding - spv::cbv_binding_start));
+            info.num_cbvs += descriptor.binding_array_size;
         }
     }
 
@@ -319,25 +321,22 @@ bool phi::vk::util::is_consistent_with_reflection(cc::span<const phi::vk::util::
 
         if (ri.num_cbvs != (shape.has_cbv ? 1 : 0))
         {
-            PHI_LOG_ERROR << "SPIR-V reflection inconsistent - CBVs: " << ri.num_cbvs << " reflected, vs " << (shape.has_cbv ? 1 : 0) << " in argument #" << i;
-            return false;
+            PHI_LOG_WARN << "SPIR-V reflection inconsistent - CBVs: " << ri.num_cbvs << " reflected, vs " << (shape.has_cbv ? 1 : 0) << " in argument #" << i;
         }
 
         if (ri.num_srvs != shape.num_srvs)
         {
-            PHI_LOG_ERROR << "SPIR-V reflection inconsistent - SRVs: " << ri.num_srvs << " reflected, vs " << shape.num_srvs << " in argument #" << i;
+            PHI_LOG_WARN << "SPIR-V reflection inconsistent - SRVs: " << ri.num_srvs << " reflected, vs " << shape.num_srvs << " in argument #" << i;
         }
         if (ri.num_uavs != shape.num_uavs)
         {
-            PHI_LOG_ERROR << "SPIR-V reflection inconsistent - UAVs: " << ri.num_uavs << " reflected, vs " << shape.num_uavs << " in argument #" << i;
+            PHI_LOG_WARN << "SPIR-V reflection inconsistent - UAVs: " << ri.num_uavs << " reflected, vs " << shape.num_uavs << " in argument #" << i;
         }
         if (ri.num_samplers != shape.num_samplers)
         {
-            PHI_LOG_ERROR << "SPIR-V reflection inconsistent - Samplers: " << ri.num_samplers << " reflected, vs " << shape.num_samplers
-                          << " in argument #" << i;
+            PHI_LOG_WARN << "SPIR-V reflection inconsistent - Samplers: " << ri.num_samplers << " reflected, vs " << shape.num_samplers << " in argument #" << i;
         }
     }
-    return true;
 }
 
 void phi::vk::util::print_spirv_info(cc::span<const phi::vk::util::spirv_desc_info> info)
@@ -394,7 +393,7 @@ bool phi::vk::util::parse_patched_spirv(cc::span<const std::byte> data, phi::vk:
 
     auto reader = byte_reader{data};
 
-    unsigned version_number = 0;
+    uint32_t version_number = 0;
     reader.read_t(version_number);
 
     if (version_number != gc_patched_spirv_binary_version)

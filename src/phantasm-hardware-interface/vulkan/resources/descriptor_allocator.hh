@@ -22,19 +22,18 @@ public:
     void free(VkDescriptorSet descriptor_set);
 
     // free-threaded
-    [[nodiscard]] VkDescriptorSetLayout createSingleCBVLayout(bool usage_compute) const;
+    VkDescriptorSetLayout createSingleCBVLayout(bool usage_compute) const;
 
-    [[nodiscard]] VkDescriptorSetLayout createLayoutFromShaderViewArgs(cc::span<resource_view const> srvs,
-                                                                       cc::span<resource_view const> uavs,
-                                                                       unsigned num_samplers,
-                                                                       bool usage_compute) const;
+    VkDescriptorSetLayout createLayoutFromShaderViewArgs(cc::span<resource_view const> srvs, cc::span<resource_view const> uavs, unsigned num_samplers, bool usage_compute) const;
+
+    VkDescriptorSetLayout createLayoutFromDescription(arg::shader_view_description const& desc, bool usageCompute);
 
 
-    [[nodiscard]] VkDevice getDevice() const { return mDevice; }
+    VkDevice getDevice() const { return mDevice; }
 
 private:
     VkDevice mDevice = nullptr;
     VkDescriptorPool mPool;
 };
 
-}
+} // namespace phi::vk

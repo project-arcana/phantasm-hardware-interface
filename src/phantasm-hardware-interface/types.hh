@@ -264,9 +264,9 @@ enum class resource_view_dimension : uint8_t
 /// describes an element (either SRV or UAV) of a handle::shader_view
 struct resource_view
 {
-    handle::resource resource;
+    handle::resource resource = handle::null_resource;
 
-    resource_view_dimension dimension;
+    resource_view_dimension dimension = resource_view_dimension::none;
 
     struct texture_info_t
     {
@@ -851,4 +851,4 @@ struct vram_state_info
     uint64_t available_for_reservation_bytes = 0;
     uint64_t current_reservation_bytes = 0;
 };
-}
+} // namespace phi

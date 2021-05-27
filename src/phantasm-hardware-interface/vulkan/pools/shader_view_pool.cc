@@ -1,5 +1,6 @@
 #include "shader_view_pool.hh"
 
+#include <clean-core/alloc_vector.hh>
 #include <clean-core/capped_vector.hh>
 
 #include <phantasm-hardware-interface/common/log.hh>
@@ -15,7 +16,8 @@
 phi::handle::shader_view phi::vk::ShaderViewPool::create(cc::span<resource_view const> srvs,
                                                          cc::span<resource_view const> uavs,
                                                          cc::span<const sampler_config> sampler_configs,
-                                                         bool usage_compute)
+                                                         bool usage_compute,
+                                                         cc::allocator* scratch)
 {
     // Create the layout, maps as follows:
     // SRV:
@@ -27,152 +29,223 @@ phi::handle::shader_view phi::vk::ShaderViewPool::create(cc::span<resource_view 
     //      Buffer   -> VK_DESCRIPTOR_TYPE_STORAGE_BUFFER
     auto const layout = mAllocator.createLayoutFromShaderViewArgs(srvs, uavs, uint32_t(sampler_configs.size()), usage_compute);
 
-    // Do acquires requiring synchronization
-    VkDescriptorSet res_raw;
+    auto const newSV
+        = createShaderViewFromLayout(layout, uint32_t(srvs.size()), uint32_t(uavs.size()), uint32_t(sampler_configs.size()), cc::system_allocator, nullptr);
+
+    if (srvs.size() > 0)
     {
-        auto lg = std::lock_guard(mMutex);
-        res_raw = mAllocator.allocDescriptor(layout);
+        writeShaderViewSRVs(newSV, 0, srvs, scratch);
     }
 
-    unsigned const pool_index = mPool.acquire();
-
-    // Populate new node
-    shader_view_node& new_node = mPool.get(pool_index);
-    new_node.raw_desc_set = res_raw;
-    new_node.raw_desc_set_layout = layout;
-
-    // Perform the writes
+    if (uavs.size() > 0)
     {
-        cc::capped_vector<VkWriteDescriptorSet, 16> writes;
-        cc::capped_vector<VkWriteDescriptorSetAccelerationStructureNV, 4> as_write_infos;
-        cc::capped_vector<VkDescriptorBufferInfo, 64> buffer_infos;
-        cc::capped_vector<VkDescriptorImageInfo, 64 + limits::max_shader_samplers> image_infos;
+        writeShaderViewUAVs(newSV, 0, uavs, scratch);
+    }
 
-        auto f_perform_write = [&](VkDescriptorType type, unsigned dest_binding, bool is_image) {
-            auto& write = writes.emplace_back();
-            write = {};
-            write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            write.pNext = nullptr;
-            write.dstSet = res_raw;
-            write.descriptorType = type;
-            write.dstArrayElement = 0;
-            write.dstBinding = dest_binding;
-            write.descriptorCount = 1;
+    if (sampler_configs.size() > 0)
+    {
+        writeShaderViewSamplers(newSV, 0, sampler_configs, scratch);
+    }
 
-            if (is_image)
-                write.pImageInfo = image_infos.data() + (image_infos.size() - 1);
-            else
-                write.pBufferInfo = buffer_infos.data() + (buffer_infos.size() - 1);
-        };
+    return newSV;
+}
 
-        for (auto i = 0u; i < uavs.size(); ++i)
+phi::handle::shader_view phi::vk::ShaderViewPool::createEmpty(arg::shader_view_description const& desc, bool usageCompute)
+{
+    auto const layout = mAllocator.createLayoutFromDescription(desc, usageCompute);
+
+    return createShaderViewFromLayout(layout, desc.num_srvs, desc.num_uavs, desc.num_samplers, cc::system_allocator, &desc);
+}
+
+void phi::vk::ShaderViewPool::writeShaderViewSRVs(handle::shader_view sv, uint32_t offset, cc::span<resource_view const> srvs, cc::allocator* scratch)
+{
+    auto& node = internalGet(sv);
+    CC_ASSERT(srvs.size() + offset <= node.numSRVs && "SRV write out of bounds");
+
+    cc::alloc_vector<VkWriteDescriptorSet> writes;
+    writes.reset_reserve(scratch, srvs.size());
+
+    auto F_AddWrite = [&](VkDescriptorType type, uint32_t flatIndex) {
+        auto& write = writes.emplace_back_stable();
+        write = {};
+        write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        write.pNext = nullptr;
+        write.dstSet = node.descriptorSet;
+        write.descriptorType = type;
+        write.descriptorCount = 1;
+
+        bool success = flatSRVIndexToBindingAndArrayIndex(node, flatIndex, write.dstBinding, write.dstArrayElement);
+        CC_ASSERT(success && "SRV write out of bounds");
+    };
+
+    for (auto i = 0u; i < srvs.size(); ++i)
+    {
+        auto const& srv = srvs[i];
+        auto const nativeSRVType = util::to_native_srv_desc_type(srv.dimension);
+        auto const flatIdx = offset + i;
+
+        if (srv.dimension == resource_view_dimension::buffer)
         {
-            auto const& uav = uavs[i];
+            VkDescriptorBufferInfo* buf_info = scratch->new_t<VkDescriptorBufferInfo>();
+            buf_info->buffer = mResourcePool->getRawBuffer(srv.resource);
+            buf_info->offset = srv.buffer_info.element_start;
+            buf_info->range = srv.buffer_info.num_elements * srv.buffer_info.element_stride_bytes;
 
-            auto const uav_native_type = util::to_native_uav_desc_type(uav.dimension);
-            auto const binding = spv::uav_binding_start + i;
-
-            if (uav.dimension == resource_view_dimension::buffer)
-            {
-                auto& uav_info = buffer_infos.emplace_back();
-                uav_info.buffer = mResourcePool->getRawBuffer(uav.resource);
-                uav_info.offset = uav.buffer_info.element_start;
-                uav_info.range = uav.buffer_info.num_elements * uav.buffer_info.element_stride_bytes;
-
-                f_perform_write(uav_native_type, binding, false);
-            }
-            else
-            {
-                // shader_view_dimension::textureX
-                CC_ASSERT(uav.dimension != resource_view_dimension::raytracing_accel_struct && "Raytracing acceleration structures not allowed as UAVs");
-
-                auto& img_info = image_infos.emplace_back();
-                img_info.imageView = makeImageView(uav, true, true);
-                img_info.imageLayout = util::to_image_layout(resource_state::unordered_access);
-                img_info.sampler = nullptr;
-
-                f_perform_write(uav_native_type, binding, true);
-            }
+            F_AddWrite(nativeSRVType, flatIdx);
+            writes.back().pBufferInfo = buf_info;
+            // scratch allocations can be leaked safely
         }
-
-
-        for (auto i = 0u; i < srvs.size(); ++i)
+        else if (srv.dimension == resource_view_dimension::raytracing_accel_struct)
         {
-            auto const& srv = srvs[i];
+            VkWriteDescriptorSetAccelerationStructureNV* as_info = scratch->new_t<VkWriteDescriptorSetAccelerationStructureNV>();
+            *as_info = {};
+            as_info->sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_NV;
+            as_info->accelerationStructureCount = 1;
+            as_info->pAccelerationStructures = &mAccelStructPool->getNode(srv.accel_struct_info.accel_struct).raw_as;
 
-            auto const srv_native_type = util::to_native_srv_desc_type(srv.dimension);
-            auto const binding = spv::srv_binding_start + i;
-
-            if (srv.dimension == resource_view_dimension::buffer)
-            {
-                auto& uav_info = buffer_infos.emplace_back();
-                uav_info.buffer = mResourcePool->getRawBuffer(srv.resource);
-                uav_info.offset = srv.buffer_info.element_start;
-                uav_info.range = srv.buffer_info.num_elements * srv.buffer_info.element_stride_bytes;
-
-                f_perform_write(srv_native_type, binding, false);
-            }
-            else if (srv.dimension == resource_view_dimension::raytracing_accel_struct)
-            {
-                VkWriteDescriptorSetAccelerationStructureNV& as_info = as_write_infos.emplace_back();
-                as_info = {};
-                as_info.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_NV;
-                as_info.accelerationStructureCount = 1;
-                as_info.pAccelerationStructures = &mAccelStructPool->getNode(srv.accel_struct_info.accel_struct).raw_as;
-
-                auto& write = writes.emplace_back();
-                write = {};
-                write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-                write.pNext = &as_info;
-                write.dstSet = res_raw;
-                write.descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV;
-                write.dstArrayElement = 0;
-                write.dstBinding = binding;
-                write.descriptorCount = 1;
-            }
-            else
-            {
-                // shader_view_dimension::textureX
-
-                auto& img_info = image_infos.emplace_back();
-                img_info.imageView = makeImageView(srv, false, true);
-                img_info.imageLayout = util::to_image_layout(resource_state::shader_resource);
-                img_info.sampler = nullptr;
-
-                f_perform_write(srv_native_type, binding, true);
-            }
+            F_AddWrite(VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV, flatIdx);
+            writes.back().pNext = as_info;
         }
-
-        if (sampler_configs.size() > 0)
+        else // shader_view_dimension::textureX
         {
-            new_node.samplers.reserve(sampler_configs.size());
-            for (auto i = 0u; i < sampler_configs.size(); ++i)
+            VkImageView newImageView = makeImageView(srv, false, true);
+
+            VkDescriptorImageInfo* img_info = scratch->new_t<VkDescriptorImageInfo>();
+            img_info->imageView = newImageView;
+            img_info->imageLayout = util::to_image_layout(resource_state::shader_resource);
+            img_info->sampler = nullptr;
+
+            F_AddWrite(nativeSRVType, flatIdx);
+            writes.back().pImageInfo = img_info;
+
+            // free and replace the previous image view at this slot
+            uint32_t linearImageViewIndex = offset + i;
+            VkImageView prevImageView = node.imageViews[linearImageViewIndex];
+            if (prevImageView)
             {
-                auto const& sampler_conf = sampler_configs[i];
-                new_node.samplers.push_back(makeSampler(sampler_conf));
-
-                auto& img_info = image_infos.emplace_back();
-                img_info.imageView = nullptr;
-                img_info.imageLayout = util::to_image_layout(resource_state::shader_resource);
-                img_info.sampler = new_node.samplers.back();
-
-                f_perform_write(VK_DESCRIPTOR_TYPE_SAMPLER, spv::sampler_binding_start + i, true);
+                vkDestroyImageView(mAllocator.getDevice(), prevImageView, nullptr);
             }
-        }
-
-        vkUpdateDescriptorSets(mAllocator.getDevice(), uint32_t(writes.size()), writes.data(), 0, nullptr);
-
-        // Store image views in the new node
-        // These are allocating containers, however they are not accessed in a hot path
-        // We only do this because they have to stay alive until this shader view is freed
-        new_node.image_views.reserve(image_infos.size());
-        for (auto const& img_info : image_infos)
-        {
-            new_node.image_views.push_back(img_info.imageView);
+            node.imageViews[linearImageViewIndex] = newImageView;
         }
     }
 
-    return {static_cast<handle::handle_t>(pool_index)};
+    vkUpdateDescriptorSets(mAllocator.getDevice(), uint32_t(writes.size()), writes.data(), 0, nullptr);
+}
+
+void phi::vk::ShaderViewPool::writeShaderViewUAVs(handle::shader_view sv, uint32_t offset, cc::span<resource_view const> uavs, cc::allocator* scratch)
+{
+    auto& node = internalGet(sv);
+    // image_view.size(): total amount of UAVs + SRVs in this shader view
+    CC_ASSERT(node.numSRVs + uavs.size() + offset <= node.imageViews.size() && "UAV write out of bounds");
+
+    cc::alloc_vector<VkWriteDescriptorSet> writes;
+    writes.reset_reserve(scratch, uavs.size());
+
+    auto F_AddWrite = [&](VkDescriptorType type, uint32_t flatIndex) {
+        auto& write = writes.emplace_back_stable();
+        write = {};
+        write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        write.pNext = nullptr;
+        write.dstSet = node.descriptorSet;
+        write.descriptorType = type;
+        write.descriptorCount = 1;
+
+        bool success = flatUAVIndexToBindingAndArrayIndex(node, flatIndex, write.dstBinding, write.dstArrayElement);
+        CC_ASSERT(success && "UAV write out of bounds");
+    };
+
+    for (auto i = 0u; i < uavs.size(); ++i)
+    {
+        auto const& uav = uavs[i];
+
+        auto const nativeUAVType = util::to_native_uav_desc_type(uav.dimension);
+        auto const flatIdx = offset + i;
+
+        if (uav.dimension == resource_view_dimension::buffer)
+        {
+            VkDescriptorBufferInfo* buf_info = scratch->new_t<VkDescriptorBufferInfo>();
+            buf_info->buffer = mResourcePool->getRawBuffer(uav.resource);
+            buf_info->offset = uav.buffer_info.element_start;
+            buf_info->range = uav.buffer_info.num_elements * uav.buffer_info.element_stride_bytes;
+
+            F_AddWrite(nativeUAVType, flatIdx);
+            writes.back().pBufferInfo = buf_info;
+            // scratch allocations can be leaked safely
+        }
+        else
+        {
+            // shader_view_dimension::textureX
+            CC_ASSERT(uav.dimension != resource_view_dimension::raytracing_accel_struct && "Raytracing acceleration structures not allowed as UAVs");
+
+            VkImageView newImageView = makeImageView(uav, true, true);
+
+            VkDescriptorImageInfo* img_info = scratch->new_t<VkDescriptorImageInfo>();
+            img_info->imageView = newImageView;
+            img_info->imageLayout = util::to_image_layout(resource_state::unordered_access);
+            img_info->sampler = nullptr;
+
+            F_AddWrite(nativeUAVType, flatIdx);
+            writes.back().pImageInfo = img_info;
+
+            // free and replace the previous image view at this slot
+            uint32_t linearImageViewIndex = node.numSRVs + offset + i;
+            VkImageView prevImageView = node.imageViews[linearImageViewIndex];
+            if (prevImageView)
+            {
+                vkDestroyImageView(mAllocator.getDevice(), prevImageView, nullptr);
+            }
+            node.imageViews[linearImageViewIndex] = newImageView;
+        }
+    }
+
+    vkUpdateDescriptorSets(mAllocator.getDevice(), uint32_t(writes.size()), writes.data(), 0, nullptr);
+}
+
+void phi::vk::ShaderViewPool::writeShaderViewSamplers(handle::shader_view sv, uint32_t offset, cc::span<sampler_config const> samplers, cc::allocator* scratch)
+{
+    auto& node = internalGet(sv);
+    CC_ASSERT(samplers.size() + offset <= node.samplers.size() && "Sampler write out of bounds");
+
+    cc::alloc_vector<VkWriteDescriptorSet> writes;
+    writes.reset_reserve(scratch, samplers.size());
+
+    auto F_AddWrite = [&](VkDescriptorType type, uint32_t dest_binding) {
+        auto& write = writes.emplace_back_stable();
+        write = {};
+        write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        write.pNext = nullptr;
+        write.dstSet = node.descriptorSet;
+        write.descriptorType = type;
+        write.dstArrayElement = 0;
+        write.dstBinding = dest_binding;
+        write.descriptorCount = 1;
+    };
+
+    for (auto i = 0u; i < samplers.size(); ++i)
+    {
+        auto const binding = spv::sampler_binding_start + offset + i;
+
+        VkSampler newSampler = makeSampler(samplers[i]);
+
+        VkDescriptorImageInfo* img_info = scratch->new_t<VkDescriptorImageInfo>();
+        img_info->imageView = nullptr;
+        img_info->imageLayout = util::to_image_layout(resource_state::shader_resource);
+        img_info->sampler = newSampler;
+
+        F_AddWrite(VK_DESCRIPTOR_TYPE_SAMPLER, binding);
+        writes.back().pImageInfo = img_info;
+
+        // free and replace the previous image view at this slot
+        uint32_t linearSamplerIndex = offset + i;
+        VkSampler prevSampler = node.samplers[linearSamplerIndex];
+        if (prevSampler)
+        {
+            vkDestroySampler(mAllocator.getDevice(), prevSampler, nullptr);
+        }
+        node.samplers[linearSamplerIndex] = newSampler;
+    }
+
+    vkUpdateDescriptorSets(mAllocator.getDevice(), uint32_t(writes.size()), writes.data(), 0, nullptr);
 }
 
 void phi::vk::ShaderViewPool::free(phi::handle::shader_view sv)
@@ -180,13 +253,13 @@ void phi::vk::ShaderViewPool::free(phi::handle::shader_view sv)
     if (!sv.is_valid())
         return;
 
-    shader_view_node& freed_node = mPool.get(sv._value);
+    ShaderViewNode& freed_node = mPool.get(sv._value);
     internalFree(freed_node);
 
     {
         // This is a write access to the allocator, and must be synced
         auto lg = std::lock_guard(mMutex);
-        mAllocator.free(freed_node.raw_desc_set);
+        mAllocator.free(freed_node.descriptorSet);
     }
 
     mPool.release(sv._value);
@@ -216,11 +289,11 @@ void phi::vk::ShaderViewPool::initialize(
 void phi::vk::ShaderViewPool::destroy()
 {
     auto num_leaks = 0;
-    mPool.iterate_allocated_nodes([&](shader_view_node& leaked_node) {
+    mPool.iterate_allocated_nodes([&](ShaderViewNode& leaked_node) {
         ++num_leaks;
 
         internalFree(leaked_node);
-        mAllocator.free(leaked_node.raw_desc_set);
+        mAllocator.free(leaked_node.descriptorSet);
     });
 
     if (num_leaks > 0)
@@ -276,9 +349,59 @@ VkImageView phi::vk::ShaderViewPool::makeImageView(const resource_view& sve, boo
     }
 
     VkImageView res;
-    auto const vr = vkCreateImageView(mDevice, &info, nullptr, &res);
-    CC_ASSERT(vr == VK_SUCCESS);
+    PHI_VK_VERIFY_SUCCESS(vkCreateImageView(mDevice, &info, nullptr, &res));
     return res;
+}
+
+phi::handle::shader_view phi::vk::ShaderViewPool::createShaderViewFromLayout(VkDescriptorSetLayout layout,
+                                                                             uint32_t numSRVs,
+                                                                             uint32_t numUAVs,
+                                                                             uint32_t numSamplers,
+                                                                             cc::allocator* dynamicAlloc,
+                                                                             phi::arg::shader_view_description const* optDescription)
+{
+    // Do acquires requiring synchronization
+    VkDescriptorSet res_raw;
+    {
+        auto lg = std::lock_guard(mMutex);
+        res_raw = mAllocator.allocDescriptor(layout);
+    }
+
+    uint32_t const pool_index = mPool.acquire();
+
+    // Populate new node
+    ShaderViewNode& new_node = mPool.get(pool_index);
+    new_node.descriptorSet = res_raw;
+    new_node.descriptorSetLayout = layout;
+    new_node.numSRVs = numSRVs;
+    new_node.imageViews.reset(dynamicAlloc, numSRVs + numUAVs);
+    new_node.samplers.reset(dynamicAlloc, numSamplers);
+    std::memset(new_node.imageViews.data(), 0, new_node.imageViews.size_bytes());
+    std::memset(new_node.samplers.data(), 0, new_node.samplers.size_bytes());
+
+    if (optDescription)
+    {
+        // copy the descriptor entries from the description to this node
+        auto const numEntriesSRV = optDescription->srv_entries.size();
+        auto const numEntriesUAV = optDescription->uav_entries.size();
+        if (numEntriesSRV + numEntriesUAV > 0)
+        {
+            new_node.optionalDescriptorEntries.reset(dynamicAlloc, numEntriesSRV + numEntriesUAV);
+            new_node.numDescriptorEntriesSRV = numEntriesSRV;
+
+            for (auto i = 0u; i < numEntriesSRV; ++i)
+            {
+                new_node.optionalDescriptorEntries[i] = optDescription->srv_entries[i];
+            }
+
+            for (auto i = 0u; i < numEntriesUAV; ++i)
+            {
+                new_node.optionalDescriptorEntries[numEntriesSRV + i] = optDescription->uav_entries[i];
+            }
+        }
+    }
+
+    return {pool_index};
 }
 
 VkSampler phi::vk::ShaderViewPool::makeSampler(const phi::sampler_config& config) const
@@ -295,7 +418,7 @@ VkSampler phi::vk::ShaderViewPool::makeSampler(const phi::sampler_config& config
     info.maxLod = config.max_lod;
     info.mipLodBias = config.lod_bias;
     info.anisotropyEnable = config.filter == sampler_filter::anisotropic ? VK_TRUE : VK_FALSE;
-    info.maxAnisotropy = static_cast<float>(config.max_anisotropy);
+    info.maxAnisotropy = float(config.max_anisotropy);
     info.borderColor = util::to_native(config.border_color);
     info.compareEnable = config.compare_func != sampler_compare_func::disabled ? VK_TRUE : VK_FALSE;
     info.compareOp = util::to_native(config.compare_func);
@@ -305,22 +428,88 @@ VkSampler phi::vk::ShaderViewPool::makeSampler(const phi::sampler_config& config
     return res;
 }
 
-void phi::vk::ShaderViewPool::internalFree(phi::vk::ShaderViewPool::shader_view_node& node) const
+void phi::vk::ShaderViewPool::internalFree(phi::vk::ShaderViewPool::ShaderViewNode& node) const
 {
     // Destroy the contained image views
-    for (auto const iv : node.image_views)
+    for (auto const iv : node.imageViews)
     {
+        if (iv == nullptr)
+            continue;
+
         vkDestroyImageView(mDevice, iv, nullptr);
     }
-    node.image_views.clear();
+    node.imageViews = {};
 
     // Destroy the contained samplers
     for (auto const s : node.samplers)
     {
+        if (s == nullptr)
+            continue;
+
         vkDestroySampler(mDevice, s, nullptr);
     }
-    node.samplers.clear();
+    node.samplers = {};
 
     // destroy the descriptor set layout used for creation
-    vkDestroyDescriptorSetLayout(mDevice, node.raw_desc_set_layout, nullptr);
+    vkDestroyDescriptorSetLayout(mDevice, node.descriptorSetLayout, nullptr);
+}
+
+bool phi::vk::ShaderViewPool::flatSRVIndexToBindingAndArrayIndex(ShaderViewNode const& node, uint32_t flatIdx, uint32_t& outBinding, uint32_t& outArrayIndex) const
+{
+    if (node.optionalDescriptorEntries.empty())
+    {
+        // for shader views that were not created empty and with a description, no arrays are supported
+        outBinding = flatIdx + spv::srv_binding_start;
+        outArrayIndex = 0;
+        return true;
+    }
+
+
+    uint32_t consumedFlatValues = 0;
+    CC_ASSERT(node.numDescriptorEntriesSRV <= node.optionalDescriptorEntries.size() && "programmer error");
+    for (auto i = 0u; i < node.numDescriptorEntriesSRV; ++i)
+    {
+        auto const& entry = node.optionalDescriptorEntries[i];
+
+        if (consumedFlatValues + entry.array_size > flatIdx)
+        {
+            outBinding = i + spv::srv_binding_start;
+            outArrayIndex = flatIdx - consumedFlatValues;
+            return true;
+        }
+
+        consumedFlatValues += entry.array_size;
+    }
+
+    return false;
+}
+
+bool phi::vk::ShaderViewPool::flatUAVIndexToBindingAndArrayIndex(ShaderViewNode const& node, uint32_t flatIdx, uint32_t& outBinding, uint32_t& outArrayIndex) const
+{
+    if (node.optionalDescriptorEntries.empty())
+    {
+        // for shader views that were not created empty and with a description, no arrays are supported
+        outBinding = flatIdx + spv::uav_binding_start;
+        outArrayIndex = 0;
+        return true;
+    }
+
+
+    uint32_t consumedFlatValues = 0;
+    CC_ASSERT(node.numDescriptorEntriesSRV <= node.optionalDescriptorEntries.size() && "programmer error");
+    for (auto i = node.numDescriptorEntriesSRV; i < node.optionalDescriptorEntries.size(); ++i)
+    {
+        auto const& entry = node.optionalDescriptorEntries[i];
+
+        if (consumedFlatValues + entry.array_size > flatIdx)
+        {
+            outBinding = (i - node.numDescriptorEntriesSRV) + spv::uav_binding_start;
+            outArrayIndex = flatIdx - consumedFlatValues;
+            return true;
+        }
+
+        consumedFlatValues += entry.array_size;
+    }
+
+    return false;
 }
