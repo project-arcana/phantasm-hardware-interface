@@ -156,7 +156,9 @@ VkDescriptorSetLayout DescriptorAllocator::createLayoutFromDescription(arg::shad
         ++srvHead;
     }
 
-    CC_ASSERT(numSRVsInEntries == desc.num_srvs && "Amount of SRVs specified does not match the sum of given SRV ranges when creating an empty shader view");
+    CC_ASSERT_MSG(numSRVsInEntries == desc.num_srvs,
+                  "Amount of SRVs specified does not match the sum of given SRV entries when creating an empty shader view\n"
+                  "For the Vulkan backend, arg::shader_view_description::srv_entries is not optional");
 
     uint32_t uavHead = 0u;
     uint32_t numUAVsInEntries = 0u;
@@ -169,7 +171,9 @@ VkDescriptorSetLayout DescriptorAllocator::createLayoutFromDescription(arg::shad
         ++uavHead;
     }
 
-    CC_ASSERT(numUAVsInEntries == desc.num_uavs && "Amount of UAVs specified does not match the sum of given UAV ranges when creating an empty shader view");
+    CC_ASSERT_MSG(numUAVsInEntries == desc.num_uavs,
+                  "Amount of UAVs specified does not match the sum of given UAV entries when creating an empty shader view\n"
+                  "For the Vulkan backend, arg::shader_view_description::uav_entries is not optional");
 
     for (auto i = 0u; i < desc.num_samplers; ++i)
     {
