@@ -189,11 +189,18 @@ public:
     void freeRange(cc::span<handle::accel_struct const> as) override;
 
     //
+    // Resource info interface
+    //
+
+    arg::resource_description const& getResourceDescription(handle::resource res) const override;
+    arg::texture_description const& getResourceTextureDescription(handle::resource res) const override;
+    arg::buffer_description const& getResourceBufferDescription(handle::resource res) const override;
+
+    //
     // Debug interface
     //
 
     void setDebugName(handle::resource res, cc::string_view name) override;
-    void printInformation(handle::resource res) const override;
     bool startForcedDiagnosticCapture() override;
     bool endForcedDiagnosticCapture() override;
 
@@ -211,6 +218,8 @@ public:
 
 public:
     // non virtual - d3d12 specific
+
+    vram_state_info nativeGetVRAMStateInfo();
 
     ID3D12Device5* nativeGetDevice() { return mDevice.getDevice(); }
     ID3D12CommandQueue* nativeGetDirectQueue() { return mDirectQueue.command_queue; }

@@ -255,7 +255,10 @@ enum class resource_view_dimension : uint8_t
     texture3d,
     texturecube,
     texturecube_array,
-    raytracing_accel_struct
+    raytracing_accel_struct,
+
+    MAX_DIMENSION_RANGE,
+    NUM_DIMENSIONS = MAX_DIMENSION_RANGE - 1
 };
 
 /// describes an element (either SRV or UAV) of a handle::shader_view
@@ -286,7 +289,8 @@ struct resource_view
         handle::accel_struct accel_struct;
     };
 
-    union {
+    union
+    {
         texture_info_t texture_info;
         buffer_info_t buffer_info;
         accel_struct_info_t accel_struct_info;
@@ -837,5 +841,14 @@ struct shader_table_strides
     uint32_t stride_hit_group = 0;
     uint32_t size_callable = 0;
     uint32_t stride_callable = 0;
+};
+
+struct vram_state_info
+{
+    // OS-provided VRAM budget in bytes, usage should stay below this
+    uint64_t os_budget_bytes = 0;
+    uint64_t current_usage_bytes = 0;
+    uint64_t available_for_reservation_bytes = 0;
+    uint64_t current_reservation_bytes = 0;
 };
 }

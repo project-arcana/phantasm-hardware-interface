@@ -139,7 +139,7 @@ void phi::vk::command_list_translator::execute(const phi::cmd::begin_render_pass
 
         if (rv != nullptr)
         {
-            auto const& img_info = _globals.pool_resources->getImageInfo(rv->resource);
+            auto const& img_info = _globals.pool_resources->getTextureDescription(rv->resource);
             num_fb_samples = img_info.num_samples;
             fb_size = phi::util::get_mip_size({img_info.width, img_info.height}, rv->texture_info.mip_start);
         }

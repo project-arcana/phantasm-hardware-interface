@@ -1,6 +1,6 @@
 #include "queue_util.hh"
 
-#include <clean-core/capped_array.hh>
+#include <clean-core/capped_vector.hh>
 
 #include "common/verify.hh"
 #include "surface_util.hh"
@@ -47,8 +47,8 @@ phi::vk::suitable_queues phi::vk::get_suitable_queues(VkPhysicalDevice physical)
 
 phi::vk::chosen_queues phi::vk::get_chosen_queues(const phi::vk::suitable_queues& suitable)
 {
-    cc::capped_array<int, 16> queue_occupancy;
-    queue_occupancy.emplace(suitable.families.size(), 0);
+    cc::capped_vector<int, 16> queue_occupancy;
+    queue_occupancy.resize(suitable.families.size(), 0);
 
     auto const f_acquire_queue_index = [&](unsigned family_index) -> int {
         auto const& fam = suitable.families[family_index];

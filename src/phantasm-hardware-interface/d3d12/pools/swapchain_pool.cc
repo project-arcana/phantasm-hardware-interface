@@ -94,7 +94,7 @@ phi::handle::swapchain phi::d3d12::SwapchainPool::createSwapchain(HWND window_ha
     new_node.mode = mode;
     new_node.has_resized = false;
     CC_ASSERT(num_backbuffers < 6 && "too many backbuffers configured");
-    new_node.backbuffers.emplace(num_backbuffers);
+    new_node.backbuffers.resize(num_backbuffers);
 
     // Create fences
     for (auto i = 0u; i < new_node.backbuffers.size(); ++i)

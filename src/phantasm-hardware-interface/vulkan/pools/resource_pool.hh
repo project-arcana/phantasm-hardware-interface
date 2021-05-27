@@ -26,7 +26,7 @@ public:
     handle::resource createTexture(arg::texture_description const& description, char const* dbg_name);
 
     /// create a buffer, with an element stride if its an index or vertex buffer
-    [[nodiscard]] handle::resource createBuffer(uint64_t size_bytes, unsigned stride_bytes, resource_heap heap, bool allow_uav, char const* dbg_name);
+    handle::resource createBuffer(arg::buffer_description const& desc, char const* dbg_name);
 
     std::byte* mapBuffer(handle::resource res, int begin = 0, int end = -1);
 
@@ -58,8 +58,10 @@ public:
             VkDescriptorSet raw_uniform_dynamic_ds;
             VkDescriptorSet raw_uniform_dynamic_ds_compute;
 
-            uint32_t stride;  ///< vertex size or index size
-            int num_vma_maps; ///< VMA requires all maps to be followed by unmaps before destruction, so track maps/unmaps
+            // vertex size or index size
+            uint32_t stride; 
+            // VMA requires all maps to be followed by unmaps before destruction, so track maps/unmaps
+            int num_vma_maps;
             uint64_t width;
 
             bool is_access_in_bounds(uint64_t offset, uint64_t size) const { return offset + size <= width; }
@@ -69,17 +71,13 @@ public:
         {
             VkImage raw_image;
             format pixel_format;
-            unsigned num_mips;
-            unsigned num_array_layers;
-            unsigned num_samples;
-            int width;
-            int height;
         };
 
     public:
         VmaAllocation allocation;
 
-        union {
+        union
+        {
             buffer_info buffer;
             image_info image;
         };
@@ -117,15 +115,29 @@ public:
     // Additional information
     [[nodiscard]] bool isImage(handle::resource res) const { return internalGet(res).type == resource_node::resource_type::image; }
 
-    [[nodiscard]] int getNumImageSamples(handle::resource res) const
-    {
-        auto const& node = internalGet(res);
-        CC_ASSERT(node.type == resource_node::resource_type::image && "queried amount of image samples from non-image");
-        return node.image.num_samples;
-    }
+    [[nodiscard]] int getNumImageSamples(handle::resource res) const { return this->getTextureDescription(res).num_mips; }
 
     [[nodiscard]] resource_node::image_info const& getImageInfo(handle::resource res) const { return internalGet(res).image; }
     [[nodiscard]] resource_node::buffer_info const& getBufferInfo(handle::resource res) const { return internalGet(res).buffer; }
+
+    arg::resource_description const& getResourceDescription(handle::resource res) const
+    {
+        return mParallelResourceDescriptions[mPool.get_handle_index(res._value)];
+    }
+
+    arg::buffer_description const& getBufferDescription(handle::resource res) const
+    {
+        auto const& description = getResourceDescription(res);
+        CC_ASSERT(description.type == arg::resource_description::e_resource_buffer && "Attempted to interpret texture as buffer");
+        return description.info_buffer;
+    }
+
+    arg::texture_description const& getTextureDescription(handle::resource res) const
+    {
+        auto const& description = getResourceDescription(res);
+        CC_ASSERT(description.type == arg::resource_description::e_resource_texture && "Attempted to interpret texture as buffer");
+        return description.info_texture;
+    }
 
     bool isBufferAccessInBounds(handle::resource res, uint64_t offset, uint64_t size) const
     {
@@ -176,10 +188,9 @@ public:
     [[nodiscard]] VkImageView getBackbufferView(handle::resource res) const { return mInjectedBackbufferViews[mPool.get_handle_index(res._value)]; }
 
 private:
-    [[nodiscard]] handle::resource acquireBuffer(VmaAllocation alloc, VkBuffer buffer, VkBufferUsageFlags usage, uint64_t buffer_width, unsigned buffer_stride, resource_heap heap);
+    [[nodiscard]] handle::resource acquireBuffer(VmaAllocation alloc, VkBuffer buffer, VkBufferUsageFlags usage, arg::buffer_description const& desc);
 
-    [[nodiscard]] handle::resource acquireImage(
-        VmaAllocation alloc, VkImage buffer, format pixel_format, unsigned num_mips, unsigned num_array_layers, unsigned num_samples, int width, int height);
+    [[nodiscard]] handle::resource acquireImage(VmaAllocation alloc, VkImage buffer, arg::texture_description const& desc, uint32_t realNumMips);
 
     [[nodiscard]] resource_node const& internalGet(handle::resource res) const { return mPool.get(res._value); }
     [[nodiscard]] resource_node& internalGet(handle::resource res) { return mPool.get(res._value); }
@@ -202,6 +213,10 @@ private:
     /// a descriptor to compute pipelines)
     VkDescriptorSetLayout mSingleCBVLayout = nullptr;
     VkDescriptorSetLayout mSingleCBVLayoutCompute = nullptr;
+
+    // resource descriptions for resources in the pool
+    // not used internally but required for public API
+    cc::alloc_array<arg::resource_description> mParallelResourceDescriptions;
 
     /// "Backing" allocators
     VkDevice mDevice = nullptr;

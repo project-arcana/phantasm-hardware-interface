@@ -210,7 +210,7 @@ phi::handle::resource phi::d3d12::BackendD3D12::acquireBackbuffer(handle::swapch
     auto const swapchain_index = mPoolSwapchains.getSwapchainIndex(sc);
     auto const backbuffer_i = mPoolSwapchains.acquireBackbuffer(sc);
     auto const& backbuffer = mPoolSwapchains.get(sc).backbuffers[backbuffer_i];
-    return mPoolResources.injectBackbufferResource(swapchain_index, backbuffer.resource, backbuffer.state);
+    return mPoolResources.injectBackbufferResource(swapchain_index, getBackbufferSize(sc), backbuffer.resource, backbuffer.state);
 }
 
 void phi::d3d12::BackendD3D12::present(phi::handle::swapchain sc) { mPoolSwapchains.present(sc); }
@@ -233,7 +233,7 @@ phi::handle::resource phi::d3d12::BackendD3D12::createTexture(arg::texture_descr
 
 phi::handle::resource phi::d3d12::BackendD3D12::createBuffer(arg::buffer_description const& desc, char const* debug_name)
 {
-    return mPoolResources.createBuffer(desc.size_bytes, desc.stride_bytes, desc.heap, desc.allow_uav, debug_name);
+    return mPoolResources.createBuffer(desc, debug_name);
 }
 
 std::byte* phi::d3d12::BackendD3D12::mapBuffer(phi::handle::resource res, int begin, int end) { return mPoolResources.mapBuffer(res, begin, end); }
@@ -247,7 +247,7 @@ void phi::d3d12::BackendD3D12::freeRange(cc::span<const phi::handle::resource> r
 phi::handle::shader_view phi::d3d12::BackendD3D12::createShaderView(cc::span<const phi::resource_view> srvs,
                                                                     cc::span<const phi::resource_view> uavs,
                                                                     cc::span<const phi::sampler_config> samplers,
-                                                                    bool)
+                                                                    bool /*usage_compute*/)
 {
     return mPoolShaderViews.create(srvs, uavs, samplers);
 }
@@ -480,15 +480,24 @@ void phi::d3d12::BackendD3D12::freeRange(cc::span<const phi::handle::accel_struc
     mPoolAccelStructs.free(as);
 }
 
+phi::arg::resource_description const& phi::d3d12::BackendD3D12::getResourceDescription(handle::resource res) const
+{
+    return mPoolResources.getResourceDescription(res);
+}
+
+phi::arg::texture_description const& phi::d3d12::BackendD3D12::getResourceTextureDescription(handle::resource res) const
+{
+    return mPoolResources.getTextureDescription(res);
+}
+
+phi::arg::buffer_description const& phi::d3d12::BackendD3D12::getResourceBufferDescription(handle::resource res) const
+{
+    return mPoolResources.getBufferDescription(res);
+}
+
 void phi::d3d12::BackendD3D12::setDebugName(phi::handle::resource res, cc::string_view name)
 {
     mPoolResources.setDebugName(res, name.data(), uint32_t(name.length()));
-}
-
-void phi::d3d12::BackendD3D12::printInformation(phi::handle::resource res) const
-{
-    (void)res;
-    PHI_LOG << "printInformation unimplemented";
 }
 
 bool phi::d3d12::BackendD3D12::startForcedDiagnosticCapture() { return mDiagnostics.start_capture(); }
@@ -503,6 +512,19 @@ uint64_t phi::d3d12::BackendD3D12::getGPUTimestampFrequency() const
 }
 
 bool phi::d3d12::BackendD3D12::isRaytracingEnabled() const { return mDevice.hasRaytracing(); }
+
+phi::vram_state_info phi::d3d12::BackendD3D12::nativeGetVRAMStateInfo()
+{
+    DXGI_QUERY_VIDEO_MEMORY_INFO nativeInfo = {};
+    PHI_D3D12_VERIFY(mAdapter.getAdapter().QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &nativeInfo));
+
+    vram_state_info res;
+    res.os_budget_bytes = nativeInfo.Budget;
+    res.current_usage_bytes = nativeInfo.CurrentUsage;
+    res.available_for_reservation_bytes = nativeInfo.AvailableForReservation;
+    res.current_reservation_bytes = nativeInfo.CurrentReservation;
+    return res;
+}
 
 phi::d3d12::BackendD3D12::per_thread_component& phi::d3d12::BackendD3D12::getCurrentThreadComponent()
 {

@@ -16,10 +16,10 @@ class ResourcePool
 public:
     // frontend-facing API
 
-    [[nodiscard]] handle::resource createTexture(arg::texture_description const& desc, char const* dbg_name);
+    handle::resource createTexture(arg::texture_description const& desc, char const* dbg_name);
 
     /// create a buffer, with an element stride if its an index or vertex buffer
-    [[nodiscard]] handle::resource createBuffer(uint64_t size_bytes, unsigned stride_bytes, resource_heap heap, bool allow_uav, char const* dbg_name);
+    handle::resource createBuffer(arg::buffer_description const& desc, char const* dbg_name);
 
     [[nodiscard]] std::byte* mapBuffer(handle::resource res, int begin = 0, int end = -1);
 
@@ -62,7 +62,8 @@ public:
         D3D12MA::Allocation* allocation = nullptr;
         ID3D12Resource* resource = nullptr;
 
-        union {
+        union
+        {
             buffer_info buffer;
             image_info image;
         };
@@ -75,25 +76,45 @@ public:
 public:
     // internal API
 
-    void initialize(ID3D12Device* device, unsigned max_num_resources, unsigned max_num_swapchains, cc::allocator* static_alloc, cc::allocator* dynamic_alloc);
+    void initialize(ID3D12Device* device, uint32_t max_num_resources, uint32_t max_num_swapchains, cc::allocator* static_alloc, cc::allocator* dynamic_alloc);
     void destroy();
 
     //
     // Raw ID3D12Resource access
     //
 
-    [[nodiscard]] ID3D12Resource* getRawResource(handle::resource res) const { return internalGet(res).resource; }
-    [[nodiscard]] ID3D12Resource* getRawResource(buffer_address const& addr) const { return internalGet(addr.buffer).resource; }
+    ID3D12Resource* getRawResource(handle::resource res) const { return internalGet(res).resource; }
+    ID3D12Resource* getRawResource(buffer_address const& addr) const { return internalGet(addr.buffer).resource; }
 
     // Additional information
-    [[nodiscard]] bool isImage(handle::resource res) const { return internalGet(res).type == resource_node::resource_type::image; }
-    [[nodiscard]] resource_node::image_info const& getImageInfo(handle::resource res) const { return internalGet(res).image; }
-    [[nodiscard]] resource_node::buffer_info const& getBufferInfo(handle::resource res) const { return internalGet(res).buffer; }
-    [[nodiscard]] resource_node::buffer_info const& getBufferInfo(buffer_address const& addr) const { return internalGet(addr.buffer).buffer; }
+    bool isImage(handle::resource res) const { return internalGet(res).type == resource_node::resource_type::image; }
+    bool isBuffer(handle::resource res) const { return internalGet(res).type == resource_node::resource_type::buffer; }
+    resource_node::image_info const& getImageInfo(handle::resource res) const { return internalGet(res).image; }
+    resource_node::buffer_info const& getBufferInfo(handle::resource res) const { return internalGet(res).buffer; }
+    resource_node::buffer_info const& getBufferInfo(buffer_address const& addr) const { return internalGet(addr.buffer).buffer; }
 
-    [[nodiscard]] D3D12_GPU_VIRTUAL_ADDRESS getBufferAddrVA(buffer_address address) const
+    D3D12_GPU_VIRTUAL_ADDRESS getBufferAddrVA(buffer_address address) const
     {
         return internalGet(address.buffer).buffer.gpu_va + address.offset_bytes;
+    }
+
+    arg::resource_description const& getResourceDescription(handle::resource res) const
+    {
+        return mParallelResourceDescriptions[mPool.get_handle_index(res._value)];
+    }
+
+    arg::buffer_description const& getBufferDescription(handle::resource res) const
+    {
+        auto const& description = getResourceDescription(res);
+        CC_ASSERT(description.type == arg::resource_description::e_resource_buffer && "Attempted to interpret texture as buffer");
+        return description.info_buffer;
+    }
+
+    arg::texture_description const& getTextureDescription(handle::resource res) const
+    {
+        auto const& description = getResourceDescription(res);
+        CC_ASSERT(description.type == arg::resource_description::e_resource_texture && "Attempted to interpret texture as buffer");
+        return description.info_texture;
     }
 
     bool isBufferAccessInBounds(handle::resource res, size_t offset, size_t size) const
@@ -159,14 +180,14 @@ public:
     // the first of either phi::present or phi::resize
     //
 
-    [[nodiscard]] handle::resource injectBackbufferResource(unsigned swapchain_index, ID3D12Resource* raw_resource, D3D12_RESOURCE_STATES state);
+    [[nodiscard]] handle::resource injectBackbufferResource(unsigned swapchain_index, tg::isize2 size, ID3D12Resource* raw_resource, D3D12_RESOURCE_STATES state);
 
     [[nodiscard]] bool isBackbuffer(handle::resource res) const { return mPool.get_handle_index(res._value) < mNumReservedBackbuffers; }
 
 private:
-    [[nodiscard]] handle::resource acquireBuffer(D3D12MA::Allocation* alloc, D3D12_RESOURCE_STATES initial_state, uint64_t buffer_width, unsigned buffer_stride, resource_heap heap);
+    [[nodiscard]] handle::resource acquireBuffer(D3D12MA::Allocation* alloc, D3D12_RESOURCE_STATES initial_state, arg::buffer_description const& desc);
 
-    [[nodiscard]] handle::resource acquireImage(D3D12MA::Allocation* alloc, format pixel_format, D3D12_RESOURCE_STATES initial_state, unsigned num_mips, unsigned num_array_layers);
+    [[nodiscard]] handle::resource acquireImage(D3D12MA::Allocation* alloc, D3D12_RESOURCE_STATES initial_state, arg::texture_description const& desc, UINT16 realNumMipmaps);
 
     [[nodiscard]] resource_node const& internalGet(handle::resource res) const
     {
@@ -180,10 +201,14 @@ private:
     }
 
 private:
-    /// The main pool data
-    cc::atomic_linked_pool<resource_node> mPool;
+    /// The main pool - always gen checked
+    cc::atomic_linked_pool<resource_node, true> mPool;
     /// Amount of handles (from the start) reserved for backbuffer injection
-    unsigned mNumReservedBackbuffers;
+    uint32_t mNumReservedBackbuffers;
+
+    // resource descriptions for resources in the pool
+    // not used internally but required for public API
+    cc::alloc_array<arg::resource_description> mParallelResourceDescriptions;
 
     /// "Backing" allocator
     ResourceAllocator mAllocator;

@@ -14,6 +14,8 @@
 #	error To use volk, you need to define VK_NO_PROTOTYPES before including vulkan.h
 #endif
 
+#include <phantasm-hardware-interface/vulkan/loader/detail/platform_defines.hh>
+
 /* VOLK_GENERATE_VERSION_DEFINE */
 #define VOLK_HEADER_VERSION 135
 /* VOLK_GENERATE_VERSION_DEFINE */

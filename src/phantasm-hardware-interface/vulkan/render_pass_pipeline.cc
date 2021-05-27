@@ -27,7 +27,7 @@ VkRenderPass phi::vk::create_render_pass(VkDevice device, arg::framebuffer_confi
 
         for (auto const& rt : framebuffer.render_targets)
         {
-            auto& desc = attachments.emplace_back();
+            VkAttachmentDescription& desc = attachments.emplace_back();
             desc = {};
             desc.format = util::to_vk_format(rt.fmt);
             desc.samples = sample_bits;
@@ -45,7 +45,7 @@ VkRenderPass phi::vk::create_render_pass(VkDevice device, arg::framebuffer_confi
 
         if (framebuffer.depth_target != format::none)
         {
-            auto& desc = attachments.emplace_back();
+            VkAttachmentDescription& desc = attachments.emplace_back();
             desc = {};
             desc.format = util::to_vk_format(framebuffer.depth_target);
             desc.samples = sample_bits;

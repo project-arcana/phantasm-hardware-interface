@@ -126,16 +126,15 @@ phi::handle::resource phi::vk::ResourcePool::createTexture(arg::texture_descript
     PHI_VK_VERIFY_SUCCESS(vmaCreateImage(mAllocator, &image_info, &alloc_info, &res_image, &res_alloc, nullptr));
     util::set_object_name(mDevice, res_image, "phi tex%s[%u] %s (%ux%u, %u mips)", vk_get_tex_dim_literal(description.dim),
                           description.depth_or_array_size, dbg_name ? dbg_name : "", description.width, description.height, image_info.mipLevels);
-    return acquireImage(res_alloc, res_image, description.fmt, image_info.mipLevels, image_info.arrayLayers, description.num_samples,
-                        description.width, description.height);
+    return acquireImage(res_alloc, res_image, description, image_info.mipLevels);
 }
 
-phi::handle::resource phi::vk::ResourcePool::createBuffer(uint64_t size_bytes, unsigned stride_bytes, resource_heap heap, bool allow_uav, char const* dbg_name)
+phi::handle::resource phi::vk::ResourcePool::createBuffer(arg::buffer_description const& desc, char const* dbg_name)
 {
-    CC_CONTRACT(size_bytes > 0);
+    CC_CONTRACT(desc.size_bytes > 0);
     VkBufferCreateInfo buffer_info = {};
     buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    buffer_info.size = size_bytes;
+    buffer_info.size = desc.size_bytes;
 
     // right now we'll just take all usages this thing might have in API semantics
     // it might be required down the line to restrict this (as in, make it part of API)
@@ -146,18 +145,17 @@ phi::handle::resource phi::vk::ResourcePool::createBuffer(uint64_t size_bytes, u
     // NOTE: we currently do not make use of allow_uav or the heap type to restrict usage flags at all
     // allow_uav might have been a poor API decision, we might need something more finegrained instead, and have the default be allowing everything
     // problem is, in d3d12 ALLOW_UNORDERED_ACCESS is exclusive with ALLOW_DEPTH_STENCIL, so defaulting right away is not possible
-    (void)allow_uav;
     // if (allow_uav || heap == resource_heap::upload) { ... }
 
     VmaAllocationCreateInfo alloc_info = {};
-    alloc_info.usage = vk_heap_to_vma(heap);
+    alloc_info.usage = vk_heap_to_vma(desc.heap);
 
     VmaAllocation res_alloc;
     VkBuffer res_buffer;
     PHI_VK_VERIFY_SUCCESS(vmaCreateBuffer(mAllocator, &buffer_info, &alloc_info, &res_buffer, &res_alloc, nullptr));
-    util::set_object_name(mDevice, res_buffer, "pool buf %s (%uB, %uB stride, %s heap)", dbg_name ? dbg_name : "", unsigned(size_bytes), stride_bytes,
-                          vk_get_heap_type_literal(heap));
-    return acquireBuffer(res_alloc, res_buffer, buffer_info.usage, size_bytes, stride_bytes, heap);
+    util::set_object_name(mDevice, res_buffer, "pool buf %s (%uB, %uB stride, %s heap)", dbg_name ? dbg_name : "", unsigned(desc.size_bytes),
+                          desc.stride_bytes, vk_get_heap_type_literal(desc.heap));
+    return acquireBuffer(res_alloc, res_buffer, buffer_info.usage, desc);
 }
 
 std::byte* phi::vk::ResourcePool::mapBuffer(phi::handle::resource res, int begin, int end)
@@ -230,7 +228,14 @@ phi::handle::resource phi::vk::ResourcePool::createBufferInternal(uint64_t size_
     VkBuffer res_buffer;
     PHI_VK_VERIFY_SUCCESS(vmaCreateBuffer(mAllocator, &buffer_info, &alloc_info, &res_buffer, &res_alloc, nullptr));
     util::set_object_name(mDevice, res_buffer, "%s", debug_name);
-    return acquireBuffer(res_alloc, res_buffer, buffer_info.usage, size_bytes, stride_bytes, heap);
+
+
+    arg::buffer_description bufferDesc;
+    bufferDesc.heap = heap;
+    bufferDesc.allow_uav = false;
+    bufferDesc.size_bytes = uint32_t(size_bytes);
+    bufferDesc.stride_bytes = stride_bytes;
+    return acquireBuffer(res_alloc, res_buffer, buffer_info.usage, bufferDesc);
 }
 
 void phi::vk::ResourcePool::free(phi::handle::resource res)
@@ -279,6 +284,8 @@ void phi::vk::ResourcePool::initialize(VkPhysicalDevice physical, VkDevice devic
     mAllocatorDescriptors.initialize(device, max_num_resources, 0, 0, 0);
     mPool.initialize(max_num_resources + max_num_swapchains, static_alloc); // additional resources for swapchain backbuffers
 
+    mParallelResourceDescriptions.reset(static_alloc, mPool.max_size());
+
     mNumReservedBackbuffers = max_num_swapchains;
     mInjectedBackbufferViews = cc::alloc_array<VkImageView>::filled(mNumReservedBackbuffers, nullptr, static_alloc);
     for (auto i = 0u; i < mNumReservedBackbuffers; ++i)
@@ -290,11 +297,6 @@ void phi::vk::ResourcePool::initialize(VkPhysicalDevice physical, VkDevice devic
         backbuffer_node.heap = resource_heap::gpu;
         backbuffer_node.image.raw_image = nullptr;
         backbuffer_node.image.pixel_format = format::bgra8un;
-        backbuffer_node.image.num_samples = 1;
-        backbuffer_node.image.num_mips = 1;
-        backbuffer_node.image.num_array_layers = 1;
-        backbuffer_node.image.width = 0;
-        backbuffer_node.image.height = 0;
     }
 
     mSingleCBVLayout = mAllocatorDescriptors.createSingleCBVLayout(false);
@@ -322,6 +324,9 @@ void phi::vk::ResourcePool::destroy()
         PHI_LOG("leaked {} handle::resource object{}", num_leaks, num_leaks == 1 ? "" : "s");
     }
 
+    mPool.destroy();
+    mParallelResourceDescriptions = {};
+
     vmaDestroyAllocator(mAllocator);
     mAllocator = nullptr;
 
@@ -347,8 +352,6 @@ phi::handle::resource phi::vk::ResourcePool::injectBackbufferResource(
 
     resource_node& backbuffer_node = mPool.get(res_handle);
     backbuffer_node.image.raw_image = raw_image;
-    backbuffer_node.image.width = width;
-    backbuffer_node.image.height = height;
     out_prev_state = backbuffer_node.master_state;
     backbuffer_node.master_state = state;
     backbuffer_node.master_state_dependency = util::to_pipeline_stage_dependency(state, VK_PIPELINE_STAGE_FLAG_BITS_MAX_ENUM);
@@ -356,12 +359,15 @@ phi::handle::resource phi::vk::ResourcePool::injectBackbufferResource(
     // This enum value would only be returned if the state is a SRV/UAV/CBV, which is not allowed for backbuffers (in our API, not Vulkan)
     CC_ASSERT(backbuffer_node.master_state_dependency != VK_PIPELINE_STAGE_FLAG_BITS_MAX_ENUM && "backbuffer in invalid resource state");
 
+    arg::resource_description& storedDesc = mParallelResourceDescriptions[swapchain_index];
+    storedDesc = arg::resource_description::texture(format::bgra8un, tg::isize2(width, height));
+
     return {res_handle};
 }
 
-phi::handle::resource phi::vk::ResourcePool::acquireBuffer(VmaAllocation alloc, VkBuffer buffer, VkBufferUsageFlags usage, uint64_t buffer_width, unsigned buffer_stride, resource_heap heap)
+phi::handle::resource phi::vk::ResourcePool::acquireBuffer(VmaAllocation alloc, VkBuffer buffer, VkBufferUsageFlags usage, arg::buffer_description const& desc)
 {
-    bool const create_cbv_desc = (buffer_width < 65536) && (usage & VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
+    bool const create_cbv_desc = (desc.size_bytes < 65536) && (usage & VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
 
     VkDescriptorSet cbv_desc_set = nullptr;
     VkDescriptorSet cbv_desc_set_compute = nullptr;
@@ -385,7 +391,7 @@ phi::handle::resource phi::vk::ResourcePool::acquireBuffer(VmaAllocation alloc, 
         VkDescriptorBufferInfo cbv_info = {};
         cbv_info.buffer = buffer;
         cbv_info.offset = 0;
-        cbv_info.range = buffer_stride > 0 ? buffer_stride : buffer_width; // strided CBV if present (for dynamic offset steps)
+        cbv_info.range = desc.stride_bytes > 0 ? desc.stride_bytes : desc.size_bytes; // strided CBV if present (for dynamic offset steps)
 
         cc::capped_vector<VkWriteDescriptorSet, 2> writes;
         {
@@ -412,21 +418,25 @@ phi::handle::resource phi::vk::ResourcePool::acquireBuffer(VmaAllocation alloc, 
     resource_node& new_node = mPool.get(res);
     new_node.allocation = alloc;
     new_node.type = resource_node::resource_type::buffer;
-    new_node.heap = heap;
+    new_node.heap = desc.heap;
     new_node.buffer.raw_buffer = buffer;
     new_node.buffer.raw_uniform_dynamic_ds = cbv_desc_set;
     new_node.buffer.raw_uniform_dynamic_ds_compute = cbv_desc_set_compute;
-    new_node.buffer.width = buffer_width;
-    new_node.buffer.stride = buffer_stride;
+    new_node.buffer.width = desc.size_bytes;
+    new_node.buffer.stride = desc.stride_bytes;
     new_node.buffer.num_vma_maps = 0;
 
     new_node.master_state = resource_state::undefined;
     new_node.master_state_dependency = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 
-    return {static_cast<handle::handle_t>(res)};
+    uint32_t descriptionIndex = mPool.get_handle_index(res);
+    arg::resource_description& storedDesc = mParallelResourceDescriptions[descriptionIndex];
+    storedDesc.type = arg::resource_description::e_resource_buffer;
+    storedDesc.info_buffer = desc;
+
+    return {res};
 }
-phi::handle::resource phi::vk::ResourcePool::acquireImage(
-    VmaAllocation alloc, VkImage image, format pixel_format, unsigned num_mips, unsigned num_array_layers, unsigned num_samples, int width, int height)
+phi::handle::resource phi::vk::ResourcePool::acquireImage(VmaAllocation alloc, VkImage image, arg::texture_description const& desc, uint32_t realNumMips)
 {
     unsigned const res = mPool.acquire();
 
@@ -435,17 +445,18 @@ phi::handle::resource phi::vk::ResourcePool::acquireImage(
     new_node.type = resource_node::resource_type::image;
     new_node.heap = resource_heap::gpu;
     new_node.image.raw_image = image;
-    new_node.image.pixel_format = pixel_format;
-    new_node.image.num_mips = num_mips;
-    new_node.image.num_array_layers = num_array_layers;
-    new_node.image.num_samples = num_samples;
-    new_node.image.width = width;
-    new_node.image.height = height;
+    new_node.image.pixel_format = desc.fmt;
 
     new_node.master_state = resource_state::undefined;
     new_node.master_state_dependency = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 
-    return {static_cast<handle::handle_t>(res)};
+    uint32_t descriptionIndex = mPool.get_handle_index(res);
+    arg::resource_description& storedDesc = mParallelResourceDescriptions[descriptionIndex];
+    storedDesc.type = arg::resource_description::e_resource_texture;
+    storedDesc.info_texture = desc;
+    storedDesc.info_texture.num_mips = realNumMips;
+
+    return {res};
 }
 
 void phi::vk::ResourcePool::internalFree(resource_node& node)
