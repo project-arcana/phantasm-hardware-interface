@@ -28,7 +28,7 @@ struct BackendD3D12::per_thread_component
     command_list_translator translator;
     CommandAllocatorsPerThread cmd_list_allocator;
 };
-}
+} // namespace phi::d3d12
 
 void phi::d3d12::BackendD3D12::initialize(const phi::backend_config& config)
 {
@@ -252,9 +252,9 @@ phi::handle::shader_view phi::d3d12::BackendD3D12::createShaderView(cc::span<con
     return mPoolShaderViews.create(srvs, uavs, samplers);
 }
 
-phi::handle::shader_view phi::d3d12::BackendD3D12::createEmptyShaderView(uint32_t num_srvs_uavs, uint32_t num_samplers, bool /*usage_compute*/)
+phi::handle::shader_view phi::d3d12::BackendD3D12::createEmptyShaderView(arg::shader_view_description const& desc, bool /*usage_compute*/)
 {
-    return mPoolShaderViews.createEmpty(num_srvs_uavs, num_samplers);
+    return mPoolShaderViews.createEmpty(desc.num_srvs + desc.num_uavs, desc.num_samplers);
 }
 
 void phi::d3d12::BackendD3D12::writeShaderViewSRVs(handle::shader_view sv, uint32_t offset, cc::span<resource_view const> srvs)

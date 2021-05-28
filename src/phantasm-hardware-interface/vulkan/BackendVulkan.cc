@@ -4,7 +4,9 @@
 #include <optick/optick.h>
 #endif
 
+#include <clean-core/allocator.hh>
 #include <clean-core/array.hh>
+#include <clean-core/defer.hh>
 #include <clean-core/native/win32_util.hh>
 
 #include <rich-log/logger.hh>
@@ -26,9 +28,11 @@ namespace phi::vk
 struct BackendVulkan::per_thread_component
 {
     command_list_translator translator;
-    CommandAllocatorsPerThread cmd_list_allocator;
+    CommandAllocatorsPerThread cmdListAllocator;
+    cc::alloc_array<std::byte> threadLocalScratchAllocMemory;
+    cc::linear_allocator threadLocalScratchAlloc;
 };
-}
+} // namespace phi::vk
 
 namespace
 {
@@ -63,7 +67,7 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg)
     app_info.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
     app_info.pEngineName = "Phantasm Hardware Interface";
     app_info.engineVersion = VK_MAKE_VERSION(1, 2, 0);
-    app_info.apiVersion = VK_API_VERSION_1_1;
+    app_info.apiVersion = VK_API_VERSION_1_2;
 
     VkInstanceCreateInfo instance_info = {};
     instance_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -177,7 +181,11 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg)
             auto& thread_comp = mThreadComponents[i];
             thread_comp.translator.initialize(mDevice.getDevice(), &mPoolShaderViews, &mPoolResources, &mPoolPipelines, &mPoolCmdLists, &mPoolQueries,
                                               &mPoolAccelStructs, mDevice.hasRaytracing());
-            thread_allocator_ptrs[i] = &thread_comp.cmd_list_allocator;
+            thread_allocator_ptrs[i] = &thread_comp.cmdListAllocator;
+
+            // 5 MB scratch alloc per thread
+            thread_comp.threadLocalScratchAllocMemory.reset(config.static_allocator, 1024 * 1024 * 5);
+            thread_comp.threadLocalScratchAlloc = cc::linear_allocator(thread_comp.threadLocalScratchAllocMemory);
         }
 
         mPoolCmdLists.initialize(mDevice,                                                                                               //
@@ -221,9 +229,10 @@ void phi::vk::BackendVulkan::destroy()
         for (auto i = 0u; i < mNumThreadComponents; ++i)
         {
             auto& thread_comp = mThreadComponents[i];
-            thread_comp.cmd_list_allocator.destroy(mDevice.getDevice());
+            thread_comp.cmdListAllocator.destroy(mDevice.getDevice());
+            thread_comp.threadLocalScratchAllocMemory = {};
         }
-        reinterpret_cast<cc::allocator*>(mThreadComponentAlloc)->delete_array_sized(mThreadComponents, mNumThreadComponents);
+        static_cast<cc::allocator*>(mThreadComponentAlloc)->delete_array_sized(mThreadComponents, mNumThreadComponents);
 
         mDevice.destroy();
 
@@ -305,26 +314,34 @@ phi::handle::shader_view phi::vk::BackendVulkan::createShaderView(cc::span<const
                                                                   cc::span<const phi::sampler_config> samplers,
                                                                   bool usage_compute)
 {
-    return mPoolShaderViews.create(srvs, uavs, samplers, usage_compute);
+    auto const res = mPoolShaderViews.create(srvs, uavs, samplers, usage_compute, getCurrentScratchAlloc());
+    resetCurrentScratchAlloc();
+    return res;
 }
 
-phi::handle::shader_view phi::vk::BackendVulkan::createEmptyShaderView(uint32_t num_srvs_uavs, uint32_t num_samplers, bool usage_compute)
+phi::handle::shader_view phi::vk::BackendVulkan::createEmptyShaderView(arg::shader_view_description const& desc, bool usage_compute)
 {
-    CC_ASSERT(false && "unimplemented");
-    return handle::null_shader_view;
+    auto const res = mPoolShaderViews.createEmpty(desc, usage_compute);
+    return res;
 }
 
 void phi::vk::BackendVulkan::writeShaderViewSRVs(handle::shader_view sv, uint32_t offset, cc::span<resource_view const> srvs)
 {
-    CC_ASSERT(false && "unimplemented");
+    mPoolShaderViews.writeShaderViewSRVs(sv, offset, srvs, getCurrentScratchAlloc());
+    resetCurrentScratchAlloc();
 }
 
 void phi::vk::BackendVulkan::writeShaderViewUAVs(handle::shader_view sv, uint32_t offset, cc::span<resource_view const> uavs)
 {
-    CC_ASSERT(false && "unimplemented");
+    mPoolShaderViews.writeShaderViewUAVs(sv, offset, uavs, getCurrentScratchAlloc());
+    resetCurrentScratchAlloc();
 }
 
-void phi::vk::BackendVulkan::writeShaderViewSamplers(handle::shader_view sv, uint32_t offset, cc::span<sampler_config const> samplers) {}
+void phi::vk::BackendVulkan::writeShaderViewSamplers(handle::shader_view sv, uint32_t offset, cc::span<sampler_config const> samplers)
+{
+    mPoolShaderViews.writeShaderViewSamplers(sv, offset, samplers, getCurrentScratchAlloc());
+    resetCurrentScratchAlloc();
+}
 
 void phi::vk::BackendVulkan::free(phi::handle::shader_view sv) { mPoolShaderViews.free(sv); }
 
@@ -338,14 +355,18 @@ phi::handle::pipeline_state phi::vk::BackendVulkan::createPipelineState(phi::arg
                                                                         const phi::pipeline_config& primitive_config,
                                                                         char const* debug_name)
 {
-    return mPoolPipelines.createPipelineState(vertex_format, framebuffer_conf, shader_arg_shapes, has_root_constants, shaders, primitive_config,
-                                              cc::system_allocator, debug_name);
+    auto const res = mPoolPipelines.createPipelineState(vertex_format, framebuffer_conf, shader_arg_shapes, has_root_constants, shaders,
+                                                        primitive_config, getCurrentScratchAlloc(), debug_name);
+    resetCurrentScratchAlloc();
+    return res;
 }
 
 phi::handle::pipeline_state phi::vk::BackendVulkan::createPipelineState(const phi::arg::graphics_pipeline_state_description& description, char const* debug_name)
 {
-    return mPoolPipelines.createPipelineState(description.vertices, description.framebuffer, description.shader_arg_shapes, description.has_root_constants,
-                                              description.shader_binaries, description.config, cc::system_allocator, debug_name);
+    auto const res = mPoolPipelines.createPipelineState(description.vertices, description.framebuffer, description.shader_arg_shapes, description.has_root_constants,
+                                                        description.shader_binaries, description.config, getCurrentScratchAlloc(), debug_name);
+    resetCurrentScratchAlloc();
+    return res;
 }
 
 phi::handle::pipeline_state phi::vk::BackendVulkan::createComputePipelineState(phi::arg::shader_arg_shapes shader_arg_shapes,
@@ -353,13 +374,17 @@ phi::handle::pipeline_state phi::vk::BackendVulkan::createComputePipelineState(p
                                                                                bool has_root_constants,
                                                                                char const* debug_name)
 {
-    return mPoolPipelines.createComputePipelineState(shader_arg_shapes, shader, has_root_constants, cc::system_allocator, debug_name);
+    auto const res = mPoolPipelines.createComputePipelineState(shader_arg_shapes, shader, has_root_constants, getCurrentScratchAlloc(), debug_name);
+    resetCurrentScratchAlloc();
+    return res;
 }
 
 phi::handle::pipeline_state phi::vk::BackendVulkan::createComputePipelineState(const phi::arg::compute_pipeline_state_description& description, char const* debug_name)
 {
-    return mPoolPipelines.createComputePipelineState(description.shader_arg_shapes, description.shader, description.has_root_constants,
-                                                     cc::system_allocator, debug_name);
+    auto const res = mPoolPipelines.createComputePipelineState(description.shader_arg_shapes, description.shader, description.has_root_constants,
+                                                               getCurrentScratchAlloc(), debug_name);
+    resetCurrentScratchAlloc();
+    return res;
 }
 
 void phi::vk::BackendVulkan::free(phi::handle::pipeline_state ps) { mPoolPipelines.free(ps); }
@@ -372,7 +397,7 @@ phi::handle::command_list phi::vk::BackendVulkan::recordCommandList(std::byte co
     auto& thread_comp = getCurrentThreadComponent();
 
     VkCommandBuffer raw_list;
-    auto const res = mPoolCmdLists.create(raw_list, thread_comp.cmd_list_allocator, queue);
+    auto const res = mPoolCmdLists.create(raw_list, thread_comp.cmdListAllocator, queue);
     thread_comp.translator.translateCommandList(raw_list, res, mPoolCmdLists.getStateCache(res), buffer, size);
     return res;
 }
@@ -384,17 +409,20 @@ void phi::vk::BackendVulkan::submit(cc::span<const phi::handle::command_list> cl
                                     cc::span<const phi::fence_operation> fence_waits_before,
                                     cc::span<const phi::fence_operation> fence_signals_after)
 {
-    constexpr uint32_t c_max_num_command_lists = 32u;
-    cc::capped_vector<VkCommandBuffer, c_max_num_command_lists * 2> cmd_bufs_to_submit;
-    cc::capped_vector<handle::command_list, c_max_num_command_lists> barrier_lists;
-    CC_ASSERT(cls.size() <= c_max_num_command_lists && "too many commandlists submitted at once");
+    cc::alloc_vector<VkCommandBuffer> cmd_bufs_to_submit;
+    cmd_bufs_to_submit.reset_reserve(getCurrentScratchAlloc(), cls.size() * 2);
+
+    cc::alloc_vector<handle::command_list> barrier_lists;
+    barrier_lists.reset_reserve(getCurrentScratchAlloc(), cls.size());
+
+    CC_DEFER { resetCurrentScratchAlloc(); };
 
     // possibly fall back to a direct queue
     queue = mDevice.getQueueTypeOrFallback(queue);
 
     auto& thread_comp = getCurrentThreadComponent();
 
-    for (auto const cl : cls)
+    for (handle::command_list const cl : cls)
     {
         // silently ignore invalid handles
         if (cl == handle::null_command_list)
@@ -435,7 +463,7 @@ void phi::vk::BackendVulkan::submit(cc::span<const phi::handle::command_list> cl
         if (!barriers.empty())
         {
             VkCommandBuffer t_cmd_list;
-            barrier_lists.push_back(mPoolCmdLists.create(t_cmd_list, thread_comp.cmd_list_allocator, queue));
+            barrier_lists.push_back(mPoolCmdLists.create(t_cmd_list, thread_comp.cmdListAllocator, queue));
             barriers.record(t_cmd_list);
             vkEndCommandBuffer(t_cmd_list);
             cmd_bufs_to_submit.push_back(t_cmd_list);
@@ -517,8 +545,11 @@ void phi::vk::BackendVulkan::free(phi::handle::query_range query_range) { mPoolQ
 phi::handle::pipeline_state phi::vk::BackendVulkan::createRaytracingPipelineState(const arg::raytracing_pipeline_state_description& description)
 {
     CC_ASSERT(isRaytracingEnabled() && "raytracing is not enabled");
-    return mPoolPipelines.createRaytracingPipelineState(description.libraries, description.argument_associations, description.hit_groups, description.max_recursion,
-                                                        description.max_payload_size_bytes, description.max_attribute_size_bytes, cc::system_allocator);
+    auto const res = mPoolPipelines.createRaytracingPipelineState(description.libraries, description.argument_associations, description.hit_groups,
+                                                                  description.max_recursion, description.max_payload_size_bytes,
+                                                                  description.max_attribute_size_bytes, getCurrentScratchAlloc());
+    resetCurrentScratchAlloc();
+    return res;
 }
 
 phi::handle::accel_struct phi::vk::BackendVulkan::createTopLevelAccelStruct(uint32_t num_instances, accel_struct_build_flags_t flags)
@@ -631,3 +662,7 @@ phi::vk::BackendVulkan::per_thread_component& phi::vk::BackendVulkan::getCurrent
                   "recordCommandList() and submit() must only be used from at most backend_config::num_threads unique OS threads in total");
     return mThreadComponents[current_index];
 }
+
+cc::allocator* phi::vk::BackendVulkan::getCurrentScratchAlloc() { return &getCurrentThreadComponent().threadLocalScratchAlloc; }
+
+void phi::vk::BackendVulkan::resetCurrentScratchAlloc() { getCurrentThreadComponent().threadLocalScratchAlloc.reset(); }

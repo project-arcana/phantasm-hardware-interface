@@ -8,7 +8,7 @@
 #include "accel_struct_pool.hh"
 #include "resource_pool.hh"
 
-void phi::d3d12::DescriptorPageAllocator::initialize(ID3D12Device& device, D3D12_DESCRIPTOR_HEAP_TYPE type, unsigned num_descriptors, unsigned page_size, cc::allocator* static_alloc)
+void phi::d3d12::DescriptorPageAllocator::initialize(ID3D12Device& device, D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t num_descriptors, uint32_t page_size, cc::allocator* static_alloc)
 {
     mPageAllocator.initialize(num_descriptors, page_size, static_alloc);
     mDescriptorSize = device.GetDescriptorHandleIncrementSize(type);
@@ -49,6 +49,7 @@ phi::handle::shader_view phi::d3d12::ShaderViewPool::createEmpty(uint32_t num_sr
     auto const pool_index = mPool.acquire();
 
     auto& new_node = mPool.get(pool_index);
+    new_node = {};
     new_node.sampler_alloc_handle = sampler_alloc;
     new_node.srv_uav_alloc_handle = srv_uav_alloc;
 
@@ -56,18 +57,10 @@ phi::handle::shader_view phi::d3d12::ShaderViewPool::createEmpty(uint32_t num_sr
     {
         new_node.srv_uav_handle = mSRVUAVAllocator.getGPUStart(srv_uav_alloc);
     }
-    else
-    {
-        new_node.srv_uav_handle = {};
-    }
 
     if (sampler_alloc != -1)
     {
         new_node.sampler_handle = mSamplerAllocator.getGPUStart(sampler_alloc);
-    }
-    else
-    {
-        new_node.sampler_handle = {};
     }
 
     return {pool_index};
@@ -121,12 +114,15 @@ void phi::d3d12::ShaderViewPool::writeShaderViewSRVs(handle::shader_view sv, uin
     auto const& node = internalGet(sv);
     CC_ASSERT(node.srv_uav_alloc_handle != -1 && "writing resource view to shader_view without SRV/UAV slots");
 
-    auto const srv_uav_cpu_base = mSRVUAVAllocator.getCPUStart(node.srv_uav_alloc_handle);
+    auto const descriptorBase = mSRVUAVAllocator.getCPUStart(node.srv_uav_alloc_handle);
+
+    uint32_t maxNumDescriptors = mSRVUAVAllocator.getNumDescriptorsInAllocation(node.srv_uav_alloc_handle);
+    CC_ASSERT(srvs.size() + offset <= maxNumDescriptors && "writeShaderViewSRVs: write OOB");
 
     for (auto i = 0u; i < srvs.size(); ++i)
     {
-        auto const cpu_handle = mSRVUAVAllocator.incrementToIndex(srv_uav_cpu_base, offset + i);
-        writeSRV(cpu_handle, srvs[i]);
+        auto const cpuHandle = mSRVUAVAllocator.incrementToIndex(descriptorBase, offset + i);
+        writeSRV(cpuHandle, srvs[i]);
     }
 }
 
@@ -134,13 +130,16 @@ void phi::d3d12::ShaderViewPool::writeShaderViewUAVs(handle::shader_view sv, uin
 {
     auto const& node = internalGet(sv);
     CC_ASSERT(node.srv_uav_alloc_handle != -1 && "writing resource view to shader_view without SRV/UAV slots");
+    uint32_t maxNumDescriptors = mSRVUAVAllocator.getNumDescriptorsInAllocation(node.srv_uav_alloc_handle);
+    CC_ASSERT(uavs.size() + offset <= maxNumDescriptors && "writeShaderViewUAVs: write OOB");
 
-    auto const srv_uav_cpu_base = mSRVUAVAllocator.getCPUStart(node.srv_uav_alloc_handle);
+    auto const descriptorBase = mSRVUAVAllocator.getCPUStart(node.srv_uav_alloc_handle);
+
 
     for (auto i = 0u; i < uavs.size(); ++i)
     {
-        auto const cpu_handle = mSRVUAVAllocator.incrementToIndex(srv_uav_cpu_base, offset + i);
-        writeUAV(cpu_handle, uavs[i]);
+        auto const cpuHandle = mSRVUAVAllocator.incrementToIndex(descriptorBase, offset + i);
+        writeUAV(cpuHandle, uavs[i]);
     }
 }
 
@@ -148,6 +147,8 @@ void phi::d3d12::ShaderViewPool::writeShaderViewSamplers(handle::shader_view sv,
 {
     auto const& node = internalGet(sv);
     CC_ASSERT(node.sampler_alloc_handle != -1 && "writing resource view to shader_view without SRV/UAV slots");
+    uint32_t maxNumDescriptors = mSamplerAllocator.getNumDescriptorsInAllocation(node.sampler_alloc_handle);
+    CC_ASSERT(samplers.size() + offset <= maxNumDescriptors && "writeShaderViewSamplers: write OOB");
 
     auto const sampler_base = mSamplerAllocator.getCPUStart(node.sampler_alloc_handle);
 
@@ -160,13 +161,13 @@ void phi::d3d12::ShaderViewPool::writeShaderViewSamplers(handle::shader_view sv,
 
 void phi::d3d12::ShaderViewPool::free(phi::handle::shader_view sv)
 {
-    auto& data = mPool.get(unsigned(sv._value));
+    auto& data = mPool.get(uint32_t(sv._value));
     {
         auto lg = std::lock_guard(mMutex);
         mSRVUAVAllocator.free(data.srv_uav_alloc_handle);
         mSamplerAllocator.free(data.sampler_alloc_handle);
     }
-    mPool.release(unsigned(sv._value));
+    mPool.release(uint32_t(sv._value));
 }
 
 void phi::d3d12::ShaderViewPool::free(cc::span<const phi::handle::shader_view> svs)
@@ -177,19 +178,19 @@ void phi::d3d12::ShaderViewPool::free(cc::span<const phi::handle::shader_view> s
         if (!sv.is_valid())
             continue;
 
-        auto& data = mPool.get(unsigned(sv._value));
+        auto& data = mPool.get(uint32_t(sv._value));
         mSRVUAVAllocator.free(data.srv_uav_alloc_handle);
         mSamplerAllocator.free(data.sampler_alloc_handle);
-        mPool.release(unsigned(sv._value));
+        mPool.release(uint32_t(sv._value));
     }
 }
 
 void phi::d3d12::ShaderViewPool::initialize(ID3D12Device* device,
                                             phi::d3d12::ResourcePool* res_pool,
                                             phi::d3d12::AccelStructPool* as_pool,
-                                            unsigned num_shader_views,
-                                            unsigned num_srvs_uavs,
-                                            unsigned num_samplers,
+                                            uint32_t num_shader_views,
+                                            uint32_t num_srvs_uavs,
+                                            uint32_t num_samplers,
                                             cc::allocator* static_alloc)
 {
     CC_ASSERT(mDevice == nullptr && "double init");
@@ -212,7 +213,8 @@ void phi::d3d12::ShaderViewPool::writeSRV(D3D12_CPU_DESCRIPTOR_HANDLE handle, re
 {
     // the GPU VA if this is an accel struct
     D3D12_GPU_VIRTUAL_ADDRESS accelstruct_va = UINT64(-1);
-    if (srv.dimension == resource_view_dimension::raytracing_accel_struct)
+    bool const isAccelStruct = srv.dimension == resource_view_dimension::raytracing_accel_struct;
+    if (isAccelStruct)
     {
         accelstruct_va = mAccelStructPool->getNode(srv.accel_struct_info.accel_struct).buffer_as_va;
     }
@@ -220,8 +222,7 @@ void phi::d3d12::ShaderViewPool::writeSRV(D3D12_CPU_DESCRIPTOR_HANDLE handle, re
     auto const srv_desc = util::create_srv_desc(srv, accelstruct_va);
 
     // the raw resource, or none if this is an accel struct
-    ID3D12Resource* const raw_resource
-        = srv.dimension == resource_view_dimension::raytracing_accel_struct ? nullptr : mResourcePool->getRawResource(srv.resource);
+    ID3D12Resource* const raw_resource = isAccelStruct ? nullptr : mResourcePool->getRawResource(srv.resource);
 
     mDevice->CreateShaderResourceView(raw_resource, &srv_desc, handle);
 }

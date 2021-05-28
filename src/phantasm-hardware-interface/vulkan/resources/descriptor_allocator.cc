@@ -138,4 +138,56 @@ VkDescriptorSetLayout DescriptorAllocator::createLayoutFromShaderViewArgs(cc::sp
 
     return layout;
 }
+VkDescriptorSetLayout DescriptorAllocator::createLayoutFromDescription(arg::shader_view_description const& desc, bool usageCompute)
+{
+    // NOTE: Eventually arguments could be constrained to stages in a more fine-grained manner
+    auto const argument_visibility = usageCompute ? VK_SHADER_STAGE_COMPUTE_BIT : VK_SHADER_STAGE_ALL_GRAPHICS;
+
+    detail::pipeline_layout_params::descriptor_set_params params;
+
+    uint32_t srvHead = 0u;
+    uint32_t numSRVsInEntries = 0u;
+    for (auto const& entry : desc.srv_entries)
+    {
+        auto const native_type = util::to_native_srv_desc_type(entry.category);
+
+        params.add_descriptor(native_type, spv::srv_binding_start + srvHead, entry.array_size, argument_visibility);
+        numSRVsInEntries += entry.array_size;
+        ++srvHead;
+    }
+
+    CC_ASSERT_MSG(numSRVsInEntries == desc.num_srvs,
+                  "Amount of SRVs specified does not match the sum of given SRV entries when creating an empty shader view\n"
+                  "For the Vulkan backend, arg::shader_view_description::srv_entries is not optional");
+
+    uint32_t uavHead = 0u;
+    uint32_t numUAVsInEntries = 0u;
+    for (auto const& entry : desc.uav_entries)
+    {
+        auto const native_type = util::to_native_uav_desc_type(entry.category);
+
+        params.add_descriptor(native_type, spv::uav_binding_start + uavHead, entry.array_size, argument_visibility);
+        numUAVsInEntries += entry.array_size;
+        ++uavHead;
+    }
+
+    CC_ASSERT_MSG(numUAVsInEntries == desc.num_uavs,
+                  "Amount of UAVs specified does not match the sum of given UAV entries when creating an empty shader view\n"
+                  "For the Vulkan backend, arg::shader_view_description::uav_entries is not optional");
+
+    for (auto i = 0u; i < desc.num_samplers; ++i)
+    {
+        params.add_descriptor(VK_DESCRIPTOR_TYPE_SAMPLER, spv::sampler_binding_start + i, 1, argument_visibility);
+    }
+
+    VkDescriptorSetLayoutCreateInfo layout_info = {};
+    layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    layout_info.bindingCount = uint32_t(params.bindings.size());
+    layout_info.pBindings = params.bindings.data();
+
+    VkDescriptorSetLayout layout;
+    PHI_VK_VERIFY_SUCCESS(vkCreateDescriptorSetLayout(mDevice, &layout_info, nullptr, &layout));
+
+    return layout;
 }
+} // namespace phi::vk

@@ -82,7 +82,7 @@ void phi::vk::FencePool::signalCPU(phi::handle::fence fence, uint64_t val) const
     info.semaphore = get(fence);
     info.value = val;
 
-    PHI_VK_VERIFY_SUCCESS(vkSignalSemaphoreKHR(mDevice, &info));
+    PHI_VK_VERIFY_SUCCESS(vkSignalSemaphore(mDevice, &info));
 }
 
 void phi::vk::FencePool::waitCPU(phi::handle::fence fence, uint64_t val) const
@@ -95,14 +95,12 @@ void phi::vk::FencePool::waitCPU(phi::handle::fence fence, uint64_t val) const
     info.pSemaphores = &sem;
     info.pValues = &val;
 
-    // NOTE: KHR! We're not on Vulkan 1.2, these are the extension timeline semaphores and not the 1.2 core ones
-    PHI_VK_VERIFY_SUCCESS(vkWaitSemaphoresKHR(mDevice, &info, UINT64_MAX));
+    PHI_VK_VERIFY_SUCCESS(vkWaitSemaphores(mDevice, &info, UINT64_MAX));
 }
 
 uint64_t phi::vk::FencePool::getValue(phi::handle::fence fence) const
 {
     uint64_t res;
-    // NOTE: KHR! We're not on Vulkan 1.2, these are the extension timeline semaphores and not the 1.2 core ones
-    PHI_VK_VERIFY_SUCCESS(vkGetSemaphoreCounterValueKHR(mDevice, get(fence), &res));
+    PHI_VK_VERIFY_SUCCESS(vkGetSemaphoreCounterValue(mDevice, get(fence), &res));
     return res;
 }

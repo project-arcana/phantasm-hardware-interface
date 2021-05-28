@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <mutex>
 
 #include <clean-core/array.hh>
@@ -36,63 +38,65 @@ namespace phi::d3d12
 class DescriptorPageAllocator
 {
 public:
-    using handle_t = int;
+    using handle_t = int32_t;
 
 public:
-    void initialize(ID3D12Device& device, D3D12_DESCRIPTOR_HEAP_TYPE type, unsigned num_descriptors, unsigned page_size, cc::allocator* static_alloc);
+    void initialize(ID3D12Device& device, D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t num_descriptors, uint32_t page_size, cc::allocator* static_alloc);
 
     void destroy();
 
-    [[nodiscard]] handle_t allocate(int num_descriptors)
+    [[nodiscard]] handle_t allocate(int32_t num_descriptors)
     {
         if (num_descriptors <= 0)
             return -1;
 
         auto const res_page = mPageAllocator.allocate(num_descriptors);
-        CC_RUNTIME_ASSERTF(res_page != -1, "DescriptorPageAllocator overcommitted! Reached limit of {} {}", mPageAllocator.get_num_elements(),
-                           mDescriptorType == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV ? "SRVs/UAVs/CBVs" : "Samplers");
+        CC_RUNTIME_ASSERTF(res_page != -1, "DescriptorPageAllocator overcommitted! Reached limit of {} {}\nIncrease the corresponding maximum in the PHI backend config",
+                           mPageAllocator.get_num_elements(), mDescriptorType == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV ? "SRVs/UAVs/CBVs" : "Samplers");
         return res_page;
     }
 
     void free(handle_t handle) { mPageAllocator.free(handle); }
 
 public:
-    [[nodiscard]] D3D12_CPU_DESCRIPTOR_HANDLE getCPUStart(handle_t handle) const
+    D3D12_CPU_DESCRIPTOR_HANDLE getCPUStart(handle_t handle) const
     {
         // index = page index * page size
         auto const index = handle * mPageAllocator.get_page_size();
-        return D3D12_CPU_DESCRIPTOR_HANDLE{mHeapStartCPU.ptr + unsigned(index) * mDescriptorSize};
+        return D3D12_CPU_DESCRIPTOR_HANDLE{mHeapStartCPU.ptr + SIZE_T(index) * SIZE_T(mDescriptorSize)};
     }
 
-    [[nodiscard]] D3D12_GPU_DESCRIPTOR_HANDLE getGPUStart(handle_t handle) const
+    D3D12_GPU_DESCRIPTOR_HANDLE getGPUStart(handle_t handle) const
     {
         // index = page index * page size
         auto const index = handle * mPageAllocator.get_page_size();
-        return D3D12_GPU_DESCRIPTOR_HANDLE{mHeapStartGPU.ptr + unsigned(index) * mDescriptorSize};
+        return D3D12_GPU_DESCRIPTOR_HANDLE{mHeapStartGPU.ptr + SIZE_T(index) * SIZE_T(mDescriptorSize)};
     }
 
-    [[nodiscard]] D3D12_CPU_DESCRIPTOR_HANDLE incrementToIndex(D3D12_CPU_DESCRIPTOR_HANDLE desc, unsigned i) const
+    uint32_t getNumDescriptorsInAllocation(handle_t handle) const { return uint32_t(mPageAllocator.get_allocation_size_in_elements(handle)); }
+
+    [[nodiscard]] D3D12_CPU_DESCRIPTOR_HANDLE incrementToIndex(D3D12_CPU_DESCRIPTOR_HANDLE desc, uint32_t i) const
     {
-        desc.ptr += i * mDescriptorSize;
+        desc.ptr += i * SIZE_T(mDescriptorSize);
         return desc;
     }
 
-    [[nodiscard]] D3D12_GPU_DESCRIPTOR_HANDLE incrementToIndex(D3D12_GPU_DESCRIPTOR_HANDLE desc, unsigned i) const
+    [[nodiscard]] D3D12_GPU_DESCRIPTOR_HANDLE incrementToIndex(D3D12_GPU_DESCRIPTOR_HANDLE desc, uint32_t i) const
     {
-        desc.ptr += i * mDescriptorSize;
+        desc.ptr += i * SIZE_T(mDescriptorSize);
         return desc;
     }
 
-    [[nodiscard]] int getNumPages() const { return mPageAllocator.get_num_pages(); }
+    int32_t getNumPages() const { return mPageAllocator.get_num_pages(); }
 
-    [[nodiscard]] ID3D12DescriptorHeap* getHeap() const { return mHeap; }
+    ID3D12DescriptorHeap* getHeap() const { return mHeap; }
 
 private:
     ID3D12DescriptorHeap* mHeap;
     D3D12_CPU_DESCRIPTOR_HANDLE mHeapStartCPU;
     D3D12_GPU_DESCRIPTOR_HANDLE mHeapStartGPU;
     phi::page_allocator mPageAllocator;
-    unsigned mDescriptorSize = 0;
+    uint32_t mDescriptorSize = 0;
     D3D12_DESCRIPTOR_HEAP_TYPE mDescriptorType;
 };
 
@@ -124,19 +128,19 @@ public:
     void initialize(ID3D12Device* device,
                     ResourcePool* res_pool,
                     phi::d3d12::AccelStructPool* as_pool,
-                    unsigned num_shader_views,
-                    unsigned num_srvs_uavs,
-                    unsigned num_samplers,
+                    uint32_t num_shader_views,
+                    uint32_t num_srvs_uavs,
+                    uint32_t num_samplers,
                     cc::allocator* static_alloc);
     void destroy();
 
-    [[nodiscard]] D3D12_GPU_DESCRIPTOR_HANDLE getSRVUAVGPUHandle(handle::shader_view sv) const
+    D3D12_GPU_DESCRIPTOR_HANDLE getSRVUAVGPUHandle(handle::shader_view sv) const
     {
         // cached fastpath
         return internalGet(sv).srv_uav_handle;
     }
 
-    [[nodiscard]] D3D12_GPU_DESCRIPTOR_HANDLE getSamplerGPUHandle(handle::shader_view sv) const
+    D3D12_GPU_DESCRIPTOR_HANDLE getSamplerGPUHandle(handle::shader_view sv) const
     {
         // cached fastpath
         return internalGet(sv).sampler_handle;
@@ -160,12 +164,13 @@ private:
     };
 
 private:
-    [[nodiscard]] shader_view_data const& internalGet(handle::shader_view res) const
+    shader_view_data const& internalGet(handle::shader_view res) const
     {
         CC_ASSERT(res.is_valid() && "invalid shader_view handle");
         return mPool.get(res._value);
     }
-    [[nodiscard]] shader_view_data& internalGet(handle::shader_view res)
+
+    shader_view_data& internalGet(handle::shader_view res)
     {
         CC_ASSERT(res.is_valid() && "invalid shader_view handle");
         return mPool.get(res._value);
@@ -188,4 +193,4 @@ private:
     DescriptorPageAllocator mSamplerAllocator;
     std::mutex mMutex;
 };
-}
+} // namespace phi::d3d12

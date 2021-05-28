@@ -273,10 +273,11 @@ phi::vk::LayerExtensionArray phi::vk::getUsedDeviceExtensions(const phi::vk::Lay
         PHI_LOG_ERROR(R"(Fatal: Missing vulkan swapchain extension "{}")", VK_KHR_SWAPCHAIN_EXTENSION_NAME);
     }
 
-    if (!f_add_ext(VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME))
-    {
-        PHI_LOG_ERROR(R"(Missing vulkan timeline semaphore extension "{}", try updating GPU drivers)", VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME);
-    }
+    // VK_KHR_timeline_semaphore  - core in Vk 1.2
+    // if (!f_add_ext(VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME))
+    //{
+    //    PHI_LOG_ERROR(R"(Missing vulkan timeline semaphore extension "{}", try updating GPU drivers)", VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME);
+    //}
 
     // VK_KHR_relaxed_block_layout - core in Vk 1.1
     // https://www.khronos.org/registry/vulkan/specs/1.2-extensions/man/html/VK_KHR_relaxed_block_layout.html

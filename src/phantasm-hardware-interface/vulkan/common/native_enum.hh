@@ -9,7 +9,7 @@
 
 namespace phi::vk::util
 {
-[[nodiscard]] constexpr VkAccessFlags to_access_flags(resource_state state)
+constexpr VkAccessFlags to_access_flags(resource_state state)
 {
     using rs = resource_state;
     switch (state)
@@ -63,7 +63,7 @@ namespace phi::vk::util
     CC_UNREACHABLE_SWITCH_WORKAROUND(state);
 }
 
-[[nodiscard]] constexpr VkImageLayout to_image_layout(resource_state state)
+constexpr VkImageLayout to_image_layout(resource_state state)
 {
     using rs = resource_state;
     switch (state)
@@ -111,7 +111,7 @@ namespace phi::vk::util
     CC_UNREACHABLE_SWITCH_WORKAROUND(state);
 }
 
-[[nodiscard]] constexpr VkPipelineStageFlags to_pipeline_stage_flags(phi::shader_stage stage)
+constexpr VkPipelineStageFlags to_pipeline_stage_flags(phi::shader_stage stage)
 {
     switch (stage)
     {
@@ -146,7 +146,7 @@ namespace phi::vk::util
     CC_UNREACHABLE_SWITCH_WORKAROUND(stage);
 }
 
-[[nodiscard]] constexpr VkPipelineStageFlags to_pipeline_stage_flags_bitwise(phi::shader_stage_flags_t stage_flags)
+constexpr VkPipelineStageFlags to_pipeline_stage_flags_bitwise(phi::shader_stage_flags_t stage_flags)
 {
     VkPipelineStageFlags res = 0;
 
@@ -176,7 +176,7 @@ namespace phi::vk::util
     return res;
 }
 
-[[nodiscard]] constexpr VkPipelineStageFlags to_pipeline_stage_dependency(resource_state state, VkPipelineStageFlags shader_flags)
+constexpr VkPipelineStageFlags to_pipeline_stage_dependency(resource_state state, VkPipelineStageFlags shader_flags)
 {
     using rs = resource_state;
     switch (state)
@@ -226,12 +226,12 @@ namespace phi::vk::util
     CC_UNREACHABLE_SWITCH_WORKAROUND(state);
 }
 
-[[nodiscard]] constexpr VkPipelineStageFlags to_pipeline_stage_dependency(resource_state state, shader_stage stage = shader_stage::pixel)
+constexpr VkPipelineStageFlags to_pipeline_stage_dependency(resource_state state, shader_stage stage = shader_stage::pixel)
 {
     return to_pipeline_stage_dependency(state, to_pipeline_stage_flags(stage));
 }
 
-[[nodiscard]] constexpr VkPrimitiveTopology to_native(phi::primitive_topology topology)
+constexpr VkPrimitiveTopology to_native(phi::primitive_topology topology)
 {
     switch (topology)
     {
@@ -248,7 +248,7 @@ namespace phi::vk::util
     CC_UNREACHABLE_SWITCH_WORKAROUND(topology);
 }
 
-[[nodiscard]] constexpr VkCompareOp to_native(phi::depth_function depth_func)
+constexpr VkCompareOp to_native(phi::depth_function depth_func)
 {
     switch (depth_func)
     {
@@ -275,7 +275,7 @@ namespace phi::vk::util
     CC_UNREACHABLE_SWITCH_WORKAROUND(depth_func);
 }
 
-[[nodiscard]] constexpr VkCullModeFlags to_native(phi::cull_mode cull_mode)
+constexpr VkCullModeFlags to_native(phi::cull_mode cull_mode)
 {
     switch (cull_mode)
     {
@@ -291,7 +291,7 @@ namespace phi::vk::util
 }
 
 
-[[nodiscard]] constexpr VkShaderStageFlagBits to_shader_stage_flags(phi::shader_stage stage)
+constexpr VkShaderStageFlagBits to_shader_stage_flags(phi::shader_stage stage)
 {
     switch (stage)
     {
@@ -332,7 +332,7 @@ namespace phi::vk::util
 }
 
 
-[[nodiscard]] constexpr VkDescriptorType to_native_srv_desc_type(resource_view_dimension sv_dim)
+constexpr VkDescriptorType to_native_srv_desc_type(resource_view_dimension sv_dim)
 {
     switch (sv_dim)
     {
@@ -357,7 +357,43 @@ namespace phi::vk::util
 
     CC_UNREACHABLE_SWITCH_WORKAROUND(sv_dim);
 }
-[[nodiscard]] constexpr VkDescriptorType to_native_uav_desc_type(resource_view_dimension sv_dim)
+
+constexpr VkDescriptorType to_native_srv_desc_type(arg::descriptor_category desc_cat)
+{
+    switch (desc_cat)
+    {
+    case arg::descriptor_category::buffer:
+        return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    case arg::descriptor_category::raytracing_accel_struct:
+        return VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV;
+    case arg::descriptor_category::texture:
+        return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+
+    case arg::descriptor_category::NONE:
+        return VK_DESCRIPTOR_TYPE_MAX_ENUM;
+    }
+
+    CC_UNREACHABLE_SWITCH_WORKAROUND(desc_cat);
+}
+
+constexpr VkDescriptorType to_native_uav_desc_type(arg::descriptor_category desc_cat)
+{
+    switch (desc_cat)
+    {
+    case arg::descriptor_category::buffer:
+        return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    case arg::descriptor_category::texture:
+        return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+
+    case arg::descriptor_category::raytracing_accel_struct:
+    case arg::descriptor_category::NONE:
+        return VK_DESCRIPTOR_TYPE_MAX_ENUM;
+    }
+
+    CC_UNREACHABLE_SWITCH_WORKAROUND(desc_cat);
+}
+
+constexpr VkDescriptorType to_native_uav_desc_type(resource_view_dimension sv_dim)
 {
     switch (sv_dim)
     {
@@ -382,12 +418,9 @@ namespace phi::vk::util
     CC_UNREACHABLE_SWITCH_WORKAROUND(sv_dim);
 }
 
-[[nodiscard]] constexpr bool is_valid_as_uav_desc_type(resource_view_dimension sv_dim)
-{
-    return to_native_uav_desc_type(sv_dim) != VK_DESCRIPTOR_TYPE_MAX_ENUM;
-}
+constexpr bool is_valid_as_uav_desc_type(resource_view_dimension sv_dim) { return to_native_uav_desc_type(sv_dim) != VK_DESCRIPTOR_TYPE_MAX_ENUM; }
 
-[[nodiscard]] constexpr VkImageViewType to_native_image_view_type(resource_view_dimension sv_dim)
+constexpr VkImageViewType to_native_image_view_type(resource_view_dimension sv_dim)
 {
     switch (sv_dim)
     {
@@ -418,7 +451,7 @@ namespace phi::vk::util
     CC_UNREACHABLE_SWITCH_WORKAROUND(sv_dim);
 }
 
-[[nodiscard]] constexpr VkImageAspectFlags to_native_image_aspect(format fmt)
+constexpr VkImageAspectFlags to_native_image_aspect(format fmt)
 {
     if (phi::util::is_view_format(fmt))
     {
@@ -447,7 +480,7 @@ namespace phi::vk::util
 }
 
 
-[[nodiscard]] constexpr VkFilter to_min_filter(sampler_filter filter)
+constexpr VkFilter to_min_filter(sampler_filter filter)
 {
     switch (filter)
     {
@@ -467,7 +500,7 @@ namespace phi::vk::util
     CC_UNREACHABLE_SWITCH_WORKAROUND(filter);
 }
 
-[[nodiscard]] constexpr VkFilter to_mag_filter(sampler_filter filter)
+constexpr VkFilter to_mag_filter(sampler_filter filter)
 {
     switch (filter)
     {
@@ -487,7 +520,7 @@ namespace phi::vk::util
     CC_UNREACHABLE_SWITCH_WORKAROUND(filter);
 }
 
-[[nodiscard]] constexpr VkSamplerMipmapMode to_mipmap_filter(sampler_filter filter)
+constexpr VkSamplerMipmapMode to_mipmap_filter(sampler_filter filter)
 {
     switch (filter)
     {
@@ -507,7 +540,7 @@ namespace phi::vk::util
     CC_UNREACHABLE_SWITCH_WORKAROUND(filter);
 }
 
-[[nodiscard]] constexpr VkSamplerAddressMode to_native(sampler_address_mode mode)
+constexpr VkSamplerAddressMode to_native(sampler_address_mode mode)
 {
     switch (mode)
     {
@@ -524,7 +557,7 @@ namespace phi::vk::util
     CC_UNREACHABLE_SWITCH_WORKAROUND(mode);
 }
 
-[[nodiscard]] constexpr VkCompareOp to_native(sampler_compare_func mode)
+constexpr VkCompareOp to_native(sampler_compare_func mode)
 {
     switch (mode)
     {
@@ -550,7 +583,7 @@ namespace phi::vk::util
     CC_UNREACHABLE_SWITCH_WORKAROUND(mode);
 }
 
-[[nodiscard]] constexpr VkBorderColor to_native(sampler_border_color color)
+constexpr VkBorderColor to_native(sampler_border_color color)
 {
     switch (color)
     {
@@ -571,7 +604,7 @@ namespace phi::vk::util
     CC_UNREACHABLE_SWITCH_WORKAROUND(color);
 }
 
-[[nodiscard]] constexpr VkSampleCountFlagBits to_native_sample_flags(unsigned num_samples)
+constexpr VkSampleCountFlagBits to_native_sample_flags(unsigned num_samples)
 {
     switch (num_samples)
     {
@@ -594,7 +627,7 @@ namespace phi::vk::util
     CC_UNREACHABLE_SWITCH_WORKAROUND(num_samples);
 }
 
-[[nodiscard]] constexpr VkAttachmentLoadOp to_native(rt_clear_type clear_type)
+constexpr VkAttachmentLoadOp to_native(rt_clear_type clear_type)
 {
     switch (clear_type)
     {
@@ -609,7 +642,7 @@ namespace phi::vk::util
     CC_UNREACHABLE_SWITCH_WORKAROUND(clear_type);
 }
 
-[[nodiscard]] constexpr VkImageType to_native(texture_dimension dim)
+constexpr VkImageType to_native(texture_dimension dim)
 {
     switch (dim)
     {
@@ -624,7 +657,7 @@ namespace phi::vk::util
     CC_UNREACHABLE_SWITCH_WORKAROUND(dim);
 }
 
-[[nodiscard]] constexpr VkLogicOp to_native(blend_logic_op op)
+constexpr VkLogicOp to_native(blend_logic_op op)
 {
     switch (op)
     {
@@ -665,7 +698,7 @@ namespace phi::vk::util
     CC_UNREACHABLE_SWITCH_WORKAROUND(op);
 }
 
-[[nodiscard]] constexpr VkBlendOp to_native(blend_op op)
+constexpr VkBlendOp to_native(blend_op op)
 {
     switch (op)
     {
@@ -684,7 +717,7 @@ namespace phi::vk::util
     CC_UNREACHABLE_SWITCH_WORKAROUND(op);
 }
 
-[[nodiscard]] constexpr VkBlendFactor to_native(blend_factor bf)
+constexpr VkBlendFactor to_native(blend_factor bf)
 {
     switch (bf)
     {
@@ -713,7 +746,7 @@ namespace phi::vk::util
     CC_UNREACHABLE_SWITCH_WORKAROUND(bf);
 }
 
-[[nodiscard]] constexpr VkBuildAccelerationStructureFlagsNV to_native_accel_struct_build_flags(accel_struct_build_flags_t flags)
+constexpr VkBuildAccelerationStructureFlagsNV to_native_accel_struct_build_flags(accel_struct_build_flags_t flags)
 {
     VkBuildAccelerationStructureFlagsNV res = 0;
 
@@ -730,4 +763,4 @@ namespace phi::vk::util
 
     return res;
 }
-}
+} // namespace phi::vk::util
