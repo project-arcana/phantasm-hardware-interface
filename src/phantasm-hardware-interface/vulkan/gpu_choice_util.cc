@@ -197,7 +197,7 @@ cc::vector<phi::gpu_info> phi::vk::get_available_gpus(cc::span<const vulkan_gpu_
 
         auto& new_gpu = res.emplace_back();
         new_gpu.index = i;
-        new_gpu.vendor = get_gpu_info_from_pcie_id(ll_info.physical_device_props.vendorID);
+        new_gpu.vendor = getGPUVendorFromPCIeID(ll_info.physical_device_props.vendorID);
         std::snprintf(new_gpu.name, sizeof(new_gpu.name), "%s", ll_info.physical_device_props.deviceName);
 
         // TODO: differentiate this somehow

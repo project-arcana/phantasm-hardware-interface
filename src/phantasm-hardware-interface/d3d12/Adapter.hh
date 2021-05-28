@@ -11,7 +11,10 @@ namespace phi::d3d12
 class Adapter
 {
 public:
-    void initialize(backend_config const& config);
+    // outCreatedDevice: The device created on the chosen physical GPU
+    // it has to be created in the GPU choice process and is expensive to re-create
+    void initialize(backend_config const& config, ID3D12Device*& outCreatedDevice);
+
     void destroy();
 
     bool isValid() const { return mAdapter != nullptr; }
@@ -28,4 +31,4 @@ private:
     IDXGIInfoQueue* mInfoQueue = nullptr;
 };
 
-}
+} // namespace phi::d3d12

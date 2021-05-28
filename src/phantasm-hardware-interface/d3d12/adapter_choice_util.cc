@@ -2,6 +2,10 @@
 
 #include <cstdio>
 
+#ifdef PHI_HAS_OPTICK
+#include <optick/optick.h>
+#endif
+
 #include <clean-core/array.hh>
 #include <clean-core/assert.hh>
 
@@ -12,94 +16,119 @@
 #include "common/shared_com_ptr.hh"
 #include "common/verify.hh"
 
-int phi::d3d12::test_adapter(IDXGIAdapter* adapter, D3D_FEATURE_LEVEL min_features, D3D_FEATURE_LEVEL& out_max_features)
+bool phi::d3d12::testAdapterForFeatures(IDXGIAdapter* adapter, D3D_FEATURE_LEVEL& outMaxFeatures, ID3D12Device*& outDevice)
 {
-    cc::array const all_feature_levels = {D3D_FEATURE_LEVEL_12_1, D3D_FEATURE_LEVEL_12_0, D3D_FEATURE_LEVEL_11_1, D3D_FEATURE_LEVEL_11_0};
+#ifdef PHI_HAS_OPTICK
+    OPTICK_EVENT("Create and Test ID3D12Device");
+#endif
 
-    int res_nodes = -1;
+
+    bool eligible = false;
 
     detail::perform_safe_seh_call([&] {
-        shared_com_ptr<ID3D12Device> test_device;
-        auto const hres = ::D3D12CreateDevice(adapter, min_features, PHI_COM_WRITE(test_device));
+        auto const hres = ::D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&outDevice));
 
         if (SUCCEEDED(hres))
         {
-            D3D12_FEATURE_DATA_FEATURE_LEVELS feature_data;
-            feature_data.pFeatureLevelsRequested = all_feature_levels.data();
-            feature_data.NumFeatureLevels = unsigned(all_feature_levels.size());
+            D3D_FEATURE_LEVEL const allFeatureLevels[] = {D3D_FEATURE_LEVEL_12_1, D3D_FEATURE_LEVEL_12_0, D3D_FEATURE_LEVEL_11_1, D3D_FEATURE_LEVEL_11_0};
 
-            if (SUCCEEDED(test_device->CheckFeatureSupport(D3D12_FEATURE_FEATURE_LEVELS, &feature_data, sizeof(feature_data))))
+            D3D12_FEATURE_DATA_FEATURE_LEVELS feature_data;
+            feature_data.pFeatureLevelsRequested = allFeatureLevels;
+            feature_data.NumFeatureLevels = CC_COUNTOF(allFeatureLevels);
+
+            if (SUCCEEDED(outDevice->CheckFeatureSupport(D3D12_FEATURE_FEATURE_LEVELS, &feature_data, sizeof(feature_data))))
             {
-                out_max_features = feature_data.MaxSupportedFeatureLevel;
+                outMaxFeatures = feature_data.MaxSupportedFeatureLevel;
+                eligible = outDevice->GetNodeCount() > 0;
             }
             else
             {
-                out_max_features = min_features;
+                eligible = false;
             }
-
-            res_nodes = int(test_device->GetNodeCount());
-            CC_ASSERT(res_nodes >= 0);
         }
     });
 
-    return res_nodes;
+    return eligible;
 }
 
-cc::vector<phi::gpu_info> phi::d3d12::get_adapter_candidates()
+uint32_t phi::d3d12::getAdapterCandidates(IDXGIFactory4* factory,
+                                          cc::span<phi::gpu_info> outCandidateInfos,
+                                          cc::span<ID3D12Device*> outCandidateDevices,
+                                          cc::span<IDXGIAdapter*> outCandidateAdapters)
 {
-    auto constexpr min_candidate_feature_level = D3D_FEATURE_LEVEL_12_0;
+#ifdef PHI_HAS_OPTICK
+    OPTICK_EVENT();
+#endif
 
-    // Create a temporary factory to enumerate adapters
-    shared_com_ptr<IDXGIFactory4> temp_factory;
-    detail::perform_safe_seh_call([&] { PHI_D3D12_VERIFY(::CreateDXGIFactory(PHI_COM_WRITE(temp_factory))); });
+    CC_ASSERT(!outCandidateInfos.empty() && outCandidateInfos.size() == outCandidateDevices.size() && "output spans unexpected");
+    CC_ASSERT(outCandidateInfos.size() == outCandidateAdapters.size() && "output spans unexpected");
 
-    // If the call failed (likely XP or earlier), return empty
-    if (!temp_factory.is_valid())
-        return {};
+    uint32_t numWrittenCandidates = 0;
 
-    cc::vector<gpu_info> res;
-
-    shared_com_ptr<IDXGIAdapter> temp_adapter;
-    for (uint32_t i = 0u; temp_factory->EnumAdapters(i, temp_adapter.override()) != DXGI_ERROR_NOT_FOUND; ++i)
+    IDXGIAdapter* tempAdapter = nullptr;
+    for (uint32_t i = 0u; factory->EnumAdapters(i, &tempAdapter) != DXGI_ERROR_NOT_FOUND; ++i)
     {
-        if (temp_adapter.is_valid())
+        if (tempAdapter == nullptr)
+            continue;
+
+        if (numWrittenCandidates == outCandidateInfos.size())
         {
-            D3D_FEATURE_LEVEL max_feature_level = D3D_FEATURE_LEVEL(0);
-            auto num_nodes = test_adapter(temp_adapter, min_candidate_feature_level, max_feature_level);
-
-            if (num_nodes >= 0)
-            {
-                // Min level supported, this adapter is a candidate
-                DXGI_ADAPTER_DESC adapter_desc;
-                PHI_D3D12_VERIFY(temp_adapter->GetDesc(&adapter_desc));
-
-
-                auto& new_candidate = res.emplace_back();
-                new_candidate.vendor = get_gpu_info_from_pcie_id(adapter_desc.VendorId);
-                new_candidate.index = i;
-
-                new_candidate.dedicated_video_memory_bytes = adapter_desc.DedicatedVideoMemory;
-                new_candidate.dedicated_system_memory_bytes = adapter_desc.DedicatedSystemMemory;
-                new_candidate.shared_system_memory_bytes = adapter_desc.SharedSystemMemory;
-
-                std::snprintf(new_candidate.name, sizeof(new_candidate.name), "%ws", adapter_desc.Description);
-
-                if (max_feature_level < D3D_FEATURE_LEVEL_12_0)
-                    new_candidate.capabilities = gpu_capabilities::insufficient;
-                else if (max_feature_level == D3D_FEATURE_LEVEL_12_0)
-                    new_candidate.capabilities = gpu_capabilities::level_1;
-                else if (max_feature_level == D3D_FEATURE_LEVEL_12_1)
-                    new_candidate.capabilities = gpu_capabilities::level_2;
-                else
-                    new_candidate.capabilities = gpu_capabilities::level_3;
-            }
+            PHI_LOG_WARN("More than {} GPUs found, aborting search", numWrittenCandidates);
+            break;
         }
+
+        D3D_FEATURE_LEVEL maxFeatureLevel = D3D_FEATURE_LEVEL(0);
+
+        ID3D12Device* testDevice = nullptr;
+        bool const isEligible = testAdapterForFeatures(tempAdapter, maxFeatureLevel, testDevice);
+
+        if (!isEligible)
+        {
+            // release the testing device and adapter immediately if ineligible
+            testDevice->Release();
+            tempAdapter->Release();
+            continue;
+        }
+
+        // this adapter is a candidate
+        uint32_t const newIndex = numWrittenCandidates++;
+
+        // store ID3D12Device we created as a test
+        outCandidateDevices[newIndex] = testDevice;
+
+        // store IDXGIAdapter that was used to create that device
+        outCandidateAdapters[newIndex] = tempAdapter;
+
+        // write GPU info
+        phi::gpu_info& newCandidateInfo = outCandidateInfos[newIndex];
+
+        DXGI_ADAPTER_DESC adapterDesc;
+        PHI_D3D12_VERIFY(tempAdapter->GetDesc(&adapterDesc));
+        newCandidateInfo.vendor = getGPUVendorFromPCIeID(adapterDesc.VendorId);
+        newCandidateInfo.index = i;
+
+        newCandidateInfo.dedicated_video_memory_bytes = adapterDesc.DedicatedVideoMemory;
+        newCandidateInfo.dedicated_system_memory_bytes = adapterDesc.DedicatedSystemMemory;
+        newCandidateInfo.shared_system_memory_bytes = adapterDesc.SharedSystemMemory;
+
+        std::snprintf(newCandidateInfo.name, sizeof(newCandidateInfo.name), "%ws", adapterDesc.Description);
+
+        if (maxFeatureLevel < D3D_FEATURE_LEVEL_12_0)
+            newCandidateInfo.capabilities = gpu_capabilities::insufficient;
+        else if (maxFeatureLevel == D3D_FEATURE_LEVEL_12_0)
+            newCandidateInfo.capabilities = gpu_capabilities::level_1;
+        else if (maxFeatureLevel == D3D_FEATURE_LEVEL_12_1)
+            newCandidateInfo.capabilities = gpu_capabilities::level_2;
+        else
+            newCandidateInfo.capabilities = gpu_capabilities::level_3;
+
+        tempAdapter = nullptr;
     }
 
-    return res;
+    return numWrittenCandidates;
 }
 
-phi::d3d12::gpu_feature_info phi::d3d12::get_gpu_features(ID3D12Device5* device)
+phi::d3d12::gpu_feature_info phi::d3d12::getGPUFeaturesFromDevice(ID3D12Device5* device)
 {
     gpu_feature_info res;
 

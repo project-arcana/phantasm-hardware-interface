@@ -32,6 +32,10 @@ struct BackendD3D12::per_thread_component
 
 void phi::d3d12::BackendD3D12::initialize(const phi::backend_config& config)
 {
+#ifdef PHI_HAS_OPTICK
+    OPTICK_EVENT();
+#endif
+
     // enable colors as rich-log is used by this library
     rlog::enable_win32_colors();
 
@@ -44,14 +48,19 @@ void phi::d3d12::BackendD3D12::initialize(const phi::backend_config& config)
 
     // Core components
     {
-        mAdapter.initialize(config);
-        mDevice.initialize(mAdapter.getAdapter(), config);
+        ID3D12Device* createdDevice = nullptr;
+        mAdapter.initialize(config, createdDevice);
+        mDevice.initialize(createdDevice, mAdapter.getAdapter(), config);
     }
 
     auto* const device = mDevice.getDevice();
 
     // queues
     {
+#ifdef PHI_HAS_OPTICK
+        OPTICK_EVENT("Queues");
+#endif
+
         mDirectQueue.initialize(device, queue_type::direct);
         mComputeQueue.initialize(device, queue_type::compute);
         mCopyQueue.initialize(device, queue_type::copy);
@@ -59,6 +68,10 @@ void phi::d3d12::BackendD3D12::initialize(const phi::backend_config& config)
 
     // Global pools
     {
+#ifdef PHI_HAS_OPTICK
+        OPTICK_EVENT("Pools");
+#endif
+
         mPoolResources.initialize(device, config.max_num_resources, config.max_num_swapchains, config.static_allocator, config.dynamic_allocator);
         mPoolShaderViews.initialize(device, &mPoolResources, &mPoolAccelStructs, config.max_num_cbvs, config.max_num_srvs + config.max_num_uavs,
                                     config.max_num_samplers, config.static_allocator);
@@ -77,6 +90,10 @@ void phi::d3d12::BackendD3D12::initialize(const phi::backend_config& config)
 
     // Per-thread components and command list pool
     {
+#ifdef PHI_HAS_OPTICK
+        OPTICK_EVENT("TLS, Command List Pool");
+#endif
+
         mThreadAssociation.initialize();
 
         mThreadComponentAlloc = config.static_allocator;

@@ -2,6 +2,10 @@
 
 #include <clean-core/assert.hh>
 
+#ifdef PHI_HAS_OPTICK
+#include <optick/optick.h>
+#endif
+
 #include <phantasm-hardware-interface/common/log.hh>
 #include <phantasm-hardware-interface/config.hh>
 #include <phantasm-hardware-interface/features/gpu_info.hh>
@@ -11,8 +15,12 @@
 #include "common/shared_com_ptr.hh"
 #include "common/verify.hh"
 
-void phi::d3d12::Adapter::initialize(const backend_config& config)
+void phi::d3d12::Adapter::initialize(const backend_config& config, ID3D12Device*& outCreatedDevice)
 {
+#ifdef PHI_HAS_OPTICK
+    OPTICK_EVENT();
+#endif
+
     // Suppress GBV startup message
     // TODO: This has no effect due to a bug
     // Jesse Natalie:
@@ -50,89 +58,49 @@ void phi::d3d12::Adapter::initialize(const backend_config& config)
 
     // Factory init
     {
-        shared_com_ptr<IDXGIFactory> temp_factory;
-        PHI_D3D12_VERIFY(::CreateDXGIFactory(PHI_COM_WRITE(temp_factory)));
-        PHI_D3D12_VERIFY(temp_factory->QueryInterface(IID_PPV_ARGS(&mFactory)));
+#ifdef PHI_HAS_OPTICK
+        OPTICK_EVENT("IDXGIFactory Create");
+#endif
+
+        shared_com_ptr<IDXGIFactory> tempFactory;
+        PHI_D3D12_VERIFY(::CreateDXGIFactory(PHI_COM_WRITE(tempFactory)));
+        PHI_D3D12_VERIFY(tempFactory->QueryInterface(IID_PPV_ARGS(&mFactory)));
     }
 
-    // Adapter init
-    bool is_intel_gpu = false;
-    {
-        // choose the adapter
-        auto const candidates = get_adapter_candidates();
-        CC_RUNTIME_ASSERT(!candidates.empty() && "Found no GPU candidates");
-
-        uint32_t chosen_adapter_index;
-
-        if (config.adapter == adapter_preference::explicit_index)
-        {
-            chosen_adapter_index = config.explicit_adapter_index;
-        }
-        else
-        {
-            auto const preferred_candidate_i = get_preferred_gpu(candidates, config.adapter);
-            CC_RUNTIME_ASSERT(preferred_candidate_i < candidates.size() && "Found no GPU candidates");
-            chosen_adapter_index = candidates[preferred_candidate_i].index;
-        }
-
-        // detect intel GPUs for GBV workaround
-        bool found_chosen_index = false;
-        for (auto const& candidate : candidates)
-        {
-            if (candidate.index == chosen_adapter_index)
-            {
-                found_chosen_index = true;
-                is_intel_gpu = candidate.vendor == gpu_vendor::intel;
-                break;
-            }
-        }
-
-        CC_RUNTIME_ASSERT(found_chosen_index && "Given GPU adapter index invalid");
-
-        // create the adapter
-        shared_com_ptr<IDXGIAdapter> temp_adapter;
-        mFactory->EnumAdapters(chosen_adapter_index, temp_adapter.override());
-        PHI_D3D12_VERIFY(temp_adapter->QueryInterface(IID_PPV_ARGS(&mAdapter)));
-
-        print_startup_message(candidates, chosen_adapter_index, config, true);
-        mGPUInfo = candidates[chosen_adapter_index];
-    }
 
     // Debug layer init
+    // NOTE: This must come BEFORE D3D12Device creation!
+    // if not, there is a silent device removal afterwards
     if (config.validation != validation_level::off)
     {
-        shared_com_ptr<ID3D12Debug> debug_controller;
-        bool const debug_init_success = detail::hr_succeeded(::D3D12GetDebugInterface(PHI_COM_WRITE(debug_controller)));
+#ifdef PHI_HAS_OPTICK
+        OPTICK_EVENT("Debug Layer Init");
+#endif
 
+        shared_com_ptr<ID3D12Debug> debugController;
+        bool const wasDebugInitSuccessful = detail::hr_succeeded(::D3D12GetDebugInterface(PHI_COM_WRITE(debugController)));
 
-        if (debug_init_success && debug_controller.is_valid())
+        if (wasDebugInitSuccessful && debugController.is_valid())
         {
-            debug_controller->EnableDebugLayer();
+            debugController->EnableDebugLayer();
 
             if (config.validation >= validation_level::on_extended)
             {
-                if (is_intel_gpu)
+                shared_com_ptr<ID3D12Debug3> debugControllerV3;
+                bool const wasGBVInitSuccessful = detail::hr_succeeded(debugController.get_interface(debugControllerV3));
+
+                if (wasGBVInitSuccessful && debugControllerV3.is_valid())
                 {
-                    PHI_LOG_WARN("GPU-based validation requested on an Intel GPU, disabling due to known crashes");
+                    debugControllerV3->SetEnableGPUBasedValidation(true);
+
+                    // TODO: even if this succeeded, we could have still
+                    // launched from inside NSight, where SetEnableSynchronizedCommandQueueValidation
+                    // will crash
+                    debugControllerV3->SetEnableSynchronizedCommandQueueValidation(true);
                 }
                 else
                 {
-                    shared_com_ptr<ID3D12Debug3> debug_controller_v3;
-                    bool const gbv_init_success = detail::hr_succeeded(debug_controller.get_interface(debug_controller_v3));
-
-                    if (gbv_init_success && debug_controller_v3.is_valid())
-                    {
-                        debug_controller_v3->SetEnableGPUBasedValidation(true);
-
-                        // TODO: even if this succeeded, we could have still
-                        // launched from inside NSight, where SetEnableSynchronizedCommandQueueValidation
-                        // will crash
-                        debug_controller_v3->SetEnableSynchronizedCommandQueueValidation(true);
-                    }
-                    else
-                    {
-                        PHI_LOG_ERROR << "failed to enable GPU-based validation";
-                    }
+                    PHI_LOG_ERROR("failed to enable GPU-based validation");
                 }
             }
         }
@@ -140,11 +108,90 @@ void phi::d3d12::Adapter::initialize(const backend_config& config)
         {
             // (prevent clangf from breaking the URL in code)
             // clang-format off
-            PHI_LOG_ERROR << "failed to enable validation\n"
-                             "  verify that the D3D12 SDK is installed on this machine\n"
-                             "  refer to "
-                             "https://docs.microsoft.com/en-us/windows/uwp/gaming/use-the-directx-runtime-and-visual-studio-graphics-diagnostic-features";
+            PHI_LOG_ERROR ("failed to enable D3D12 validation\n"
+                           "  verify that the D3D12 SDK is installed on this machine\n"
+                           "  refer to "
+                           "https://docs.microsoft.com/en-us/windows/uwp/gaming/use-the-directx-runtime-and-visual-studio-graphics-diagnostic-features");
             // clang-format on
+        }
+    }
+
+    // Adapter init
+    {
+#ifdef PHI_HAS_OPTICK
+        OPTICK_EVENT("GPU Choice");
+#endif
+
+        phi::gpu_info candidates[16];
+        ID3D12Device* candidateDevices[16] = {};
+        IDXGIAdapter* candidateAdapters[16] = {};
+
+        // choose the adapter
+        uint32_t const numCandidates = getAdapterCandidates(mFactory, candidates, candidateDevices, candidateAdapters);
+        CC_RUNTIME_ASSERT(numCandidates > 0 && "Found no GPU candidates");
+
+        cc::span<phi::gpu_info> const candidateSpan = cc::span(candidates, numCandidates);
+
+        // indexing into candidates[], candidateDevices[], candidateAdapters[]
+        uint32_t chosenCandidateIndex = 0;
+
+        if (config.adapter == adapter_preference::explicit_index)
+        {
+            // indexing into D3Ds adapters (used in IDXGIFactory::EnumAdapters)
+            uint32_t const chosenD3DAdapterIndex = config.explicit_adapter_index;
+
+            bool hasFoundExplicitIndex = false;
+            for (auto i = 0u; i < numCandidates; ++i)
+            {
+                if (candidateSpan[i].index == chosenD3DAdapterIndex)
+                {
+                    hasFoundExplicitIndex = true;
+                    chosenCandidateIndex = i;
+                    break;
+                }
+            }
+
+            CC_RUNTIME_ASSERT(hasFoundExplicitIndex && "Failed to find given explicit adapter index");
+        }
+        else
+        {
+            chosenCandidateIndex = getPreferredGPU(candidateSpan, config.adapter);
+            CC_RUNTIME_ASSERT(chosenCandidateIndex < numCandidates && "Found no GPU candidates");
+        }
+
+        // detect intel GPUs for GBV warning
+        bool const isIntelGPU = candidateSpan[chosenCandidateIndex].vendor == gpu_vendor::intel;
+        if (isIntelGPU && config.validation >= validation_level::on_extended)
+        {
+            PHI_LOG_WARN("GPU-based validation requested on an Intel GPU");
+            PHI_LOG_WARN("There are known crashes in this configuration, consider disabling it");
+        }
+
+        // print the startup message
+        printStartupMessage(candidateSpan, chosenCandidateIndex, config, true);
+
+        mGPUInfo = candidateSpan[chosenCandidateIndex];
+
+        IDXGIAdapter* const chosenAdapter = candidateAdapters[chosenCandidateIndex];
+        ID3D12Device* const chosenDevice = candidateDevices[chosenCandidateIndex];
+
+        // QI the real adapter pointer, release the temp one
+        {
+            PHI_D3D12_VERIFY(chosenAdapter->QueryInterface(IID_PPV_ARGS(&mAdapter)));
+            chosenAdapter->Release();
+        }
+
+        // write the chosen ID3D12Device* to the out param
+        outCreatedDevice = chosenDevice;
+
+        // release all the others
+        for (auto i = 0u; i < numCandidates; ++i)
+        {
+            if (i == chosenCandidateIndex)
+                continue;
+
+            candidateDevices[i]->Release();
+            candidateAdapters[i]->Release();
         }
     }
 }
