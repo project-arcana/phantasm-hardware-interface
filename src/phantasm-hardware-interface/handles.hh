@@ -5,7 +5,7 @@
 namespace phi::handle
 {
 using handle_t = uint32_t;
-inline constexpr handle_t null_handle_value = handle_t(-1);
+inline constexpr handle_t null_handle_value = 0;
 
 namespace detail
 {
@@ -19,7 +19,7 @@ struct abstract_handle
     [[nodiscard]] constexpr bool operator==(abstract_handle rhs) const noexcept { return _value == rhs._value; }
     [[nodiscard]] constexpr bool operator!=(abstract_handle rhs) const noexcept { return _value != rhs._value; }
 };
-}
+} // namespace detail
 
 #define PHI_DEFINE_HANDLE(_type_)                                 \
     struct _type_ : public ::phi::handle::detail::abstract_handle \
@@ -52,4 +52,4 @@ PHI_DEFINE_HANDLE(query_range);
 
 /// raytracing acceleration structure handle
 PHI_DEFINE_HANDLE(accel_struct);
-}
+} // namespace phi::handle
