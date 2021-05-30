@@ -73,7 +73,7 @@ void phi::d3d12::BackendD3D12::initialize(const phi::backend_config& config)
 #endif
 
         mPoolResources.initialize(device, config.max_num_resources, config.max_num_swapchains, config.static_allocator, config.dynamic_allocator);
-        mPoolShaderViews.initialize(device, &mPoolResources, &mPoolAccelStructs, config.max_num_cbvs, config.max_num_srvs + config.max_num_uavs,
+        mPoolShaderViews.initialize(device, &mPoolResources, &mPoolAccelStructs, config.max_num_shader_views, config.max_num_srvs + config.max_num_uavs,
                                     config.max_num_samplers, config.static_allocator);
         mPoolPSOs.initialize(device, config.max_num_pipeline_states, config.max_num_raytrace_pipeline_states, config.static_allocator, config.dynamic_allocator);
         mPoolFences.initialize(device, config.max_num_fences, config.static_allocator);

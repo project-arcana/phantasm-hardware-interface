@@ -46,6 +46,12 @@ phi::handle::shader_view phi::d3d12::ShaderViewPool::createEmpty(uint32_t num_sr
         sampler_alloc = mSamplerAllocator.allocate(int(num_samplers));
     }
 
+    
+    CC_RUNTIME_ASSERTF(!mPool.is_full(),
+                       "Reached limit for shader_views, increase max_num_shader_views in the PHI backend config\n"
+                       "Current limit: {}",
+                       mPool.max_size());
+
     auto const pool_index = mPool.acquire();
 
     auto& new_node = mPool.get(pool_index);

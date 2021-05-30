@@ -367,6 +367,11 @@ phi::handle::shader_view phi::vk::ShaderViewPool::createShaderViewFromLayout(VkD
         res_raw = mAllocator.allocDescriptor(layout);
     }
 
+    CC_RUNTIME_ASSERTF(!mPool.is_full(),
+                       "Reached limit for shader_views, increase max_num_shader_views in the PHI backend config\n"
+                       "Current limit: {}",
+                       mPool.max_size());
+
     uint32_t const pool_index = mPool.acquire();
 
     // Populate new node
