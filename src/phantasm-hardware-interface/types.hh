@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <cstring>
 
 #include <clean-core/flags.hh>
 
@@ -21,9 +22,9 @@ namespace phi
 /// resources bound to a shader, up to 4 per draw or dispatch command
 struct shader_argument
 {
-    handle::resource constant_buffer;
-    handle::shader_view shader_view;
-    uint32_t constant_buffer_offset;
+    handle::resource constant_buffer = handle::null_resource;
+    handle::shader_view shader_view = handle::null_shader_view;
+    uint32_t constant_buffer_offset = 0;
 };
 
 /// the type of a single shader
@@ -120,9 +121,9 @@ enum class resource_state : uint8_t
 /// information describing a single resource transition, specifying only the target state
 struct transition_info
 {
-    handle::resource resource;              ///< the resource to transition
-    resource_state target_state;            ///< the state the resource is transitioned into
-    shader_stage_flags_t dependent_shaders; ///< the shader stages accessing the resource afterwards, only applies to CBV, SRV and UAV states
+    handle::resource resource = handle::null_resource;       ///< the resource to transition
+    resource_state target_state = resource_state::undefined; ///< the state the resource is transitioned into
+    shader_stage_flags_t dependent_shaders = shader_stage::none; ///< the shader stages accessing the resource afterwards, only applies to CBV, SRV and UAV states
 };
 
 enum class resource_heap : uint8_t
@@ -264,9 +265,8 @@ enum class resource_view_dimension : uint8_t
 /// describes an element (either SRV or UAV) of a handle::shader_view
 struct resource_view
 {
-    handle::resource resource = handle::null_resource;
-
-    resource_view_dimension dimension = resource_view_dimension::none;
+    handle::resource resource;
+    resource_view_dimension dimension;
 
     struct texture_info_t
     {
@@ -295,6 +295,11 @@ struct resource_view
         buffer_info_t buffer_info;
         accel_struct_info_t accel_struct_info;
     };
+
+    resource_view()
+    {
+        std::memset(this, 0, sizeof(*this)); // this is required to zero out padding for hashes
+    }
 
 public:
     // convenience
@@ -467,16 +472,16 @@ enum class sampler_border_color : uint8_t
 /// configuration from which a sampler is created, as part of a handle::shader_view
 struct sampler_config
 {
-    sampler_filter filter;
-    sampler_address_mode address_u;
-    sampler_address_mode address_v;
-    sampler_address_mode address_w;
-    float min_lod;
-    float max_lod;
-    float lod_bias;          ///< offset from the calculated MIP level (sampled = calculated + lod_bias)
-    uint32_t max_anisotropy; ///< maximum amount of anisotropy in [1, 16], req. sampler_filter::anisotropic
-    sampler_compare_func compare_func;
-    sampler_border_color border_color; ///< the border color to use, req. sampler_address_mode::clamp_border
+    sampler_filter filter = sampler_filter::min_mag_mip_linear;
+    sampler_address_mode address_u = sampler_address_mode::wrap;
+    sampler_address_mode address_v = sampler_address_mode::wrap;
+    sampler_address_mode address_w = sampler_address_mode::wrap;
+    float min_lod = 0.f;
+    float max_lod = 100000.f;
+    float lod_bias = 0.f;          ///< offset from the calculated MIP level (sampled = calculated + lod_bias)
+    uint32_t max_anisotropy = 16u; ///< maximum amount of anisotropy in [1, 16], req. sampler_filter::anisotropic
+    sampler_compare_func compare_func = sampler_compare_func::disabled;
+    sampler_border_color border_color = sampler_border_color::white_float; ///< the border color to use, req. sampler_address_mode::clamp_border
 
     void init_default(sampler_filter filter, uint32_t anisotropy = 16u, sampler_address_mode address_mode = sampler_address_mode::wrap)
     {
@@ -554,10 +559,10 @@ enum class rt_clear_type : uint8_t
 /// value to clear a render target with
 struct rt_clear_value
 {
-    uint8_t red_or_depth;
-    uint8_t green_or_stencil;
-    uint8_t blue;
-    uint8_t alpha;
+    uint8_t red_or_depth = 0;
+    uint8_t green_or_stencil = 0;
+    uint8_t blue = 0;
+    uint8_t alpha = 0;
 
     rt_clear_value() = default;
     rt_clear_value(float r, float g, float b, float a)
@@ -710,35 +715,35 @@ enum class query_type : uint8_t
 /// a single signal- or wait operation on a fence
 struct fence_operation
 {
-    handle::fence fence;
-    uint64_t value;
+    handle::fence fence = handle::null_fence;
+    uint64_t value = 0;
 };
 
 /// indirect draw command, as it is laid out in a GPU buffer
 struct gpu_indirect_command_draw
 {
-    uint32_t num_vertices;
-    uint32_t num_instances;
-    uint32_t vertex_offset;
-    uint32_t instance_offset;
+    uint32_t num_vertices = 0;
+    uint32_t num_instances = 0;
+    uint32_t vertex_offset = 0;
+    uint32_t instance_offset = 0;
 };
 
 /// indirect indexed draw command, as it is laid out in a GPU buffer
 struct gpu_indirect_command_draw_indexed
 {
-    uint32_t num_indices;
-    uint32_t num_instances;
-    uint32_t index_offset;
-    int32_t vertex_offset;
-    uint32_t instance_offset;
+    uint32_t num_indices = 0;
+    uint32_t num_instances = 0;
+    uint32_t index_offset = 0;
+    int32_t vertex_offset = 0;
+    uint32_t instance_offset = 0;
 };
 
 /// indirect compute dispatch command, as it is laid out in a GPU buffer
 struct gpu_indirect_command_dispatch
 {
-    uint32_t dispatch_x;
-    uint32_t dispatch_y;
-    uint32_t dispatch_z;
+    uint32_t dispatch_x = 0;
+    uint32_t dispatch_y = 0;
+    uint32_t dispatch_z = 0;
 };
 
 struct resource_usage_flags
