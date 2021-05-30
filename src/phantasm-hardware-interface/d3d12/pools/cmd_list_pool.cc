@@ -2,6 +2,10 @@
 
 #include <clean-core/bit_cast.hh>
 
+#ifdef PHI_HAS_OPTICK
+#include <optick/optick.h>
+#endif
+
 #include <phantasm-hardware-interface/d3d12/BackendD3D12.hh>
 #include <phantasm-hardware-interface/d3d12/common/util.hh>
 #include <phantasm-hardware-interface/d3d12/common/verify.hh>
@@ -184,6 +188,10 @@ void phi::d3d12::CommandListPool::initialize(phi::d3d12::BackendD3D12& backend,
                                              int max_num_unique_transitions_per_cmdlist,
                                              cc::span<CommandAllocatorsPerThread*> thread_allocators)
 {
+#ifdef PHI_HAS_OPTICK
+    OPTICK_EVENT();
+#endif
+
     auto const num_direct_lists_per_thread = size_t(num_direct_allocs * num_direct_lists_per_alloc);
     auto const num_compute_lists_per_thread = size_t(num_compute_allocs * num_compute_lists_per_alloc);
     auto const num_copy_lists_per_thread = size_t(num_copy_allocs * num_copy_lists_per_alloc);
@@ -208,6 +216,11 @@ void phi::d3d12::CommandListPool::initialize(phi::d3d12::BackendD3D12& backend,
     // initialize the three allocator bundles (direct, compute, copy)
     for (auto i = 0u; i < thread_allocators.size(); ++i)
     {
+#ifdef PHI_HAS_OPTICK
+        OPTICK_EVENT("Command List init for Thread");
+        OPTICK_TAG("Thread Index", i);
+#endif
+
         thread_allocators[i]->bundle_direct.initialize(*backend.nativeGetDevice(), static_alloc, D3D12_COMMAND_LIST_TYPE_DIRECT, num_direct_allocs,
                                                        num_direct_lists_per_alloc,
                                                        cc::span{mRawListsDirect}.subspan(i * num_direct_lists_per_thread, num_direct_lists_per_thread));
@@ -325,6 +338,10 @@ void phi::d3d12::CommandAllocatorBundle::internalInit(ID3D12Device5& device,
                                                       unsigned num_cmdlists,
                                                       cc::span<ID3D12GraphicsCommandList5*> out_cmdlists)
 {
+#ifdef PHI_HAS_OPTICK
+    OPTICK_EVENT("CreateCommandList calls");
+#endif
+
     node.initialize(device, list_type, num_cmdlists);
     ID3D12CommandAllocator* const raw_alloc = node.get_allocator();
 

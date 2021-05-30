@@ -27,9 +27,9 @@ constexpr char const* get_preference_literal(phi::adapter_preference pref)
     }
     CC_UNREACHABLE_SWITCH_WORKAROUND(pref);
 }
-}
+} // namespace
 
-size_t phi::get_preferred_gpu(cc::span<const phi::gpu_info> candidates, phi::adapter_preference preference)
+size_t phi::getPreferredGPU(cc::span<const phi::gpu_info> candidates, phi::adapter_preference preference)
 {
     auto const get_first_capable = [&]() -> size_t {
         for (auto i = 0u; i < candidates.size(); ++i)
@@ -97,7 +97,7 @@ size_t phi::get_preferred_gpu(cc::span<const phi::gpu_info> candidates, phi::ada
     return make_choice();
 }
 
-phi::gpu_vendor phi::get_gpu_info_from_pcie_id(unsigned vendor_id)
+phi::gpu_vendor phi::getGPUVendorFromPCIeID(unsigned vendor_id)
 {
     switch (vendor_id)
     {
@@ -118,7 +118,7 @@ phi::gpu_vendor phi::get_gpu_info_from_pcie_id(unsigned vendor_id)
     }
 }
 
-void phi::print_startup_message(cc::span<const phi::gpu_info> gpu_candidates, size_t chosen_index, const phi::backend_config& config, bool is_d3d12)
+void phi::printStartupMessage(cc::span<const phi::gpu_info> gpu_candidates, size_t chosen_index, const phi::backend_config& config, bool is_d3d12)
 {
     if (!config.print_startup_message)
         return;

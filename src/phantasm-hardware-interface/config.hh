@@ -52,11 +52,13 @@ enum class validation_level : uint8_t
 
 struct backend_config
 {
-    /// whether to enable API-level validations
+    // whether to enable API-level validations
     validation_level validation = validation_level::off;
 
-    /// the strategy for choosing a physical GPU
+    // the strategy for choosing a physical GPU
     adapter_preference adapter = adapter_preference::highest_vram;
+
+    // relevant if using adapter_preference::explicit_index, an index into the native adapter ordering
     uint32_t explicit_adapter_index = uint32_t(-1);
 
     enum native_feature_flags : uint8_t
@@ -82,37 +84,53 @@ struct backend_config
         native_feature_vk_best_practices_layer = 1 << 4
     };
 
-    /// native features to enable
+    // native features to enable
     uint8_t native_features = native_feature_none;
 
-    /// whether to enable DXR / VK raytracing features if available
+    // whether to enable DXR / VK raytracing features if available
     bool enable_raytracing = true;
 
-    /// whether to print basic information on init
+    // whether to print basic information on init
     bool print_startup_message = true;
 
-    /// amount of threads to accomodate
-    /// backend calls must only be made from <= [num_threads] unique OS threads
+    // amount of threads to accomodate
+    // backend calls must only be made from <= [num_threads] unique OS threads
     uint32_t num_threads = 1;
 
-    /// allocator for init-time allocations, only hit during init and shutdown
+    // allocator for init-time allocations, only hit during init and shutdown
     cc::allocator* static_allocator = cc::system_allocator;
-    /// allocator for runtime allocations, must be thread-safe
+    // allocator for runtime allocations, must be thread-safe
     cc::allocator* dynamic_allocator = cc::system_allocator;
 
+    //
     // resource limits
+    //
+
+    // maximum amount of handle::swapchain objects
     uint32_t max_num_swapchains = 32;
+    // maximum amount of handle::resource objects
     uint32_t max_num_resources = 2048;
+    // maximum amount of graphics and compute handle::pipeline_state objects
     uint32_t max_num_pipeline_states = 1024;
-    uint32_t max_num_cbvs = 2048;
+    // maximum amount of handle::shader_view objects
+    // this is also the maximum amount of CBV descriptors (only up to 1 per shader_view)
+    uint32_t max_num_shader_views = 2048;
+    // maximum amount of SRV descriptors in all shader views
     uint32_t max_num_srvs = 2048;
+    // maximum amount of UAV descriptors in all shader views
     uint32_t max_num_uavs = 2048;
+    // maximum amount of samplers in all shader views
     uint32_t max_num_samplers = 1024;
+    // maximum amount of handle::fence objects
     uint32_t max_num_fences = 4096;
+    // maximum amount of handle::accel_struct objects (raytracing acceleration structures)
     uint32_t max_num_accel_structs = 2048;
+    // maximum amount of raytracing handle::pipeline_state objects
     uint32_t max_num_raytrace_pipeline_states = 256;
 
-    // command list allocator sizes (total = #threads * #allocs/thread * #lists/alloc)
+    // command list allocators per thread, split into queue types
+    // maximum amount of handle::command_list objects is computed as:
+    // total = #threads * #allocs/thread * #lists/alloc
     uint32_t num_direct_cmdlist_allocators_per_thread = 5;
     uint32_t num_direct_cmdlists_per_allocator = 5;
     uint32_t num_compute_cmdlist_allocators_per_thread = 5;
@@ -128,4 +146,4 @@ struct backend_config
     uint32_t num_occlusion_queries = 1024;
     uint32_t num_pipeline_stat_queries = 256;
 };
-}
+} // namespace phi

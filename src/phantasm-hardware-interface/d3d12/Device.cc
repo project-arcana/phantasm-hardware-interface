@@ -2,6 +2,10 @@
 
 #include <cstdio>
 
+#ifdef PHI_HAS_OPTICK
+#include <optick/optick.h>
+#endif
+
 #include <clean-core/native/win32_util.hh>
 
 #include <phantasm-hardware-interface/common/log.hh>
@@ -13,10 +17,18 @@
 #include "common/verify.hh"
 
 
-void phi::d3d12::Device::initialize(IDXGIAdapter& adapter, const backend_config& config)
+void phi::d3d12::Device::initialize(ID3D12Device* deviceToUse, IDXGIAdapter& adapter, const backend_config& config)
 {
+#ifdef PHI_HAS_OPTICK
+    OPTICK_EVENT();
+#endif
+
     // shutdown crash detection / workaround
     {
+#ifdef PHI_HAS_OPTICK
+        OPTICK_EVENT("Shutdown Crash Detection");
+#endif
+
         bool const is_shutdown_crash_workaround_requested
             = (config.native_features & backend_config::native_feature_d3d12_workaround_device_release_crash) != 0;
 
@@ -62,6 +74,10 @@ void phi::d3d12::Device::initialize(IDXGIAdapter& adapter, const backend_config&
     // DRED
     if (config.validation >= validation_level::on_extended_dred)
     {
+#ifdef PHI_HAS_OPTICK
+        OPTICK_EVENT("DRED Init");
+#endif
+
         shared_com_ptr<ID3D12DeviceRemovedExtendedDataSettings> dred_settings;
         auto const hr = D3D12GetDebugInterface(PHI_COM_WRITE(dred_settings));
 
@@ -78,35 +94,42 @@ void phi::d3d12::Device::initialize(IDXGIAdapter& adapter, const backend_config&
     }
 
     // Device Creation
-    shared_com_ptr<ID3D12Device> temp_device;
-    PHI_D3D12_VERIFY(::D3D12CreateDevice(&adapter, D3D_FEATURE_LEVEL_12_0, PHI_COM_WRITE(temp_device)));
-
-    // GBV startup message
-    if (config.validation >= validation_level::on_extended)
     {
-        // D3D12 has just logged its GPU validation startup message, print a newline
-        // to make following errors more legible
-        // this also allows the user to verify if validation layer messages are printed on the TTY he's looking at,
-        // it can for example instead be printed to the VS debug console
-        PHI_LOG("gpu validation enabled \u001b[38;5;244m(if there is no message above ^^^^ d3d12 is printing to a different tty, like the vs debug "
-                "console)\u001b[0m");
-        std::printf("\n");
-        std::fflush(stdout);
-    }
+#ifdef PHI_HAS_OPTICK
+        OPTICK_EVENT("ID3D12Device QI");
+#endif
 
-    // QI proper device
-    auto const got_device5 = SUCCEEDED(temp_device->QueryInterface(IID_PPV_ARGS(&mDevice)));
-    if (!got_device5)
-    {
+        // do not recreate a device here as device creation is a significant cost,
+        // use the one created during GPU testing
+        ID3D12Device* const temp_device = deviceToUse;
+
+        // GBV startup message
+        if (config.validation >= validation_level::on_extended)
+        {
+            // D3D12 has just logged its GPU validation startup message, print a newline
+            // to make following errors more legible
+            // this also allows the user to verify if validation layer messages are printed on the TTY he's looking at,
+            // it can for example instead be printed to the VS debug console
+            PHI_LOG("gpu validation enabled \u001b[38;5;244m(if there is no message above ^^^^ d3d12 is printing to a different tty, like the vs "
+                    "debug "
+                    "console)\u001b[0m");
+            std::printf("\n");
+            std::fflush(stdout);
+        }
+
+        // QI proper device
+        bool const got_device5 = SUCCEEDED(temp_device->QueryInterface(IID_PPV_ARGS(&mDevice)));
+
         // there is no way to recover here
         // Device5 support is purely OS-based, Win10 1809+, aka Redstone 5
-        PHI_LOG_ASSERT("fatal error: unable to QI ID3D12Device5 - please update to Windows 10 1809 or higher");
-        PHI_LOG_ASSERT("to check your windows version, press Win + R and enter 'winver'");
-        CC_RUNTIME_ASSERT(false && "unsupported windows 10 version, please update to windows 10 1809 or higher");
+        CC_RUNTIME_ASSERT_MSG(got_device5, "fatal error: unable to QI ID3D12Device5 - please update to Windows 10 1809 or higher\n"
+                                           "to check your windows version, press Win + R and enter 'winver'\n");
+
+        temp_device->Release();
     }
 
     // Feature checks
-    mFeatures = get_gpu_features(mDevice);
+    mFeatures = getGPUFeaturesFromDevice(mDevice);
     // "enable" raytracing if it's requested and the GPU is capable
     mIsRaytracingEnabled = config.enable_raytracing && mFeatures.raytracing >= gpu_feature_info::raytracing_t1_0;
 

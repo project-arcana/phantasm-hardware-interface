@@ -2,6 +2,7 @@
 
 #include <clean-core/assert.hh>
 
+#include <phantasm-hardware-interface/arguments.hh>
 #include <phantasm-hardware-interface/common/format_size.hh>
 #include <phantasm-hardware-interface/types.hh>
 
@@ -352,6 +353,7 @@ constexpr VkDescriptorType to_native_srv_desc_type(resource_view_dimension sv_di
         return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
 
     case phi::resource_view_dimension::none:
+    case phi::resource_view_dimension::MAX_DIMENSION_RANGE:
         return VK_DESCRIPTOR_TYPE_MAX_ENUM;
     }
 
@@ -412,6 +414,7 @@ constexpr VkDescriptorType to_native_uav_desc_type(resource_view_dimension sv_di
 
     case phi::resource_view_dimension::raytracing_accel_struct:
     case phi::resource_view_dimension::none:
+    case phi::resource_view_dimension::MAX_DIMENSION_RANGE:
         return VK_DESCRIPTOR_TYPE_MAX_ENUM;
     }
 
@@ -445,6 +448,7 @@ constexpr VkImageViewType to_native_image_view_type(resource_view_dimension sv_d
     case phi::resource_view_dimension::raytracing_accel_struct:
         CC_ASSERT(false && "requested image view for buffer or raytracing structure");
     case phi::resource_view_dimension::none:
+    case phi::resource_view_dimension::MAX_DIMENSION_RANGE:
         return VK_IMAGE_VIEW_TYPE_MAX_ENUM;
     }
 
