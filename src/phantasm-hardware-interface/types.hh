@@ -247,6 +247,7 @@ enum class resource_view_dimension : uint8_t
 {
     none = 0,
     buffer,
+    raw_buffer, // ByteAddressBuffer and similar views
     texture1d,
     texture1d_array,
     texture2d,
@@ -279,9 +280,9 @@ struct resource_view
 
     struct buffer_info_t
     {
-        uint32_t element_start;        ///< index of the first element in the buffer
-        uint32_t num_elements;         ///< amount of elements in the buffer
-        uint32_t element_stride_bytes; ///< the stride of elements in bytes
+        uint32_t element_start;        ///< index of the first element in the buffer (for raw buffers, the first byte)
+        uint32_t num_elements;         ///< amount of elements in the buffer (for raw buffers, amount of bytes)
+        uint32_t element_stride_bytes; ///< the stride of elements in bytes (for raw buffers ignored)
     };
 
     struct accel_struct_info_t
@@ -372,6 +373,15 @@ public:
         buffer_info.element_stride_bytes = stride_bytes;
     }
 
+    void init_as_byte_address_buffer(handle::resource res, uint32_t num_bytes, uint32_t offset_bytes = 0)
+    {
+        dimension = resource_view_dimension::raw_buffer;
+        resource = res;
+        buffer_info.num_elements = num_bytes;
+        buffer_info.element_start = offset_bytes;
+        buffer_info.element_stride_bytes = 0;
+    }
+
     void init_as_accel_struct(handle::accel_struct as)
     {
         dimension = resource_view_dimension::raytracing_accel_struct;
@@ -410,6 +420,12 @@ public:
     {
         resource_view rv;
         rv.init_as_structured_buffer(res, num_elements, stride_bytes);
+        return rv;
+    }
+    static resource_view byte_address_buffer(handle::resource res, uint32_t num_bytes, uint32_t offset_bytes = 0)
+    {
+        resource_view rv;
+        rv.init_as_byte_address_buffer(res, num_bytes, offset_bytes);
         return rv;
     }
     static resource_view accel_struct(handle::accel_struct as)
