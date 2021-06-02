@@ -69,6 +69,9 @@ D3D12_SHADER_RESOURCE_VIEW_DESC phi::d3d12::util::create_srv_desc(const phi::res
     case svd::raytracing_accel_struct:
         srv_desc.Format = DXGI_FORMAT_UNKNOWN;
         break;
+    case svd::raw_buffer:
+        srv_desc.Format = DXGI_FORMAT_R32_TYPELESS;
+        break;
     default:
         srv_desc.Format = util::to_view_dxgi_format(sve.texture_info.pixel_format);
         break;
@@ -80,6 +83,16 @@ D3D12_SHADER_RESOURCE_VIEW_DESC phi::d3d12::util::create_srv_desc(const phi::res
         srv_desc.Buffer.NumElements = sve.buffer_info.num_elements;
         srv_desc.Buffer.FirstElement = sve.buffer_info.element_start;
         srv_desc.Buffer.StructureByteStride = sve.buffer_info.element_stride_bytes;
+        break;
+
+    case svd::raw_buffer:
+        // for ByteAddressBuffers these values are expecting word counts (4 byte)
+        CC_ASSERT(cc::is_aligned(sve.buffer_info.element_start, 4) && "raw buffer offset can only occur in increments of 4 (word size)");
+        CC_ASSERT(cc::is_aligned(sve.buffer_info.num_elements, 4) && "raw buffer sizes must be multiples of 4 (word size)");
+        srv_desc.Buffer.FirstElement = cc::div_pow2_floor(sve.buffer_info.element_start, 4u);
+        srv_desc.Buffer.NumElements = cc::div_pow2_floor(sve.buffer_info.num_elements, 4u);
+        srv_desc.Buffer.StructureByteStride = 0u;
+        srv_desc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_RAW;
         break;
 
     case svd::raytracing_accel_struct:
@@ -166,6 +179,9 @@ D3D12_UNORDERED_ACCESS_VIEW_DESC phi::d3d12::util::create_uav_desc(const phi::re
     case svd::raytracing_accel_struct:
         uav_desc.Format = DXGI_FORMAT_UNKNOWN;
         break;
+    case svd::raw_buffer:
+        uav_desc.Format = DXGI_FORMAT_R32_TYPELESS;
+        break;
     default:
         uav_desc.Format = util::to_view_dxgi_format(sve.texture_info.pixel_format);
         break;
@@ -177,6 +193,16 @@ D3D12_UNORDERED_ACCESS_VIEW_DESC phi::d3d12::util::create_uav_desc(const phi::re
         uav_desc.Buffer.NumElements = sve.buffer_info.num_elements;
         uav_desc.Buffer.FirstElement = sve.buffer_info.element_start;
         uav_desc.Buffer.StructureByteStride = sve.buffer_info.element_stride_bytes;
+        break;
+
+    case svd::raw_buffer:
+        // for ByteAddressBuffers these values are expecting word counts (4 byte)
+        CC_ASSERT(cc::is_aligned(sve.buffer_info.element_start, 4) && "raw buffer offset can only occur in increments of 4 (word size)");
+        CC_ASSERT(cc::is_aligned(sve.buffer_info.num_elements, 4) && "raw buffer sizes must be multiples of 4 (word size)");
+        uav_desc.Buffer.FirstElement = cc::div_pow2_floor(sve.buffer_info.element_start, 4u);
+        uav_desc.Buffer.NumElements = cc::div_pow2_floor(sve.buffer_info.num_elements, 4u);
+        uav_desc.Buffer.StructureByteStride = 0u;
+        uav_desc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_RAW;
         break;
 
     case svd::texture1d:

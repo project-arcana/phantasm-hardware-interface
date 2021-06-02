@@ -338,6 +338,7 @@ constexpr VkDescriptorType to_native_srv_desc_type(resource_view_dimension sv_di
     switch (sv_dim)
     {
     case phi::resource_view_dimension::buffer:
+    case phi::resource_view_dimension::raw_buffer:
         return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     case phi::resource_view_dimension::raytracing_accel_struct:
         return VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV;
@@ -400,6 +401,7 @@ constexpr VkDescriptorType to_native_uav_desc_type(resource_view_dimension sv_di
     switch (sv_dim)
     {
     case phi::resource_view_dimension::buffer:
+    case phi::resource_view_dimension::raw_buffer:
         return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     case phi::resource_view_dimension::texture1d:
     case phi::resource_view_dimension::texture1d_array:

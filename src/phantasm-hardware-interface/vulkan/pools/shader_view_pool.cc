@@ -95,6 +95,24 @@ void phi::vk::ShaderViewPool::writeShaderViewSRVs(handle::shader_view sv, uint32
             writes.back().pBufferInfo = buf_info;
             // scratch allocations can be leaked safely
         }
+        else if (srv.dimension == resource_view_dimension::raw_buffer)
+        {
+            // DXC translates [RW]ByteAddressBuffer as a storage buffer
+            // SPIR-V wise it's a OpTypeRuntimeArray of uint32
+
+            VkDescriptorBufferInfo* buf_info = scratch->new_t<VkDescriptorBufferInfo>();
+            buf_info->buffer = mResourcePool->getRawBuffer(srv.resource);
+
+            // divide size-in-bytes by 4
+            CC_ASSERT(cc::is_aligned(srv.buffer_info.element_start, 4) && "raw buffer offset can only occur in increments of 4 (word size)");
+            CC_ASSERT(cc::is_aligned(srv.buffer_info.num_elements, 4) && "raw buffer sizes must be multiples of 4 (word size)");
+            buf_info->offset = cc::div_pow2_floor(srv.buffer_info.element_start, 4u);
+            buf_info->range = cc::div_pow2_floor(srv.buffer_info.num_elements, 4u);
+
+            F_AddWrite(nativeSRVType, flatIdx);
+            writes.back().pBufferInfo = buf_info;
+            // scratch allocations can be leaked safely
+        }
         else if (srv.dimension == resource_view_dimension::raytracing_accel_struct)
         {
             VkWriteDescriptorSetAccelerationStructureNV* as_info = scratch->new_t<VkWriteDescriptorSetAccelerationStructureNV>();
@@ -167,6 +185,24 @@ void phi::vk::ShaderViewPool::writeShaderViewUAVs(handle::shader_view sv, uint32
             buf_info->buffer = mResourcePool->getRawBuffer(uav.resource);
             buf_info->offset = uav.buffer_info.element_start;
             buf_info->range = uav.buffer_info.num_elements * uav.buffer_info.element_stride_bytes;
+
+            F_AddWrite(nativeUAVType, flatIdx);
+            writes.back().pBufferInfo = buf_info;
+            // scratch allocations can be leaked safely
+        }
+        else if (uav.dimension == resource_view_dimension::raw_buffer)
+        {
+            // DXC translates [RW]ByteAddressBuffer as a storage buffer
+            // SPIR-V wise it's a OpTypeRuntimeArray of uint32
+
+            VkDescriptorBufferInfo* buf_info = scratch->new_t<VkDescriptorBufferInfo>();
+            buf_info->buffer = mResourcePool->getRawBuffer(uav.resource);
+
+            // divide size-in-bytes by 4
+            CC_ASSERT(cc::is_aligned(uav.buffer_info.element_start, 4) && "raw buffer offset can only occur in increments of 4 (word size)");
+            CC_ASSERT(cc::is_aligned(uav.buffer_info.num_elements, 4) && "raw buffer sizes must be multiples of 4 (word size)");
+            buf_info->offset = cc::div_pow2_floor(uav.buffer_info.element_start, 4u);
+            buf_info->range = cc::div_pow2_floor(uav.buffer_info.num_elements, 4u);
 
             F_AddWrite(nativeUAVType, flatIdx);
             writes.back().pBufferInfo = buf_info;

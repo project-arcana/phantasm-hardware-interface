@@ -180,6 +180,7 @@ namespace phi::d3d12::util
     switch (sv_dim)
     {
     case resource_view_dimension::buffer:
+    case resource_view_dimension::raw_buffer:
         return D3D12_SRV_DIMENSION_BUFFER;
     case resource_view_dimension::texture1d:
         return D3D12_SRV_DIMENSION_TEXTURE1D;
@@ -212,6 +213,7 @@ namespace phi::d3d12::util
     switch (sv_dim)
     {
     case resource_view_dimension::buffer:
+    case resource_view_dimension::raw_buffer:
         return D3D12_UAV_DIMENSION_BUFFER;
 
     case resource_view_dimension::texture1d:
@@ -603,4 +605,4 @@ namespace phi::d3d12::util
 
     return res;
 }
-}
+} // namespace phi::d3d12::util
