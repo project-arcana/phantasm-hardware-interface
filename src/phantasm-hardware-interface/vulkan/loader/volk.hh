@@ -1,5 +1,10 @@
 #pragma once
 
+// some external libraries define this, undef to suppress warning
+#ifdef VKAPI_PTR
+#undef VKAPI_PTR
+#endif
+
 #include "detail/volk.h"
 
 #ifndef VK_VERSION_1_2

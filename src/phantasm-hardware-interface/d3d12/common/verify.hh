@@ -9,9 +9,9 @@ typedef long HRESULT;
 
 namespace phi::d3d12::detail
 {
-[[noreturn]] CC_COLD_FUNC CC_DONT_INLINE void verify_failure_handler(HRESULT hr, char const* expression, char const* filename, int line, ID3D12Device* device);
+CC_COLD_FUNC CC_DONT_INLINE void verify_failure_handler(HRESULT hr, char const* expression, char const* filename, int line, ID3D12Device* device);
 
-[[noreturn]] CC_COLD_FUNC CC_DONT_INLINE void dred_assert_handler(void* device_child, char const* expression, char const* filename, int line);
+CC_COLD_FUNC CC_DONT_INLINE void dred_assert_handler(void* device_child, char const* expression, char const* filename, int line);
 
 [[nodiscard]] CC_FORCE_INLINE constexpr bool hr_failed(HRESULT hr) { return hr < 0; }
 [[nodiscard]] CC_FORCE_INLINE constexpr bool hr_succeeded(HRESULT hr) { return hr >= 0; }
