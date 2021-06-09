@@ -8,7 +8,7 @@
 
 namespace phi::vk::detail
 {
-[[noreturn]] CC_COLD_FUNC CC_DONT_INLINE void verify_failure_handler(VkResult vr, char const* expression, char const* filename, int line);
+CC_COLD_FUNC CC_DONT_INLINE void verify_failure_handler(VkResult vr, char const* expression, char const* filename, int line);
 }
 
 // TODO: option to disable verify in release builds
