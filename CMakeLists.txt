@@ -109,6 +109,8 @@ if (NOT MSVC)
     # Used in sse_hash.hh
     # Could be made optional if necessary
     target_compile_options(phantasm-hardware-interface PRIVATE -msse4.2)
+else()
+    target_compile_options(phantasm-hardware-interface PRIVATE /WX)
 endif()
 
 # =========================================
