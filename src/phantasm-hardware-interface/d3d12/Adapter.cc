@@ -133,7 +133,7 @@ void phi::d3d12::Adapter::initialize(const backend_config& config, ID3D12Device*
         cc::span<phi::gpu_info> const candidateSpan = cc::span(candidates, numCandidates);
 
         // indexing into candidates[], candidateDevices[], candidateAdapters[]
-        uint32_t chosenCandidateIndex = 0;
+        size_t chosenCandidateIndex = 0;
 
         if (config.adapter == adapter_preference::explicit_index)
         {

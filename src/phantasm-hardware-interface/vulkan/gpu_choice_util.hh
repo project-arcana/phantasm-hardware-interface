@@ -1,7 +1,6 @@
 #pragma once
 
 #include <clean-core/array.hh>
-#include <clean-core/capped_array.hh>
 #include <clean-core/vector.hh>
 
 #include <phantasm-hardware-interface/features/gpu_info.hh>
