@@ -428,14 +428,14 @@ phi::handle::shader_view phi::vk::ShaderViewPool::createShaderViewFromLayout(VkD
         if (numEntriesSRV + numEntriesUAV > 0)
         {
             new_node.optionalDescriptorEntries.reset(dynamicAlloc, numEntriesSRV + numEntriesUAV);
-            new_node.numDescriptorEntriesSRV = numEntriesSRV;
+            new_node.numDescriptorEntriesSRV = uint32_t(numEntriesSRV);
 
-            for (auto i = 0u; i < numEntriesSRV; ++i)
+            for (size_t i = 0u; i < numEntriesSRV; ++i)
             {
                 new_node.optionalDescriptorEntries[i] = optDescription->srv_entries[i];
             }
 
-            for (auto i = 0u; i < numEntriesUAV; ++i)
+            for (size_t i = 0u; i < numEntriesUAV; ++i)
             {
                 new_node.optionalDescriptorEntries[numEntriesSRV + i] = optDescription->uav_entries[i];
             }

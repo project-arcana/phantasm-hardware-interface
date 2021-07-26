@@ -6,7 +6,6 @@
 #include <clean-core/alloc_array.hh>
 #include <clean-core/atomic_linked_pool.hh>
 #include <clean-core/bits.hh>
-#include <clean-core/capped_array.hh>
 
 #include <phantasm-hardware-interface/arguments.hh>
 
@@ -203,16 +202,16 @@ private:
         CC_UNREACHABLE("invalid queue_type");
     }
 
-    unsigned getFlatIndexOffset(queue_type type) const
+    uint32_t getFlatIndexOffset(queue_type type) const
     {
         switch (type)
         {
         case queue_type::direct:
             return 0;
         case queue_type::compute:
-            return mPoolDirect.max_size();
+            return uint32_t(mPoolDirect.max_size());
         case queue_type::copy:
-            return mPoolDirect.max_size() + mPoolCompute.max_size();
+            return uint32_t(mPoolDirect.max_size() + mPoolCompute.max_size());
         }
 
         CC_UNREACHABLE("invalid queue_type");
@@ -301,4 +300,4 @@ private:
     cc::alloc_array<ID3D12GraphicsCommandList5*> mRawListsCompute;
     cc::alloc_array<ID3D12GraphicsCommandList5*> mRawListsCopy;
 };
-}
+} // namespace phi::d3d12

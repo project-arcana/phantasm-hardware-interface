@@ -219,7 +219,7 @@ VkPipeline phi::vk::create_pipeline(VkDevice device,
 
     VkPipelineVertexInputStateCreateInfo vertex_input_info = {};
     vertex_input_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    vertex_input_info.vertexBindingDescriptionCount = vertex_bind_descs.size();
+    vertex_input_info.vertexBindingDescriptionCount = uint32_t(vertex_bind_descs.size());
     vertex_input_info.pVertexBindingDescriptions = vertex_bind_descs.empty() ? nullptr : vertex_bind_descs.data();
     vertex_input_info.vertexAttributeDescriptionCount = uint32_t(vertex_attribs.size());
     vertex_input_info.pVertexAttributeDescriptions = vertex_attribs.empty() ? nullptr : vertex_attribs.data();

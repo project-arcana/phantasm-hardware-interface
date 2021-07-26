@@ -1,7 +1,5 @@
 #include "fence_pool.hh"
 
-#include <clean-core/capped_array.hh>
-
 #include <phantasm-hardware-interface/common/log.hh>
 
 #include <phantasm-hardware-interface/vulkan/common/verify.hh>
