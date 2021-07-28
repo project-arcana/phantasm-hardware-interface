@@ -1,7 +1,5 @@
 #pragma once
 
-#include <clean-core/array.hh>
-
 #include <phantasm-hardware-interface/fwd.hh>
 #include <phantasm-hardware-interface/vulkan/queue_util.hh>
 
@@ -71,4 +69,4 @@ private:
     bool mHasConservativeRaster = false;
     void queryDeviceProps2();
 };
-}
+} // namespace phi::vk

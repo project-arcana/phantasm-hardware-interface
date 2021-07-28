@@ -33,18 +33,18 @@ namespace
     }
     return true;
 }
-}
+} // namespace
 
-cc::array<VkPhysicalDevice> phi::vk::get_physical_devices(VkInstance instance)
+cc::alloc_array<VkPhysicalDevice> phi::vk::get_physical_devices(VkInstance instance, cc::allocator* alloc)
 {
     uint32_t num_physical_devices;
     PHI_VK_VERIFY_NONERROR(vkEnumeratePhysicalDevices(instance, &num_physical_devices, nullptr));
-    cc::array<VkPhysicalDevice> res(num_physical_devices);
+    cc::alloc_array<VkPhysicalDevice> res(num_physical_devices, alloc);
     PHI_VK_VERIFY_NONERROR(vkEnumeratePhysicalDevices(instance, &num_physical_devices, res.data()));
     return res;
 }
 
-phi::vk::vulkan_gpu_info phi::vk::get_vulkan_gpu_info(VkPhysicalDevice device)
+phi::vk::vulkan_gpu_info phi::vk::get_vulkan_gpu_info(VkPhysicalDevice device, cc::allocator* alloc)
 {
     vulkan_gpu_info res;
     res.physical_device = device;
@@ -52,7 +52,7 @@ phi::vk::vulkan_gpu_info phi::vk::get_vulkan_gpu_info(VkPhysicalDevice device)
     vkGetPhysicalDeviceProperties(device, &res.physical_device_props);
 
     // queue capability
-    res.queues = get_suitable_queues(device);
+    res.queues = get_suitable_queues(device, alloc);
     if (!res.queues.has_direct_queue)
     {
         PHI_LOG_TRACE("GPU {} is unsuitable: Has no direct Queue", res.physical_device_props.deviceName);
@@ -95,31 +95,33 @@ phi::vk::vulkan_gpu_info phi::vk::get_vulkan_gpu_info(VkPhysicalDevice device)
     return res;
 }
 
-cc::array<phi::vk::vulkan_gpu_info> phi::vk::get_all_vulkan_gpu_infos(VkInstance instance)
+cc::alloc_array<phi::vk::vulkan_gpu_info> phi::vk::get_all_vulkan_gpu_infos(VkInstance instance, cc::allocator* alloc)
 {
-    auto const physical_devices = get_physical_devices(instance);
-    cc::array<vulkan_gpu_info> res(physical_devices.size());
+    auto const physical_devices = get_physical_devices(instance, alloc);
+
+    cc::alloc_array<vulkan_gpu_info> res(physical_devices.size(), alloc);
+
     for (auto i = 0u; i < physical_devices.size(); ++i)
     {
-        res[i] = get_vulkan_gpu_info(physical_devices[i]);
+        res[i] = get_vulkan_gpu_info(physical_devices[i], alloc);
     }
     return res;
 }
 
-phi::vk::backbuffer_information phi::vk::get_backbuffer_information(VkPhysicalDevice device, VkSurfaceKHR surface)
+phi::vk::backbuffer_information phi::vk::get_backbuffer_information(VkPhysicalDevice device, VkSurfaceKHR surface, cc::allocator* alloc)
 {
     backbuffer_information res;
 
     uint32_t num_formats;
     vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &num_formats, nullptr);
     CC_ASSERT(num_formats != 0);
-    res.backbuffer_formats = cc::array<VkSurfaceFormatKHR>::uninitialized(num_formats);
+    res.backbuffer_formats = cc::alloc_array<VkSurfaceFormatKHR>::uninitialized(num_formats, alloc);
     vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &num_formats, res.backbuffer_formats.data());
 
     uint32_t num_present_modes;
     vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &num_present_modes, nullptr);
     CC_ASSERT(num_present_modes != 0);
-    res.present_modes = cc::array<VkPresentModeKHR>::uninitialized(num_present_modes);
+    res.present_modes = cc::alloc_array<VkPresentModeKHR>::uninitialized(num_present_modes, alloc);
     vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &num_present_modes, res.present_modes.data());
 
     return res;
@@ -186,16 +188,16 @@ VkExtent2D phi::vk::get_swap_extent(const VkSurfaceCapabilitiesKHR& caps, VkExte
     }
 }
 
-cc::vector<phi::gpu_info> phi::vk::get_available_gpus(cc::span<const vulkan_gpu_info> vk_gpu_infos)
+cc::alloc_vector<phi::gpu_info> phi::vk::get_available_gpus(cc::span<const vulkan_gpu_info> vk_gpu_infos, cc::allocator* alloc)
 {
-    cc::vector<gpu_info> res;
-    res.reserve(vk_gpu_infos.size());
+    cc::alloc_vector<gpu_info> res;
+    res.reset_reserve(alloc, vk_gpu_infos.size());
 
     for (auto i = 0u; i < vk_gpu_infos.size(); ++i)
     {
         auto const& ll_info = vk_gpu_infos[i];
 
-        auto& new_gpu = res.emplace_back();
+        auto& new_gpu = res.emplace_back_stable();
         new_gpu.index = i;
         new_gpu.vendor = getGPUVendorFromPCIeID(ll_info.physical_device_props.vendorID);
         std::snprintf(new_gpu.name, sizeof(new_gpu.name), "%s", ll_info.physical_device_props.deviceName);

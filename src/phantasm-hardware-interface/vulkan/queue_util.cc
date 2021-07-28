@@ -5,15 +5,15 @@
 #include "common/verify.hh"
 #include "surface_util.hh"
 
-phi::vk::suitable_queues phi::vk::get_suitable_queues(VkPhysicalDevice physical)
+phi::vk::suitable_queues phi::vk::get_suitable_queues(VkPhysicalDevice physical, cc::allocator* alloc)
 {
     uint32_t num_families;
     vkGetPhysicalDeviceQueueFamilyProperties(physical, &num_families, nullptr);
-    cc::vector<VkQueueFamilyProperties> queue_families(num_families);
+    auto queue_families = cc::alloc_array<VkQueueFamilyProperties>::uninitialized(num_families, alloc);
     vkGetPhysicalDeviceQueueFamilyProperties(physical, &num_families, queue_families.data());
 
     suitable_queues res;
-    res.families.resize(num_families);
+    res.families.reset(alloc, num_families);
 
     for (auto i = 0u; i < num_families; ++i)
     {

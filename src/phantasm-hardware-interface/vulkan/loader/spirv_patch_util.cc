@@ -3,18 +3,13 @@
 #include <cstdio>
 
 #include <algorithm>
-#include <fstream>
 
 #include <clean-core/alloc_array.hh>
-#include <clean-core/array.hh>
 #include <clean-core/assert.hh>
-#include <clean-core/bit_cast.hh>
 #include <clean-core/utility.hh>
 
 #include <phantasm-hardware-interface/common/lib/SPIRV_reflect/spirv_reflect.h>
 
-#include <phantasm-hardware-interface/common/byte_reader.hh>
-#include <phantasm-hardware-interface/common/container/unique_buffer.hh>
 #include <phantasm-hardware-interface/common/log.hh>
 #include <phantasm-hardware-interface/limits.hh>
 
@@ -265,7 +260,7 @@ phi::vk::util::PatchedShaderStage phi::vk::util::createPatchedShader(std::byte c
     patchSpvReflectShader(module, out_info.descriptor_infos, scratch_alloc, native_shader_flags, native_pipeline_flags);
 
     res.size = spvReflectGetCodeSize(&module);
-    res.data = cc::bit_cast<std::byte*>(module._internal->spirv_code);
+    res.data = reinterpret_cast<std::byte*>(module._internal->spirv_code);
 
     // check for push constants
     {

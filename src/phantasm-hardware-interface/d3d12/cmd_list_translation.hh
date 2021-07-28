@@ -1,7 +1,5 @@
 #pragma once
 
-#include <clean-core/array.hh>
-
 #include <phantasm-hardware-interface/commands.hh>
 
 #include <phantasm-hardware-interface/d3d12/fwd.hh>
@@ -164,7 +162,7 @@ private:
             }
         };
 
-        cc::array<shader_arg_info, limits::max_shader_arguments> shader_args;
+        shader_arg_info shader_args[limits::max_shader_arguments];
 
         void reset()
         {
@@ -229,4 +227,4 @@ private:
 #endif
 };
 
-}
+} // namespace phi::d3d12

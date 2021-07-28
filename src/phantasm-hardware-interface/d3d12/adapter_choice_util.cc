@@ -6,7 +6,6 @@
 #include <optick/optick.h>
 #endif
 
-#include <clean-core/array.hh>
 #include <clean-core/assert.hh>
 
 #include <phantasm-hardware-interface/common/log.hh>

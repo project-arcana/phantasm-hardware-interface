@@ -225,7 +225,6 @@ private:
     per_thread_component& getCurrentThreadComponent();
 
     cc::allocator* getCurrentScratchAlloc();
-    void resetCurrentScratchAlloc();
 
 private:
     gpu_info mGPUInfo;

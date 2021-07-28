@@ -31,7 +31,7 @@ constexpr char const* get_preference_literal(phi::adapter_preference pref)
 
 size_t phi::getPreferredGPU(cc::span<const phi::gpu_info> candidates, phi::adapter_preference preference)
 {
-    auto const get_first_capable = [&]() -> size_t {
+    auto const F_GetFirstCapable = [&]() -> size_t {
         for (auto i = 0u; i < candidates.size(); ++i)
         {
             if (candidates[i].capabilities != gpu_capabilities::insufficient)
@@ -42,7 +42,7 @@ size_t phi::getPreferredGPU(cc::span<const phi::gpu_info> candidates, phi::adapt
         return candidates.size();
     };
 
-    auto const make_choice = [&]() -> size_t {
+    auto const F_MakeChoice = [&]() -> size_t {
         if (candidates.empty())
             return candidates.size();
 
@@ -58,11 +58,11 @@ size_t phi::getPreferredGPU(cc::span<const phi::gpu_info> candidates, phi::adapt
             }
 
             // Fall back to the first adapter
-            return get_first_capable();
+            return F_GetFirstCapable();
         }
         case adapter_preference::highest_vram:
         {
-            auto highest_vram_index = get_first_capable();
+            auto highest_vram_index = F_GetFirstCapable();
 
             for (auto i = 0u; i < candidates.size(); ++i)
             {
@@ -75,7 +75,7 @@ size_t phi::getPreferredGPU(cc::span<const phi::gpu_info> candidates, phi::adapt
         }
         case adapter_preference::highest_feature_level:
         {
-            auto highest_capability_index = get_first_capable();
+            auto highest_capability_index = F_GetFirstCapable();
 
             for (auto i = 1u; i < candidates.size(); ++i)
             {
@@ -86,15 +86,15 @@ size_t phi::getPreferredGPU(cc::span<const phi::gpu_info> candidates, phi::adapt
             return highest_capability_index;
         }
         case adapter_preference::first:
-            return get_first_capable();
+            return F_GetFirstCapable();
         case adapter_preference::explicit_index:
             return candidates.size();
         }
 
-        return get_first_capable();
+        return F_GetFirstCapable();
     };
 
-    return make_choice();
+    return F_MakeChoice();
 }
 
 phi::gpu_vendor phi::getGPUVendorFromPCIeID(unsigned vendor_id)
