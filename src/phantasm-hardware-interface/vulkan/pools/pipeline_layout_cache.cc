@@ -6,7 +6,7 @@ void phi::vk::PipelineLayoutCache::initialize(unsigned max_elements, cc::allocat
 
 void phi::vk::PipelineLayoutCache::destroy(VkDevice device) { reset(device); }
 
-phi::vk::pipeline_layout* phi::vk::PipelineLayoutCache::getOrCreate(VkDevice device, cc::span<const util::spirv_desc_info> reflected_ranges, bool has_push_constants)
+phi::vk::pipeline_layout* phi::vk::PipelineLayoutCache::getOrCreate(VkDevice device, cc::span<const util::ReflectedDescriptorInfo> reflected_ranges, bool has_push_constants)
 {
     auto const readonly_key = pipeline_layout_key_readonly{reflected_ranges, has_push_constants};
 
@@ -25,7 +25,7 @@ void phi::vk::PipelineLayoutCache::reset(VkDevice device)
     mCache.reset();
 }
 
-size_t phi::vk::PipelineLayoutCache::hashKey(cc::span<const phi::vk::util::spirv_desc_info> reflected_ranges, bool has_push_constants)
+size_t phi::vk::PipelineLayoutCache::hashKey(cc::span<const phi::vk::util::ReflectedDescriptorInfo> reflected_ranges, bool has_push_constants)
 {
     size_t res = cc::make_hash(has_push_constants);
     for (auto const& elem : reflected_ranges)
