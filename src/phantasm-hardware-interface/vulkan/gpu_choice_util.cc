@@ -59,7 +59,7 @@ phi::vk::vulkan_gpu_info phi::vk::get_vulkan_gpu_info(VkPhysicalDevice device, c
         res.is_suitable = false;
     }
 
-    res.available_layers_extensions = getAvailableDeviceExtensions(device);
+    res.available_layers_extensions = getAvailableDeviceExtensions(device, alloc);
 
     // swapchain extensions
     if (!res.available_layers_extensions.extensions.contains(VK_KHR_SWAPCHAIN_EXTENSION_NAME))
