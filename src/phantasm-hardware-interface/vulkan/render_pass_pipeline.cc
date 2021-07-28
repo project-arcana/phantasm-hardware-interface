@@ -174,7 +174,7 @@ VkRenderPass phi::vk::create_render_pass(VkDevice device, const phi::cmd::begin_
 VkPipeline phi::vk::create_pipeline(VkDevice device,
                                     VkRenderPass render_pass,
                                     VkPipelineLayout pipeline_layout,
-                                    cc::span<const util::patched_spirv_stage> shaders,
+                                    cc::span<const util::PatchedShaderStage> shaders,
                                     const phi::pipeline_config& config,
                                     cc::span<const VkVertexInputAttributeDescription> vertex_attribs,
                                     uint32_t vertex_sizes[limits::max_vertex_buffers],
@@ -189,7 +189,7 @@ VkPipeline phi::vk::create_pipeline(VkDevice device,
     for (auto const& shader : shaders)
     {
         auto& new_shader = shader_stages.emplace_back();
-        initialize_shader(new_shader, device, shader.data, shader.size, shader.entrypoint_name.c_str(), shader.stage);
+        initialize_shader(new_shader, device, shader.data, shader.size, shader.entrypoint_name, shader.stage);
 
         shader_stage_create_infos.push_back(get_shader_create_info(new_shader));
 
@@ -357,10 +357,10 @@ VkPipeline phi::vk::create_pipeline(VkDevice device,
     return res;
 }
 
-VkPipeline phi::vk::create_compute_pipeline(VkDevice device, VkPipelineLayout pipeline_layout, const util::patched_spirv_stage& compute_shader)
+VkPipeline phi::vk::create_compute_pipeline(VkDevice device, VkPipelineLayout pipeline_layout, const util::PatchedShaderStage& compute_shader)
 {
     shader shader_stage;
-    initialize_shader(shader_stage, device, compute_shader.data, compute_shader.size, compute_shader.entrypoint_name.c_str(), shader_stage::compute);
+    initialize_shader(shader_stage, device, compute_shader.data, compute_shader.size, compute_shader.entrypoint_name, shader_stage::compute);
 
     VkComputePipelineCreateInfo pipeline_info = {};
     pipeline_info.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;

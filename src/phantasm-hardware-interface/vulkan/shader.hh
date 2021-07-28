@@ -23,12 +23,12 @@ struct shader
 
 struct patched_shader_intermediates
 {
-    cc::alloc_vector<util::patched_spirv_stage> patched_spirv;
+    cc::alloc_vector<util::PatchedShaderStage> patched_spirv;
     cc::alloc_vector<shader> shader_modules;
     cc::alloc_vector<VkPipelineShaderStageCreateInfo> shader_create_infos;
 
     bool has_root_constants = false;
-    cc::alloc_vector<util::spirv_desc_info> sorted_merged_descriptor_infos;
+    cc::alloc_vector<util::ReflectedDescriptorInfo> sorted_merged_descriptor_infos;
 
     void initialize_from_libraries(VkDevice device, cc::span<phi::arg::raytracing_shader_library const> libraries, cc::allocator* alloc);
 

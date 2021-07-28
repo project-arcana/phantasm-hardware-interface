@@ -13,7 +13,7 @@
 
 namespace
 {
-void verifyReflectionDataConsistencyInDebug(cc::span<const phi::vk::util::spirv_desc_info> reflectedDescriptors,
+void verifyReflectionDataConsistencyInDebug(cc::span<const phi::vk::util::ReflectedDescriptorInfo> reflectedDescriptors,
                                             phi::arg::shader_arg_shapes argShapes,
                                             bool hasPushConstants,
                                             bool shouldHavePushConstants)
@@ -21,7 +21,7 @@ void verifyReflectionDataConsistencyInDebug(cc::span<const phi::vk::util::spirv_
 #ifdef CC_ENABLE_ASSERTIONS
     // Since we reflect all of the descriptor info from SPIR-V, arg shapes and root const flags are
     // not strictly required here, however in debug check if they are consistent
-    phi::vk::util::warnIfReflectionIsIncosistent(reflectedDescriptors, argShapes);
+    phi::vk::util::warnIfReflectionIsInconsistent(reflectedDescriptors, argShapes);
 
     if (!!hasPushConstants != !!shouldHavePushConstants)
     {
@@ -47,25 +47,25 @@ phi::handle::pipeline_state phi::vk::PipelinePool::createPipelineState(phi::arg:
                                                                        char const* dbg_name)
 {
     // Patch and reflect SPIR-V binaries
-    cc::capped_vector<util::patched_spirv_stage, 6> patched_shader_stages;
-    cc::alloc_vector<util::spirv_desc_info> shader_descriptor_ranges;
+    cc::capped_vector<util::PatchedShaderStage, 6> patched_shader_stages;
+    cc::alloc_vector<util::ReflectedDescriptorInfo> shader_descriptor_ranges;
     bool has_push_constants = false;
     CC_DEFER
     {
         for (auto const& ps : patched_shader_stages)
-            util::free_patched_spirv(ps);
+            util::freePatchedShader(ps);
     };
 
     {
-        util::spirv_refl_info spirv_info;
+        util::ReflectedShaderInfo spirv_info;
         spirv_info.descriptor_infos.reset_reserve(scratch_alloc, shader_stages.size() * 8);
 
         for (auto const& shader : shader_stages)
         {
-            patched_shader_stages.push_back(util::create_patched_spirv(shader.binary.data, shader.binary.size, spirv_info, scratch_alloc));
+            patched_shader_stages.push_back(util::createPatchedShader(shader.binary.data, shader.binary.size, spirv_info, scratch_alloc));
         }
 
-        shader_descriptor_ranges = util::merge_spirv_descriptors(spirv_info.descriptor_infos, scratch_alloc);
+        shader_descriptor_ranges = util::mergeReflectedDescriptors(spirv_info.descriptor_infos, scratch_alloc);
         has_push_constants = spirv_info.has_push_constants;
     }
 
@@ -134,17 +134,17 @@ phi::handle::pipeline_state phi::vk::PipelinePool::createComputePipelineState(ph
                                                                               char const* dbg_name)
 {
     // Patch and reflect SPIR-V binary
-    util::patched_spirv_stage patched_shader_stage;
-    cc::alloc_vector<util::spirv_desc_info> shader_descriptor_ranges;
+    util::PatchedShaderStage patched_shader_stage;
+    cc::alloc_vector<util::ReflectedDescriptorInfo> shader_descriptor_ranges;
     bool has_push_constants = false;
-    CC_DEFER { util::free_patched_spirv(patched_shader_stage); };
+    CC_DEFER { util::freePatchedShader(patched_shader_stage); };
 
     {
-        util::spirv_refl_info spirv_info;
+        util::ReflectedShaderInfo spirv_info;
         spirv_info.descriptor_infos.reset_reserve(scratch_alloc, 10);
 
-        patched_shader_stage = util::create_patched_spirv(compute_shader.data, compute_shader.size, spirv_info, scratch_alloc);
-        shader_descriptor_ranges = util::merge_spirv_descriptors(spirv_info.descriptor_infos, scratch_alloc);
+        patched_shader_stage = util::createPatchedShader(compute_shader.data, compute_shader.size, spirv_info, scratch_alloc);
+        shader_descriptor_ranges = util::mergeReflectedDescriptors(spirv_info.descriptor_infos, scratch_alloc);
         has_push_constants = spirv_info.has_push_constants;
 
         verifyReflectionDataConsistencyInDebug(shader_descriptor_ranges, shader_arg_shapes, has_push_constants, should_have_push_constants);
@@ -185,7 +185,7 @@ phi::handle::pipeline_state phi::vk::PipelinePool::createRaytracingPipelineState
     patched_shader_intermediates shader_intermediates;
     shader_intermediates.initialize_from_libraries(mDevice, libraries, scratch_alloc);
     CC_DEFER { shader_intermediates.free(mDevice); };
-    // util::print_spirv_info(shader_intermediates.sorted_merged_descriptor_infos);
+    // util::logSpirvDescriptorInfo(shader_intermediates.sorted_merged_descriptor_infos);
 
     // verifying the descriptor ranges reflected here is much more involved than in a graphics / compute setting, skipping for now
 
