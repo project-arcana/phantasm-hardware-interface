@@ -5,7 +5,6 @@
 #endif
 
 #include <clean-core/allocator.hh>
-#include <clean-core/array.hh>
 #include <clean-core/defer.hh>
 #include <clean-core/native/win32_util.hh>
 
@@ -47,6 +46,7 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg)
     // enable colors as rich-log is used by this library
     rlog::enable_win32_colors();
 
+    // initialize vulkan loader
     PHI_VK_VERIFY_SUCCESS(volkInitialize());
 
     // copy explicitly for modifications
@@ -57,6 +57,23 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg)
     {
         PHI_LOG("Validation layers requested while running RenderDoc, disabling due to known crashes");
         config.validation = validation_level::off;
+    }
+
+    // initialize per-thread components and scratch allocs
+    {
+        mThreadAssociation.initialize();
+
+        mThreadComponentAlloc = config.static_allocator;
+        mThreadComponents = config.static_allocator->new_array_sized<per_thread_component>(config.num_threads);
+        mNumThreadComponents = config.num_threads;
+
+        for (auto i = 0u; i < mNumThreadComponents; ++i)
+        {
+            auto& thread_comp = mThreadComponents[i];
+            // 5 MB scratch alloc per thread
+            thread_comp.threadLocalScratchAllocMemory.reset(config.static_allocator, 1024 * 1024 * 5);
+            thread_comp.threadLocalScratchAlloc = cc::linear_allocator(thread_comp.threadLocalScratchAllocMemory);
+        }
     }
 
     auto const active_lay_ext = getUsedInstanceExtensions(getAvailableInstanceExtensions(), config);
@@ -127,8 +144,10 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg)
 
     // GPU choice and device init
     {
-        auto const vk_gpu_infos = get_all_vulkan_gpu_infos(mInstance);
-        auto const gpu_infos = get_available_gpus(vk_gpu_infos);
+        cc::allocator* scratch = getCurrentScratchAlloc();
+
+        auto const vk_gpu_infos = get_all_vulkan_gpu_infos(mInstance, scratch);
+        auto const gpu_infos = get_available_gpus(vk_gpu_infos, scratch);
         auto const chosen_index = getPreferredGPU(gpu_infos, config.adapter);
         CC_RUNTIME_ASSERT(chosen_index < gpu_infos.size() && "Found no GPU candidates");
 
@@ -166,15 +185,10 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg)
 
     mPoolSwapchains.initialize(mInstance, mDevice, config);
 
-    // Per-thread components and command list pool
+    // Per-thread command list pool
     {
-        mThreadAssociation.initialize();
-
-        mThreadComponentAlloc = config.static_allocator;
-        mThreadComponents = config.static_allocator->new_array_sized<per_thread_component>(config.num_threads);
-        mNumThreadComponents = config.num_threads;
-
-        cc::alloc_array<CommandAllocatorsPerThread*> thread_allocator_ptrs(mNumThreadComponents, config.dynamic_allocator);
+        cc::allocator* scratch = getCurrentScratchAlloc();
+        cc::alloc_array<CommandAllocatorsPerThread*> thread_allocator_ptrs(mNumThreadComponents, scratch);
 
         for (auto i = 0u; i < mNumThreadComponents; ++i)
         {
@@ -182,12 +196,9 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg)
             thread_comp.translator.initialize(mDevice.getDevice(), &mPoolShaderViews, &mPoolResources, &mPoolPipelines, &mPoolCmdLists, &mPoolQueries,
                                               &mPoolAccelStructs, mDevice.hasRaytracing());
             thread_allocator_ptrs[i] = &thread_comp.cmdListAllocator;
-
-            // 5 MB scratch alloc per thread
-            thread_comp.threadLocalScratchAllocMemory.reset(config.static_allocator, 1024 * 1024 * 5);
-            thread_comp.threadLocalScratchAlloc = cc::linear_allocator(thread_comp.threadLocalScratchAllocMemory);
         }
 
+        // TODO: config struct
         mPoolCmdLists.initialize(mDevice,                                                                                               //
                                  int(config.num_direct_cmdlist_allocators_per_thread), int(config.num_direct_cmdlists_per_allocator),   //
                                  int(config.num_compute_cmdlist_allocators_per_thread), int(config.num_compute_cmdlists_per_allocator), //
@@ -250,7 +261,8 @@ phi::vk::BackendVulkan::~BackendVulkan() { destroy(); }
 
 phi::handle::swapchain phi::vk::BackendVulkan::createSwapchain(const phi::window_handle& window_handle, tg::isize2 initial_size, phi::present_mode mode, uint32_t num_backbuffers)
 {
-    return mPoolSwapchains.createSwapchain(window_handle, initial_size.width, initial_size.height, num_backbuffers, mode);
+    auto const res = mPoolSwapchains.createSwapchain(window_handle, initial_size.width, initial_size.height, num_backbuffers, mode, getCurrentScratchAlloc());
+    return res;
 }
 
 void phi::vk::BackendVulkan::free(phi::handle::swapchain sc) { mPoolSwapchains.free(sc); }
@@ -260,7 +272,7 @@ phi::handle::resource phi::vk::BackendVulkan::acquireBackbuffer(handle::swapchai
     auto const swapchain_index = mPoolSwapchains.getSwapchainIndex(sc);
     auto const& swapchain = mPoolSwapchains.get(sc);
     auto const prev_backbuffer_index = swapchain.active_image_index;
-    bool const acquire_success = mPoolSwapchains.acquireBackbuffer(sc);
+    bool const acquire_success = mPoolSwapchains.acquireBackbuffer(sc, getCurrentScratchAlloc());
 
     if (!acquire_success)
     {
@@ -278,12 +290,12 @@ phi::handle::resource phi::vk::BackendVulkan::acquireBackbuffer(handle::swapchai
     }
 }
 
-void phi::vk::BackendVulkan::present(phi::handle::swapchain sc) { mPoolSwapchains.present(sc); }
+void phi::vk::BackendVulkan::present(phi::handle::swapchain sc) { mPoolSwapchains.present(sc, getCurrentScratchAlloc()); }
 
 void phi::vk::BackendVulkan::onResize(handle::swapchain sc, tg::isize2 size)
 {
     flushGPU();
-    mPoolSwapchains.onResize(sc, size.width, size.height);
+    mPoolSwapchains.onResize(sc, size.width, size.height, getCurrentScratchAlloc());
 }
 
 phi::format phi::vk::BackendVulkan::getBackbufferFormat(phi::handle::swapchain sc) const
@@ -315,7 +327,6 @@ phi::handle::shader_view phi::vk::BackendVulkan::createShaderView(cc::span<const
                                                                   bool usage_compute)
 {
     auto const res = mPoolShaderViews.create(srvs, uavs, samplers, usage_compute, getCurrentScratchAlloc());
-    resetCurrentScratchAlloc();
     return res;
 }
 
@@ -328,19 +339,16 @@ phi::handle::shader_view phi::vk::BackendVulkan::createEmptyShaderView(arg::shad
 void phi::vk::BackendVulkan::writeShaderViewSRVs(handle::shader_view sv, uint32_t offset, cc::span<resource_view const> srvs)
 {
     mPoolShaderViews.writeShaderViewSRVs(sv, offset, srvs, getCurrentScratchAlloc());
-    resetCurrentScratchAlloc();
 }
 
 void phi::vk::BackendVulkan::writeShaderViewUAVs(handle::shader_view sv, uint32_t offset, cc::span<resource_view const> uavs)
 {
     mPoolShaderViews.writeShaderViewUAVs(sv, offset, uavs, getCurrentScratchAlloc());
-    resetCurrentScratchAlloc();
 }
 
 void phi::vk::BackendVulkan::writeShaderViewSamplers(handle::shader_view sv, uint32_t offset, cc::span<sampler_config const> samplers)
 {
     mPoolShaderViews.writeShaderViewSamplers(sv, offset, samplers, getCurrentScratchAlloc());
-    resetCurrentScratchAlloc();
 }
 
 void phi::vk::BackendVulkan::free(phi::handle::shader_view sv) { mPoolShaderViews.free(sv); }
@@ -357,7 +365,6 @@ phi::handle::pipeline_state phi::vk::BackendVulkan::createPipelineState(phi::arg
 {
     auto const res = mPoolPipelines.createPipelineState(vertex_format, framebuffer_conf, shader_arg_shapes, has_root_constants, shaders,
                                                         primitive_config, getCurrentScratchAlloc(), debug_name);
-    resetCurrentScratchAlloc();
     return res;
 }
 
@@ -365,7 +372,6 @@ phi::handle::pipeline_state phi::vk::BackendVulkan::createPipelineState(const ph
 {
     auto const res = mPoolPipelines.createPipelineState(description.vertices, description.framebuffer, description.shader_arg_shapes, description.has_root_constants,
                                                         description.shader_binaries, description.config, getCurrentScratchAlloc(), debug_name);
-    resetCurrentScratchAlloc();
     return res;
 }
 
@@ -375,7 +381,6 @@ phi::handle::pipeline_state phi::vk::BackendVulkan::createComputePipelineState(p
                                                                                char const* debug_name)
 {
     auto const res = mPoolPipelines.createComputePipelineState(shader_arg_shapes, shader, has_root_constants, getCurrentScratchAlloc(), debug_name);
-    resetCurrentScratchAlloc();
     return res;
 }
 
@@ -383,7 +388,6 @@ phi::handle::pipeline_state phi::vk::BackendVulkan::createComputePipelineState(c
 {
     auto const res = mPoolPipelines.createComputePipelineState(description.shader_arg_shapes, description.shader, description.has_root_constants,
                                                                getCurrentScratchAlloc(), debug_name);
-    resetCurrentScratchAlloc();
     return res;
 }
 
@@ -409,13 +413,13 @@ void phi::vk::BackendVulkan::submit(cc::span<const phi::handle::command_list> cl
                                     cc::span<const phi::fence_operation> fence_waits_before,
                                     cc::span<const phi::fence_operation> fence_signals_after)
 {
+    auto* scratch = getCurrentScratchAlloc();
+
     cc::alloc_vector<VkCommandBuffer> cmd_bufs_to_submit;
-    cmd_bufs_to_submit.reset_reserve(getCurrentScratchAlloc(), cls.size() * 2);
+    cmd_bufs_to_submit.reset_reserve(scratch, cls.size() * 2);
 
     cc::alloc_vector<handle::command_list> barrier_lists;
-    barrier_lists.reset_reserve(getCurrentScratchAlloc(), cls.size());
-
-    CC_DEFER { resetCurrentScratchAlloc(); };
+    barrier_lists.reset_reserve(scratch, cls.size());
 
     // possibly fall back to a direct queue
     queue = mDevice.getQueueTypeOrFallback(queue);
@@ -524,7 +528,7 @@ void phi::vk::BackendVulkan::submit(cc::span<const phi::handle::command_list> cl
     auto const submit_fence_index = mPoolCmdLists.acquireFence(submit_fence);
     PHI_VK_VERIFY_SUCCESS(vkQueueSubmit(submit_queue, 1, &submit_info, submit_fence));
 
-    cc::array<cc::span<handle::command_list const>, 2> submit_spans = {barrier_lists, cls};
+    cc::span<handle::command_list const> submit_spans[] = {barrier_lists, cls};
     mPoolCmdLists.freeOnSubmit(submit_spans, submit_fence_index);
 }
 
@@ -548,7 +552,6 @@ phi::handle::pipeline_state phi::vk::BackendVulkan::createRaytracingPipelineStat
     auto const res = mPoolPipelines.createRaytracingPipelineState(description.libraries, description.argument_associations, description.hit_groups,
                                                                   description.max_recursion, description.max_payload_size_bytes,
                                                                   description.max_attribute_size_bytes, getCurrentScratchAlloc());
-    resetCurrentScratchAlloc();
     return res;
 }
 
@@ -663,6 +666,9 @@ phi::vk::BackendVulkan::per_thread_component& phi::vk::BackendVulkan::getCurrent
     return mThreadComponents[current_index];
 }
 
-cc::allocator* phi::vk::BackendVulkan::getCurrentScratchAlloc() { return &getCurrentThreadComponent().threadLocalScratchAlloc; }
-
-void phi::vk::BackendVulkan::resetCurrentScratchAlloc() { getCurrentThreadComponent().threadLocalScratchAlloc.reset(); }
+cc::allocator* phi::vk::BackendVulkan::getCurrentScratchAlloc()
+{
+    cc::linear_allocator* res = &getCurrentThreadComponent().threadLocalScratchAlloc;
+    res->reset();
+    return res;
+}

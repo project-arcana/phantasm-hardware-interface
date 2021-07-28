@@ -1,7 +1,6 @@
 #pragma once
 
-#include <clean-core/array.hh>
-#include <clean-core/vector.hh>
+#include <clean-core/alloc_array.hh>
 
 #include "loader/volk.hh"
 
@@ -34,7 +33,7 @@ struct suitable_queues
     };
 
     // indexed 1:1 as the queues queried from Vk
-    cc::vector<queue_family> families;
+    cc::alloc_array<queue_family> families;
     bool has_direct_queue = false;
 };
 
@@ -56,7 +55,7 @@ struct chosen_queues
     queue_indices copy;
 };
 
-[[nodiscard]] suitable_queues get_suitable_queues(VkPhysicalDevice physical);
+[[nodiscard]] suitable_queues get_suitable_queues(VkPhysicalDevice physical, cc::allocator* alloc);
 
 [[nodiscard]] chosen_queues get_chosen_queues(suitable_queues const& suitable);
 

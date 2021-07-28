@@ -1,7 +1,5 @@
 #pragma once
 
-#include <clean-core/array.hh>
-
 #include <phantasm-hardware-interface/commands.hh>
 
 #include <phantasm-hardware-interface/vulkan/common/vk_incomplete_state_cache.hh>
@@ -183,7 +181,7 @@ private:
             }
         };
 
-        cc::array<shader_arg_info, limits::max_shader_arguments> shader_args;
+        shader_arg_info shader_args[limits::max_shader_arguments];
 
         VkRenderPass raw_render_pass = nullptr;
         VkFramebuffer raw_framebuffer = nullptr;
@@ -257,4 +255,4 @@ private:
 #endif
 };
 
-}
+} // namespace phi::vk
