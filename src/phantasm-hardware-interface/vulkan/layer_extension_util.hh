@@ -1,7 +1,8 @@
 #pragma once
 
+#include <clean-core/alloc_array.hh>
+#include <clean-core/alloc_vector.hh>
 #include <clean-core/span.hh>
-#include <clean-core/vector.hh>
 
 #include <phantasm-hardware-interface/fwd.hh>
 
@@ -12,34 +13,34 @@ namespace phi::vk
 {
 struct LayerExtensionBundle
 {
-    VkLayerProperties layerProperties;
-    cc::vector<VkExtensionProperties> extensionProperties;
+    VkLayerProperties layerProperties = {};
+    cc::alloc_array<VkExtensionProperties> extensionProperties;
 
-    LayerExtensionBundle() { layerProperties = {}; }
-    LayerExtensionBundle(VkLayerProperties layer_props) : layerProperties(layer_props) {}
+    LayerExtensionBundle() = default;
+    LayerExtensionBundle(VkLayerProperties const& prop) : layerProperties(prop) {}
 };
 
-void writeInstanceExtensions(cc::vector<VkExtensionProperties>& out_extensions, const char* layername);
-void writeDeviceExtensions(cc::vector<VkExtensionProperties>& out_extensions, VkPhysicalDevice device, const char* layername);
+cc::alloc_array<VkExtensionProperties> getInstanceExtensions(char const* layername, cc::allocator* alloc);
+cc::alloc_array<VkExtensionProperties> getDeviceExtensions(VkPhysicalDevice device, char const* layername, cc::allocator* alloc);
 
 struct LayerExtensionSet
 {
-    unique_name_set<vk_name_type::layer> layers;
-    unique_name_set<vk_name_type::extension> extensions;
+    unique_name_set layers;
+    unique_name_set extensions;
 };
 
 struct LayerExtensionArray
 {
     // These are char const* intentionally for Vulkan interop
     // Only add literals!
-    cc::vector<char const*> layers;
-    cc::vector<char const*> extensions;
+    cc::alloc_vector<char const*> layers;
+    cc::alloc_vector<char const*> extensions;
 };
 
-LayerExtensionSet getAvailableInstanceExtensions();
-LayerExtensionSet getAvailableDeviceExtensions(VkPhysicalDevice physical);
+LayerExtensionSet getAvailableInstanceExtensions(cc::allocator* alloc);
+LayerExtensionSet getAvailableDeviceExtensions(VkPhysicalDevice physical, cc::allocator* alloc);
 
 LayerExtensionArray getUsedInstanceExtensions(LayerExtensionSet const& available, backend_config const& config);
 LayerExtensionArray getUsedDeviceExtensions(LayerExtensionSet const& available, backend_config const& config, bool& outHasRaytracing, bool& outHasConservativeRaster);
 
-}
+} // namespace phi::vk
