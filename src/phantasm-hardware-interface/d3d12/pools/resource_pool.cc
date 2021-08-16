@@ -3,6 +3,7 @@
 #include <clean-core/bit_cast.hh>
 #include <clean-core/utility.hh>
 
+#include <phantasm-hardware-interface/common/byte_print.hh>
 #include <phantasm-hardware-interface/common/byte_util.hh>
 #include <phantasm-hardware-interface/common/format_size.hh>
 #include <phantasm-hardware-interface/common/log.hh>
@@ -60,7 +61,7 @@ constexpr D3D12_RESOURCE_STATES d3d12_get_initial_state_by_heap(phi::resource_he
 
     return D3D12_RESOURCE_STATE_COMMON;
 }
-}
+} // namespace
 
 void phi::d3d12::ResourcePool::initialize(ID3D12Device* device, uint32_t max_num_resources, uint32_t max_num_swapchains, cc::allocator* static_alloc, cc::allocator* dynamic_alloc)
 {
@@ -203,7 +204,10 @@ phi::handle::resource phi::d3d12::ResourcePool::createBuffer(arg::buffer_descrip
         desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
     auto* const alloc = mAllocator.allocate(desc, initial_state, nullptr, util::to_native(description.heap));
-    util::set_object_name(alloc->GetResource(), "buf %s (%uB, %uB stride, %s heap)", dbg_name ? dbg_name : "", uint32_t(description.size_bytes),
+
+    char formatted_bytes[128];
+    byte_print(description.size_bytes, formatted_bytes);
+    util::set_object_name(alloc->GetResource(), "buf %s (%s, %uB stride, %s heap)", dbg_name ? dbg_name : "", formatted_bytes,
                           description.stride_bytes, d3d12_get_heap_type_literal(description.heap));
 
     auto const res = acquireBuffer(alloc, initial_state, description);
