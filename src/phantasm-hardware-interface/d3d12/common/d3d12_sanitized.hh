@@ -15,7 +15,13 @@
 #include <clean-core/native/detail/win32_sanitize_before.inl>
 
 #include <Windows.h>
+
+#ifdef PHI_HAS_D3D12_AGILITY
+#include <D3D12AgilitySDK/d3d12.h>
+#else
 #include <d3d12.h>
+#endif
+
 #include <dxgi1_6.h>
 #include <combaseapi.h>
 #include <dxgidebug.h>
