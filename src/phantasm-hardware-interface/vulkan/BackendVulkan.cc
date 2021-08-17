@@ -550,9 +550,11 @@ phi::handle::query_range phi::vk::BackendVulkan::createQueryRange(phi::query_typ
 
 void phi::vk::BackendVulkan::free(phi::handle::query_range query_range) { mPoolQueries.free(query_range); }
 
-phi::handle::pipeline_state phi::vk::BackendVulkan::createRaytracingPipelineState(const arg::raytracing_pipeline_state_description& description)
+phi::handle::pipeline_state phi::vk::BackendVulkan::createRaytracingPipelineState(const arg::raytracing_pipeline_state_description& description, char const* debug_name)
 {
     CC_ASSERT(isRaytracingEnabled() && "raytracing is not enabled");
+
+    (void)debug_name; // TODO
     auto const res = mPoolPipelines.createRaytracingPipelineState(description.libraries, description.argument_associations, description.hit_groups,
                                                                   description.max_recursion, description.max_payload_size_bytes,
                                                                   description.max_attribute_size_bytes, getCurrentScratchAlloc());

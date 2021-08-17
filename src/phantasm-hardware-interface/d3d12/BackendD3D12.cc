@@ -73,8 +73,8 @@ void phi::d3d12::BackendD3D12::initialize(const phi::backend_config& config)
 #endif
 
         mPoolResources.initialize(device, config.max_num_resources, config.max_num_swapchains, config.static_allocator, config.dynamic_allocator);
-        mPoolShaderViews.initialize(device, &mPoolResources, &mPoolAccelStructs, config.max_num_shader_views, config.max_num_srvs + config.max_num_uavs,
-                                    config.max_num_samplers, config.static_allocator);
+        mPoolShaderViews.initialize(device, &mPoolResources, &mPoolAccelStructs, config.max_num_shader_views,
+                                    config.max_num_srvs + config.max_num_uavs, config.max_num_samplers, config.static_allocator);
         mPoolPSOs.initialize(device, config.max_num_pipeline_states, config.max_num_raytrace_pipeline_states, config.static_allocator, config.dynamic_allocator);
         mPoolFences.initialize(device, config.max_num_fences, config.static_allocator);
         mPoolQueries.initialize(device, config.num_timestamp_queries, config.num_occlusion_queries, config.num_pipeline_stat_queries, config.static_allocator);
@@ -443,12 +443,11 @@ phi::handle::query_range phi::d3d12::BackendD3D12::createQueryRange(phi::query_t
 
 void phi::d3d12::BackendD3D12::free(phi::handle::query_range query_range) { mPoolQueries.free(query_range); }
 
-phi::handle::pipeline_state phi::d3d12::BackendD3D12::createRaytracingPipelineState(const arg::raytracing_pipeline_state_description& description)
+phi::handle::pipeline_state phi::d3d12::BackendD3D12::createRaytracingPipelineState(const arg::raytracing_pipeline_state_description& description, char const* debug_name)
 {
     CC_ASSERT(isRaytracingEnabled() && "raytracing is not enabled");
-    // TODO: debug name
     return mPoolPSOs.createRaytracingPipelineState(description.libraries, description.argument_associations, description.hit_groups, description.max_recursion,
-                                                   description.max_payload_size_bytes, description.max_attribute_size_bytes, mDynamicAllocator, nullptr);
+                                                   description.max_payload_size_bytes, description.max_attribute_size_bytes, mDynamicAllocator, debug_name);
 }
 
 phi::handle::accel_struct phi::d3d12::BackendD3D12::createTopLevelAccelStruct(uint32_t num_instances, accel_struct_build_flags_t flags)

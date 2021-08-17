@@ -198,7 +198,9 @@ public:
     // Raytracing interface
     //
 
-    [[nodiscard]] virtual handle::pipeline_state createRaytracingPipelineState(arg::raytracing_pipeline_state_description const& description) = 0;
+    [[nodiscard]] virtual handle::pipeline_state createRaytracingPipelineState(arg::raytracing_pipeline_state_description const& description,
+                                                                               char const* debug_name = nullptr)
+        = 0;
 
     /// create a bottom level acceleration structure (BLAS) holding geometry elements
     /// out_native_handle receives the value to be written to accel_struct_instance::native_bottom_level_as_handle

@@ -161,7 +161,8 @@ public:
     // Raytracing interface
     //
 
-    [[nodiscard]] handle::pipeline_state createRaytracingPipelineState(arg::raytracing_pipeline_state_description const& description) override;
+    [[nodiscard]] handle::pipeline_state createRaytracingPipelineState(arg::raytracing_pipeline_state_description const& description,
+                                                                       char const* debug_name = nullptr) override;
 
     handle::accel_struct createTopLevelAccelStruct(uint32_t num_instances, accel_struct_build_flags_t flags) override;
 
@@ -252,4 +253,4 @@ private:
     // Misc
     util::diagnostic_state mDiagnostics;
 };
-}
+} // namespace phi::vk
