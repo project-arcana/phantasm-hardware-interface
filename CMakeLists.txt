@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
 project(PhantasmHardwareInterface)
 
 
@@ -16,6 +16,12 @@ option(PHI_BACKEND_D3D12 "enable DirectX 12 backend" ON)
 # requires WinPixEventRuntime.dll to be available to the executable (in the same folder)
 # this dll is included in extern/win32_pix_runtime/bin/ and is automatically copied if enabled
 option(PHI_ENABLE_D3D12_PIX "enable DirectX 12 PIX integration" ON)
+
+# Enables D3D12 Agility SDK (allowing use of newer D3D12 runtimes than the one shipped with the OS)
+# if enabled, expects an include path visible to PHI with the Agility SDK headers, prefixed with D3D12AgilitySDK/
+# meaning PHI will use #include <D3D12AgilitySDK/d3d12.h> instead of #include <d3d12.h>
+# (exporting the required symbols and providing the DLLs and headers must be done by the user)
+option(PHI_ENABLE_D3D12_AGILITY "enable DirectX 12 Agility SDK integration" OFF)
 
 # Enables support for surface creation from SDL_Window*
 option(PHI_ENABLE_SDL2 "enable SDL2 integration" ON)
@@ -147,7 +153,18 @@ if (PHI_BACKEND_D3D12)
             "${PHI_D3D12_PIX_DLL_PATH}"
             "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}"
         )
+		message(STATUS "[phantasm hardware interface] D3D12 PIX integration enabled")
     endif()
+
+	# Agility SDK
+	if (PHI_ENABLE_D3D12_AGILITY)
+		# set defines
+		target_compile_definitions(phantasm-hardware-interface 
+		PUBLIC 
+			PHI_HAS_D3D12_AGILITY
+		)
+		message(STATUS "[phantasm hardware interface] D3D12 Agility SDK integration enabled")
+	endif()
 
 else()
     message(STATUS "[phantasm hardware interface] D3D12 backend disabled")

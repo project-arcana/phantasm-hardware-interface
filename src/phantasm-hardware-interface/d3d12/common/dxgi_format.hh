@@ -1,7 +1,11 @@
 #pragma once
 
 #ifndef DXGI_FORMAT_DEFINED // guard to allow for external use (ie. on Linux)
-#include <dxgiformat.h>     // This header only contains a single enum, no includes believe it or not
+#ifdef PHI_HAS_D3D12_AGILITY
+#include <D3D12AgilitySDK/dxgiformat.h>
+#else
+#include <dxgiformat.h> // This header only contains a single enum, no includes believe it or not
+#endif
 #endif
 
 #include <clean-core/assert.hh>
@@ -56,4 +60,4 @@ inline DXGI_FORMAT to_view_dxgi_format(phi::format format)
         return to_dxgi_format(format);
     }
 }
-}
+} // namespace phi::d3d12::util
