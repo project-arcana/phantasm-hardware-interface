@@ -147,7 +147,7 @@ void phi::d3d12::ShaderTableConstructor::writeShaderTable(std::byte* dest, handl
         }
         else
         {
-            CC_ASSERT(!arg_info_verification.has_root_consts() && "shader table write invalid - omitting root constants where they are required");
+            CC_ASSERT(!arg_info_verification.has_root_consts() && "shader table write invalid - missing root constants but were declared in argument association");
         }
 
         data_ptr_outer += stride_bytes;
