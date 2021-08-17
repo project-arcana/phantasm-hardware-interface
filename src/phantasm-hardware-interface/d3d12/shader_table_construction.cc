@@ -69,6 +69,7 @@ void phi::d3d12::ShaderTableConstructor::writeShaderTable(std::byte* dest, handl
         }
         else // (e_target_hitgroup)
         {
+            CC_ASSERT(rec.target_type == arg::shader_table_record::e_target_hitgroup);
             CC_ASSERT(rec.target_index < pso_info.hitgroup_infos.size() && "shader table record - hitgroup index OOB");
 
             auto const& hitgroup_info = pso_info.hitgroup_infos[rec.target_index];
@@ -78,21 +79,6 @@ void phi::d3d12::ShaderTableConstructor::writeShaderTable(std::byte* dest, handl
         }
 
         data_ptr_inner += D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
-
-
-        // write the root constants
-        if (rec.root_arg_size_bytes > 0)
-        {
-            CC_ASSERT(arg_info_verification.has_root_consts() && "shader table write invalid - writing root constants where none are required");
-
-            std::memcpy(data_ptr_inner, rec.root_arg_data, rec.root_arg_size_bytes);
-            // root constants must fill a multiple of 8 bytes
-            data_ptr_inner += phi::util::align_up(rec.root_arg_size_bytes, 8u);
-        }
-        else
-        {
-            CC_ASSERT(!arg_info_verification.has_root_consts() && "shader table write invalid - omitting root constants where they are required");
-        }
 
         for (auto i = 0u; i < rec.shader_arguments.size(); ++i)
         {
@@ -150,6 +136,20 @@ void phi::d3d12::ShaderTableConstructor::writeShaderTable(std::byte* dest, handl
             }
         }
 
+        // write the root constants last
+        if (rec.root_arg_size_bytes > 0)
+        {
+            CC_ASSERT(arg_info_verification.has_root_consts() && "shader table write invalid - writing root constants where none are required");
+
+            std::memcpy(data_ptr_inner, rec.root_arg_data, rec.root_arg_size_bytes);
+            // root constants must fill a multiple of 8 bytes
+            data_ptr_inner += phi::util::align_up(rec.root_arg_size_bytes, 8u);
+        }
+        else
+        {
+            CC_ASSERT(!arg_info_verification.has_root_consts() && "shader table write invalid - omitting root constants where they are required");
+        }
+
         data_ptr_outer += stride_bytes;
 
         // if these are multiple records (and thus stride is > 0), ptr_outer must be advanced at least enough to not
@@ -180,11 +180,6 @@ unsigned phi::d3d12::ShaderTableConstructor::getShaderRecordSize(cc::span<arg::s
     {
         unsigned num_8byte_blocks = 0;
 
-        // root constants in the beginning
-        // the root constant section must be packed into 8 byte blocks, ceil the given size to a multiple of 8
-        // (effectively 'align_up(size, 8) / 8')
-        num_8byte_blocks += cc::int_div_ceil(rec.root_arg_size_bytes, 8u);
-
         for (auto const& arg : rec.shader_arguments)
         {
             // CBV adds a single GPU VA
@@ -202,6 +197,11 @@ unsigned phi::d3d12::ShaderTableConstructor::getShaderRecordSize(cc::span<arg::s
                     ++num_8byte_blocks;
             }
         }
+
+        // root constants at the end
+        // the root constant section must be packed into 8 byte blocks, ceil the given size to a multiple of 8
+        // (effectively 'align_up(size, 8) / 8')
+        num_8byte_blocks += rec.root_arg_size_bytes ? cc::int_div_ceil(rec.root_arg_size_bytes, 8u) : 0;
 
         max_num_8byte_blocks = cc::max<uint32_t>(max_num_8byte_blocks, num_8byte_blocks);
     }
