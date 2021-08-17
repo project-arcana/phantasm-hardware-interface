@@ -1,6 +1,8 @@
 #pragma once
 
+#include <phantasm-hardware-interface/common/api.hh>
+
 namespace phi::log
 {
-void dump_hex(void const* addr, int len);
+PHI_API void dump_hex(void const* addr, int len);
 }
