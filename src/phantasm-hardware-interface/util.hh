@@ -74,7 +74,7 @@ inline uint64_t get_timestamp_difference_microseconds(uint64_t start, uint64_t e
     return (end - start) / (timestamp_frequency / 1'000'000);
 }
 
-struct shader_table_offsets
+struct PHI_API shader_table_offsets
 {
     shader_table_strides strides;
 
@@ -120,4 +120,4 @@ struct shader_table_offsets
         return offset_callable_base + align_up(strides.size_callable * stack_index, 64);
     }
 };
-}
+} // namespace phi::util
