@@ -64,6 +64,21 @@ phi::d3d12::shader_argument_map phi::d3d12::detail::root_signature_params::add_s
     shader_argument_map res_map;
     auto const argument_visibility = D3D12_SHADER_VISIBILITY_ALL; // NOTE: Eventually arguments could be constrained to stages
 
+    // create root constants first
+    if (add_fixed_root_constants)
+    {
+        CD3DX12_ROOT_PARAMETER& root_consts = root_params.emplace_back();
+
+        static_assert(limits::max_root_constant_bytes % sizeof(DWORD32) == 0, "root constant size not divisible by dword32 size");
+        root_consts.InitAsConstants(limits::max_root_constant_bytes / sizeof(DWORD32), 1, _space, argument_visibility);
+
+        res_map.root_const_param = uint32_t(root_params.size() - 1);
+    }
+    else
+    {
+        res_map.root_const_param = uint32_t(-1);
+    }
+
     // create root descriptor to CBV
     if (shape.has_cbv)
     {
@@ -121,20 +136,6 @@ phi::d3d12::shader_argument_map phi::d3d12::detail::root_signature_params::add_s
         res_map.sampler_table_param = uint32_t(-1);
     }
 
-    if (add_fixed_root_constants)
-    {
-        CD3DX12_ROOT_PARAMETER& root_consts = root_params.emplace_back();
-
-        static_assert(limits::max_root_constant_bytes % sizeof(DWORD32) == 0, "root constant size not divisible by dword32 size");
-        root_consts.InitAsConstants(limits::max_root_constant_bytes / sizeof(DWORD32), 1, _space, argument_visibility);
-
-        res_map.root_const_param = uint32_t(root_params.size() - 1);
-    }
-    else
-    {
-        res_map.root_const_param = uint32_t(-1);
-    }
-
     ++_space;
     return res_map;
 }
@@ -171,6 +172,12 @@ void phi::d3d12::initialize_root_signature(phi::d3d12::root_signature& root_sig,
         auto const& arg_shape = payload_shape[i];
         auto const add_rconsts = add_fixed_root_constants && i == 0;
         root_sig.argument_maps.push_back(parameters.add_shader_argument_shape(arg_shape, add_rconsts));
+    }
+
+    if (payload_shape.empty() && add_fixed_root_constants)
+    {
+        // create single argument with only root constants
+        root_sig.argument_maps.push_back(parameters.add_shader_argument_shape({}, true));
     }
 
     root_sig.raw_root_sig = create_root_signature(device, parameters.root_params, parameters.samplers, type);
