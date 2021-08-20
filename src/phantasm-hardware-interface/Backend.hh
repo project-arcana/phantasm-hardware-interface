@@ -206,11 +206,15 @@ public:
     /// out_native_handle receives the value to be written to accel_struct_instance::native_bottom_level_as_handle
     [[nodiscard]] virtual handle::accel_struct createBottomLevelAccelStruct(cc::span<arg::blas_element const> elements,
                                                                             accel_struct_build_flags_t flags,
-                                                                            uint64_t* out_native_handle = nullptr)
+                                                                            uint64_t* out_native_handle = nullptr,
+                                                                            accel_struct_prebuild_info* out_prebuild_info = nullptr)
         = 0;
 
     /// create a top level acceleration structure (TLAS) holding BLAS instances
-    [[nodiscard]] virtual handle::accel_struct createTopLevelAccelStruct(uint32_t num_instances, accel_struct_build_flags_t flags) = 0;
+    [[nodiscard]] virtual handle::accel_struct createTopLevelAccelStruct(uint32_t num_instances,
+                                                                         accel_struct_build_flags_t flags,
+                                                                         accel_struct_prebuild_info* out_prebuild_info = nullptr)
+        = 0;
 
     /// receive the native acceleration struct handle to be written to accel_struct_instance::native_bottom_level_as_handle
     [[nodiscard]] virtual uint64_t getAccelStructNativeHandle(handle::accel_struct as) = 0;

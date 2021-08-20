@@ -170,11 +170,14 @@ public:
     [[nodiscard]] handle::pipeline_state createRaytracingPipelineState(arg::raytracing_pipeline_state_description const& description,
                                                                        char const* debug_name = nullptr) override;
 
-    [[nodiscard]] handle::accel_struct createTopLevelAccelStruct(uint32_t num_instances, accel_struct_build_flags_t flags) override;
+    [[nodiscard]] handle::accel_struct createTopLevelAccelStruct(uint32_t num_instances,
+                                                                 accel_struct_build_flags_t flags,
+                                                                 accel_struct_prebuild_info* out_prebuild_info = nullptr) override;
 
     [[nodiscard]] handle::accel_struct createBottomLevelAccelStruct(cc::span<arg::blas_element const> elements,
                                                                     accel_struct_build_flags_t flags,
-                                                                    uint64_t* out_native_handle = nullptr) override;
+                                                                    uint64_t* out_native_handle = nullptr,
+                                                                    accel_struct_prebuild_info* out_prebuild_info = nullptr) override;
 
     [[nodiscard]] uint64_t getAccelStructNativeHandle(handle::accel_struct as) override;
 

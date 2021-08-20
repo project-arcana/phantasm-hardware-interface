@@ -776,16 +776,47 @@ struct resource_usage_flags
 };
 using resource_usage_flags_t = uint32_t;
 
-// PHI_DEFINE_FLAG_OPERATORS(resource_usage_flags, uint32_t)
+struct accel_struct_prebuild_info
+{
+	// the size in bytes of the backing buffers
+    uint32_t buffer_size_bytes = 0;
+
+	// the required scratch buffer size for the initial build
+    uint32_t required_build_scratch_size_bytes = 0;
+
+	// the required scratch buffer size for subsequent updates (requires accel_struct_build_flags::allow_update)
+    uint32_t required_update_scratch_size_bytes = 0;
+};
 
 /// flags to configure the building process of a raytracing acceleration structure
 enum class accel_struct_build_flags : uint8_t
 {
+    // build the AS so that it supports future updates
     allow_update,
+
+    // enable option to compact the AS
+    // NOTE: compaction is not possible via PHI API
     allow_compaction,
+
+    // maximize raytracing performance at the cost of build time
+    // typically 2-3 times longer
+    // mutually exclusive with prefer_fast_build
     prefer_fast_trace,
+
+    // sacrifice raytracing performance for faster build time
+    // typically 1/2 to 1/3 of the build time
+    // mutually exclusive with prefer_fast_trace
     prefer_fast_build,
-    minimize_memory
+
+    // minimize the scratch memory used and the result size
+    // at the cost of build time and raytracing performance
+    minimize_memory,
+
+    // do not create an internal scratch buffer
+    // (PHI level, not native API)
+    // if using this flag, you must supply a sufficiently large
+    // scratch buffer in cmd::update_bottom_level/cmd::update_top_level
+    no_internal_scratch_buffer
 };
 
 PHI_DEFINE_FLAG_TYPE(accel_struct_build_flags_t, accel_struct_build_flags, 8);

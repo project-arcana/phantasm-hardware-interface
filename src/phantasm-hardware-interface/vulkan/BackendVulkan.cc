@@ -561,18 +561,23 @@ phi::handle::pipeline_state phi::vk::BackendVulkan::createRaytracingPipelineStat
     return res;
 }
 
-phi::handle::accel_struct phi::vk::BackendVulkan::createTopLevelAccelStruct(uint32_t num_instances, accel_struct_build_flags_t flags)
+phi::handle::accel_struct phi::vk::BackendVulkan::createTopLevelAccelStruct(uint32_t num_instances, accel_struct_build_flags_t flags, accel_struct_prebuild_info* out_prebuild_info)
 {
     CC_ASSERT(isRaytracingEnabled() && "raytracing is not enabled");
+    (void)out_prebuild_info; // TODO
+    (void)flags;             // TODO
     return mPoolAccelStructs.createTopLevelAS(num_instances);
 }
 
 phi::handle::accel_struct phi::vk::BackendVulkan::createBottomLevelAccelStruct(cc::span<const phi::arg::blas_element> elements,
                                                                                accel_struct_build_flags_t flags,
-                                                                               uint64_t* out_native_handle)
+                                                                               uint64_t* out_native_handle,
+                                                                               accel_struct_prebuild_info* out_prebuild_info)
 {
     CC_ASSERT(isRaytracingEnabled() && "raytracing is not enabled");
     auto const res = mPoolAccelStructs.createBottomLevelAS(elements, flags);
+
+    (void)out_prebuild_info; // TODO
 
     if (out_native_handle != nullptr)
         *out_native_handle = mPoolAccelStructs.getNode(res).raw_as_handle;

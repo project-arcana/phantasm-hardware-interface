@@ -13,7 +13,9 @@
 
 #include "resource_pool.hh"
 
-phi::handle::accel_struct phi::d3d12::AccelStructPool::createBottomLevelAS(cc::span<const phi::arg::blas_element> elements, accel_struct_build_flags_t flags)
+phi::handle::accel_struct phi::d3d12::AccelStructPool::createBottomLevelAS(cc::span<const phi::arg::blas_element> elements,
+                                                                           accel_struct_build_flags_t flags,
+                                                                           accel_struct_prebuild_info* out_prebuild_info)
 {
     handle::accel_struct res_handle;
     accel_struct_node& new_node = acquireAccelStruct(res_handle);
@@ -85,9 +87,25 @@ phi::handle::accel_struct phi::d3d12::AccelStructPool::createBottomLevelAS(cc::s
     // Create scratch and result buffers
     new_node.buffer_as = mResourcePool->createBufferInternal(prebuild_info.ResultDataMaxSizeInBytes, 0, true,
                                                              D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, "pool BLAS buffer");
-    new_node.buffer_scratch
-        = mResourcePool->createBufferInternal(cc::max<UINT64>(prebuild_info.ScratchDataSizeInBytes, prebuild_info.UpdateScratchDataSizeInBytes), 0,
-                                              true, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, "pool BLAS scratch");
+
+    auto const scratchSize = cc::max<UINT64>(prebuild_info.ScratchDataSizeInBytes, prebuild_info.UpdateScratchDataSizeInBytes);
+    if (flags & accel_struct_build_flags::no_internal_scratch_buffer)
+    {
+        new_node.buffer_scratch = handle::null_resource;
+    }
+    else
+    {
+        new_node.buffer_scratch = mResourcePool->createBufferInternal(scratchSize, 0, true, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, "pool BLAS scratch");
+    }
+
+    if (out_prebuild_info)
+    {
+        out_prebuild_info->buffer_size_bytes = prebuild_info.ResultDataMaxSizeInBytes;
+        out_prebuild_info->required_build_scratch_size_bytes = prebuild_info.ScratchDataSizeInBytes;
+        out_prebuild_info->required_update_scratch_size_bytes = prebuild_info.UpdateScratchDataSizeInBytes;
+    }
+
+    // PHI_LOG_TRACE("Created BLAS for {} elements, {} B AS, {} B Scratch", elements.size(), prebuild_info.ResultDataMaxSizeInBytes, scratchSize);
 
     // query AS buffer GPU VA
     new_node.buffer_as_va = mResourcePool->getBufferInfo(new_node.buffer_as).gpu_va;
@@ -95,7 +113,7 @@ phi::handle::accel_struct phi::d3d12::AccelStructPool::createBottomLevelAS(cc::s
     return res_handle;
 }
 
-phi::handle::accel_struct phi::d3d12::AccelStructPool::createTopLevelAS(unsigned num_instances, accel_struct_build_flags_t flags)
+phi::handle::accel_struct phi::d3d12::AccelStructPool::createTopLevelAS(unsigned num_instances, accel_struct_build_flags_t flags, accel_struct_prebuild_info* out_prebuild_info)
 {
     static_assert(sizeof(D3D12_RAYTRACING_INSTANCE_DESC) == sizeof(accel_struct_instance), "acceleration instance struct sizes mismatch");
     CC_ASSERT(num_instances > 0 && "empty top-level accel_struct not allowed");
@@ -118,15 +136,29 @@ phi::handle::accel_struct phi::d3d12::AccelStructPool::createTopLevelAS(unsigned
     mDevice->GetRaytracingAccelerationStructurePrebuildInfo(&as_input_info, &prebuild_info);
     CC_ASSERT(prebuild_info.ResultDataMaxSizeInBytes > 0);
 
-    // Create scratch and result buffers
+    // Create result buffer
     new_node.buffer_as = mResourcePool->createBufferInternal(prebuild_info.ResultDataMaxSizeInBytes, 0, true,
                                                              D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, "pool TLAS buffer");
-    new_node.buffer_scratch
-        = mResourcePool->createBufferInternal(cc::max<UINT64>(prebuild_info.ScratchDataSizeInBytes, prebuild_info.UpdateScratchDataSizeInBytes), 0,
-                                              true, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, "pool TLAS scratch");
-
     // query GPU VA ("raw native handle" in phi API naming)
     new_node.buffer_as_va = mResourcePool->getBufferInfo(new_node.buffer_as).gpu_va;
+
+    auto const scratchSize = cc::max<UINT64>(prebuild_info.ScratchDataSizeInBytes, prebuild_info.UpdateScratchDataSizeInBytes);
+    if (flags & accel_struct_build_flags::no_internal_scratch_buffer)
+    {
+        new_node.buffer_scratch = handle::null_resource;
+    }
+    else
+    {
+        // create scratch buffer
+        new_node.buffer_scratch = mResourcePool->createBufferInternal(scratchSize, 0, true, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, "pool TLAS scratch");
+    }
+
+    if (out_prebuild_info)
+    {
+        out_prebuild_info->buffer_size_bytes = prebuild_info.ResultDataMaxSizeInBytes;
+        out_prebuild_info->required_build_scratch_size_bytes = prebuild_info.ScratchDataSizeInBytes;
+        out_prebuild_info->required_update_scratch_size_bytes = prebuild_info.UpdateScratchDataSizeInBytes;
+    }
 
     return res_handle;
 }
