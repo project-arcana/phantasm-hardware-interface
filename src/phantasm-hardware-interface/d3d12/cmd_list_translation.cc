@@ -42,7 +42,7 @@ Optick::GPUQueueType phiQueueTypeToOptickD3D12(phi::queue_type type)
     }
 }
 #endif
-}
+} // namespace
 
 void phi::d3d12::command_list_translator::initialize(
     ID3D12Device* device, ShaderViewPool* sv_pool, ResourcePool* resource_pool, PipelineStateObjectPool* pso_pool, AccelStructPool* as_pool, QueryPool* query_pool)
@@ -800,7 +800,16 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::update_bottom_
     as_create_info.Inputs.pGeometryDescs = dest_node.geometries.empty() ? nullptr : dest_node.geometries.data();
 
     as_create_info.DestAccelerationStructureData = dest_buffer.gpu_va;
-    as_create_info.ScratchAccelerationStructureData = _globals.pool_resources->getBufferInfo(dest_node.buffer_scratch).gpu_va;
+
+    if (blas_update.scratch.is_valid())
+    {
+        as_create_info.ScratchAccelerationStructureData = _globals.pool_resources->getBufferInfo(blas_update.scratch).gpu_va;
+    }
+    else
+    {
+        CC_ASSERT(dest_node.buffer_scratch.is_valid() && "updates to acceleration structures created with no_internal_scratch_buffer require the scratch buffer field");
+        as_create_info.ScratchAccelerationStructureData = _globals.pool_resources->getBufferInfo(dest_node.buffer_scratch).gpu_va;
+    }
 
     if (blas_update.source.is_valid())
     {
@@ -834,7 +843,16 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::update_top_lev
         = _globals.pool_resources->getBufferInfo(tlas_update.source_instances_addr.buffer).gpu_va + tlas_update.source_instances_addr.offset_bytes;
 
     as_create_info.DestAccelerationStructureData = dest_node.buffer_as_va;
-    as_create_info.ScratchAccelerationStructureData = _globals.pool_resources->getBufferInfo(dest_node.buffer_scratch).gpu_va;
+
+    if (tlas_update.scratch.is_valid())
+    {
+        as_create_info.ScratchAccelerationStructureData = _globals.pool_resources->getBufferInfo(tlas_update.scratch).gpu_va;
+    }
+    else
+    {
+        CC_ASSERT(dest_node.buffer_scratch.is_valid() && "updates to acceleration structures created with no_internal_scratch_buffer require the scratch buffer field");
+        as_create_info.ScratchAccelerationStructureData = _globals.pool_resources->getBufferInfo(dest_node.buffer_scratch).gpu_va;
+    }
 
     _cmd_list->BuildRaytracingAccelerationStructure(&as_create_info, 0, nullptr);
 

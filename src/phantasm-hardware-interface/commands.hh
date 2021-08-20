@@ -546,13 +546,17 @@ PHI_DEFINE_CMD(update_bottom_level)
 {
     // Update or build a bottom level raytracing acceleration structure (BLAS)
 
-    /// the bottom level accel struct to build
+    // the bottom level accel struct to build
     handle::accel_struct dest = handle::null_accel_struct;
 
-    /// the bottom level accel struct to update from (optional)
-    /// if specified, dest must have been created with accel_struct_build_flags::allow_update
-    /// can be the same as dest for an in-place update
+    // the bottom level accel struct to update from (optional)
+    // if specified, dest must have been created with accel_struct_build_flags::allow_update
+    // can be the same as dest for an in-place update
     handle::accel_struct source = handle::null_accel_struct;
+
+    // a scratch buffer, required if dest was created with the no_internal_scratch_buffer flag
+    // must be in UAV state and have sufficient size (see optional outs of createBottomLevelAccelStruct)
+    handle::resource scratch = handle::null_resource;
 };
 
 PHI_DEFINE_CMD(update_top_level)
@@ -560,14 +564,18 @@ PHI_DEFINE_CMD(update_top_level)
     // Update or build a top level raytracing acceleration structure (TLAS),
     // filling it with instances of bottom level accel structs (BLAS)
 
-    /// amount of instances to write
+    // amount of instances to write
     uint32_t num_instances = 0;
 
-    /// a buffer holding an array of accel_struct_instance structs (at least num_instances)
+    // a buffer holding an array of accel_struct_instance structs (at least num_instances)
     buffer_address source_instances_addr;
 
-    /// the top level accel struct to update
+    // the top level accel struct to update
     handle::accel_struct dest_accel_struct = handle::null_accel_struct;
+
+    // a scratch buffer, required if dest was created with the no_internal_scratch_buffer flag
+    // must be in UAV state and have sufficient size (see optional outs of createTopLevelAccelStruct)
+    handle::resource scratch = handle::null_resource;
 };
 
 
@@ -661,7 +669,7 @@ PHI_DEFINE_CMD(code_location_marker)
     ::phi::cmd::code_location_marker { __FUNCTION__, __FILE__, __LINE__ }
 
 #undef PHI_DEFINE_CMD
-}
+} // namespace cmd
 
 struct command_stream_writer
 {
@@ -736,4 +744,4 @@ private:
     size_t _max_size = 0;
     size_t _cursor = 0;
 };
-}
+} // namespace phi
