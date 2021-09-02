@@ -92,7 +92,12 @@ private:
 class CommandAllocatorBundle
 {
 public:
-    void initialize(ID3D12Device5& device, cc::allocator* static_alloc, D3D12_COMMAND_LIST_TYPE type, int num_allocs, int num_lists_per_alloc, cc::span<ID3D12GraphicsCommandList5*> out_list);
+    void preallocate(uint32_t num_allocs, cc::allocator* static_alloc);
+
+    void initialize(ID3D12Device5& device,
+                    D3D12_COMMAND_LIST_TYPE type,
+                    uint32_t num_lists_per_alloc,
+                    cc::span<ID3D12GraphicsCommandList5*> out_list);
     void destroy();
 
     /// Resets the given command list to use memory by an appropriate allocator
@@ -103,7 +108,7 @@ public:
 
 private:
     void internalDestroy(cmd_allocator_node& node);
-    void internalInit(ID3D12Device5& device, cmd_allocator_node& node, D3D12_COMMAND_LIST_TYPE list_type, unsigned num_cmdlists, cc::span<ID3D12GraphicsCommandList5*> out_cmdlists);
+    void internalInit(ID3D12Device5& device, cmd_allocator_node& node, D3D12_COMMAND_LIST_TYPE list_type, uint32_t num_cmdlists, cc::span<ID3D12GraphicsCommandList5*> out_cmdlists);
 
 private:
     cc::alloc_array<cmd_allocator_node> mAllocators;
@@ -255,14 +260,17 @@ public:
 public:
     void initialize(BackendD3D12& backend,
                     cc::allocator* static_alloc,
-                    int num_direct_allocs,
-                    int num_direct_lists_per_alloc,
-                    int num_compute_allocs,
-                    int num_compute_lists_per_alloc,
-                    int num_copy_allocs,
-                    int num_copy_lists_per_alloc,
-                    int max_num_unique_transitions_per_cmdlist,
+                    uint32_t num_direct_allocs,
+                    uint32_t num_direct_lists_per_alloc,
+                    uint32_t num_compute_allocs,
+                    uint32_t num_compute_lists_per_alloc,
+                    uint32_t num_copy_allocs,
+                    uint32_t num_copy_lists_per_alloc,
+                    uint32_t max_num_unique_transitions_per_cmdlist,
                     cc::span<CommandAllocatorsPerThread*> thread_allocators);
+
+    void initialize_nth_thread(ID3D12Device5* device, uint32_t thread_idx, CommandAllocatorsPerThread* allocators);
+
     void destroy();
 
 
@@ -291,8 +299,16 @@ private:
     cmdlist_linked_pool_t mPoolCopy;
 
     // flat memory for the state caches
-    int mNumStateCacheEntriesPerCmdlist;
+    uint32_t mNumStateCacheEntriesPerCmdlist = 0;
     cc::alloc_array<incomplete_state_cache::cache_entry> mFlatStateCacheEntries;
+
+    uint32_t mNumThreads = 0;
+    uint32_t mNumAllocsDirect = 0;
+    uint32_t mNumAllocsCompute = 0;
+    uint32_t mNumAllocsCopy = 0;
+    uint32_t mNumListsPerAllocDirect = 0;
+    uint32_t mNumListsPerAllocCompute = 0;
+    uint32_t mNumListsPerAllocCopy = 0;
 
     // parallel arrays to the pools, identically indexed
     // the cmdlists must stay alive even while "unallocated"

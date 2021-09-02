@@ -93,6 +93,9 @@ struct backend_config
     // whether to print basic information on init
     bool print_startup_message = true;
 
+    // whether to skip subsystem inits that can be performed in parallel, must use initializeParallel afterwards
+    bool enable_parallel_init = false;
+
     // amount of threads to accomodate
     // backend calls must only be made from <= [num_threads] unique OS threads
     uint32_t num_threads = 1;
