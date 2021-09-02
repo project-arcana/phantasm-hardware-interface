@@ -22,6 +22,11 @@ public:
     virtual void initialize(backend_config const& config) = 0;
     virtual void destroy() = 0;
 
+    /// parallel init: If enabled, call this N times after the main call to initialize()
+    /// call with indices 0 to num_threads - 1 and with the same config as in the original initialize()
+    /// intended to be called in parallel
+    virtual void initializeParallel(backend_config const& config, uint32_t idx);
+
     virtual void flushGPU() = 0;
 
     //

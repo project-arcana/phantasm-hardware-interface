@@ -28,6 +28,7 @@ class PHI_API BackendD3D12 final : public Backend
 {
 public:
     void initialize(backend_config const& config) override;
+    void initializeParallel(backend_config const& config, uint32_t idx) override;
     void destroy() override;
     ~BackendD3D12() override;
 
@@ -252,7 +253,7 @@ private:
     Queue mCopyQueue;
     Queue mComputeQueue;
 
-    ::HANDLE mFlushEvent;
+    ::HANDLE mFlushEvent = nullptr;
     UINT64 mFlushSignalVal = 0;
     std::mutex mFlushMutex;
 
@@ -267,12 +268,12 @@ private:
     QueryPool mPoolQueries;
 
     // Logic
-    per_thread_component* mThreadComponents;
-    uint32_t mNumThreadComponents;
-    void* mThreadComponentAlloc;
+    per_thread_component* mThreadComponents = nullptr;
+    uint32_t mNumThreadComponents = 0;
+    cc::allocator* mStaticAlloc = nullptr;
     phi::thread_association mThreadAssociation;
     ShaderTableConstructor mShaderTableCtor;
-    cc::allocator* mDynamicAllocator;
+    cc::allocator* mDynamicAllocator = nullptr;
 
     // Misc
     util::diagnostic_state mDiagnostics;

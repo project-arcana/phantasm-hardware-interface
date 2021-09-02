@@ -5,6 +5,11 @@
 
 #include <phantasm-hardware-interface/arguments.hh>
 
+void phi::Backend::initializeParallel(backend_config const& /*config*/, uint32_t /*idx*/)
+{
+    // do nothing by default
+}
+
 phi::handle::resource phi::Backend::createTexture(
     phi::format format, tg::isize2 size, uint32_t mips, texture_dimension dim, uint32_t depth_or_array_size, bool allow_uav, char const* debug_name)
 {

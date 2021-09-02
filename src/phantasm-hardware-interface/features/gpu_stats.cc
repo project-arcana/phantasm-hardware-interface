@@ -83,7 +83,7 @@ struct nvml_dll_state
         {
             // Try in the canonical install directory (this is the more likely one)
             char expanded_path[512];
-            ::ExpandEnvironmentStringsA("%ProgramW6432%\\NVIDIA Corporation\\NVSMI\\nvml.dll", expanded_path, sizeof(expanded_path));
+            ExpandEnvironmentStrings("%ProgramW6432%\\NVIDIA Corporation\\NVSMI\\nvml.dll", expanded_path, sizeof(expanded_path));
             _dll = LoadLibrary(expanded_path);
         }
 #elif defined(CC_OS_LINUX)
@@ -93,7 +93,7 @@ struct nvml_dll_state
 
         if (!_dll)
         {
-            PHI_LOG_ERROR("Unable to load NVML .dll/.so");
+            PHI_LOG_ERROR("Unable to load NVML .dll/.so - Cannot use Nvidia GPU thermal queries");
             return false;
         }
 
@@ -158,7 +158,7 @@ struct nvml_dll_state
 };
 
 nvml_dll_state g_nvml;
-}
+} // namespace
 
 bool phi::gpustats::initialize() { return g_nvml.load(); }
 
