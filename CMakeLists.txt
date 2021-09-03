@@ -146,12 +146,13 @@ if (PHI_BACKEND_D3D12)
         target_compile_definitions(phantasm-hardware-interface PUBLIC PHI_HAS_PIX USE_PIX)
 
         # copy the dll to the runtime output folder post-build
+		# we are on MSVC meaning CMAKE_RUNTIME_OUTPUT_DIRECTORY does not contain the /Debug or /Release ending, add it manually
         set(PHI_D3D12_PIX_DLL_PATH "${CMAKE_CURRENT_SOURCE_DIR}/extern/win32_pix_runtime/bin/WinPixEventRuntime.dll")
         add_custom_command(
             TARGET phantasm-hardware-interface POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "${PHI_D3D12_PIX_DLL_PATH}"
-            "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}"
+            "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIGURATION>"
         )
 		message(STATUS "[phantasm hardware interface] D3D12 PIX integration enabled")
     endif()
