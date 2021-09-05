@@ -314,6 +314,8 @@ public:
         return fmt == rhs.fmt && dim == rhs.dim && usage == rhs.usage && width == rhs.width && height == rhs.height && depth_or_array_size == rhs.depth_or_array_size
                && num_mips == rhs.num_mips && num_samples == rhs.num_samples && optimized_clear_value == rhs.optimized_clear_value;
     }
+
+	uint32_t get_array_size() const { return dim == texture_dimension::t3d ? 1 : depth_or_array_size; }
 };
 
 struct buffer_description
