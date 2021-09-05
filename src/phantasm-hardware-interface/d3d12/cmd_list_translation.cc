@@ -70,6 +70,7 @@ void phi::d3d12::command_list_translator::translateCommandList(
         OPTICK_GPU_CONTEXT(_cmd_list, phiQueueTypeToOptickD3D12(_current_queue_type));
         _current_optick_event = nullptr;
         OPTICK_GPU_EVENT("PHI Command List");
+        OPTICK_TAG("Size (Byte)", buffer_size);
 #endif
 
         auto const gpu_heaps = _globals.pool_shader_views->getGPURelevantHeaps();
@@ -880,7 +881,8 @@ void phi::d3d12::command_list_translator::execute(const cmd::dispatch_rays& disp
                   && "ray generation shader table buffer offset is not aligned to 64B");
     }
 
-    auto const f_fill_out_buffer_range = [&](buffer_range_and_stride const& in_range, D3D12_GPU_VIRTUAL_ADDRESS_RANGE_AND_STRIDE& out_range) {
+    auto const f_fill_out_buffer_range = [&](buffer_range_and_stride const& in_range, D3D12_GPU_VIRTUAL_ADDRESS_RANGE_AND_STRIDE& out_range)
+    {
         if (!in_range.buffer.is_valid())
             return;
 
