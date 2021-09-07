@@ -123,44 +123,80 @@ void phi::d3d12::Adapter::initialize(const backend_config& config, ID3D12Device*
 #endif
 
         phi::gpu_info candidates[16];
-        ID3D12Device* candidateDevices[16] = {};
-        IDXGIAdapter* candidateAdapters[16] = {};
 
-        // choose the adapter
-        uint32_t const numCandidates = getAdapterCandidates(mFactory, candidates, candidateDevices, candidateAdapters);
-        CC_RUNTIME_ASSERT(numCandidates > 0 && "Found no GPU candidates");
+        phi::gpu_info const* chosenCandidate = nullptr;
+        uint32_t numCandidates = 0;
 
-        cc::span<phi::gpu_info> const candidateSpan = cc::span(candidates, numCandidates);
+        IDXGIAdapter* chosenAdapter = nullptr;
+        ID3D12Device* chosenDevice = nullptr;
 
-        // indexing into candidates[], candidateDevices[], candidateAdapters[]
-        size_t chosenCandidateIndex = 0;
-
-        if (config.adapter == adapter_preference::explicit_index)
+        if (config.adapter == adapter_preference::first)
         {
-            // indexing into D3Ds adapters (used in IDXGIFactory::EnumAdapters)
-            uint32_t const chosenD3DAdapterIndex = config.explicit_adapter_index;
+            // fast-path, do not create all D3D12 devices
+            uint32_t adapterIndex = 0;
+            bool success = getFirstAdapter(mFactory, &chosenAdapter, &chosenDevice, &adapterIndex);
+            CC_RUNTIME_ASSERT(success && "Found no GPU");
 
-            bool hasFoundExplicitIndex = false;
-            for (auto i = 0u; i < numCandidates; ++i)
-            {
-                if (candidateSpan[i].index == chosenD3DAdapterIndex)
-                {
-                    hasFoundExplicitIndex = true;
-                    chosenCandidateIndex = i;
-                    break;
-                }
-            }
-
-            CC_RUNTIME_ASSERT(hasFoundExplicitIndex && "Failed to find given explicit adapter index");
+            candidates[0] = getAdapterInfo(chosenAdapter, adapterIndex);
+            chosenCandidate = &candidates[0];
+            numCandidates = 1;
         }
         else
         {
-            chosenCandidateIndex = getPreferredGPU(candidateSpan, config.adapter);
-            CC_RUNTIME_ASSERT(chosenCandidateIndex < numCandidates && "Found no GPU candidates");
+            // query and create all GPUs, then choose based on preference
+
+            ID3D12Device* candidateDevices[16] = {};
+            IDXGIAdapter* candidateAdapters[16] = {};
+
+            // choose the adapter
+            numCandidates = getAdapterCandidates(mFactory, candidates, candidateDevices, candidateAdapters);
+            CC_RUNTIME_ASSERT(numCandidates > 0 && "Found no GPU candidates");
+
+            cc::span<phi::gpu_info> const candidateSpan = cc::span(candidates, numCandidates);
+
+            // indexing into candidates[], candidateDevices[], candidateAdapters[]
+            size_t chosenCandidateIndex = 0;
+            if (config.adapter == adapter_preference::explicit_index)
+            {
+                // indexing into D3Ds adapters (used in IDXGIFactory::EnumAdapters)
+                uint32_t const chosenD3DAdapterIndex = config.explicit_adapter_index;
+
+                bool hasFoundExplicitIndex = false;
+                for (auto i = 0u; i < numCandidates; ++i)
+                {
+                    if (candidateSpan[i].index == chosenD3DAdapterIndex)
+                    {
+                        hasFoundExplicitIndex = true;
+                        chosenCandidateIndex = i;
+                        break;
+                    }
+                }
+
+                CC_RUNTIME_ASSERT(hasFoundExplicitIndex && "Failed to find given explicit adapter index");
+            }
+            else
+            {
+                chosenCandidateIndex = getPreferredGPU(candidateSpan, config.adapter);
+                CC_RUNTIME_ASSERT(chosenCandidateIndex < numCandidates && "Found no GPU candidates");
+            }
+
+            chosenCandidate = &candidateSpan[chosenCandidateIndex];
+            chosenAdapter = candidateAdapters[chosenCandidateIndex];
+            chosenDevice = candidateDevices[chosenCandidateIndex];
+
+            // release all the others
+            for (auto i = 0u; i < numCandidates; ++i)
+            {
+                if (i == chosenCandidateIndex)
+                    continue;
+
+                candidateDevices[i]->Release();
+                candidateAdapters[i]->Release();
+            }
         }
 
         // detect intel GPUs for GBV warning
-        bool const isIntelGPU = candidateSpan[chosenCandidateIndex].vendor == gpu_vendor::intel;
+        bool const isIntelGPU = chosenCandidate->vendor == gpu_vendor::intel;
         if (isIntelGPU && config.validation >= validation_level::on_extended)
         {
             PHI_LOG_WARN("GPU-based validation requested on an Intel GPU");
@@ -168,12 +204,7 @@ void phi::d3d12::Adapter::initialize(const backend_config& config, ID3D12Device*
         }
 
         // print the startup message
-        printStartupMessage(candidateSpan, chosenCandidateIndex, config, true);
-
-        mGPUInfo = candidateSpan[chosenCandidateIndex];
-
-        IDXGIAdapter* const chosenAdapter = candidateAdapters[chosenCandidateIndex];
-        ID3D12Device* const chosenDevice = candidateDevices[chosenCandidateIndex];
+        printStartupMessage(numCandidates, chosenCandidate, config, true);
 
         // QI the real adapter pointer, release the temp one
         {
@@ -184,15 +215,7 @@ void phi::d3d12::Adapter::initialize(const backend_config& config, ID3D12Device*
         // write the chosen ID3D12Device* to the out param
         outCreatedDevice = chosenDevice;
 
-        // release all the others
-        for (auto i = 0u; i < numCandidates; ++i)
-        {
-            if (i == chosenCandidateIndex)
-                continue;
-
-            candidateDevices[i]->Release();
-            candidateAdapters[i]->Release();
-        }
+        mGPUInfo = *chosenCandidate;
     }
 }
 

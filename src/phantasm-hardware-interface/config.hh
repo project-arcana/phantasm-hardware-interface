@@ -17,9 +17,6 @@ enum class adapter_preference : uint8_t
     // prefer integrated GPUs (like Intel Graphics)
     integrated,
 
-    // use the GPU with the highest feature level
-    highest_feature_level,
-
     // use the n-th GPU, n given by the explicit_adapter_index field
     explicit_index
 };

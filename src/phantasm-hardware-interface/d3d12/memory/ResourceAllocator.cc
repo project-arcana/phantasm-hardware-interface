@@ -1,5 +1,9 @@
 #include "ResourceAllocator.hh"
 
+#ifdef PHI_HAS_OPTICK
+#include <optick/optick.h>
+#endif
+
 #include <clean-core/allocator.hh>
 #include <clean-core/assert.hh>
 
@@ -37,11 +41,12 @@ void phi::d3d12::ResourceAllocator::destroy()
     }
 }
 
-D3D12MA::Allocation* phi::d3d12::ResourceAllocator::allocate(const D3D12_RESOURCE_DESC& desc,
-                                                             D3D12_RESOURCE_STATES initial_state,
-                                                             D3D12_CLEAR_VALUE* clear_value,
-                                                             D3D12_HEAP_TYPE heap_type) const
+D3D12MA::Allocation* phi::d3d12::ResourceAllocator::allocate(const D3D12_RESOURCE_DESC& desc, D3D12_RESOURCE_STATES initial_state, D3D12_CLEAR_VALUE* clear_value, D3D12_HEAP_TYPE heap_type)
 {
+#ifdef PHI_HAS_OPTICK
+    OPTICK_EVENT(); // any significant time spent here is due to locking, serial times are sub-ms
+#endif
+
     D3D12MA::ALLOCATION_DESC allocation_desc = {};
     allocation_desc.Flags = D3D12MA::ALLOCATION_FLAG_NONE;
     allocation_desc.HeapType = heap_type;

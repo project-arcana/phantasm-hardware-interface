@@ -163,7 +163,7 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg)
         // Load device-based Vulkan entrypoints
         volkLoadDevice(mDevice.getDevice());
 
-        printStartupMessage(gpu_infos, chosen_index, config, false);
+        printStartupMessage(gpu_infos.size(), &gpu_infos[chosen_index], config, false);
 
         if (config.print_startup_message)
         {
