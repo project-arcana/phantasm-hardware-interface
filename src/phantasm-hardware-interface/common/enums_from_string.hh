@@ -8,7 +8,7 @@
 namespace phi
 {
 // config enums
-#define PHI_LIST_ADAPTER_PREF(X) X(highest_vram) X(first) X(integrated) X(highest_feature_level) X(explicit_index)
+#define PHI_LIST_ADAPTER_PREF(X) X(highest_vram) X(first) X(integrated) X(explicit_index)
 #define PHI_LIST_VALIDATION_LVL(X) X(off) X(on) X(on_extended) X(on_extended_dred)
 
 // normal enums

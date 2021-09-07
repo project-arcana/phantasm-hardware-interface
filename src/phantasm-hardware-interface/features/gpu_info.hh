@@ -8,44 +8,38 @@
 
 namespace phi
 {
-enum class gpu_vendor : uint8_t
+enum class gpu_vendor
 {
+    INVALID = 0,
+
     amd,
     intel,
     nvidia,
     imgtec,
     arm,
     qualcomm,
-
     unknown
-};
-
-// opaque, API-specific capability level, higher is better
-enum class gpu_capabilities : uint8_t
-{
-    insufficient,
-    level_1,
-    level_2,
-    level_3
 };
 
 struct gpu_info
 {
-    char name[256];
-    unsigned index; ///< an index into an API-specific ordering
+    char name[256] = {};
 
-    size_t dedicated_video_memory_bytes;
-    size_t dedicated_system_memory_bytes;
-    size_t shared_system_memory_bytes;
+    // index into API-specific ordering
+    uint32_t index = 0;
 
-    gpu_vendor vendor;
-    gpu_capabilities capabilities;
-    bool has_raytracing;
+    // vendor based on PCIe ID
+    gpu_vendor vendor = gpu_vendor::INVALID;
+
+    // VRAM / shared memory
+    size_t dedicated_video_memory_bytes = 0;
+    size_t dedicated_system_memory_bytes = 0;
+    size_t shared_system_memory_bytes = 0;
 };
 
 gpu_vendor getGPUVendorFromPCIeID(unsigned vendor_id);
 
 size_t getPreferredGPU(cc::span<gpu_info const> candidates, adapter_preference preference);
 
-void printStartupMessage(cc::span<gpu_info const> gpu_candidates, size_t chosen_index, backend_config const& config, bool is_d3d12);
+void printStartupMessage(size_t numCandidates, gpu_info const* chosenCandidate, backend_config const& config, bool is_d3d12);
 } // namespace phi

@@ -196,15 +196,17 @@ cc::alloc_vector<phi::gpu_info> phi::vk::get_available_gpus(cc::span<const vulka
     for (auto i = 0u; i < vk_gpu_infos.size(); ++i)
     {
         auto const& ll_info = vk_gpu_infos[i];
+        if (!ll_info.is_suitable)
+        {
+            continue;
+        }
 
         auto& new_gpu = res.emplace_back_stable();
         new_gpu.index = i;
         new_gpu.vendor = getGPUVendorFromPCIeID(ll_info.physical_device_props.vendorID);
         std::snprintf(new_gpu.name, sizeof(new_gpu.name), "%s", ll_info.physical_device_props.deviceName);
 
-        // TODO: differentiate this somehow
-        new_gpu.capabilities = ll_info.is_suitable ? gpu_capabilities::level_1 : gpu_capabilities::insufficient;
-        new_gpu.has_raytracing = ll_info.available_layers_extensions.extensions.contains(VK_NV_RAY_TRACING_EXTENSION_NAME);
+        // new_gpu.has_raytracing = ll_info.available_layers_extensions.extensions.contains(VK_NV_RAY_TRACING_EXTENSION_NAME);
         new_gpu.dedicated_video_memory_bytes = 0;
         new_gpu.dedicated_system_memory_bytes = 0;
         new_gpu.shared_system_memory_bytes = 0;
