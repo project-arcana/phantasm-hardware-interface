@@ -1,5 +1,9 @@
 #include "pipeline_state.hh"
 
+#ifdef PHI_HAS_OPTICK
+#include <optick/optick.h>
+#endif
+
 #include <phantasm-hardware-interface/d3d12/common/d3dx12.hh>
 #include <phantasm-hardware-interface/d3d12/common/dxgi_format.hh>
 #include <phantasm-hardware-interface/d3d12/common/native_enum.hh>
@@ -93,7 +97,14 @@ ID3D12PipelineState* phi::d3d12::create_pipeline_state(ID3D12Device& device,
     pso_desc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
 
     ID3D12PipelineState* pso;
-    PHI_D3D12_VERIFY(device.CreateGraphicsPipelineState(&pso_desc, IID_PPV_ARGS(&pso)));
+
+    {
+#ifdef PHI_HAS_OPTICK
+        OPTICK_EVENT("ID3D12Device::CreateGraphicsPipelineState");
+#endif
+        PHI_D3D12_VERIFY(device.CreateGraphicsPipelineState(&pso_desc, IID_PPV_ARGS(&pso)));
+    }
+
     return pso;
 }
 
@@ -104,6 +115,13 @@ ID3D12PipelineState* phi::d3d12::create_compute_pipeline_state(ID3D12Device& dev
     pso_desc.CS = D3D12_SHADER_BYTECODE{binary_data, binary_size};
 
     ID3D12PipelineState* pso;
-    PHI_D3D12_VERIFY(device.CreateComputePipelineState(&pso_desc, IID_PPV_ARGS(&pso)));
+
+    {
+#ifdef PHI_HAS_OPTICK
+        OPTICK_EVENT("ID3D12Device::CreateComputePipelineState");
+#endif
+        PHI_D3D12_VERIFY(device.CreateComputePipelineState(&pso_desc, IID_PPV_ARGS(&pso)));
+    }
+
     return pso;
 }
