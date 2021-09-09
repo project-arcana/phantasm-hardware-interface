@@ -235,6 +235,24 @@ public:
     IDXGISwapChain3* nativeGetSwapchain(handle::swapchain sc) { return mPoolSwapchains.get(sc).swapchain_com; }
     ID3D12GraphicsCommandList5* nativeGetCommandList(handle::command_list cl) { return mPoolCmdLists.getRawList(cl); }
 
+    //
+    // disable or clear D3D runtime- and driver-level PSO caches, requires running in developer mode
+    // useful for profiling, especially startup and load times
+    // requires running in developer mode and access to ID3D12Device9
+    // affectD3DS: Disable or clear the D3D runtime cache and D3D runtime DXBC-to-DXIL cache (do not necessarily exist)
+    // affectDriver: Hint the driver to disable or clear its internal cache (if it has one)
+    // see https://microsoft.github.io/DirectX-Specs/d3d/ShaderCache.html for more info
+
+    enum class pso_cache_control_action
+    {
+        INVALID = 0,
+        disable = 0x1, // disable the caches - future PSO compilations won't read or write from them
+        enable = 0x2,  // re-enable the caches (enabled by default)
+        clear = 0x4,   // clear the caches - delete all existing contents
+    };
+
+    bool nativeControlPSOCaches(bool affectD3DS, bool affectDriver, pso_cache_control_action action);
+
 private:
     ID3D12CommandQueue* getQueueByType(queue_type type) const
     {

@@ -8,6 +8,7 @@
 #include <optick/optick.h>
 #endif
 
+#include <clean-core/defer.hh>
 #include <clean-core/vector.hh>
 
 #include <phantasm-hardware-interface/common/log.hh>
@@ -567,6 +568,48 @@ phi::vram_state_info phi::d3d12::BackendD3D12::nativeGetVRAMStateInfo()
     res.available_for_reservation_bytes = nativeInfo.AvailableForReservation;
     res.current_reservation_bytes = nativeInfo.CurrentReservation;
     return res;
+}
+
+bool phi::d3d12::BackendD3D12::nativeControlPSOCaches(bool affectD3DS, bool affectDriver, pso_cache_control_action action)
+{
+#ifndef __ID3D12Device9_INTERFACE_DEFINED__
+    PHI_LOG_ERROR("D3D12 PSO cache control requires ID3D12Device9 (as of Win10 21H1 only via Agility SDK or on Win11)");
+    return false;
+#else
+    CC_ASSERT(action != pso_cache_control_action::INVALID);
+
+    ID3D12Device9* dev9 = nullptr;
+    if (!SUCCEEDED(mDevice.getDevice()->QueryInterface(IID_PPV_ARGS(&dev9))) || dev9 == nullptr)
+    {
+        PHI_LOG_ERROR("D3D12 PSO cache control requires ID3D12Device9 - This binary was compiled with it but this runtime does not support it");
+        PHI_LOG_ERROR("Missing Agility SDK D3D12Core.dll?");
+        return false;
+    }
+
+    CC_DEFER { dev9->Release(); };
+
+    D3D12_SHADER_CACHE_KIND_FLAGS kindFlags = {};
+    if (affectD3DS)
+    {
+        kindFlags |= D3D12_SHADER_CACHE_KIND_FLAG_IMPLICIT_D3D_CACHE_FOR_DRIVER | D3D12_SHADER_CACHE_KIND_FLAG_IMPLICIT_D3D_CONVERSIONS;
+    }
+    if (affectDriver)
+    {
+        kindFlags |= D3D12_SHADER_CACHE_KIND_FLAG_IMPLICIT_DRIVER_MANAGED;
+    }
+
+    D3D12_SHADER_CACHE_CONTROL_FLAGS controlFlags = (D3D12_SHADER_CACHE_CONTROL_FLAGS)action;
+
+    auto const hres = dev9->ShaderCacheControl(kindFlags, controlFlags);
+
+    if (!SUCCEEDED(hres))
+    {
+        PHI_LOG_ERROR("Failed to apply D3D12 PSO Cache actions - not in developer mode?");
+        return false;
+    }
+
+    return true;
+#endif
 }
 
 phi::d3d12::BackendD3D12::per_thread_component& phi::d3d12::BackendD3D12::getCurrentThreadComponent()
