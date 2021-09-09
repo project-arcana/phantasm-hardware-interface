@@ -339,26 +339,25 @@ PHI_DEFINE_CMD(copy_buffer)
 {
     // Copy data between buffers
 
-    handle::resource source = handle::null_resource;
-    handle::resource destination = handle::null_resource;
-    size_t dest_offset_bytes = 0;
-    size_t source_offset_bytes = 0;
-    size_t size = 0;
+    buffer_address source;      ///< the source buffer
+    buffer_address destination; ///< the destination buffer
+
+    uint32_t num_bytes = 0; ///< the amount of bytes to copy
 
 public:
     copy_buffer() = default;
-    copy_buffer(handle::resource dest, size_t dest_offset, handle::resource src, size_t src_offset, size_t size)
-      : source(src), destination(dest), dest_offset_bytes(dest_offset), source_offset_bytes(src_offset), size(size)
+    copy_buffer(handle::resource dest, uint32_t dest_offset, handle::resource src, uint32_t src_offset, uint32_t size)
+      : source(buffer_address{src, src_offset}), destination(buffer_address{dest, dest_offset}), num_bytes(size)
     {
     }
 
-    void init(handle::resource src, handle::resource dest, size_t size, size_t src_offset = 0, size_t dst_offset = 0)
+    void init(handle::resource src, handle::resource dest, uint32_t size, uint32_t src_offset = 0, uint32_t dst_offset = 0)
     {
-        source = src;
-        destination = dest;
-        this->size = size;
-        source_offset_bytes = src_offset;
-        dest_offset_bytes = dst_offset;
+        source.buffer = src;
+        source.offset_bytes = src_offset;
+        destination.buffer = dest;
+        destination.offset_bytes = dst_offset;
+        num_bytes = size;
     }
 };
 
@@ -366,8 +365,9 @@ PHI_DEFINE_CMD(copy_texture)
 {
     // Copy data between textures
 
-    handle::resource source = handle::null_resource;
-    handle::resource destination = handle::null_resource;
+    handle::resource source = handle::null_resource;      ///< the source texture
+    handle::resource destination = handle::null_resource; ///< the destination texture
+
     uint32_t src_mip_index = 0;    ///< index of the MIP level to read from
     uint32_t src_array_index = 0;  ///< index of the first array element to read from (usually: 0)
     uint32_t dest_mip_index = 0;   ///< index of the MIP level to write to
@@ -396,9 +396,9 @@ PHI_DEFINE_CMD(copy_buffer_to_texture)
 {
     // Copy data from a buffer to a texture
 
-    handle::resource source = handle::null_resource;
-    handle::resource destination = handle::null_resource;
-    size_t source_offset_bytes = 0;
+    buffer_address source;                                ///< the source buffer
+    handle::resource destination = handle::null_resource; ///< the destination texture
+
     uint32_t dest_width = 0;       ///< width of the destination texture (in the specified MIP level and array element)
     uint32_t dest_height = 0;      ///< height of the destination texture (in the specified MIP level and array element)
     uint32_t dest_mip_index = 0;   ///< index of the MIP level to copy
@@ -407,9 +407,9 @@ PHI_DEFINE_CMD(copy_buffer_to_texture)
 public:
     void init(handle::resource src, handle::resource dest, uint32_t dest_w, uint32_t dest_h, size_t src_offset = 0, uint32_t dest_mip_i = 0, uint32_t dest_arr_i = 0)
     {
-        source = src;
+        source.buffer = src;
+        source.offset_bytes = src_offset;
         destination = dest;
-        source_offset_bytes = src_offset;
         dest_width = dest_w;
         dest_height = dest_h;
         dest_mip_index = dest_mip_i;
@@ -421,9 +421,9 @@ PHI_DEFINE_CMD(copy_texture_to_buffer)
 {
     // Copy data from a texture to a buffer
 
-    handle::resource source = handle::null_resource;
-    handle::resource destination = handle::null_resource;
-    size_t dest_offset = 0;
+    handle::resource source = handle::null_resource; ///< the source texture
+    buffer_address destination;                      ///< the destination buffer
+
     uint32_t src_width = 0;       ///< width of the source texture (in the specified MIP level and array element)
     uint32_t src_height = 0;      ///< height of the destination texture (in the specified MIP level and array element)
     uint32_t src_mip_index = 0;   ///< index of the MIP level to copy
@@ -433,8 +433,8 @@ public:
     void init(handle::resource src, handle::resource dest, uint32_t src_w, uint32_t src_h, size_t dest_off = 0, uint32_t src_mip_i = 0, uint32_t src_arr_i = 0)
     {
         source = src;
-        destination = dest;
-        dest_offset = dest_off;
+        destination.buffer = dest;
+        destination.offset_bytes = dest_off;
         src_width = src_w;
         src_height = src_h;
         src_mip_index = src_mip_i;
@@ -448,12 +448,13 @@ PHI_DEFINE_CMD(resolve_texture)
 
     handle::resource source = handle::null_resource;      ///< the multisampled source texture
     handle::resource destination = handle::null_resource; ///< the non-multisampled destination texture
-    uint32_t src_mip_index = 0;                           ///< index of the MIP level to read from (usually: 0)
-    uint32_t src_array_index = 0;                         ///< index of the array element to read from (usually: 0)
-    uint32_t dest_mip_index = 0;                          ///< index of the MIP level to write to (usually: 0)
-    uint32_t dest_array_index = 0;                        ///< index of the array element to write to (usually: 0)
-    uint32_t width = 0;  ///< width of the destination texture (in the specified MIP map and array element) (ignored on d3d12)
-    uint32_t height = 0; ///< height of the destination texture (in the specified MIP map and array element) (ignored on d3d12)
+
+    uint32_t src_mip_index = 0;    ///< index of the MIP level to read from (usually: 0)
+    uint32_t src_array_index = 0;  ///< index of the array element to read from (usually: 0)
+    uint32_t dest_mip_index = 0;   ///< index of the MIP level to write to (usually: 0)
+    uint32_t dest_array_index = 0; ///< index of the array element to write to (usually: 0)
+    uint32_t width = 0;            ///< width of the destination texture (in the specified MIP map and array element) (ignored on d3d12)
+    uint32_t height = 0;           ///< height of the destination texture (in the specified MIP map and array element) (ignored on d3d12)
 
 public:
     void init_symmetric(handle::resource src, handle::resource dest, uint32_t width, uint32_t height, uint32_t mip_index = 0, uint32_t array_index = 0)
@@ -491,20 +492,20 @@ PHI_DEFINE_CMD(resolve_queries)
     // typically dest_buffer would be a readback buffer
     // to interpret timestamp results, see get_timestamp_difference_microseconds in util.hh
 
-    handle::resource dest_buffer = handle::null_resource;           ///< the buffer in which to write the resolve data
+    buffer_address destination;                                     ///< the buffer in which to write the resolve data
     handle::query_range src_query_range = handle::null_query_range; ///< the query_range from which to read
-    uint32_t query_start = 0;                                       ///< relative index into the query_range, element to start the resolve from
-    uint32_t num_queries = 1;                                       ///< amount of elements to resolve
-    uint32_t dest_offset_bytes = 0;                                 ///< offset into the destination buffer
+
+    uint32_t query_start = 0; ///< relative index into the query_range, element to start the resolve from
+    uint32_t num_queries = 1; ///< amount of elements to resolve
 
 public:
     void init(handle::resource dest, handle::query_range qr, uint32_t start = 0, uint32_t num = 1, uint32_t dest_offset = 0)
     {
-        dest_buffer = dest;
+        destination.buffer = dest;
+        destination.offset_bytes = dest_offset;
         src_query_range = qr;
         query_start = start;
         num_queries = num;
-        this->dest_offset_bytes = dest_offset;
     }
 };
 

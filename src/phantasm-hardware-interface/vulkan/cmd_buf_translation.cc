@@ -491,16 +491,16 @@ void phi::vk::command_list_translator::execute(const phi::cmd::barrier_uav&)
 
 void phi::vk::command_list_translator::execute(const phi::cmd::copy_buffer& copy_buf)
 {
-    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(copy_buf.source, copy_buf.source_offset_bytes, copy_buf.size) && "copy_buffer source OOB");
-    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(copy_buf.destination, copy_buf.dest_offset_bytes, copy_buf.size) && "copy_buffer dest OOB");
+    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(copy_buf.source, copy_buf.num_bytes) && "copy_buffer source OOB");
+    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(copy_buf.destination, copy_buf.num_bytes) && "copy_buffer dest OOB");
 
     auto const src_buffer = _globals.pool_resources->getRawBuffer(copy_buf.source);
     auto const dest_buffer = _globals.pool_resources->getRawBuffer(copy_buf.destination);
 
     VkBufferCopy region = {};
-    region.size = copy_buf.size;
-    region.srcOffset = copy_buf.source_offset_bytes;
-    region.dstOffset = copy_buf.dest_offset_bytes;
+    region.size = copy_buf.num_bytes;
+    region.srcOffset = copy_buf.source.offset_bytes;
+    region.dstOffset = copy_buf.destination.offset_bytes;
     vkCmdCopyBuffer(_cmd_list, src_buffer, dest_buffer, 1, &region);
 }
 
@@ -532,7 +532,7 @@ void phi::vk::command_list_translator::execute(const phi::cmd::copy_buffer_to_te
     auto const& dest_image_info = _globals.pool_resources->getImageInfo(copy_text.destination);
 
     VkBufferImageCopy region = {};
-    region.bufferOffset = uint32_t(copy_text.source_offset_bytes);
+    region.bufferOffset = copy_text.source.offset_bytes;
     region.imageSubresource.aspectMask = util::to_native_image_aspect(dest_image_info.pixel_format);
     region.imageSubresource.baseArrayLayer = copy_text.dest_array_index;
     region.imageSubresource.layerCount = 1;
@@ -547,15 +547,18 @@ void phi::vk::command_list_translator::execute(const phi::cmd::copy_buffer_to_te
 void phi::vk::command_list_translator::execute(const phi::cmd::copy_texture_to_buffer& copy_text)
 {
     auto const src_image = _globals.pool_resources->getRawImage(copy_text.source);
-    auto const& src_image_info = _globals.pool_resources->getImageInfo(copy_text.destination);
-    auto const dest_buffer = _globals.pool_resources->getRawBuffer(copy_text.destination);
+    auto const& src_image_info = _globals.pool_resources->getImageInfo(copy_text.destination.buffer);
+    auto const dest_buffer = _globals.pool_resources->getRawBuffer(copy_text.destination.buffer);
 
     VkBufferImageCopy region = {};
-    region.bufferOffset = uint32_t(copy_text.dest_offset);
+    region.bufferOffset = copy_text.destination.offset_bytes;
     region.imageSubresource.aspectMask = util::to_native_image_aspect(src_image_info.pixel_format);
     region.imageSubresource.baseArrayLayer = copy_text.src_array_index;
     region.imageSubresource.layerCount = 1;
     region.imageSubresource.mipLevel = copy_text.src_mip_index;
+    region.imageOffset.x = 0;
+    region.imageOffset.y = 0;
+    region.imageOffset.z = 0;
     region.imageExtent.width = copy_text.src_width;
     region.imageExtent.height = copy_text.src_height;
     region.imageExtent.depth = 1;
@@ -612,12 +615,13 @@ void phi::vk::command_list_translator::execute(const phi::cmd::resolve_queries& 
     VkQueryPool raw_pool;
     uint32_t const query_index_start = _globals.pool_queries->getQuery(resolve.src_query_range, resolve.query_start, raw_pool, type);
 
-    VkBuffer const raw_dest_buffer = _globals.pool_resources->getRawBuffer(resolve.dest_buffer);
+    VkBuffer const raw_dest_buffer = _globals.pool_resources->getRawBuffer(resolve.destination);
 
-    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(resolve.dest_buffer, resolve.num_queries * sizeof(uint64_t), resolve.dest_offset_bytes)
+    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(resolve.destination, resolve.num_queries * sizeof(uint64_t))
               && "resolve query destination buffer accessed OOB");
     VkQueryResultFlags flags = VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT;
-    vkCmdCopyQueryPoolResults(_cmd_list, raw_pool, query_index_start, resolve.num_queries, raw_dest_buffer, resolve.dest_offset_bytes, sizeof(uint64_t), flags);
+    vkCmdCopyQueryPoolResults(_cmd_list, raw_pool, query_index_start, resolve.num_queries, raw_dest_buffer, resolve.destination.offset_bytes,
+                              sizeof(uint64_t), flags);
 }
 
 void phi::vk::command_list_translator::execute(const phi::cmd::begin_debug_label& label)
