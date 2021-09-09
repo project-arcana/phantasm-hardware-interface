@@ -58,7 +58,7 @@ struct backend_config
     // relevant if using adapter_preference::explicit_index, an index into the native adapter ordering
     uint32_t explicit_adapter_index = uint32_t(-1);
 
-    enum native_feature_flags : uint8_t
+    enum native_feature_flags : uint32_t
     {
         native_feature_none = 0,
 
@@ -82,7 +82,7 @@ struct backend_config
     };
 
     // native features to enable
-    uint8_t native_features = native_feature_none;
+    uint32_t native_features = native_feature_none;
 
     // whether to enable DXR / VK raytracing features if available
     bool enable_raytracing = true;

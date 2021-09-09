@@ -619,11 +619,11 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::barrier_uav& b
 
 void phi::d3d12::command_list_translator::execute(const phi::cmd::copy_buffer& copy_buf)
 {
-    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(copy_buf.source, copy_buf.source_offset_bytes, copy_buf.size) && "copy_buffer source OOB");
-    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(copy_buf.destination, copy_buf.dest_offset_bytes, copy_buf.size) && "copy_buffer dest OOB");
+    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(copy_buf.source, copy_buf.num_bytes) && "copy_buffer source OOB");
+    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(copy_buf.destination, copy_buf.num_bytes) && "copy_buffer dest OOB");
 
-    _cmd_list->CopyBufferRegion(_globals.pool_resources->getRawResource(copy_buf.destination), copy_buf.dest_offset_bytes,
-                                _globals.pool_resources->getRawResource(copy_buf.source), copy_buf.source_offset_bytes, copy_buf.size);
+    _cmd_list->CopyBufferRegion(_globals.pool_resources->getRawResource(copy_buf.destination), copy_buf.destination.offset_bytes,
+                                _globals.pool_resources->getRawResource(copy_buf.source), copy_buf.source.offset_bytes, copy_buf.num_bytes);
 }
 
 void phi::d3d12::command_list_translator::execute(const phi::cmd::copy_texture& copy_text)
@@ -671,7 +671,7 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::copy_buffer_to
     }
 
     D3D12_PLACED_SUBRESOURCE_FOOTPRINT placed_footprint;
-    placed_footprint.Offset = copy_text.source_offset_bytes;
+    placed_footprint.Offset = copy_text.source.offset_bytes;
     placed_footprint.Footprint = footprint;
 
     auto const subres_index = copy_text.dest_mip_index + copy_text.dest_array_index * dest_info.num_mips;
@@ -693,13 +693,24 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::copy_texture_t
     footprint.RowPitch = phi::util::align_up(phi::util::get_format_size_bytes(src_info.pixel_format) * copy_text.src_width, 256);
 
     D3D12_PLACED_SUBRESOURCE_FOOTPRINT dest_placed_footprint;
-    dest_placed_footprint.Offset = copy_text.dest_offset;
+    dest_placed_footprint.Offset = copy_text.destination.offset_bytes;
     dest_placed_footprint.Footprint = footprint;
 
     auto const source_subres_index = copy_text.src_mip_index + copy_text.src_array_index * src_info.num_mips;
 
     CD3DX12_TEXTURE_COPY_LOCATION const source(_globals.pool_resources->getRawResource(copy_text.source), source_subres_index);
     CD3DX12_TEXTURE_COPY_LOCATION const dest(_globals.pool_resources->getRawResource(copy_text.destination), dest_placed_footprint);
+
+    // TODO: last argument to CopyTextureRegion, add offset/extent fields to the command
+    // TODO: support for 3D textures
+    D3D12_BOX sourceBox;
+    sourceBox.left = 0;
+    sourceBox.top = 0;
+    sourceBox.front = 0;
+    sourceBox.right = copy_text.src_width;
+    sourceBox.bottom = copy_text.src_height;
+    sourceBox.back = 1;
+
     _cmd_list->CopyTextureRegion(&dest, 0, 0, 0, &source, nullptr);
 }
 
@@ -730,10 +741,10 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::resolve_querie
     ID3D12QueryHeap* heap;
     UINT const query_index_start = _globals.pool_queries->getQuery(resolve.src_query_range, resolve.query_start, heap, type);
 
-    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(resolve.dest_buffer, resolve.num_queries * sizeof(UINT64), resolve.dest_offset_bytes)
+    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(resolve.destination, resolve.num_queries * sizeof(UINT64))
               && "resolve query destination buffer accessed OOB");
-    ID3D12Resource* const raw_dest_buffer = _globals.pool_resources->getRawResource(resolve.dest_buffer);
-    _cmd_list->ResolveQueryData(heap, util::to_query_type(type), query_index_start, resolve.num_queries, raw_dest_buffer, resolve.dest_offset_bytes);
+    ID3D12Resource* const raw_dest_buffer = _globals.pool_resources->getRawResource(resolve.destination);
+    _cmd_list->ResolveQueryData(heap, util::to_query_type(type), query_index_start, resolve.num_queries, raw_dest_buffer, resolve.destination.offset_bytes);
 }
 
 void phi::d3d12::command_list_translator::execute(const phi::cmd::begin_debug_label& label)
