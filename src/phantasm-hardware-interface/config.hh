@@ -93,6 +93,10 @@ struct backend_config
     // whether to skip subsystem inits that can be performed in parallel, must use initializeParallel afterwards
     bool enable_parallel_init = false;
 
+    // whether to skip queue inits, must use initializeQueues afterwards
+    // useful to start PSO compilation threads earlier during startup
+    bool enable_delayed_queue_init = false;
+
     // amount of threads to accomodate
     // backend calls must only be made from <= [num_threads] unique OS threads
     uint32_t num_threads = 1;

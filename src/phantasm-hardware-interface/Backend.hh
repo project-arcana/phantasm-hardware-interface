@@ -27,6 +27,11 @@ public:
     /// intended to be called in parallel
     virtual void initializeParallel(backend_config const& config, uint32_t idx);
 
+    /// delayed queue init: If enabled, call this after the main call to initialize()
+    /// creating queues takes up about 30% of init time and can be delayed in order to start earlier with PSO compiles
+    /// must only use initializeParallel and PSO creation before this is called
+    virtual void initializeQueues(backend_config const& config);
+
     virtual void flushGPU() = 0;
 
     //
