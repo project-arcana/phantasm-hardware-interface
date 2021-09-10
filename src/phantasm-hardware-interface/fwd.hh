@@ -18,6 +18,18 @@ namespace vk
 class BackendVulkan;
 }
 
+namespace handle
+{
+struct resource;
+struct pipeline_state;
+struct shader_view;
+struct command_list;
+struct swapchain;
+struct fence;
+struct query_range;
+struct accel_struct;
+} // namespace handle
+
 // config structs
 struct backend_config;
 struct window_handle;
