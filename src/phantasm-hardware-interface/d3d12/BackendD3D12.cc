@@ -57,35 +57,17 @@ void phi::d3d12::BackendD3D12::initialize(const phi::backend_config& config)
 
     auto* const device = mDevice.getDevice();
 
-    // queues
+
+    // Diagnostics
     {
 #ifdef PHI_HAS_OPTICK
-        OPTICK_EVENT("Queues");
-#endif
-
-        mDirectQueue.initialize(device, queue_type::direct);
-        mComputeQueue.initialize(device, queue_type::compute);
-        mCopyQueue.initialize(device, queue_type::copy);
-    }
-
-    // Diagnostics and Profiling
-    {
-#ifdef PHI_HAS_OPTICK
-        OPTICK_EVENT("Diagnostics and Optick Setup");
+        OPTICK_EVENT("Diagnostics Setup");
 #endif
 
         mDiagnostics.init();
-
-#ifdef PHI_HAS_OPTICK
-        ID3D12Device* device = nativeGetDevice();
-        // for some reason optick interprets the amount of cmd queues as the device node count (device->getNodeCount())
-        // thus only use the direct queue here
-        ID3D12CommandQueue* cmdQueues[] = {nativeGetDirectQueue()};
-        OPTICK_GPU_INIT_D3D12(device, cmdQueues, CC_COUNTOF(cmdQueues));
-#endif
     }
 
-    // Global pools
+    // Global pools - except for swapchain pool
     {
 #ifdef PHI_HAS_OPTICK
         OPTICK_EVENT("Pools");
@@ -103,8 +85,6 @@ void phi::d3d12::BackendD3D12::initialize(const phi::backend_config& config)
             mPoolAccelStructs.initialize(device, &mPoolResources, config.max_num_accel_structs, config.static_allocator, config.dynamic_allocator);
             mShaderTableCtor.initialize(device, &mPoolShaderViews, &mPoolResources, &mPoolPSOs, &mPoolAccelStructs);
         }
-
-        mPoolSwapchains.initialize(&mAdapter.getFactory(), device, mDirectQueue.command_queue, config.max_num_swapchains, config.static_allocator);
     }
 
     // Per-thread components and command list pool
@@ -146,6 +126,11 @@ void phi::d3d12::BackendD3D12::initialize(const phi::backend_config& config)
             }
         }
     }
+
+    if (!config.enable_delayed_queue_init)
+    {
+        initializeQueues(config);
+    }
 }
 
 void phi::d3d12::BackendD3D12::initializeParallel(backend_config const& config, uint32_t idx)
@@ -157,6 +142,37 @@ void phi::d3d12::BackendD3D12::initializeParallel(backend_config const& config, 
 
     ID3D12Device5* device = nativeGetDevice();
     mPoolCmdLists.initialize_nth_thread(device, idx, cmdAllocators);
+}
+
+void phi::d3d12::BackendD3D12::initializeQueues(backend_config const& config)
+{
+    auto* const device = mDevice.getDevice();
+
+    // queues
+    {
+#ifdef PHI_HAS_OPTICK
+        OPTICK_EVENT("Queues");
+#endif
+
+        mDirectQueue.initialize(device, queue_type::direct);
+        mComputeQueue.initialize(device, queue_type::compute);
+        mCopyQueue.initialize(device, queue_type::copy);
+    }
+
+#ifdef PHI_HAS_OPTICK
+    // Profiling GPU init (requires queues)
+    {
+        OPTICK_EVENT("Optick GPU Setup");
+
+        ID3D12Device* device = nativeGetDevice();
+        // for some reason optick interprets the amount of cmd queues as the device node count (device->getNodeCount())
+        // thus only use the direct queue here
+        ID3D12CommandQueue* cmdQueues[] = {nativeGetDirectQueue()};
+        OPTICK_GPU_INIT_D3D12(device, cmdQueues, CC_COUNTOF(cmdQueues));
+    }
+#endif
+
+    mPoolSwapchains.initialize(&mAdapter.getFactory(), device, mDirectQueue.command_queue, config.max_num_swapchains, config.static_allocator);
 }
 
 void phi::d3d12::BackendD3D12::destroy()
