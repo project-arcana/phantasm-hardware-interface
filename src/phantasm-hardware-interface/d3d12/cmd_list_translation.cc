@@ -65,31 +65,61 @@ void phi::d3d12::command_list_translator::translateCommandList(
     _last_code_location.reset();
 
     {
-        // start Optick context
+        command_stream_parser parser(buffer, buffer_size);
+        command_stream_parser::iterator parserIterator = parser.begin();
+
+        cmd::set_global_profile_scope const* cmdGlobalProfile = nullptr;
+        if (parserIterator.has_cmds_left() && parserIterator.get_current_cmd_type() == phi::cmd::detail::cmd_type::set_global_profile_scope)
+        {
+            // if the very first command is set_global_profile_scope, use the provided event instead of the static one
+            cmdGlobalProfile = static_cast<cmd::set_global_profile_scope const*>(parserIterator.get_current_cmd());
+            parserIterator.skip_one_cmd();
+        }
+
+
 #ifdef PHI_HAS_OPTICK
+
+        // start Optick context
         OPTICK_GPU_CONTEXT(_cmd_list, phiQueueTypeToOptickD3D12(_current_queue_type));
-        _current_optick_event = nullptr;
-        OPTICK_GPU_EVENT("PHI Command List");
+
+        // static default optick event if none is user supplied
+        PHI_CREATE_OPTICK_EVENT(defaultOptickEvt, "PHI Command List");
+
+        // use the set_global_profile_scope event if available
+        Optick::EventDescription* globalOptickEvtDesc = defaultOptickEvt;
+        if (cmdGlobalProfile && cmdGlobalProfile->optick_event)
+        {
+            globalOptickEvtDesc = cmdGlobalProfile->optick_event;
+        }
+
+        // start the optick GPU event and tag the buffer size
+        Optick::EventData* const globalOptickEvt = Optick::GPUEvent::Start(*globalOptickEvtDesc);
         OPTICK_TAG("Size (Byte)", buffer_size);
+
+        _current_optick_event = nullptr;
 #endif
 
+        // bind the global descriptor heaps
         auto const gpu_heaps = _globals.pool_shader_views->getGPURelevantHeaps();
         _cmd_list->SetDescriptorHeaps(UINT(gpu_heaps.size()), gpu_heaps.data());
 
         // translate all contained commands
-        command_stream_parser parser(buffer, buffer_size);
-        for (auto const& cmd : parser)
+        while (parserIterator.has_cmds_left())
         {
-            cmd::detail::dynamic_dispatch(cmd, *this);
+            cmd::detail::dynamic_dispatch(*parserIterator.get_current_cmd(), *this);
+            parserIterator.skip_one_cmd();
         }
 
-        // end last pending optick event
 #ifdef PHI_HAS_OPTICK
         if (_current_optick_event)
         {
+            // end last pending optick event
             Optick::GPUEvent::Stop(*_current_optick_event);
             _current_optick_event = nullptr;
         }
+
+        // end the global optick event
+        Optick::GPUEvent::Stop(*globalOptickEvt);
 #endif
     }
 
@@ -971,6 +1001,11 @@ void phi::d3d12::command_list_translator::execute(cmd::code_location_marker cons
     _last_code_location.file = marker.file;
     _last_code_location.function = marker.function;
     _last_code_location.line = marker.line;
+}
+
+void phi::d3d12::command_list_translator::execute(cmd::set_global_profile_scope const&)
+{
+    // do nothing
 }
 
 void phi::d3d12::command_list_translator::bind_vertex_buffers(handle::resource const vertex_buffers[limits::max_vertex_buffers])
