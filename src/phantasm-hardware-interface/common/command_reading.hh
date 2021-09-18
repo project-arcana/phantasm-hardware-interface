@@ -14,9 +14,8 @@ namespace phi::cmd::detail
 PHI_CMD_TYPE_VALUES
 #undef PHI_X
 
-    /// returns the size in bytes of the given command
-    [[nodiscard]] inline size_t
-    get_command_size(detail::cmd_type type)
+/// returns the size in bytes of the given command
+[[nodiscard]] inline size_t get_command_size(detail::cmd_type type)
 {
     switch (type)
     {
@@ -69,7 +68,7 @@ void dynamic_dispatch(detail::cmd_base const& base, F& callback)
 #undef PHI_X
     return res;
 }
-}
+} // namespace phi::cmd::detail
 
 namespace phi
 {
@@ -87,17 +86,30 @@ public:
         {
         }
 
-        bool operator!=(iterator_end) const noexcept { return _remaining_size > 0; }
+        bool has_cmds_left() const noexcept { return _remaining_size > 0; }
 
-        iterator& operator++()
+        void skip_one_cmd() noexcept
         {
-            auto const advance = cmd::detail::get_command_size(_pos->s_internal_type);
-            _pos = reinterpret_cast<cmd::detail::cmd_base const*>(reinterpret_cast<std::byte const*>(_pos) + advance);
-            _remaining_size -= advance;
+            auto const num_bytes = cmd::detail::get_command_size(_pos->s_internal_type);
+            _pos = reinterpret_cast<cmd::detail::cmd_base const*>(reinterpret_cast<std::byte const*>(_pos) + num_bytes);
+            _remaining_size -= num_bytes;
+        }
+
+        cmd::detail::cmd_base const* get_current_cmd() const noexcept { return _pos; }
+
+        cmd::detail::cmd_type get_current_cmd_type() const noexcept { return _pos->s_internal_type; }
+
+        // operators to enable ranged for loops:
+
+        bool operator!=(iterator_end) const noexcept { return has_cmds_left(); }
+
+        iterator& operator++() noexcept
+        {
+            skip_one_cmd();
             return *this;
         }
 
-        cmd::detail::cmd_base const& operator*() const { return *(_pos); }
+        cmd::detail::cmd_base const& operator*() const noexcept { return *(_pos); }
 
     private:
         cmd::detail::cmd_base const* _pos = nullptr;
@@ -121,4 +133,4 @@ private:
     std::byte const* _in_buffer = nullptr;
     size_t _size = 0;
 };
-}
+} // namespace phi

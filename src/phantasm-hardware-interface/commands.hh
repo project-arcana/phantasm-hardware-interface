@@ -543,6 +543,22 @@ PHI_DEFINE_CMD(end_profile_scope){
     // Close a profile scope started with cmd::begin_profile_scope
 };
 
+PHI_DEFINE_CMD(set_global_profile_scope)
+{
+    // Sets the GLOBAL profile scope of the current command list,
+    // replacing the builtin one (builtin is called "PHI Command List")
+    // must be the very first command in the buffer, ignored otherwise
+    // does not require end_profile_scope
+    //
+    // usage depends on enabled profilers, see CMake options
+
+#ifdef PHI_HAS_OPTICK
+    // point to a manually allocated Optick EventDescription
+    // create one using PHI_CREATE_OPTICK_EVENT(VariableName, NameString)
+    Optick::EventDescription* optick_event = nullptr;
+#endif
+};
+
 PHI_DEFINE_CMD(update_bottom_level)
 {
     // Update or build a bottom level raytracing acceleration structure (BLAS)

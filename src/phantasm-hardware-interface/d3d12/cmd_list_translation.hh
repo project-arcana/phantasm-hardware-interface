@@ -101,6 +101,8 @@ struct command_list_translator
 
     void execute(cmd::code_location_marker const& marker);
 
+    void execute(cmd::set_global_profile_scope const&);
+
 private:
     void bind_vertex_buffers(handle::resource const vertex_buffers[limits::max_vertex_buffers]);
 
