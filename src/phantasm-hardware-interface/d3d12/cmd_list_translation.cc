@@ -96,7 +96,7 @@ void phi::d3d12::command_list_translator::translateCommandList(
         Optick::EventData* const globalOptickEvt = Optick::GPUEvent::Start(*globalOptickEvtDesc);
         OPTICK_TAG("Size (Byte)", buffer_size);
 
-        _current_optick_event = nullptr;
+        _current_optick_event_stack.clear();
 #endif
 
         // bind the global descriptor heaps
@@ -111,11 +111,11 @@ void phi::d3d12::command_list_translator::translateCommandList(
         }
 
 #ifdef PHI_HAS_OPTICK
-        if (_current_optick_event)
+        // end last pending optick events
+        while (!_current_optick_event_stack.empty())
         {
-            // end last pending optick event
-            Optick::GPUEvent::Stop(*_current_optick_event);
-            _current_optick_event = nullptr;
+            Optick::GPUEvent::Stop(*_current_optick_event_stack.back());
+            _current_optick_event_stack.pop_back();
         }
 
         // end the global optick event
@@ -792,15 +792,15 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::end_debug_labe
 void phi::d3d12::command_list_translator::execute(cmd::begin_profile_scope const& scope)
 {
 #ifdef PHI_HAS_OPTICK
-    if (_current_optick_event)
+    if (_current_optick_event_stack.full())
     {
-        Optick::GPUEvent::Stop(*_current_optick_event);
-        _current_optick_event = nullptr;
+        PHI_LOG_WARN("Profile scopes are nested too deep, trace will be distorted");
+        return;
     }
 
     if (scope.optick_event)
     {
-        _current_optick_event = Optick::GPUEvent::Start(*scope.optick_event);
+        _current_optick_event_stack.push_back(Optick::GPUEvent::Start(*scope.optick_event));
     }
 #endif
 }
@@ -808,10 +808,10 @@ void phi::d3d12::command_list_translator::execute(cmd::begin_profile_scope const
 void phi::d3d12::command_list_translator::execute(cmd::end_profile_scope const&)
 {
 #ifdef PHI_HAS_OPTICK
-    if (_current_optick_event)
+    if (!_current_optick_event_stack.empty())
     {
-        Optick::GPUEvent::Stop(*_current_optick_event);
-        _current_optick_event = nullptr;
+        Optick::GPUEvent::Stop(*_current_optick_event_stack.back());
+        _current_optick_event_stack.pop_back();
     }
 #endif
 }

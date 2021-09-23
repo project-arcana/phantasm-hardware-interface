@@ -1,5 +1,7 @@
 #pragma once
 
+#include <clean-core/capped_vector.hh>
+
 #include <phantasm-hardware-interface/commands.hh>
 
 #include <phantasm-hardware-interface/d3d12/fwd.hh>
@@ -225,7 +227,7 @@ private:
 
 // debug state - current Optick GPU Event
 #ifdef PHI_HAS_OPTICK
-    Optick::EventData* _current_optick_event = nullptr;
+    cc::capped_vector<Optick::EventData*, 8> _current_optick_event_stack;
 #endif
 };
 
