@@ -405,7 +405,8 @@ PHI_DEFINE_CMD(copy_buffer_to_texture)
     uint32_t dest_array_index = 0; ///< index of the array element to copy (usually: 0)
 
 public:
-    void init(handle::resource src, handle::resource dest, uint32_t dest_w, uint32_t dest_h, size_t src_offset = 0, uint32_t dest_mip_i = 0, uint32_t dest_arr_i = 0)
+    void init(handle::resource src, handle::resource dest, uint32_t dest_w, uint32_t dest_h, uint32_t src_offset = 0, uint32_t dest_mip_i = 0,
+              uint32_t dest_arr_i = 0)
     {
         source.buffer = src;
         source.offset_bytes = src_offset;
@@ -430,7 +431,7 @@ PHI_DEFINE_CMD(copy_texture_to_buffer)
     uint32_t src_array_index = 0; ///< index of the array element to copy (usually: 0)
 
 public:
-    void init(handle::resource src, handle::resource dest, uint32_t src_w, uint32_t src_h, size_t dest_off = 0, uint32_t src_mip_i = 0, uint32_t src_arr_i = 0)
+    void init(handle::resource src, handle::resource dest, uint32_t src_w, uint32_t src_h, uint32_t dest_off = 0, uint32_t src_mip_i = 0, uint32_t src_arr_i = 0)
     {
         source = src;
         destination.buffer = dest;
