@@ -100,9 +100,9 @@ phi::handle::accel_struct phi::d3d12::AccelStructPool::createBottomLevelAS(cc::s
 
     if (out_prebuild_info)
     {
-        out_prebuild_info->buffer_size_bytes = prebuild_info.ResultDataMaxSizeInBytes;
-        out_prebuild_info->required_build_scratch_size_bytes = prebuild_info.ScratchDataSizeInBytes;
-        out_prebuild_info->required_update_scratch_size_bytes = prebuild_info.UpdateScratchDataSizeInBytes;
+        out_prebuild_info->buffer_size_bytes = (uint32_t)prebuild_info.ResultDataMaxSizeInBytes;
+        out_prebuild_info->required_build_scratch_size_bytes = (uint32_t)prebuild_info.ScratchDataSizeInBytes;
+        out_prebuild_info->required_update_scratch_size_bytes = (uint32_t)prebuild_info.UpdateScratchDataSizeInBytes;
     }
 
     // PHI_LOG_TRACE("Created BLAS for {} elements, {} B AS, {} B Scratch", elements.size(), prebuild_info.ResultDataMaxSizeInBytes, scratchSize);
@@ -155,9 +155,9 @@ phi::handle::accel_struct phi::d3d12::AccelStructPool::createTopLevelAS(unsigned
 
     if (out_prebuild_info)
     {
-        out_prebuild_info->buffer_size_bytes = prebuild_info.ResultDataMaxSizeInBytes;
-        out_prebuild_info->required_build_scratch_size_bytes = prebuild_info.ScratchDataSizeInBytes;
-        out_prebuild_info->required_update_scratch_size_bytes = prebuild_info.UpdateScratchDataSizeInBytes;
+        out_prebuild_info->buffer_size_bytes = (uint32_t)prebuild_info.ResultDataMaxSizeInBytes;
+        out_prebuild_info->required_build_scratch_size_bytes = (uint32_t)prebuild_info.ScratchDataSizeInBytes;
+        out_prebuild_info->required_update_scratch_size_bytes = (uint32_t)prebuild_info.UpdateScratchDataSizeInBytes;
     }
 
     return res_handle;
@@ -196,10 +196,12 @@ void phi::d3d12::AccelStructPool::destroy()
     if (mDevice != nullptr)
     {
         auto num_leaks = 0;
-        mPool.iterate_allocated_nodes([&](accel_struct_node& leaked_node) {
-            ++num_leaks;
-            internalFree(leaked_node);
-        });
+        mPool.iterate_allocated_nodes(
+            [&](accel_struct_node& leaked_node)
+            {
+                ++num_leaks;
+                internalFree(leaked_node);
+            });
 
         if (num_leaks > 0)
         {
