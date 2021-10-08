@@ -14,8 +14,6 @@
 #include <phantasm-hardware-interface/common/log.hh>
 #include <phantasm-hardware-interface/window_handle.hh>
 
-#include <rich-log/logger.hh>
-
 #include "cmd_list_translation.hh"
 #include "common/dxgi_format.hh"
 #include "common/native_enum.hh"
@@ -36,9 +34,6 @@ void phi::d3d12::BackendD3D12::initialize(const phi::backend_config& config)
 #ifdef PHI_HAS_OPTICK
     OPTICK_EVENT();
 #endif
-
-    // enable colors as rich-log is used by this library
-    rlog::enable_win32_colors();
 
     mFlushEvent = CreateEventEx(nullptr, FALSE, FALSE, EVENT_ALL_ACCESS);
     CC_ASSERT(mFlushEvent != INVALID_HANDLE_VALUE && "failed to create win32 event");
