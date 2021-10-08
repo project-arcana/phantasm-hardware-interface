@@ -8,8 +8,6 @@
 #include <clean-core/defer.hh>
 #include <clean-core/native/win32_util.hh>
 
-#include <rich-log/logger.hh>
-
 #include <phantasm-hardware-interface/common/log.hh>
 #include <phantasm-hardware-interface/config.hh>
 
@@ -43,9 +41,6 @@ constexpr VkPipelineStageFlags const gc_wait_dst_masks[8]
 
 void phi::vk::BackendVulkan::initialize(const backend_config& config_arg)
 {
-    // enable colors as rich-log is used by this library
-    rlog::enable_win32_colors();
-
     // initialize vulkan loader
     PHI_VK_VERIFY_SUCCESS(volkInitialize());
 
