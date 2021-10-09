@@ -585,12 +585,12 @@ void phi::vk::command_list_translator::execute(const phi::cmd::copy_texture_to_b
     region.imageSubresource.baseArrayLayer = copy_text.src_array_index;
     region.imageSubresource.layerCount = 1;
     region.imageSubresource.mipLevel = copy_text.src_mip_index;
-    region.imageOffset.x = 0;
-    region.imageOffset.y = 0;
-    region.imageOffset.z = 0;
+    region.imageOffset.x = copy_text.src_offset_x;
+    region.imageOffset.y = copy_text.src_offset_y;
+    region.imageOffset.z = copy_text.src_offset_z;
     region.imageExtent.width = copy_text.src_width;
     region.imageExtent.height = copy_text.src_height;
-    region.imageExtent.depth = 1;
+    region.imageExtent.depth = copy_text.src_depth;
 
     vkCmdCopyImageToBuffer(_cmd_list, src_image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dest_buffer, 1, &region);
 }

@@ -422,13 +422,27 @@ PHI_DEFINE_CMD(copy_texture_to_buffer)
 {
     // Copy data from a texture to a buffer
 
-    handle::resource source = handle::null_resource; ///< the source texture
-    buffer_address destination;                      ///< the destination buffer
+    // the texture to copy from
+    handle::resource source = handle::null_resource;
 
-    uint32_t src_width = 0;       ///< width of the source texture (in the specified MIP level and array element)
-    uint32_t src_height = 0;      ///< height of the destination texture (in the specified MIP level and array element)
-    uint32_t src_mip_index = 0;   ///< index of the MIP level to copy
-    uint32_t src_array_index = 0; ///< index of the array element to copy (usually: 0)
+    // the buffer to copy to
+    buffer_address destination;
+
+    // size of the source region in the texture to copy (in texels)
+    // this can be smaller than the selected MIP is in total
+    uint32_t src_width = 0;
+    uint32_t src_height = 0;
+    uint32_t src_depth = 0;
+
+    // offset of the source region in the texture to copy (in texels)
+    uint32_t src_offset_x = 0;
+    uint32_t src_offset_y = 0;
+    uint32_t src_offset_z = 0;
+
+    // index of the MIP level to copy
+    uint32_t src_mip_index = 0;
+    // index of the array element to copy (0 for non-arrays)
+    uint32_t src_array_index = 0;
 
 public:
     void init(handle::resource src, handle::resource dest, uint32_t src_w, uint32_t src_h, uint32_t dest_off = 0, uint32_t src_mip_i = 0, uint32_t src_arr_i = 0)
@@ -438,6 +452,10 @@ public:
         destination.offset_bytes = dest_off;
         src_width = src_w;
         src_height = src_h;
+        src_depth = 1;
+        src_offset_x = 0;
+        src_offset_y = 0;
+        src_offset_z = 0;
         src_mip_index = src_mip_i;
         src_array_index = src_arr_i;
     }

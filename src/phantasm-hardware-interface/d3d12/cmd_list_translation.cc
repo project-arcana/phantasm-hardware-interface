@@ -719,8 +719,9 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::copy_texture_t
     footprint.Format = util::to_dxgi_format(src_info.pixel_format);
     footprint.Width = copy_text.src_width;
     footprint.Height = copy_text.src_height;
-    footprint.Depth = 1;
-    footprint.RowPitch = phi::util::align_up(phi::util::get_format_size_bytes(src_info.pixel_format) * copy_text.src_width, 256);
+    footprint.Depth = copy_text.src_depth;
+    // TODO: is this right for 3D textures?
+    footprint.RowPitch = phi::util::align_up(phi::util::get_format_size_bytes(src_info.pixel_format) * footprint.Width, 256);
 
     D3D12_PLACED_SUBRESOURCE_FOOTPRINT dest_placed_footprint;
     dest_placed_footprint.Offset = copy_text.destination.offset_bytes;
@@ -731,17 +732,15 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::copy_texture_t
     CD3DX12_TEXTURE_COPY_LOCATION const source(_globals.pool_resources->getRawResource(copy_text.source), source_subres_index);
     CD3DX12_TEXTURE_COPY_LOCATION const dest(_globals.pool_resources->getRawResource(copy_text.destination), dest_placed_footprint);
 
-    // TODO: last argument to CopyTextureRegion, add offset/extent fields to the command
-    // TODO: support for 3D textures
     D3D12_BOX sourceBox;
-    sourceBox.left = 0;
-    sourceBox.top = 0;
-    sourceBox.front = 0;
-    sourceBox.right = copy_text.src_width;
-    sourceBox.bottom = copy_text.src_height;
-    sourceBox.back = 1;
+    sourceBox.left = copy_text.src_offset_x;
+    sourceBox.top = copy_text.src_offset_y;
+    sourceBox.front = copy_text.src_offset_z;
+    sourceBox.right = sourceBox.left + copy_text.src_width;
+    sourceBox.bottom = sourceBox.top + copy_text.src_height;
+    sourceBox.back = sourceBox.front + copy_text.src_depth;
 
-    _cmd_list->CopyTextureRegion(&dest, 0, 0, 0, &source, nullptr);
+    _cmd_list->CopyTextureRegion(&dest, 0, 0, 0, &source, &sourceBox);
 }
 
 void phi::d3d12::command_list_translator::execute(const phi::cmd::resolve_texture& resolve)
