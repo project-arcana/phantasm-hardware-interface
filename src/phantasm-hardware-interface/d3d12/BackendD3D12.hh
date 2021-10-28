@@ -290,7 +290,7 @@ private:
     per_thread_component* mThreadComponents = nullptr;
     uint32_t mNumThreadComponents = 0;
     cc::allocator* mStaticAlloc = nullptr;
-    phi::thread_association mThreadAssociation;
+    phi::ThreadAssociation mThreadAssociation;
     ShaderTableConstructor mShaderTableCtor;
     cc::allocator* mDynamicAllocator = nullptr;
 

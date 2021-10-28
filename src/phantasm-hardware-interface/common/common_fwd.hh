@@ -25,6 +25,6 @@ template <class T, uint8_t N>
 struct flat_vector;
 
 struct page_allocator;
-struct thread_association;
+struct ThreadAssociation;
 struct unique_buffer;
 }
