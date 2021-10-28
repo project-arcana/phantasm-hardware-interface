@@ -665,7 +665,7 @@ void phi::vk::BackendVulkan::createDebugMessenger()
 
 phi::vk::BackendVulkan::per_thread_component& phi::vk::BackendVulkan::getCurrentThreadComponent()
 {
-    auto const current_index = mThreadAssociation.get_current_index();
+    auto const current_index = mThreadAssociation.getCurrentIndex();
     CC_ASSERT_MSG(current_index < mNumThreadComponents,
                   "Accessed phi Backend from more OS threads than configured in backend_config\n"
                   "recordCommandList() and submit() must only be used from at most backend_config::num_threads unique OS threads in total");

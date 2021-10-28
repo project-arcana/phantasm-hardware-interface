@@ -248,7 +248,7 @@ private:
     per_thread_component* mThreadComponents;
     uint32_t mNumThreadComponents;
     void* mThreadComponentAlloc;
-    phi::thread_association mThreadAssociation;
+    phi::ThreadAssociation mThreadAssociation;
     ShaderTableConstructor mShaderTableCtor;
 
     // Misc
