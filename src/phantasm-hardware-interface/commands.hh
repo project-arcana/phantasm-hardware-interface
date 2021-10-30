@@ -299,8 +299,8 @@ public:
     template <class T>
     void write_root_constants(T const& data)
     {
-        static_assert(sizeof(T) <= sizeof(root_constants), "data too large");
-        static_assert(std::is_trivially_copyable_v<T>, "data not memcpyable");
+        static_assert(sizeof(T) <= sizeof(root_constants), "root constant data too large");
+        static_assert(std::is_trivially_copyable_v<T>, "root constant data not memcpyable");
         static_assert(!std::is_pointer_v<T>, "provide direct reference to data");
         std::memcpy(root_constants, &data, sizeof(T));
     }
