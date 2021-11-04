@@ -53,6 +53,9 @@ struct blend_state;
 struct gpu_indirect_command_draw;
 struct gpu_indirect_command_draw_indexed;
 struct accel_struct_instance;
+struct buffer_address;
+struct buffer_range;
+struct buffer_range_and_stride;
 struct shader_table_strides;
 
 // data enums
