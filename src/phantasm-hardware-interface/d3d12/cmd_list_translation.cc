@@ -740,6 +740,12 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::copy_texture_t
     sourceBox.bottom = sourceBox.top + copy_text.src_height;
     sourceBox.back = sourceBox.front + copy_text.src_depth;
 
+#ifdef CC_ENABLE_ASSERTIONS
+    auto const& srcDescFull = _globals.pool_resources->getTextureDescription(copy_text.source);
+    CC_ASSERT(sourceBox.right <= srcDescFull.width && sourceBox.bottom <= srcDescFull.height && sourceBox.back <= srcDescFull.depth_or_array_size
+              && "Source box out of bounds");
+#endif
+
     _cmd_list->CopyTextureRegion(&dest, 0, 0, 0, &source, &sourceBox);
 }
 
