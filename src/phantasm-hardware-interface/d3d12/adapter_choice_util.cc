@@ -17,24 +17,25 @@
 
 namespace
 {
-bool testDeviceOnAdapter(IDXGIAdapter* adapter)
+bool testDeviceOnAdapter(IDXGIAdapter* pAdapter, ID3D12Device** ppOptOutDevice)
 {
 #ifdef PHI_HAS_OPTICK
-    OPTICK_EVENT("Test ID3D12Device");
+    OPTICK_EVENT("Test/Create ID3D12Device");
 #endif
 
-    auto const hres = ::D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_12_0, __uuidof(ID3D12Device), nullptr);
-    return SUCCEEDED(hres);
-}
+    // if ppOptOutDevice is nullptr, this just tests and does not create the device,
+    // which is faster (but slower than testing + creating separately)
+    auto const hres = ::D3D12CreateDevice(pAdapter, D3D_FEATURE_LEVEL_12_0, __uuidof(ID3D12Device), IID_PPV_ARGS_Helper(ppOptOutDevice));
+    bool const isEligible = SUCCEEDED(hres);
 
-bool createDeviceOnAdapter(IDXGIAdapter* adapter, ID3D12Device*& outDevice)
-{
-#ifdef PHI_HAS_OPTICK
-    OPTICK_EVENT("Create ID3D12Device");
-#endif
+    if (!isEligible)
+    {
+        DXGI_ADAPTER_DESC adapterDesc = {};
+        PHI_D3D12_VERIFY(pAdapter->GetDesc(&adapterDesc));
+        PHI_LOG_TRACE.printf("GPU \"%ws\" does not support DirectX 12", adapterDesc.Description);
+    }
 
-    auto const hres = ::D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&outDevice));
-    return SUCCEEDED(hres) && outDevice->GetNodeCount() > 0;
+    return isEligible;
 }
 } // namespace
 
@@ -68,12 +69,16 @@ uint32_t phi::d3d12::getAdapterCandidates(IDXGIFactory4* factory,
         // actually creating the device here is not necessary, see this:
         // https://docs.microsoft.com/en-us/windows/win32/api/d3d12/nf-d3d12-d3d12createdevice#remarks
         // for a single GPU, it is slower to test and create separately, but for many GPUs it could be much slower, TODO
-        bool const isEligible = createDeviceOnAdapter(tempAdapter, testDevice);
+        bool const isEligible = testDeviceOnAdapter(tempAdapter, &testDevice);
 
         if (!isEligible)
         {
             // release the testing device and adapter immediately if ineligible
-            testDevice->Release();
+            if (testDevice)
+            {
+                testDevice->Release();
+            }
+
             tempAdapter->Release();
             continue;
         }
@@ -128,7 +133,7 @@ bool phi::d3d12::getFirstAdapter(IDXGIFactory4* factory, IDXGIAdapter** outAdapt
         // Check to see if the adapter supports Direct3D 12 and create it
         // It is significantly faster to do this in one step instead of two calls
         ID3D12Device* newDevice = nullptr;
-        if (createDeviceOnAdapter(tempAdapter, newDevice))
+        if (testDeviceOnAdapter(tempAdapter, &newDevice))
         {
             *outAdapter = tempAdapter;
             *outDevice = newDevice;
