@@ -626,7 +626,7 @@ bool phi::d3d12::BackendD3D12::nativeControlPSOCaches(bool affectD3DS, bool affe
 phi::d3d12::BackendD3D12::per_thread_component& phi::d3d12::BackendD3D12::getCurrentThreadComponent()
 {
     auto const current_index = mThreadAssociation.getCurrentIndex();
-    CC_ASSERT_MSG(current_index < mNumThreadComponents,
+    CC_ASSERT_MSG(current_index < (int)mNumThreadComponents,
                   "Accessed phi Backend from more OS threads than configured in backend_config\n"
                   "recordCommandList() and submit() must only be used from at most backend_config::num_threads unique OS threads in total");
     return mThreadComponents[current_index];
