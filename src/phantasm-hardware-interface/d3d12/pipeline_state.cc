@@ -96,15 +96,12 @@ ID3D12PipelineState* phi::d3d12::create_pipeline_state(ID3D12Device& device,
     pso_desc.NodeMask = 0;
     pso_desc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
 
-    ID3D12PipelineState* pso;
+    ID3D12PipelineState* pso = nullptr;
 
-    {
 #ifdef PHI_HAS_OPTICK
-        OPTICK_EVENT("ID3D12Device::CreateGraphicsPipelineState");
+    OPTICK_EVENT("ID3D12Device::CreateGraphicsPipelineState");
 #endif
-        PHI_D3D12_VERIFY(device.CreateGraphicsPipelineState(&pso_desc, IID_PPV_ARGS(&pso)));
-    }
-
+    HRESULT const hres = device.CreateGraphicsPipelineState(&pso_desc, IID_PPV_ARGS(&pso));
     return pso;
 }
 
@@ -114,14 +111,11 @@ ID3D12PipelineState* phi::d3d12::create_compute_pipeline_state(ID3D12Device& dev
     pso_desc.pRootSignature = root_sig;
     pso_desc.CS = D3D12_SHADER_BYTECODE{binary_data, binary_size};
 
-    ID3D12PipelineState* pso;
+    ID3D12PipelineState* pso = nullptr;
 
-    {
 #ifdef PHI_HAS_OPTICK
-        OPTICK_EVENT("ID3D12Device::CreateComputePipelineState");
+    OPTICK_EVENT("ID3D12Device::CreateComputePipelineState");
 #endif
-        PHI_D3D12_VERIFY(device.CreateComputePipelineState(&pso_desc, IID_PPV_ARGS(&pso)));
-    }
-
+    HRESULT const hres = device.CreateComputePipelineState(&pso_desc, IID_PPV_ARGS(&pso));
     return pso;
 }
