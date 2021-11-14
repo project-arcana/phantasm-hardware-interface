@@ -44,7 +44,7 @@ struct text_buffer
         return res;
     }
 };
-}
+} // namespace
 
 phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createPipelineState(phi::arg::vertex_format vertex_format,
                                                                                      phi::arg::framebuffer_config const& framebuffer_format,
@@ -54,29 +54,40 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createPipelineS
                                                                                      const phi::pipeline_config& primitive_config,
                                                                                      char const* dbg_name)
 {
-    root_signature* root_sig;
+    root_signature* pRootSig = nullptr;
     // Do things requiring synchronization first
     {
         auto lg = std::lock_guard(mMutex);
-        root_sig = mRootSigCache.getOrCreate(*mDevice, shader_arg_shapes, has_root_constants, root_signature_type::graphics);
+        pRootSig = mRootSigCache.getOrCreate(*mDevice, shader_arg_shapes, has_root_constants, root_signature_type::graphics);
     }
 
-    unsigned const pool_index = mPool.acquire();
+    if (!pRootSig)
+    {
+        PHI_LOG_ERROR("Failed to create root signature when compiling PSO, debug name: {}", dbg_name ? dbg_name : "unnamed (nullptr)");
+        return phi::handle::null_pipeline_state;
+    }
+
+    auto const vertexFormatNative = util::get_native_vertex_format(vertex_format.attributes);
+    ID3D12PipelineState* const pPipelineState
+        = create_pipeline_state(*mDevice, pRootSig->raw_root_sig, vertexFormatNative, framebuffer_format, shader_stages, primitive_config);
+
+    if (!pPipelineState)
+    {
+        PHI_LOG_ERROR("Failed to compile PSO, debug name: {}", dbg_name ? dbg_name : "unnamed (nullptr)");
+        return phi::handle::null_pipeline_state;
+    }
+
+    util::set_object_name(pPipelineState, "%s", dbg_name ? dbg_name : "Unnamed Graphics PSO");
+
+    uint32_t const res = mPool.acquire();
 
     // Populate new node
-    pso_node& new_node = mPool.get(pool_index);
-    new_node.associated_root_sig = root_sig;
+    pso_node& new_node = mPool.get(res);
+    new_node.associated_root_sig = pRootSig;
     new_node.primitive_topology = util::to_native_topology(primitive_config.topology);
+    new_node.raw_pso = pPipelineState;
 
-    {
-        // Create PSO
-        auto const vert_format_native = util::get_native_vertex_format(vertex_format.attributes);
-        new_node.raw_pso = create_pipeline_state(*mDevice, root_sig->raw_root_sig, vert_format_native, framebuffer_format, shader_stages, primitive_config);
-        util::set_object_name(new_node.raw_pso, "phi graphics pso %s", dbg_name ? dbg_name : "");
-    }
-
-
-    return {static_cast<handle::handle_t>(pool_index)};
+    return {res};
 }
 
 phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createComputePipelineState(phi::arg::shader_arg_shapes shader_arg_shapes,
@@ -84,27 +95,38 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createComputePi
                                                                                             bool has_root_constants,
                                                                                             char const* dbg_name)
 {
-    root_signature* root_sig;
+    root_signature* pRootSig = nullptr;
     // Do things requiring synchronization first
     {
         auto lg = std::lock_guard(mMutex);
-        root_sig = mRootSigCache.getOrCreate(*mDevice, shader_arg_shapes, has_root_constants, root_signature_type::compute);
+        pRootSig = mRootSigCache.getOrCreate(*mDevice, shader_arg_shapes, has_root_constants, root_signature_type::compute);
     }
 
-    uint32_t const pool_index = mPool.acquire();
+    if (!pRootSig)
+    {
+        PHI_LOG_ERROR("Failed to create root signature when compiling PSO, debug name: {}", dbg_name ? dbg_name : "unnamed (nullptr)");
+        return phi::handle::null_pipeline_state;
+    }
+
+    ID3D12PipelineState* const pPipelineState = create_compute_pipeline_state(*mDevice, pRootSig->raw_root_sig, compute_shader.data, compute_shader.size);
+
+    if (!pPipelineState)
+    {
+        PHI_LOG_ERROR("Failed to compile PSO, debug name: {}", dbg_name ? dbg_name : "unnamed (nullptr)");
+        return phi::handle::null_pipeline_state;
+    }
+
+    util::set_object_name(pPipelineState, "%s", dbg_name ? dbg_name : "Unnamed Compute PSO");
+
+    uint32_t const res = mPool.acquire();
 
     // Populate new node
-    pso_node& new_node = mPool.get(pool_index);
-    new_node.associated_root_sig = root_sig;
+    pso_node& new_node = mPool.get(res);
+    new_node.associated_root_sig = pRootSig;
     new_node.primitive_topology = D3D_PRIMITIVE_TOPOLOGY_UNDEFINED;
+    new_node.raw_pso = pPipelineState;
 
-    // Create PSO
-    new_node.raw_pso = create_compute_pipeline_state(*mDevice, root_sig->raw_root_sig, compute_shader.data, compute_shader.size);
-    util::set_object_name(new_node.raw_pso, "pool compute pso %s", dbg_name ? dbg_name : "");
-
-    auto const res = handle::pipeline_state{pool_index};
-    CC_ASSERT(!isRaytracingPipeline(res));
-    return res;
+    return {res};
 }
 
 phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracingPipelineState(cc::span<const arg::raytracing_shader_library> libraries,
@@ -132,8 +154,11 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracin
         // (the global root signature is empty and shared across all RT PSOs)
         for (auto const& aa : arg_assocs)
         {
-            new_node.associated_root_signatures.push_back(
-                mRootSigCache.getOrCreate(*mDevice, aa.argument_shapes, aa.has_root_constants, root_signature_type::raytrace_local));
+            root_signature* const pLocalRootSig
+                = mRootSigCache.getOrCreate(*mDevice, aa.argument_shapes, aa.has_root_constants, root_signature_type::raytrace_local);
+            CC_ASSERT(pLocalRootSig != nullptr && "Failed to create local root siganture for raytracing PSO");
+
+            new_node.associated_root_signatures.push_back(pLocalRootSig);
         }
     }
 
@@ -217,7 +242,8 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracin
     cc::alloc_vector<int> hit_group_rootsig_indices(scratch_alloc);
     hit_group_rootsig_indices.resize(hit_groups.size(), -1);
 
-    auto f_get_export_name_or_nullptr = [&](int index, shader_stage stage_verification) -> wchar_t const* {
+    auto f_get_export_name_or_nullptr = [&](int index, shader_stage stage_verification) -> wchar_t const*
+    {
         if (index < 0)
             return nullptr;
 
@@ -547,16 +573,20 @@ void phi::d3d12::PipelineStateObjectPool::initialize(
 void phi::d3d12::PipelineStateObjectPool::destroy()
 {
     auto num_leaks = 0;
-    mPool.iterate_allocated_nodes([&](pso_node& leaked_node) {
-        ++num_leaks;
-        leaked_node.raw_pso->Release();
-    });
+    mPool.iterate_allocated_nodes(
+        [&](pso_node& leaked_node)
+        {
+            ++num_leaks;
+            leaked_node.raw_pso->Release();
+        });
 
-    mPoolRaytracing.iterate_allocated_nodes([&](rt_pso_node& leaked_node) {
-        ++num_leaks;
-        leaked_node.raw_state_object->Release();
-        leaked_node.raw_state_object_props->Release();
-    });
+    mPoolRaytracing.iterate_allocated_nodes(
+        [&](rt_pso_node& leaked_node)
+        {
+            ++num_leaks;
+            leaked_node.raw_state_object->Release();
+            leaked_node.raw_state_object_props->Release();
+        });
 
     if (num_leaks > 0)
     {
