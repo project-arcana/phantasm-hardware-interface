@@ -248,11 +248,8 @@ PHI_DEFINE_CMD(draw_indirect)
     uint32_t argument_buffer_offset_bytes = 0; ///< offset in bytes into the argument buffer
     uint32_t num_arguments = 0;                ///< amount of arguments to read from the buffer
 
-    handle::resource vertex_buffers[limits::max_vertex_buffers] = {handle::null_resource,  // vertex buffers - optional
-                                                                   handle::null_resource,  //
-                                                                   handle::null_resource,  //
-                                                                   handle::null_resource}; //
-    handle::resource index_buffer = handle::null_resource;                                 // optional
+    handle::resource vertex_buffers[limits::max_vertex_buffers] = {}; // vertex buffers - optional
+    handle::resource index_buffer = handle::null_resource;            // optional
 
 public:
     void add_shader_arg(handle::resource cbv, uint32_t cbv_off = 0, handle::shader_view sv = handle::null_shader_view)
