@@ -327,24 +327,84 @@ void phi::vk::command_list_translator::execute(const phi::cmd::draw_indirect& dr
 
     // Indirect draw command
 
-    auto const gpu_command_size_bytes = draw_indirect.index_buffer.is_valid() ? sizeof(gpu_indirect_command_draw_indexed) : sizeof(gpu_indirect_command_draw);
-    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(draw_indirect.indirect_argument_buffer, draw_indirect.argument_buffer_offset_bytes,
-                                                              draw_indirect.num_arguments * gpu_command_size_bytes)
+    uint32_t gpuCommandSizeBytes = 0;
+    VkDeviceSize gpuArgBufferAdditionalOffset = 0;
+    bool bIsIndexed = false;
+
+    switch (draw_indirect.argument_type)
+    {
+    case indirect_command_type::draw:
+        gpuCommandSizeBytes = sizeof(gpu_indirect_command_draw);
+        bIsIndexed = false;
+        break;
+
+    case indirect_command_type::draw_indexed:
+        CC_ASSERT(draw_indirect.index_buffer.is_valid() && "Execute indirect using type draw_indexed requires valid index buffer");
+
+        gpuCommandSizeBytes = sizeof(gpu_indirect_command_draw_indexed);
+        bIsIndexed = true;
+        break;
+
+    case indirect_command_type::draw_indexed_with_id:
+        CC_ASSERT(draw_indirect.index_buffer.is_valid() && "Execute indirect using type draw_indexed_with_id requires valid index buffer");
+
+        gpuCommandSizeBytes = sizeof(gpu_indirect_command_draw_indexed_with_id);
+        bIsIndexed = true;
+        // skip the first 4 byte (rest is managed by stride)
+        gpuArgBufferAdditionalOffset = 4;
+        break;
+
+    default:
+        CC_UNREACHABLE("Invalid indirect command type");
+        break;
+    }
+
+    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(draw_indirect.indirect_argument.buffer, draw_indirect.indirect_argument.offset_bytes + gpuArgBufferAdditionalOffset,
+                                                              draw_indirect.max_num_arguments * gpuCommandSizeBytes - gpuArgBufferAdditionalOffset)
               && "indirect argument buffer accessed OOB on GPU");
 
-    auto const raw_argument_buffer = _globals.pool_resources->getRawBuffer(draw_indirect.indirect_argument_buffer);
-    if (draw_indirect.index_buffer.is_valid())
+    static_assert(sizeof(VkDrawIndexedIndirectCommand) == sizeof(gpu_indirect_command_draw_indexed), "gpu argument type compiles to incorrect "
+                                                                                                     "size");
+    static_assert(sizeof(VkDrawIndirectCommand) == sizeof(gpu_indirect_command_draw), "gpu argument type compiles to incorrect size");
+
+    VkBuffer const pArgumentBuffer = _globals.pool_resources->getRawBuffer(draw_indirect.indirect_argument);
+    VkDeviceSize const offsetArgumentBuffer = VkDeviceSize(draw_indirect.indirect_argument.offset_bytes) + gpuArgBufferAdditionalOffset;
+
+    VkBuffer const pCountBufferOrNull = _globals.pool_resources->getRawBufferOrNull(draw_indirect.count_buffer.buffer);
+
+    if (pCountBufferOrNull != nullptr)
     {
-        static_assert(sizeof(VkDrawIndexedIndirectCommand) == sizeof(gpu_indirect_command_draw_indexed), "gpu argument type compiles to incorrect "
-                                                                                                         "size");
-        vkCmdDrawIndexedIndirect(_cmd_list, raw_argument_buffer, VkDeviceSize(draw_indirect.argument_buffer_offset_bytes),
-                                 draw_indirect.num_arguments, sizeof(VkDrawIndexedIndirectCommand));
+        CC_ASSERT(vkCmdDrawIndirectCount != nullptr && "Indirect GPU-counted drawing extension not available");
+        CC_ASSERT(vkCmdDrawIndexedIndirectCount != nullptr && "Indirect GPU-counted drawing extension not available");
+
+        // using counts from GPU memory
+
+        VkDeviceSize const offsetCountBuffer = VkDeviceSize(draw_indirect.count_buffer.offset_bytes);
+        uint32_t const maxNumArguments = draw_indirect.max_num_arguments;
+
+        if (bIsIndexed)
+        {
+            vkCmdDrawIndexedIndirectCount(_cmd_list, pArgumentBuffer, offsetArgumentBuffer, pCountBufferOrNull, offsetCountBuffer, maxNumArguments, gpuCommandSizeBytes);
+        }
+        else
+        {
+            vkCmdDrawIndirectCount(_cmd_list, pArgumentBuffer, offsetArgumentBuffer, pCountBufferOrNull, offsetCountBuffer, maxNumArguments, gpuCommandSizeBytes);
+        }
     }
     else
     {
-        static_assert(sizeof(VkDrawIndirectCommand) == sizeof(gpu_indirect_command_draw), "gpu argument type compiles to incorrect size");
-        vkCmdDrawIndirect(_cmd_list, raw_argument_buffer, VkDeviceSize(draw_indirect.argument_buffer_offset_bytes), draw_indirect.num_arguments,
-                          sizeof(VkDrawIndirectCommand));
+        // using counts from CPU
+
+        uint32_t const numArguments = draw_indirect.max_num_arguments;
+
+        if (bIsIndexed)
+        {
+            vkCmdDrawIndexedIndirect(_cmd_list, pArgumentBuffer, offsetArgumentBuffer, numArguments, gpuCommandSizeBytes);
+        }
+        else
+        {
+            vkCmdDrawIndirect(_cmd_list, pArgumentBuffer, offsetArgumentBuffer, numArguments, gpuCommandSizeBytes);
+        }
     }
 }
 
@@ -850,13 +910,14 @@ void phi::vk::command_list_translator::bind_vertex_buffers(handle::resource cons
     }
 }
 
-void phi::vk::command_list_translator::bind_shader_arguments(phi::handle::pipeline_state pso,
+bool phi::vk::command_list_translator::bind_shader_arguments(phi::handle::pipeline_state pso,
                                                              const std::byte* root_consts,
                                                              cc::span<const phi::shader_argument> shader_args,
                                                              VkPipelineBindPoint bind_point)
 {
     auto const& pso_node = _globals.pool_pipeline_states->get(pso);
     pipeline_layout const& pipeline_layout = *pso_node.associated_pipeline_layout;
+    bool bHasRootConstants = false;
 
     if (pipeline_layout.has_push_constants())
     {
@@ -865,6 +926,7 @@ void phi::vk::command_list_translator::bind_shader_arguments(phi::handle::pipeli
 
         vkCmdPushConstants(_cmd_list, pipeline_layout.raw_layout, pipeline_layout.push_constant_stages, 0,
                            sizeof(std::byte[limits::max_root_constant_bytes]), root_consts);
+        bHasRootConstants = true;
     }
 
     for (uint8_t i = 0; i < shader_args.size(); ++i)
@@ -896,6 +958,8 @@ void phi::vk::command_list_translator::bind_shader_arguments(phi::handle::pipeli
             }
         }
     }
+
+    return bHasRootConstants;
 }
 
 VkBuffer phi::vk::command_list_translator::get_buffer_or_null(phi::handle::resource buf) const

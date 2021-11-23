@@ -86,6 +86,9 @@ public:
     ID3D12Resource* getRawResource(handle::resource res) const { return internalGet(res).resource; }
     ID3D12Resource* getRawResource(buffer_address const& addr) const { return internalGet(addr.buffer).resource; }
 
+    ID3D12Resource* getRawResourceOrNull(handle::resource res) const { return res.is_valid() ? internalGet(res).resource : nullptr; }
+    ID3D12Resource* getRawResourceOrNull(buffer_address const& addr) const { return addr.buffer.is_valid() ? internalGet(addr.buffer).resource : nullptr; }
+
     // Additional information
     bool isImage(handle::resource res) const { return internalGet(res).type == resource_node::resource_type::image; }
     bool isBuffer(handle::resource res) const { return internalGet(res).type == resource_node::resource_type::buffer; }

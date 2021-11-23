@@ -11,20 +11,17 @@
 
 namespace phi::d3d12
 {
-/// Persistent cache for root signatures
-/// Unsynchronized, only used inside of pso pool
+// Persistent cache for root signatures
+// Unsynchronized, only used inside of pso pool
 class RootSignatureCache
 {
 public:
     void initialize(unsigned max_num_root_sigs, cc::allocator* alloc);
     void destroy();
 
-    /// receive an existing root signature matching the shape, or create a new one
-    /// returns a pointer which remains stable
+    // receive an existing root signature matching the shape, or create a new one
+    // returns a pointer which remains stable
     [[nodiscard]] root_signature* getOrCreate(ID3D12Device& device, arg::shader_arg_shapes arg_shapes, bool has_root_constants, root_signature_type type);
-
-    /// destroys all elements inside, and clears the map
-    void reset();
 
 private:
     struct rootsig_key_readonly
@@ -62,4 +59,18 @@ private:
     phi::detail::stable_map<rootsig_key, root_signature, rootsig_hasher> mCache;
 };
 
-}
+
+// Persistent cache for command signatures that depend upon root signatures
+// strictly typed per usecase, currently only has the "Draw ID" comsig for draw_indexed_with_id
+class CommandSignatureCache
+{
+public:
+    void initialize(uint32_t maxNumComSigs, cc::allocator* alloc);
+    void destroy();
+
+    ID3D12CommandSignature* getOrCreateDrawIDComSig(ID3D12Device* pDevice, root_signature const* pRootSig);
+
+private:
+    phi::detail::stable_map<root_signature const*, ID3D12CommandSignature*> mCache;
+};
+} // namespace phi::d3d12

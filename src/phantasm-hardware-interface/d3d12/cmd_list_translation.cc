@@ -213,12 +213,12 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::draw& draw)
     // PSO
     if (_bound.update_pso(draw.pipeline_state))
     {
-        _cmd_list->SetPipelineState(pso_node.raw_pso);
+        _cmd_list->SetPipelineState(pso_node.pPSO);
         _cmd_list->IASetPrimitiveTopology(pso_node.primitive_topology);
     }
 
     // Root signature
-    if (_bound.update_root_sig(pso_node.associated_root_sig->raw_root_sig))
+    if (_bound.update_root_sig(pso_node.pAssociatedRootSig->raw_root_sig))
     {
         _cmd_list->SetGraphicsRootSignature(_bound.raw_root_sig);
     }
@@ -239,7 +239,7 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::draw& draw)
 
     // Shader arguments
     {
-        auto const& root_sig = *pso_node.associated_root_sig;
+        auto const& root_sig = *pso_node.pAssociatedRootSig;
 
         // root constants
         if (!root_sig.argument_maps.empty() && root_sig.argument_maps[0].root_const_param != unsigned(-1))
@@ -315,12 +315,12 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::draw_indirect&
     // PSO
     if (_bound.update_pso(draw_indirect.pipeline_state))
     {
-        _cmd_list->SetPipelineState(pso_node.raw_pso);
+        _cmd_list->SetPipelineState(pso_node.pPSO);
         _cmd_list->IASetPrimitiveTopology(pso_node.primitive_topology);
     }
 
     // Root signature
-    if (_bound.update_root_sig(pso_node.associated_root_sig->raw_root_sig))
+    if (_bound.update_root_sig(pso_node.pAssociatedRootSig->raw_root_sig))
     {
         _cmd_list->SetGraphicsRootSignature(_bound.raw_root_sig);
     }
@@ -340,12 +340,14 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::draw_indirect&
     bind_vertex_buffers(draw_indirect.vertex_buffers);
 
     // Shader arguments
+    bool bPSOHasRootConsts = false;
     {
-        auto const& root_sig = *pso_node.associated_root_sig;
+        auto const& root_sig = *pso_node.pAssociatedRootSig;
 
         // root constants
         if (!root_sig.argument_maps.empty() && root_sig.argument_maps[0].root_const_param != unsigned(-1))
         {
+            bPSOHasRootConsts = true;
             static_assert(sizeof(draw_indirect.root_constants) % sizeof(DWORD32) == 0, "root constant size not divisible by dword32 size");
             _cmd_list->SetGraphicsRoot32BitConstants(root_sig.argument_maps[0].root_const_param,
                                                      sizeof(draw_indirect.root_constants) / sizeof(DWORD32), draw_indirect.root_constants, 0);
@@ -388,23 +390,54 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::draw_indirect&
     }
 
 
-    auto const gpu_command_size_bytes
-        = draw_indirect.index_buffer.is_valid() ? uint32_t(sizeof(gpu_indirect_command_draw_indexed)) : uint32_t(sizeof(gpu_indirect_command_draw));
+    uint32_t gpuCommandSizeBytes = 0;
+    ID3D12CommandSignature* pComSig = nullptr;
 
-    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(draw_indirect.indirect_argument_buffer, draw_indirect.argument_buffer_offset_bytes,
-                                                              draw_indirect.num_arguments * gpu_command_size_bytes)
+    switch (draw_indirect.argument_type)
+    {
+    case indirect_command_type::draw:
+        gpuCommandSizeBytes = sizeof(gpu_indirect_command_draw);
+        pComSig = _globals.pool_pipeline_states->getGlobalComSigDraw();
+        break;
+
+    case indirect_command_type::draw_indexed:
+        CC_ASSERT(draw_indirect.index_buffer.is_valid() && "Indirect drawing using type draw_indexed requires valid index buffer");
+
+        gpuCommandSizeBytes = sizeof(gpu_indirect_command_draw_indexed);
+        pComSig = _globals.pool_pipeline_states->getGlobalComSigDrawIndexed();
+        break;
+
+    case indirect_command_type::draw_indexed_with_id:
+        CC_ASSERT(draw_indirect.index_buffer.is_valid() && "Indirect drawing using type draw_indexed_with_id requires valid index buffer");
+        CC_ASSERT(bPSOHasRootConsts && "Indirect drawing using type draw_indexed_with_id requires enabled root constants on the PSO");
+        CC_ASSERT(pso_node.pAssociatedComSigForDrawID != nullptr
+                  && "Indirect drawing using type draw_indexed_with_id requires PSOs with enabled flag 'allow_draw_indirect_with_id' on creation");
+
+        gpuCommandSizeBytes = sizeof(gpu_indirect_command_draw_indexed_with_id);
+        pComSig = pso_node.pAssociatedComSigForDrawID;
+        break;
+
+    default:
+        CC_UNREACHABLE("Invalid indirect command type");
+        break;
+    }
+
+    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(draw_indirect.indirect_argument, draw_indirect.max_num_arguments * gpuCommandSizeBytes)
               && "indirect argument buffer accessed OOB on GPU");
 
     static_assert(sizeof(D3D12_DRAW_ARGUMENTS) == sizeof(gpu_indirect_command_draw), "gpu argument compiles to incorrect size");
     static_assert(sizeof(D3D12_DRAW_INDEXED_ARGUMENTS) == sizeof(gpu_indirect_command_draw_indexed), "gpu argument compiles to incorrect size");
+    static_assert(sizeof(D3D12_DRAW_INDEXED_ARGUMENTS) + sizeof(DWORD) == sizeof(gpu_indirect_command_draw_indexed_with_id), "gpu argument compiles "
+                                                                                                                             "to incorrect size");
 
-    ID3D12Resource* const raw_arg_buffer = _globals.pool_resources->getRawResource(draw_indirect.indirect_argument_buffer);
-    ID3D12CommandSignature* const comsig = draw_indirect.index_buffer.is_valid() ? _globals.pool_pipeline_states->getGlobalComSigDrawIndexed()
-                                                                                 : _globals.pool_pipeline_states->getGlobalComSigDraw();
+    ID3D12Resource* const pArgumentBuffer = _globals.pool_resources->getRawResource(draw_indirect.indirect_argument);
 
-    // NOTE: We use no count buffer, which makes the second argument determine the actual amount of args, not the max
-    // as only those two arg types are used, they require no association with a rootsig making things a lot simpler
-    _cmd_list->ExecuteIndirect(comsig, draw_indirect.num_arguments, raw_arg_buffer, draw_indirect.argument_buffer_offset_bytes, nullptr, 0);
+    ID3D12Resource* const pCountBufferOrNull = _globals.pool_resources->getRawResourceOrNull(draw_indirect.count_buffer);
+
+    _cmd_list->ExecuteIndirect(pComSig, draw_indirect.max_num_arguments,                      //
+                               pArgumentBuffer, draw_indirect.indirect_argument.offset_bytes, //
+                               pCountBufferOrNull, draw_indirect.count_buffer.offset_bytes    //
+    );
 }
 
 void phi::d3d12::command_list_translator::execute(const phi::cmd::dispatch& dispatch)
@@ -414,18 +447,18 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::dispatch& disp
     // PSO
     if (_bound.update_pso(dispatch.pipeline_state))
     {
-        _cmd_list->SetPipelineState(pso_node.raw_pso);
+        _cmd_list->SetPipelineState(pso_node.pPSO);
     }
 
     // Root signature
-    if (_bound.update_root_sig(pso_node.associated_root_sig->raw_root_sig))
+    if (_bound.update_root_sig(pso_node.pAssociatedRootSig->raw_root_sig))
     {
         _cmd_list->SetComputeRootSignature(_bound.raw_root_sig);
     }
 
     // Shader arguments
     {
-        auto const& root_sig = *pso_node.associated_root_sig;
+        auto const& root_sig = *pso_node.pAssociatedRootSig;
 
         // root constants
         auto const root_constant_param = root_sig.argument_maps[0].root_const_param;
@@ -484,18 +517,18 @@ void phi::d3d12::command_list_translator::execute(cmd::dispatch_indirect const& 
     // PSO
     if (_bound.update_pso(dispatch_indirect.pipeline_state))
     {
-        _cmd_list->SetPipelineState(pso_node.raw_pso);
+        _cmd_list->SetPipelineState(pso_node.pPSO);
     }
 
     // Root signature
-    if (_bound.update_root_sig(pso_node.associated_root_sig->raw_root_sig))
+    if (_bound.update_root_sig(pso_node.pAssociatedRootSig->raw_root_sig))
     {
         _cmd_list->SetComputeRootSignature(_bound.raw_root_sig);
     }
 
     // Shader arguments
     {
-        auto const& root_sig = *pso_node.associated_root_sig;
+        auto const& root_sig = *pso_node.pAssociatedRootSig;
 
         // root constants
         auto const root_constant_param = root_sig.argument_maps[0].root_const_param;

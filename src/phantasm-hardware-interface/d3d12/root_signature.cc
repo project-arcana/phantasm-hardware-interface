@@ -182,3 +182,84 @@ void phi::d3d12::initialize_root_signature(phi::d3d12::root_signature& root_sig,
 
     root_sig.raw_root_sig = create_root_signature(device, parameters.root_params, parameters.samplers, type);
 }
+
+ID3D12CommandSignature* phi::d3d12::createCommandSignatureForDraw(ID3D12Device* pDevice)
+{
+    static_assert(sizeof(D3D12_DRAW_ARGUMENTS) == sizeof(gpu_indirect_command_draw), "gpu argument type compiles to incorrect size");
+
+    D3D12_INDIRECT_ARGUMENT_DESC indirect_arg = {};
+    indirect_arg.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW;
+
+    D3D12_COMMAND_SIGNATURE_DESC desc = {};
+    desc.NumArgumentDescs = 1;
+    desc.pArgumentDescs = &indirect_arg;
+    desc.ByteStride = sizeof(gpu_indirect_command_draw);
+    desc.NodeMask = 0;
+
+    ID3D12CommandSignature* pComSig = nullptr;
+    PHI_D3D12_VERIFY(pDevice->CreateCommandSignature(&desc, nullptr, IID_PPV_ARGS(&pComSig)));
+    return pComSig;
+}
+
+
+ID3D12CommandSignature* phi::d3d12::createCommandSignatureForDrawIndexed(ID3D12Device* pDevice)
+{
+    static_assert(sizeof(D3D12_DRAW_INDEXED_ARGUMENTS) == sizeof(gpu_indirect_command_draw_indexed), "gpu argument type compiles to incorrect "
+                                                                                                     "size");
+
+    D3D12_INDIRECT_ARGUMENT_DESC indirect_arg = {};
+    indirect_arg.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW_INDEXED;
+
+    D3D12_COMMAND_SIGNATURE_DESC desc = {};
+    desc.NumArgumentDescs = 1;
+    desc.pArgumentDescs = &indirect_arg;
+    desc.ByteStride = sizeof(gpu_indirect_command_draw_indexed);
+    desc.NodeMask = 0;
+
+    ID3D12CommandSignature* pComSig = nullptr;
+    PHI_D3D12_VERIFY(pDevice->CreateCommandSignature(&desc, nullptr, IID_PPV_ARGS(&pComSig)));
+    return pComSig;
+}
+
+ID3D12CommandSignature* phi::d3d12::createCommandSignatureForDispatch(ID3D12Device* pDevice)
+{
+    static_assert(sizeof(D3D12_DISPATCH_ARGUMENTS) == sizeof(gpu_indirect_command_dispatch), "gpu argument type compiles to incorrect size");
+
+    D3D12_INDIRECT_ARGUMENT_DESC indirect_arg = {};
+    indirect_arg.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH;
+
+    D3D12_COMMAND_SIGNATURE_DESC desc = {};
+    desc.NumArgumentDescs = 1;
+    desc.pArgumentDescs = &indirect_arg;
+    desc.ByteStride = sizeof(gpu_indirect_command_dispatch);
+    desc.NodeMask = 0;
+
+    ID3D12CommandSignature* pComSig = nullptr;
+    PHI_D3D12_VERIFY(pDevice->CreateCommandSignature(&desc, nullptr, IID_PPV_ARGS(&pComSig)));
+    return pComSig;
+}
+
+ID3D12CommandSignature* phi::d3d12::createCommandSignatureForDrawIndexedWithID(ID3D12Device* pDevice, ID3D12RootSignature* pRootSig)
+{
+    static_assert(sizeof(D3D12_DRAW_INDEXED_ARGUMENTS) + 4u == sizeof(gpu_indirect_command_draw_indexed_with_id), "gpu argument type compiles to "
+                                                                                                                  "incorrect size");
+
+    D3D12_INDIRECT_ARGUMENT_DESC indirect_args[2] = {};
+
+    indirect_args[0].Type = D3D12_INDIRECT_ARGUMENT_TYPE_CONSTANT;
+    indirect_args[0].Constant.DestOffsetIn32BitValues = 0;
+    indirect_args[0].Constant.Num32BitValuesToSet = 1;
+    indirect_args[0].Constant.RootParameterIndex = 0; // root constants are always in (graphics) root signature parameter 0 (if present)
+
+    indirect_args[1].Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW_INDEXED;
+
+    D3D12_COMMAND_SIGNATURE_DESC desc = {};
+    desc.NumArgumentDescs = CC_COUNTOF(indirect_args);
+    desc.pArgumentDescs = indirect_args;
+    desc.ByteStride = sizeof(gpu_indirect_command_draw_indexed_with_id);
+    desc.NodeMask = 0;
+
+    ID3D12CommandSignature* pComSig = nullptr;
+    PHI_D3D12_VERIFY(pDevice->CreateCommandSignature(&desc, pRootSig, IID_PPV_ARGS(&pComSig)));
+    return pComSig;
+}

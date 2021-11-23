@@ -19,7 +19,7 @@
 
 namespace phi
 {
-/// resources bound to a shader, up to 4 per draw or dispatch command
+// resources bound to a shader, up to 4 per draw or dispatch command
 struct shader_argument
 {
     handle::resource constant_buffer = handle::null_resource;
@@ -27,7 +27,7 @@ struct shader_argument
     uint32_t constant_buffer_offset = 0;
 };
 
-/// the type of a single shader
+// the type of a single shader
 enum class shader_stage : uint8_t
 {
     none = 0,
@@ -75,7 +75,7 @@ enum class queue_type : uint8_t
     copy
 };
 
-/// the swapchain presentation mode
+// the swapchain presentation mode
 enum class present_mode : uint8_t
 {
     synced,                 // synchronize presentation every vblank
@@ -84,8 +84,8 @@ enum class present_mode : uint8_t
     unsynced_allow_tearing, // do not synchronize presentation and allow tearing, required for variable refresh rate displays
 };
 
-/// state of a handle::resource, determining legal operations
-/// (D3D12: resource states, Vulkan: access masks, image layouts and pipeline stage dependencies)
+// state of a handle::resource, determining legal operations
+// (D3D12: resource states, Vulkan: access masks, image layouts and pipeline stage dependencies)
 enum class resource_state : uint8_t
 {
     // unknown to pr
@@ -118,12 +118,12 @@ enum class resource_state : uint8_t
     raytrace_accel_struct,
 };
 
-/// information describing a single resource transition, specifying only the target state
+// information describing a single resource transition, specifying only the target state
 struct transition_info
 {
-    handle::resource resource = handle::null_resource;       ///< the resource to transition
-    resource_state target_state = resource_state::undefined; ///< the state the resource is transitioned into
-    shader_stage_flags_t dependent_shaders = shader_stage::none; ///< the shader stages accessing the resource afterwards, only applies to CBV, SRV and UAV states
+    handle::resource resource = handle::null_resource;       //< the resource to transition
+    resource_state target_state = resource_state::undefined; //< the state the resource is transitioned into
+    shader_stage_flags_t dependent_shaders = shader_stage::none; //< the shader stages accessing the resource afterwards, only applies to CBV, SRV and UAV states
 };
 
 enum class resource_heap : uint8_t
@@ -133,8 +133,8 @@ enum class resource_heap : uint8_t
     readback // for GPU -> CPU transfer
 };
 
-/// pixel format of a texture, or texture view (DXGI_FORMAT / VkFormat)
-/// [f]loat, [i]nt, [u]int, [un]orm, [uf]loat, [t]ypeless
+// pixel format of a texture, or texture view (DXGI_FORMAT / VkFormat)
+// [f]loat, [i]nt, [u]int, [un]orm, [uf]loat, [t]ypeless
 enum class format : uint8_t
 {
     none = 0,
@@ -226,7 +226,7 @@ enum class format : uint8_t
 
 constexpr bool is_valid_format(format fmt) { return fmt > format::none && fmt < format::MAX_FORMAT_RANGE; }
 
-/// information about a single vertex attribute
+// information about a single vertex attribute
 struct vertex_attribute_info
 {
     char const* semantic_name = nullptr;
@@ -242,7 +242,7 @@ enum class texture_dimension : uint8_t
     t3d
 };
 
-/// the type of a resource_view
+// the type of a resource_view
 enum class resource_view_dimension : uint8_t
 {
     none = 0,
@@ -263,7 +263,7 @@ enum class resource_view_dimension : uint8_t
     NUM_DIMENSIONS = MAX_DIMENSION_RANGE - 1
 };
 
-/// describes an element (either SRV or UAV) of a handle::shader_view
+// describes an element (either SRV or UAV) of a handle::shader_view
 struct resource_view
 {
     handle::resource resource;
@@ -272,17 +272,17 @@ struct resource_view
     struct texture_info_t
     {
         format pixel_format;
-        uint32_t mip_start;   ///< index of the first usable mipmap (usually: 0)
-        uint32_t mip_size;    ///< amount of usable mipmaps, starting from mip_start (usually: -1 / all)
-        uint32_t array_start; ///< index of the first usable array element [if applicable] (usually: 0)
-        uint32_t array_size;  ///< amount of usable array elements [if applicable]
+        uint32_t mip_start;   //< index of the first usable mipmap (usually: 0)
+        uint32_t mip_size;    //< amount of usable mipmaps, starting from mip_start (usually: -1 / all)
+        uint32_t array_start; //< index of the first usable array element [if applicable] (usually: 0)
+        uint32_t array_size;  //< amount of usable array elements [if applicable]
     };
 
     struct buffer_info_t
     {
-        uint32_t element_start;        ///< index of the first element in the buffer (for raw buffers, the first byte)
-        uint32_t num_elements;         ///< amount of elements in the buffer (for raw buffers, amount of bytes)
-        uint32_t element_stride_bytes; ///< the stride of elements in bytes (for raw buffers ignored)
+        uint32_t element_start;        //< index of the first element in the buffer (for raw buffers, the first byte)
+        uint32_t num_elements;         //< amount of elements in the buffer (for raw buffers, amount of bytes)
+        uint32_t element_stride_bytes; //< the stride of elements in bytes (for raw buffers ignored)
     };
 
     struct accel_struct_info_t
@@ -436,7 +436,7 @@ public:
     }
 };
 
-/// the texture filtering mode of a sampler
+// the texture filtering mode of a sampler
 enum class sampler_filter : uint8_t
 {
     min_mag_mip_point,
@@ -450,7 +450,7 @@ enum class sampler_filter : uint8_t
     anisotropic
 };
 
-/// the texture addressing mode (U/V/W) of a sampler
+// the texture addressing mode (U/V/W) of a sampler
 enum class sampler_address_mode : uint8_t
 {
     wrap,
@@ -459,7 +459,7 @@ enum class sampler_address_mode : uint8_t
     mirror
 };
 
-/// the comparison function of a sampler
+// the comparison function of a sampler
 enum class sampler_compare_func : uint8_t
 {
     never,
@@ -474,7 +474,7 @@ enum class sampler_compare_func : uint8_t
     disabled
 };
 
-/// the border color of a sampler (with address mode clamp_border)
+// the border color of a sampler (with address mode clamp_border)
 enum class sampler_border_color : uint8_t
 {
     black_transparent_float,
@@ -485,7 +485,7 @@ enum class sampler_border_color : uint8_t
     white_int
 };
 
-/// configuration from which a sampler is created, as part of a handle::shader_view
+// configuration from which a sampler is created, as part of a handle::shader_view
 struct sampler_config
 {
     sampler_filter filter = sampler_filter::min_mag_mip_linear;
@@ -494,10 +494,10 @@ struct sampler_config
     sampler_address_mode address_w = sampler_address_mode::wrap;
     float min_lod = 0.f;
     float max_lod = 100000.f;
-    float lod_bias = 0.f;          ///< offset from the calculated MIP level (sampled = calculated + lod_bias)
-    uint32_t max_anisotropy = 16u; ///< maximum amount of anisotropy in [1, 16], req. sampler_filter::anisotropic
+    float lod_bias = 0.f;          //< offset from the calculated MIP level (sampled = calculated + lod_bias)
+    uint32_t max_anisotropy = 16u; //< maximum amount of anisotropy in [1, 16], req. sampler_filter::anisotropic
     sampler_compare_func compare_func = sampler_compare_func::disabled;
-    sampler_border_color border_color = sampler_border_color::white_float; ///< the border color to use, req. sampler_address_mode::clamp_border
+    sampler_border_color border_color = sampler_border_color::white_float; //< the border color to use, req. sampler_address_mode::clamp_border
 
     void init_default(sampler_filter filter, uint32_t anisotropy = 16u, sampler_address_mode address_mode = sampler_address_mode::wrap)
     {
@@ -520,7 +520,7 @@ struct sampler_config
     sampler_config() = default;
 };
 
-/// the structure of vertices a handle::pipeline_state takes in
+// the structure of vertices a handle::pipeline_state takes in
 enum class primitive_topology : uint8_t
 {
     triangles,
@@ -529,7 +529,7 @@ enum class primitive_topology : uint8_t
     patches
 };
 
-/// the depth function a handle::pipeline_state is using
+// the depth function a handle::pipeline_state is using
 enum class depth_function : uint8_t
 {
     none,
@@ -543,7 +543,7 @@ enum class depth_function : uint8_t
     never
 };
 
-/// the face culling mode a handle::pipeline_state is using
+// the face culling mode a handle::pipeline_state is using
 enum class cull_mode : uint8_t
 {
     none,
@@ -551,20 +551,38 @@ enum class cull_mode : uint8_t
     front
 };
 
-/// configuration for creation of a (graphics) handle::pipeline_state
+// configuration for creation of a graphics handle::pipeline_state
 struct pipeline_config
 {
+    // how to interpret the input primitives
     primitive_topology topology = primitive_topology::triangles;
+
+    // the function used for depth testing
     depth_function depth = depth_function::none;
+
+    // whether the depth buffer cannot be written to
     bool depth_readonly = false;
+
+    // the face culling mode (front / back / none)
     cull_mode cull = cull_mode::none;
+
+    // amount of (MSAA) samples in the render targets
     int32_t samples = 1;
+
+    // enable conservative rasterization, not available on all supported GPUs
     bool conservative_raster = false;
+
+    // how to determine if a face is front-facing (relevant for cull mode)
     bool frontface_counterclockwise = true; // TODO: this default should be flipped
+
+    // whether to draw in wireframe mode
     bool wireframe = false;
+
+    // (D3D12 only) whether to create a special command signature required for cmd::draw_indirect using draw_indexed_with_id
+    bool allow_draw_indirect_with_id = false;
 };
 
-/// operation to perform on render targets upon render pass begin
+// operation to perform on render targets upon render pass begin
 enum class rt_clear_type : uint8_t
 {
     clear,
@@ -572,7 +590,7 @@ enum class rt_clear_type : uint8_t
     load
 };
 
-/// value to clear a render target with
+// value to clear a render target with
 struct rt_clear_value
 {
     uint8_t red_or_depth = 0;
@@ -598,7 +616,7 @@ struct rt_clear_value
     }
 };
 
-/// blending logic operation a (graphics) handle::pipeline_state performs on its render targets
+// blending logic operation a (graphics) handle::pipeline_state performs on its render targets
 enum class blend_logic_op : uint8_t
 {
     no_op,
@@ -619,7 +637,7 @@ enum class blend_logic_op : uint8_t
     op_equiv
 };
 
-/// blending operation a (graphics) handle::pipeline_state performs on a specific render target slot
+// blending operation a (graphics) handle::pipeline_state performs on a specific render target slot
 enum class blend_op : uint8_t
 {
     op_add,
@@ -629,7 +647,7 @@ enum class blend_op : uint8_t
     op_max
 };
 
-/// the source or destination blend factor of a blending operation on a specific render target slot
+// the source or destination blend factor of a blending operation on a specific render target slot
 enum class blend_factor : uint8_t
 {
     zero,
@@ -696,23 +714,23 @@ public:
     {
     }
 
-    /// blend state for additive blending "src + dest"
+    // blend state for additive blending "src + dest"
     static blend_state additive() { return blend_state(blend_factor::one, blend_factor::one); }
 
-    /// blend state for multiplicative blending "src * dest"
+    // blend state for multiplicative blending "src * dest"
     static blend_state multiplicative()
     {
         return blend_state(blend_factor::dest_color, blend_factor::zero, blend_factor::dest_alpha, blend_factor::zero);
     }
 
-    /// blend state for normal alpha blending "mix(dest, src, src.a)"
+    // blend state for normal alpha blending "mix(dest, src, src.a)"
     static blend_state alpha_blending() { return blend_state(blend_factor::src_alpha, blend_factor::inv_src_alpha); }
 
-    /// blend state for premultiplied alpha blending "dest * (1 - src.a) + src"
+    // blend state for premultiplied alpha blending "dest * (1 - src.a) + src"
     static blend_state alpha_blending_premultiplied() { return blend_state(blend_factor::one, blend_factor::inv_src_alpha); }
 };
 
-/// the blending configuration for a specific render target slot of a (graphics) handle::pipeline_state
+// the blending configuration for a specific render target slot of a (graphics) handle::pipeline_state
 struct render_target_config
 {
     format fmt = format::rgba8un;
@@ -720,7 +738,7 @@ struct render_target_config
     blend_state state;
 };
 
-/// the type of a handle::query_range
+// the type of a handle::query_range
 enum class query_type : uint8_t
 {
     timestamp,
@@ -728,33 +746,60 @@ enum class query_type : uint8_t
     pipeline_stats
 };
 
-/// a single signal- or wait operation on a fence
+// a single signal- or wait operation on a fence
 struct fence_operation
 {
     handle::fence fence = handle::null_fence;
     uint64_t value = 0;
 };
 
-/// indirect draw command, as it is laid out in a GPU buffer
+enum class indirect_command_type : uint8_t
+{
+    INVALID = 0,
+
+    // array of gpu_indirect_command_draw structs
+    draw,
+
+    // array of gpu_indirect_command_draw_indexed structs
+    draw_indexed,
+
+    // array of gpu_indirect_command_draw_indexed_with_id structs
+    draw_indexed_with_id,
+};
+
+// indirect draw command, as it is laid out in a GPU buffer
 struct gpu_indirect_command_draw
 {
     uint32_t num_vertices = 0;
     uint32_t num_instances = 0;
     uint32_t vertex_offset = 0;
-    uint32_t instance_offset = 0;
+    uint32_t first_instance = 0;
 };
 
-/// indirect indexed draw command, as it is laid out in a GPU buffer
+// indirect indexed draw command, as it is laid out in a GPU buffer
 struct gpu_indirect_command_draw_indexed
 {
     uint32_t num_indices = 0;
     uint32_t num_instances = 0;
     uint32_t index_offset = 0;
     int32_t vertex_offset = 0;
-    uint32_t instance_offset = 0;
+    uint32_t first_instance = 0;
 };
 
-/// indirect compute dispatch command, as it is laid out in a GPU buffer
+// indirect indexed draw command with frontloaded custom root constant value, as it is laid out in a GPU buffer
+// NOTE: draw_id_d3d12 overrides the first 4 bytes of root constants in D3D12 in order to provide a draw ID per call.
+// In Vulkan, the field is unused and the draw ID can instead be written into first_instance, retrieved using SV_InstanceID.
+struct gpu_indirect_command_draw_indexed_with_id
+{
+    uint32_t draw_id_d3d12 = 0;
+    uint32_t num_indices = 0;
+    uint32_t num_instances = 0;
+    uint32_t index_offset = 0;
+    int32_t vertex_offset = 0;
+    uint32_t first_instance = 0;
+};
+
+// indirect compute dispatch command, as it is laid out in a GPU buffer
 struct gpu_indirect_command_dispatch
 {
     uint32_t dispatch_x = 0;
@@ -778,17 +823,17 @@ using resource_usage_flags_t = uint32_t;
 
 struct accel_struct_prebuild_info
 {
-	// the size in bytes of the backing buffers
+    // the size in bytes of the backing buffers
     uint32_t buffer_size_bytes = 0;
 
-	// the required scratch buffer size for the initial build
+    // the required scratch buffer size for the initial build
     uint32_t required_build_scratch_size_bytes = 0;
 
-	// the required scratch buffer size for subsequent updates (requires accel_struct_build_flags::allow_update)
+    // the required scratch buffer size for subsequent updates (requires accel_struct_build_flags::allow_update)
     uint32_t required_update_scratch_size_bytes = 0;
 };
 
-/// flags to configure the building process of a raytracing acceleration structure
+// flags to configure the building process of a raytracing acceleration structure
 enum class accel_struct_build_flags : uint8_t
 {
     // build the AS so that it supports future updates
@@ -835,26 +880,26 @@ struct accel_struct_instance_flags
 };
 using accel_struct_instance_flags_t = uint32_t;
 
-/// bottom level accel struct instance within a top level accel struct (layout dictated by DXR/Vulkan RT Extension)
+// bottom level accel struct instance within a top level accel struct (layout dictated by DXR/Vulkan RT Extension)
 struct accel_struct_instance
 {
-    /// Transposed transform matrix, containing only the top 3 rows (laid out as three 4-vectors)
+    // Transposed transform matrix, containing only the top 3 rows (laid out as three 4-vectors)
     float transposed_transform[12];
 
-    /// Instance id - arbitrary value, accessed in shaders via `InstanceID()` (HLSL)
+    // Instance id - arbitrary value, accessed in shaders via `InstanceID()` (HLSL)
     uint32_t instance_id : 24;
 
-    /// Visibility mask - matched against `InstanceInclusionMask` parameter in `TraceRays(..)` (HLSL)
+    // Visibility mask - matched against `InstanceInclusionMask` parameter in `TraceRays(..)` (HLSL)
     uint32_t visibility_mask : 8;
 
-    /// Index of the hit group which will be invoked when a ray hits the instance
+    // Index of the hit group which will be invoked when a ray hits the instance
     uint32_t hit_group_index : 24;
 
-    /// Instance flags, such as culling
+    // Instance flags, such as culling
     accel_struct_instance_flags_t flags : 8;
 
-    /// Opaque handle of the bottom-level acceleration structure,
-    /// as received from `out_native_handle` in `createBottomLevelAccelStruct` (phi Backend)
+    // Opaque handle of the bottom-level acceleration structure,
+    // as received from `out_native_handle` in `createBottomLevelAccelStruct` (phi Backend)
     uint64_t native_bottom_level_as_handle;
 };
 
@@ -881,7 +926,7 @@ struct buffer_range_and_stride
     uint32_t stride_bytes = 0;
 };
 
-/// the sizes required for the four sections of a raytracing shader table
+// the sizes required for the four sections of a raytracing shader table
 struct shader_table_strides
 {
     // ray_gen: record size
