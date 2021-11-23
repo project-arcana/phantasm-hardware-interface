@@ -51,19 +51,42 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createPipelineS
                                                                                      phi::arg::shader_arg_shapes shader_arg_shapes,
                                                                                      bool has_root_constants,
                                                                                      phi::arg::graphics_shaders shader_stages,
-                                                                                     const phi::pipeline_config& primitive_config,
+                                                                                     phi::pipeline_config const& primitive_config,
                                                                                      char const* dbg_name)
 {
     root_signature* pRootSig = nullptr;
+    ID3D12CommandSignature* pDrawIDComSig = nullptr;
+
+    bool const bEnableDrawID = primitive_config.allow_draw_indirect_with_id;
+
+    if (bEnableDrawID && !has_root_constants)
+    {
+        PHI_LOG_ERROR("Indirect Draw ID mode requires enabled root constants. Aborting compilation of PSO with debug name: {}",
+                      dbg_name ? dbg_name : "unnamed (nullptr)");
+        return handle::null_pipeline_state;
+    }
+
     // Do things requiring synchronization first
     {
         auto lg = std::lock_guard(mMutex);
+
         pRootSig = mRootSigCache.getOrCreate(*mDevice, shader_arg_shapes, has_root_constants, root_signature_type::graphics);
+
+        if (bEnableDrawID)
+        {
+            pDrawIDComSig = mComSigCache.getOrCreateDrawIDComSig(mDevice, pRootSig);
+        }
     }
 
     if (!pRootSig)
     {
         PHI_LOG_ERROR("Failed to create root signature when compiling PSO, debug name: {}", dbg_name ? dbg_name : "unnamed (nullptr)");
+        return phi::handle::null_pipeline_state;
+    }
+
+    if (bEnableDrawID && !pDrawIDComSig)
+    {
+        PHI_LOG_ERROR("Failed to create Draw ID command signature when compiling PSO, debug name: {}", dbg_name ? dbg_name : "unnamed (nullptr)");
         return phi::handle::null_pipeline_state;
     }
 
@@ -83,9 +106,10 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createPipelineS
 
     // Populate new node
     pso_node& new_node = mPool.get(res);
-    new_node.associated_root_sig = pRootSig;
+    new_node.pPSO = pPipelineState;
+    new_node.pAssociatedRootSig = pRootSig;
+    new_node.pAssociatedComSigForDrawID = pDrawIDComSig;
     new_node.primitive_topology = util::to_native_topology(primitive_config.topology);
-    new_node.raw_pso = pPipelineState;
 
     return {res};
 }
@@ -122,9 +146,10 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createComputePi
 
     // Populate new node
     pso_node& new_node = mPool.get(res);
-    new_node.associated_root_sig = pRootSig;
+    new_node.pPSO = pPipelineState;
+    new_node.pAssociatedRootSig = pRootSig;
+    new_node.pAssociatedComSigForDrawID = nullptr;
     new_node.primitive_topology = D3D_PRIMITIVE_TOPOLOGY_UNDEFINED;
-    new_node.raw_pso = pPipelineState;
 
     return {res};
 }
@@ -527,7 +552,7 @@ void phi::d3d12::PipelineStateObjectPool::free(phi::handle::pipeline_state ps)
     {
         // This requires no synchronization, as D3D12MA internally syncs
         pso_node& freed_node = mPool.get(ps._value);
-        freed_node.raw_pso->Release();
+        freed_node.pPSO->Release();
 
         mPool.release(ps._value);
     }
@@ -541,33 +566,17 @@ void phi::d3d12::PipelineStateObjectPool::initialize(
     mDynamicAllocator = dynamic_alloc;
     mPool.initialize(max_num_psos, static_alloc);
     mPoolRaytracing.initialize(max_num_psos_raytracing, static_alloc);
+
     mRootSigCache.initialize((max_num_psos / 2) + max_num_psos_raytracing, static_alloc); // almost arbitrary, revisit if this blows up
+    mComSigCache.initialize((max_num_psos / 2), static_alloc);
 
     // Create empty raytracing rootsig
     mEmptyRaytraceRootSignature = mRootSigCache.getOrCreate(*mDevice, {}, false, root_signature_type::raytrace_global)->raw_root_sig;
 
-    // Create global (indirect drawing) command signatures for draw and indexed draw
-    static_assert(sizeof(D3D12_DRAW_ARGUMENTS) == sizeof(gpu_indirect_command_draw), "gpu argument type compiles to incorrect size");
-    static_assert(sizeof(D3D12_DRAW_INDEXED_ARGUMENTS) == sizeof(gpu_indirect_command_draw_indexed), "gpu argument type compiles to incorrect size");
-    static_assert(sizeof(D3D12_DISPATCH_ARGUMENTS) == sizeof(gpu_indirect_command_dispatch), "gpu argument type compiles to incorrect size");
-
-    D3D12_INDIRECT_ARGUMENT_DESC indirect_arg;
-    indirect_arg.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW;
-
-    D3D12_COMMAND_SIGNATURE_DESC desc = {};
-    desc.NumArgumentDescs = 1;
-    desc.pArgumentDescs = &indirect_arg;
-    desc.ByteStride = sizeof(gpu_indirect_command_draw);
-    desc.NodeMask = 0;
-    PHI_D3D12_VERIFY(mDevice->CreateCommandSignature(&desc, nullptr, IID_PPV_ARGS(&mGlobalComSigDraw)));
-
-    indirect_arg.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW_INDEXED;
-    desc.ByteStride = sizeof(gpu_indirect_command_draw_indexed);
-    PHI_D3D12_VERIFY(mDevice->CreateCommandSignature(&desc, nullptr, IID_PPV_ARGS(&mGlobalComSigDrawIndexed)));
-
-    indirect_arg.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH;
-    desc.ByteStride = sizeof(gpu_indirect_command_dispatch);
-    PHI_D3D12_VERIFY(mDevice->CreateCommandSignature(&desc, nullptr, IID_PPV_ARGS(&mGlobalComSigDispatch)));
+    // Create global (indirect drawing) command signatures
+    mGlobalComSigDraw = createCommandSignatureForDraw(mDevice);
+    mGlobalComSigDrawIndexed = createCommandSignatureForDrawIndexed(mDevice);
+    mGlobalComSigDispatch = createCommandSignatureForDispatch(mDevice);
 }
 
 void phi::d3d12::PipelineStateObjectPool::destroy()
@@ -577,7 +586,7 @@ void phi::d3d12::PipelineStateObjectPool::destroy()
         [&](pso_node& leaked_node)
         {
             ++num_leaks;
-            leaked_node.raw_pso->Release();
+            leaked_node.pPSO->Release();
         });
 
     mPoolRaytracing.iterate_allocated_nodes(
@@ -594,6 +603,7 @@ void phi::d3d12::PipelineStateObjectPool::destroy()
     }
 
     mRootSigCache.destroy();
+    mComSigCache.destroy();
 
     mGlobalComSigDraw->Release();
     mGlobalComSigDrawIndexed->Release();

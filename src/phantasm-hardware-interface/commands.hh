@@ -231,25 +231,33 @@ public:
 
 PHI_DEFINE_CMD(draw_indirect)
 {
-    // Execute draw calls based on data in a GPU buffer
-
-    // vertex/index ranges are specified by an array of structs in indirect_argument_buffer
-    // if an index buffer is provided, the arg type is phi::gpu_indirect_command_draw_indexed
-    // otherwise, the arg type is phi::gpu_indirect_command_draw
-    // num_arguments specifies the amount of these arguments to read from indirect_argument_buffer
-    // indirect_argument_buffer must be in state indirect_argument
+    // Execute draw calls or dispatches based on data in a GPU buffer
 
     std::byte root_constants[limits::max_root_constant_bytes];
+
     flat_vector<shader_argument, limits::max_shader_arguments> shader_arguments;
+
     handle::pipeline_state pipeline_state = handle::null_pipeline_state;
 
-    /// the buffer from which to read arguments, must be in resource_state::indirect_argument
-    handle::resource indirect_argument_buffer = handle::null_resource;
-    uint32_t argument_buffer_offset_bytes = 0; ///< offset in bytes into the argument buffer
-    uint32_t num_arguments = 0;                ///< amount of arguments to read from the buffer
+    // the buffer from which to read arguments, must be in state indirect_argument
+    buffer_address indirect_argument = {};
 
-    handle::resource vertex_buffers[limits::max_vertex_buffers] = {}; // vertex buffers - optional
-    handle::resource index_buffer = handle::null_resource;            // optional
+    // maximum amount of arguments to read from indirect_argument
+    // if count_buffer is not set, this is the exact amount of arguments to read
+    uint32_t max_num_arguments = 0;
+
+    // the type of structs found in the indirect_argument buffer
+    indirect_command_type argument_type = indirect_command_type::INVALID;
+
+    // the buffer from which to read the amount of drawcalls to read from indirect_argument (optional)
+    // if this buffer is not set, max_num_arguments are read instead
+    buffer_address count_buffer = {};
+
+    // vertex buffers (optional)
+    handle::resource vertex_buffers[limits::max_vertex_buffers] = {};
+
+    // index buffer (not required if the argument type is plain 'draw')
+    handle::resource index_buffer = handle::null_resource;
 
 public:
     void add_shader_arg(handle::resource cbv, uint32_t cbv_off = 0, handle::shader_view sv = handle::null_shader_view)

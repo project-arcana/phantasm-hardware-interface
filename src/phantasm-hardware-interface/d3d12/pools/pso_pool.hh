@@ -86,9 +86,16 @@ public:
 
     struct pso_node
     {
-        ID3D12PipelineState* raw_pso;
-        root_signature* associated_root_sig;
-        D3D12_PRIMITIVE_TOPOLOGY primitive_topology;
+        // the pipeline state itself
+        ID3D12PipelineState* pPSO = nullptr;
+
+        // the root signature (looked up from a cache, not 1:1)
+        root_signature* pAssociatedRootSig = nullptr;
+
+        // graphics PSOs with enabled support for cmd::draw_indirect in draw ID mode require this special command signature
+        ID3D12CommandSignature* pAssociatedComSigForDrawID = nullptr;
+
+        D3D12_PRIMITIVE_TOPOLOGY primitive_topology = {};
     };
 
     struct rt_pso_node
@@ -128,6 +135,8 @@ private:
     cc::allocator* mDynamicAllocator = nullptr;
 
     RootSignatureCache mRootSigCache;
+    CommandSignatureCache mComSigCache;
+
     ID3D12RootSignature* mEmptyRaytraceRootSignature = nullptr;
     ID3D12CommandSignature* mGlobalComSigDraw = nullptr;
     ID3D12CommandSignature* mGlobalComSigDrawIndexed = nullptr;
@@ -138,4 +147,4 @@ private:
     std::mutex mMutex;
 };
 
-}
+} // namespace phi::d3d12

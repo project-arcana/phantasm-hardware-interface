@@ -126,7 +126,8 @@ struct command_list_translator
 private:
     void bind_vertex_buffers(handle::resource const vertex_buffers[limits::max_vertex_buffers]);
 
-    void bind_shader_arguments(handle::pipeline_state pso, std::byte const* root_consts, cc::span<shader_argument const> shader_args, VkPipelineBindPoint bind_point);
+    // returns whether root constants are present
+    bool bind_shader_arguments(handle::pipeline_state pso, std::byte const* root_consts, cc::span<shader_argument const> shader_args, VkPipelineBindPoint bind_point);
 
     VkBuffer get_buffer_or_null(handle::resource buf) const;
 
