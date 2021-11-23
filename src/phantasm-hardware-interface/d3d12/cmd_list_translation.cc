@@ -403,10 +403,7 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::draw_indirect&
                                                                                  : _globals.pool_pipeline_states->getGlobalComSigDraw();
 
     // NOTE: We use no count buffer, which makes the second argument determine the actual amount of args, not the max
-    // NOTE: One of two global command sigs are used, containing 256 draw / draw_indexed argument types each
     // as only those two arg types are used, they require no association with a rootsig making things a lot simpler
-    // the amount of arguments configured in those rootsigs is more or less arbitrary, could be increased possibly by a lot without cost
-    CC_ASSERT(draw_indirect.num_arguments <= 256 && "Too many indirect arguments, contact maintainers");
     _cmd_list->ExecuteIndirect(comsig, draw_indirect.num_arguments, raw_arg_buffer, draw_indirect.argument_buffer_offset_bytes, nullptr, 0);
 }
 
