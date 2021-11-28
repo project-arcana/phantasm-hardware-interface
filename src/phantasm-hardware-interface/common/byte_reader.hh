@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdint.h>
+
 #include <clean-core/span.hh>
 
 namespace phi
@@ -25,7 +27,7 @@ struct byte_reader
         _head += out_data.size();
     }
 
-    void const* read_size_and_skip(size_t& out_size, size_t skip_multiplier = 1)
+    void const* read_size_and_skip(uint64_t& out_size, size_t skip_multiplier = 1)
     {
         read_t(out_size);
         auto* const res = head();
@@ -38,7 +40,7 @@ struct byte_reader
     cc::span<T const> read_sized_array()
     {
         static_assert(sizeof(T) > 0, "requires complete T");
-        size_t num_elems;
+        uint64_t num_elems;
         void const* const res = read_size_and_skip(num_elems, sizeof(T));
         return cc::span{static_cast<T const*>(res), num_elems};
     }
@@ -71,4 +73,4 @@ private:
     std::byte const* _head = nullptr;
     std::byte const* _buffer_end = nullptr;
 };
-}
+} // namespace phi

@@ -50,13 +50,13 @@ public:
         if (num_descriptors <= 0)
             return -1;
 
-        auto const res_page = mPageAllocator.allocate(num_descriptors);
-        CC_RUNTIME_ASSERTF(res_page != -1, "DescriptorPageAllocator overcommitted! Reached limit of {} {}\nIncrease the corresponding maximum in the PHI backend config",
+        auto const res_page = mPageAllocator.allocate((uint64_t)num_descriptors);
+        CC_RUNTIME_ASSERTF(res_page != uint64_t(-1), "DescriptorPageAllocator overcommitted! Reached limit of {} {}\nIncrease the corresponding maximum in the PHI backend config",
                            mPageAllocator.get_num_elements(), mDescriptorType == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV ? "SRVs/UAVs/CBVs" : "Samplers");
-        return res_page;
+        return (int32_t)res_page;
     }
 
-    void free(handle_t handle) { mPageAllocator.free(handle); }
+    void free(handle_t handle) { mPageAllocator.free((uint64_t)handle); }
 
 public:
     D3D12_CPU_DESCRIPTOR_HANDLE getCPUStart(handle_t handle) const
