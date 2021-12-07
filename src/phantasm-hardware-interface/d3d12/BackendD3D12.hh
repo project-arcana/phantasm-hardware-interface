@@ -227,14 +227,19 @@ public:
 
     vram_state_info nativeGetVRAMStateInfo();
 
-    ID3D12Device5* nativeGetDevice() { return mDevice.getDevice(); }
-    ID3D12CommandQueue* nativeGetDirectQueue() { return mDirectQueue.command_queue; }
-    ID3D12CommandQueue* nativeGetCopyQueue() { return mCopyQueue.command_queue; }
-    ID3D12CommandQueue* nativeGetComputeQueue() { return mComputeQueue.command_queue; }
+    ID3D12Device5* nativeGetDevice() const { return mDevice.getDevice(); }
+    ID3D12CommandQueue* nativeGetDirectQueue() const { return mDirectQueue.command_queue; }
+    ID3D12CommandQueue* nativeGetCopyQueue() const { return mCopyQueue.command_queue; }
+    ID3D12CommandQueue* nativeGetComputeQueue() const { return mComputeQueue.command_queue; }
 
-    ID3D12Resource* nativeGetResource(handle::resource res) { return mPoolResources.getRawResource(res); }
-    IDXGISwapChain3* nativeGetSwapchain(handle::swapchain sc) { return mPoolSwapchains.get(sc).swapchain_com; }
-    ID3D12GraphicsCommandList5* nativeGetCommandList(handle::command_list cl) { return mPoolCmdLists.getRawList(cl); }
+    ID3D12Resource* nativeGetResource(handle::resource res) const { return mPoolResources.getRawResource(res); }
+    IDXGISwapChain3* nativeGetSwapchain(handle::swapchain sc) const { return mPoolSwapchains.get(sc).swapchain_com; }
+    ID3D12GraphicsCommandList5* nativeGetCommandList(handle::command_list cl) const { return mPoolCmdLists.getRawList(cl); }
+
+    // D3D11On12 objects, only valid if native_feature_d3d12_init_d3d11_on_12 is enabled
+    ID3D11Device* nativeGetD11Device() const { return mD11Device; }
+    ID3D11DeviceContext* nativeGetD11Context() const { return mD11Context; }
+    ID3D11On12Device2* nativeGetD11On12() const { return mD11On12; }
 
     //
     // disable or clear D3D runtime- and driver-level PSO caches, requires running in developer mode
