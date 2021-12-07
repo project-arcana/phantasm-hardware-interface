@@ -296,5 +296,10 @@ private:
 
     // Misc
     util::diagnostic_state mDiagnostics;
+
+    // D3D11On12
+    ID3D11Device* mD11Device = nullptr;
+    ID3D11DeviceContext* mD11Context = nullptr;
+    ID3D11On12Device2* mD11On12 = nullptr;
 };
 } // namespace phi::d3d12

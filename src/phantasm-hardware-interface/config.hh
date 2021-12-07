@@ -78,7 +78,10 @@ struct backend_config
 
         // Vulkan: Enable the best practices validation layer (VK_VALIDATION_FEATURE_ENABLE_BEST_PRACTICES_EXT)
         // has proved to be of questionable reliability, requires at least validation_level::on
-        native_feature_vk_best_practices_layer = 1 << 4
+        native_feature_vk_best_practices_layer = 1 << 4,
+
+        // D3D12: Initialize D3D11On12 features
+        native_feature_d3d12_init_d3d11_on_12 = 1 << 5,
     };
 
     // native features to enable
