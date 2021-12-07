@@ -14,6 +14,8 @@
 #include <phantasm-hardware-interface/common/log.hh>
 #include <phantasm-hardware-interface/window_handle.hh>
 
+#include "common/d3d12_sanitized.hh"
+
 #include "cmd_list_translation.hh"
 #include "common/dxgi_format.hh"
 #include "common/native_enum.hh"
@@ -154,6 +156,41 @@ void phi::d3d12::BackendD3D12::initializeQueues(backend_config const& config)
         mCopyQueue.initialize(device, queue_type::copy);
     }
 
+    // D3D11On12
+    if (config.native_features & backend_config::native_feature_d3d12_init_d3d11_on_12)
+    {
+        HMODULE const hD3D11 = LoadLibraryA("d3d11.dll");
+        if (hD3D11)
+        {
+            PFN_D3D11ON12_CREATE_DEVICE pCreateD3D11On12 = (PFN_D3D11ON12_CREATE_DEVICE)GetProcAddress(hD3D11, "D3D11On12CreateDevice");
+
+            if (pCreateD3D11On12)
+            {
+                IUnknown* cmdQueues[] = {nativeGetDirectQueue()};
+
+                // create ID3D11Device and ID3D11DeviceContext
+                D3D_FEATURE_LEVEL resFeatureLevel = (D3D_FEATURE_LEVEL)0;
+                PHI_D3D12_VERIFY(pCreateD3D11On12(mDevice.getDevice(), D3D11_CREATE_DEVICE_BGRA_SUPPORT | D3D11_CREATE_DEVICE_DEBUG, nullptr, 0,
+                                                  cmdQueues, CC_COUNTOF(cmdQueues), 0, &mD11Device, &mD11Context, &resFeatureLevel));
+
+                // QI 11On12
+                PHI_D3D12_VERIFY(mD11Device->QueryInterface<ID3D11On12Device2>(&mD11On12));
+
+                PHI_LOG("d3d12_init_d3d11_on_12: Initialized ID3D11On12Device2");
+            }
+            else
+            {
+                PHI_LOG_WARN("d3d12_init_d3d11_on_12: Failed to GetProcAddress for \"D3D11On12CreateDevice\"");
+            }
+
+            FreeLibrary(hD3D11);
+        }
+        else
+        {
+            PHI_LOG_WARN("d3d12_init_d3d11_on_12: Failed to load d3d11.dll");
+        }
+    }
+
 #ifdef PHI_HAS_OPTICK
     // Profiling GPU init (requires queues)
     {
@@ -175,6 +212,20 @@ void phi::d3d12::BackendD3D12::destroy()
     if (mAdapter.isValid())
     {
         flushGPU();
+
+        // D3D11On12
+        if (mD11Device)
+        {
+            mD11Device->Release();
+        }
+        if (mD11Context)
+        {
+            mD11Context->Release();
+        }
+        if (mD11On12)
+        {
+            mD11On12->Release();
+        }
 
         mDiagnostics.free();
 

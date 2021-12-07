@@ -22,6 +22,9 @@
 #include <d3d12.h>
 #endif
 
+#include <d3d11.h>
+#include <d3d11on12.h>
+
 #include <dxgi1_6.h>
 #include <combaseapi.h>
 #include <dxgidebug.h>
