@@ -249,7 +249,7 @@ public:
     void freeOnDiscard(cc::span<handle::command_list const> cls);
 
 public:
-    ID3D12GraphicsCommandList5* getRawList(handle::command_list cl)
+    ID3D12GraphicsCommandList5* getRawList(handle::command_list cl) const
     {
         auto const type = HandleToQueueType(cl);
         return getList(cl, type);
