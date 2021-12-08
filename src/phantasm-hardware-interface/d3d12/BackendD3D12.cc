@@ -170,8 +170,19 @@ void phi::d3d12::BackendD3D12::initializeQueues(backend_config const& config)
 
                 // create ID3D11Device and ID3D11DeviceContext
                 D3D_FEATURE_LEVEL resFeatureLevel = (D3D_FEATURE_LEVEL)0;
+                ID3D11Device* pD11Device = nullptr;
+                ID3D11DeviceContext* pD11Context = nullptr;
+
                 PHI_D3D12_VERIFY(pCreateD3D11On12(mDevice.getDevice(), D3D11_CREATE_DEVICE_BGRA_SUPPORT | D3D11_CREATE_DEVICE_DEBUG, nullptr, 0,
-                                                  cmdQueues, CC_COUNTOF(cmdQueues), 0, &mD11Device, &mD11Context, &resFeatureLevel));
+                                                  cmdQueues, CC_COUNTOF(cmdQueues), 0, &pD11Device, &pD11Context, &resFeatureLevel));
+
+                // QI v5 of ID3D11Device and ID3D11DeviceContext
+                PHI_D3D12_VERIFY(pD11Device->QueryInterface<ID3D11Device5>(&mD11Device));
+                PHI_D3D12_VERIFY(pD11Context->QueryInterface<ID3D11DeviceContext4>(&mD11Context));
+
+                // release temp ptrs
+                pD11Device->Release();
+                pD11Context->Release();
 
                 // QI 11On12
                 PHI_D3D12_VERIFY(mD11Device->QueryInterface<ID3D11On12Device2>(&mD11On12));
