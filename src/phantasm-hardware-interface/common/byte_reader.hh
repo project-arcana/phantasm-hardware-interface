@@ -55,10 +55,13 @@ struct byte_reader
         return cc::span{reinterpret_cast<T const*>(res), num_elems};
     }
 
-    void skip(size_t size)
+    std::byte const* skip(size_t size)
     {
+        auto* const res = _head;
         CC_ASSERT(_head + size <= _buffer_end && "skip OOB");
         _head += size;
+
+        return res;
     }
 
     void reset() { _head = _buffer; }
