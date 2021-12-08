@@ -24,7 +24,9 @@ struct ID3D12DeviceRemovedExtendedDataSettings;
 struct ID3D12StateObjectProperties;
 
 struct ID3D11Device;
+struct ID3D11Device5;
 struct ID3D11DeviceContext;
+struct ID3D11DeviceContext4;
 struct ID3D11On12Device2;
 
 struct IDXGIAdapter;

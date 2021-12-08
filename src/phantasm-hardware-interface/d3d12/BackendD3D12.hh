@@ -237,8 +237,8 @@ public:
     ID3D12GraphicsCommandList5* nativeGetCommandList(handle::command_list cl) const { return mPoolCmdLists.getRawList(cl); }
 
     // D3D11On12 objects, only valid if native_feature_d3d12_init_d3d11_on_12 is enabled
-    ID3D11Device* nativeGetD11Device() const { return mD11Device; }
-    ID3D11DeviceContext* nativeGetD11Context() const { return mD11Context; }
+    ID3D11Device5* nativeGetD11Device() const { return mD11Device; }
+    ID3D11DeviceContext4* nativeGetD11Context() const { return mD11Context; }
     ID3D11On12Device2* nativeGetD11On12() const { return mD11On12; }
 
     //
@@ -303,8 +303,8 @@ private:
     util::diagnostic_state mDiagnostics;
 
     // D3D11On12
-    ID3D11Device* mD11Device = nullptr;
-    ID3D11DeviceContext* mD11Context = nullptr;
+    ID3D11Device5* mD11Device = nullptr;
+    ID3D11DeviceContext4* mD11Context = nullptr;
     ID3D11On12Device2* mD11On12 = nullptr;
 };
 } // namespace phi::d3d12
