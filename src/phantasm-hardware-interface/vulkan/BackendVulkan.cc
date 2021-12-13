@@ -31,18 +31,15 @@ struct BackendVulkan::per_thread_component
 };
 } // namespace phi::vk
 
-namespace
-{
-constexpr VkPipelineStageFlags const gc_wait_dst_masks[8]
-    = {VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-       VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-       VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT};
-}
-
-void phi::vk::BackendVulkan::initialize(const backend_config& config_arg)
+phi::init_status phi::vk::BackendVulkan::initialize(const backend_config& config_arg)
 {
     // initialize vulkan loader
-    PHI_VK_VERIFY_SUCCESS(volkInitialize());
+    if (volkInitialize() != VK_SUCCESS)
+    {
+        PHI_LOG_ASSERT("Fatal: Failed to initialize Vulkan - vulkan-1.dll or libvulkan missing");
+        return phi::init_status::err_runtime;
+    }
+
 
     // copy explicitly for modifications
     backend_config config = config_arg;
@@ -127,6 +124,11 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg)
 
         // Create the instance
         VkResult create_res = vkCreateInstance(&instance_info, nullptr, &mInstance);
+        if (create_res != VK_SUCCESS)
+        {
+            PHI_LOG_ASSERT("Fatal: vkCreateInstance call failed");
+            return init_status::err_runtime;
+        }
 
         // TODO: More fine-grained error handling
         PHI_VK_ASSERT_SUCCESS(create_res);
@@ -148,15 +150,20 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg)
         auto const vk_gpu_infos = get_all_vulkan_gpu_infos(mInstance, scratch);
         auto const gpu_infos = get_available_gpus(vk_gpu_infos, scratch);
         auto const chosen_index = getPreferredGPU(gpu_infos, config.adapter);
-        CC_RUNTIME_ASSERT(chosen_index < gpu_infos.size() && "Found no GPU candidates");
+
+        if (chosen_index >= gpu_infos.size())
+        {
+            PHI_LOG_ASSERT("Fatal: Failed to find an eligble GPU");
+            return init_status::err_no_gpu_eligible;
+        }
 
         auto const& chosen_gpu = gpu_infos[chosen_index];
         auto const& chosen_vk_gpu = vk_gpu_infos[chosen_gpu.index];
 
-        mDevice.initialize(chosen_vk_gpu, config);
-
-        // Load device-based Vulkan entrypoints
-        volkLoadDevice(mDevice.getDevice());
+        if (!mDevice.initialize(chosen_vk_gpu, config))
+        {
+            return init_status::err_runtime;
+        }
 
         printStartupMessage(gpu_infos.size(), &gpu_infos[chosen_index], config, false);
 
@@ -216,6 +223,8 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg)
         OPTICK_GPU_INIT_VULKAN(&dev, &physDev, &dirQueue, &dirQueueIdx, 1, nullptr);
     }
 #endif
+
+    return init_status::success;
 }
 
 void phi::vk::BackendVulkan::destroy()
@@ -516,7 +525,12 @@ void phi::vk::BackendVulkan::submit(cc::span<const phi::handle::command_list> cl
     // wait semaphores
     submit_info.waitSemaphoreCount = uint32_t(fence_waits_before.size());
     submit_info.pWaitSemaphores = wait_semaphores;
-    submit_info.pWaitDstStageMask = gc_wait_dst_masks;
+
+    VkPipelineStageFlags const arrWaitDestMasks[8]
+        = {VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+           VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+           VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT};
+    submit_info.pWaitDstStageMask = arrWaitDestMasks;
     // signal semaphores
     submit_info.signalSemaphoreCount = uint32_t(fence_signals_after.size());
     submit_info.pSignalSemaphores = signal_semaphores;

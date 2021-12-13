@@ -13,7 +13,7 @@ class Adapter
 public:
     // outCreatedDevice: The device created on the chosen physical GPU
     // it has to be created in the GPU choice process and is expensive to re-create
-    void initialize(backend_config const& config, ID3D12Device*& outCreatedDevice);
+    bool initialize(backend_config const& config, ID3D12Device*& outCreatedDevice);
 
     void destroy();
 

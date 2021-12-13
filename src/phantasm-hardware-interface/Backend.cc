@@ -5,14 +5,16 @@
 
 #include <phantasm-hardware-interface/arguments.hh>
 
-void phi::Backend::initializeParallel(backend_config const& /*config*/, uint32_t /*idx*/)
+phi::init_status phi::Backend::initializeParallel(backend_config const& /*config*/, uint32_t /*idx*/)
 {
     // do nothing by default
+    return init_status::success;
 }
 
-void phi::Backend::initializeQueues(backend_config const& /*config*/)
+phi::init_status phi::Backend::initializeQueues(backend_config const& /*config*/)
 {
     // do nothing by default
+    return init_status::success;
 }
 
 phi::handle::resource phi::Backend::createTexture(

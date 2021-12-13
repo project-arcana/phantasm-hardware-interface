@@ -10,7 +10,7 @@
 #include "gpu_choice_util.hh"
 #include "queue_util.hh"
 
-void phi::vk::Device::initialize(vulkan_gpu_info const& device, backend_config const& config)
+bool phi::vk::Device::initialize(vulkan_gpu_info const& device, backend_config const& config)
 {
     mPhysicalDevice = device.physical_device;
     CC_ASSERT(mDevice == nullptr && "vk::Device initialized twice");
@@ -21,7 +21,11 @@ void phi::vk::Device::initialize(vulkan_gpu_info const& device, backend_config c
 
     // chose queues
     mQueueIndices = get_chosen_queues(device.queues);
-    CC_RUNTIME_ASSERT(mQueueIndices.direct.valid() && "vk::Device failed to find direct queue");
+    if (!mQueueIndices.direct.valid())
+    {
+        PHI_LOG_ASSERT("Fatal: Failed to find direct queue");
+        return false;
+    }
 
     // setup feature struct chain and fill it
     physical_device_feature_bundle feat_bundle;
@@ -38,7 +42,8 @@ void phi::vk::Device::initialize(vulkan_gpu_info const& device, backend_config c
     // assemble queue creation struct
     float const global_queue_priorities[] = {1.f, 1.f, 1.f};
     cc::capped_vector<VkDeviceQueueCreateInfo, 3> queue_create_infos;
-    auto const f_add_queue = [&](int family_index) -> void {
+    auto const f_add_queue = [&](int family_index) -> void
+    {
         for (auto& info : queue_create_infos)
         {
             if (info.queueFamilyIndex == uint32_t(family_index))
@@ -64,8 +69,13 @@ void phi::vk::Device::initialize(vulkan_gpu_info const& device, backend_config c
     device_info.pQueueCreateInfos = queue_create_infos.data();
     device_info.queueCreateInfoCount = uint32_t(queue_create_infos.size());
 
-    PHI_VK_VERIFY_SUCCESS(vkCreateDevice(mPhysicalDevice, &device_info, nullptr, &mDevice));
+    if (vkCreateDevice(mPhysicalDevice, &device_info, nullptr, &mDevice) != VK_SUCCESS)
+    {
+        PHI_LOG_ASSERT("Fatal: vkCreateDevice call failed");
+        return false;
+    }
 
+    // Load device-based Vulkan entrypoints
     volkLoadDevice(mDevice);
 
     // Query ("create") queues
@@ -116,6 +126,8 @@ void phi::vk::Device::initialize(vulkan_gpu_info const& device, backend_config c
 
     if (hasConservativeRaster())
         initializeConservativeRaster();
+
+    return true;
 }
 
 void phi::vk::Device::destroy()

@@ -27,9 +27,9 @@ namespace phi::d3d12
 class PHI_API BackendD3D12 final : public Backend
 {
 public:
-    void initialize(backend_config const& config) override;
-    void initializeParallel(backend_config const& config, uint32_t idx) override;
-    void initializeQueues(backend_config const& config) override;
+    init_status initialize(backend_config const& config) override;
+    init_status initializeParallel(backend_config const& config, uint32_t idx) override;
+    init_status initializeQueues(backend_config const& config) override;
     void destroy() override;
     ~BackendD3D12() override;
 

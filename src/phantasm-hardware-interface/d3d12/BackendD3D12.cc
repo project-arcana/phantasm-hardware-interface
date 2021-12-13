@@ -31,14 +31,11 @@ struct BackendD3D12::per_thread_component
 };
 } // namespace phi::d3d12
 
-void phi::d3d12::BackendD3D12::initialize(const phi::backend_config& config)
+phi::init_status phi::d3d12::BackendD3D12::initialize(const phi::backend_config& config)
 {
 #ifdef PHI_HAS_OPTICK
     OPTICK_EVENT();
 #endif
-
-    mFlushEvent = CreateEventEx(nullptr, FALSE, FALSE, EVENT_ALL_ACCESS);
-    CC_ASSERT(mFlushEvent != INVALID_HANDLE_VALUE && "failed to create win32 event");
 
     CC_CONTRACT(config.static_allocator);
     CC_CONTRACT(config.dynamic_allocator);
@@ -48,8 +45,17 @@ void phi::d3d12::BackendD3D12::initialize(const phi::backend_config& config)
     // Core components
     {
         ID3D12Device* createdDevice = nullptr;
-        mAdapter.initialize(config, createdDevice);
-        mDevice.initialize(createdDevice, mAdapter.getAdapter(), config);
+
+        if (!mAdapter.initialize(config, createdDevice))
+        {
+            return init_status::err_no_gpu_eligible;
+        }
+
+        if (!mDevice.initialize(createdDevice, mAdapter.getAdapter(), config))
+        {
+            // failures here are because required ID3D12Device versions failed to QI
+            return init_status::err_operating_system;
+        }
     }
 
     auto* const device = mDevice.getDevice();
@@ -126,11 +132,25 @@ void phi::d3d12::BackendD3D12::initialize(const phi::backend_config& config)
 
     if (!config.enable_delayed_queue_init)
     {
-        initializeQueues(config);
+        auto const res = initializeQueues(config);
+
+        if (res != init_status::success)
+        {
+            return res;
+        }
     }
+
+    mFlushEvent = CreateEventEx(nullptr, FALSE, FALSE, EVENT_ALL_ACCESS);
+    if (mFlushEvent == INVALID_HANDLE_VALUE)
+    {
+        PHI_LOG_ASSERT("Fatal: CreateEventEx call failed (Win32 event creation)");
+        return init_status::err_operating_system;
+    }
+
+    return init_status::success;
 }
 
-void phi::d3d12::BackendD3D12::initializeParallel(backend_config const& config, uint32_t idx)
+phi::init_status phi::d3d12::BackendD3D12::initializeParallel(backend_config const& config, uint32_t idx)
 {
     CC_ASSERT(config.enable_parallel_init && "parallel init disabled");
     CC_ASSERT(idx < mNumThreadComponents && "index out of range or no main init called");
@@ -139,9 +159,11 @@ void phi::d3d12::BackendD3D12::initializeParallel(backend_config const& config, 
 
     ID3D12Device5* device = nativeGetDevice();
     mPoolCmdLists.initialize_nth_thread(device, idx, cmdAllocators);
+
+    return init_status::success;
 }
 
-void phi::d3d12::BackendD3D12::initializeQueues(backend_config const& config)
+phi::init_status phi::d3d12::BackendD3D12::initializeQueues(backend_config const& config)
 {
     auto* const device = mDevice.getDevice();
 
@@ -216,6 +238,8 @@ void phi::d3d12::BackendD3D12::initializeQueues(backend_config const& config)
 #endif
 
     mPoolSwapchains.initialize(&mAdapter.getFactory(), device, mDirectQueue.command_queue, config.max_num_swapchains, config.static_allocator);
+
+    return init_status::success;
 }
 
 void phi::d3d12::BackendD3D12::destroy()
