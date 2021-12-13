@@ -16,21 +16,36 @@ enum class backend_type : uint8_t
     vulkan
 };
 
+enum class init_status
+{
+    success = 0,
+    // No GPU surpassing the minspec was found, or the explicitly specified GPU was not found or is unsupported
+    err_no_gpu_eligible,
+    // The operating system is older than the minimum supported version, or was the cause for a fatal error
+    err_operating_system,
+    // The GPU drivers are missing, out of date, or were the cause for a fatal error
+    err_drivers,
+    // The native API runtime is missing, out of date, or was the cause for a fatal error
+    err_runtime,
+    // An unspecified fatal error occured
+    err_unexpected,
+};
+
 class PHI_API Backend
 {
 public:
-    virtual void initialize(backend_config const& config) = 0;
+    virtual init_status initialize(backend_config const& config) = 0;
     virtual void destroy() = 0;
 
     /// parallel init: If enabled, call this N times after the main call to initialize()
     /// call with indices 0 to num_threads - 1 and with the same config as in the original initialize()
     /// intended to be called in parallel
-    virtual void initializeParallel(backend_config const& config, uint32_t idx);
+    virtual init_status initializeParallel(backend_config const& config, uint32_t idx);
 
     /// delayed queue init: If enabled, call this after the main call to initialize()
     /// creating queues takes up about 30% of init time and can be delayed in order to start earlier with PSO compiles
     /// must only use initializeParallel and PSO creation before this is called
-    virtual void initializeQueues(backend_config const& config);
+    virtual init_status initializeQueues(backend_config const& config);
 
     virtual void flushGPU() = 0;
 

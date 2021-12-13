@@ -15,7 +15,7 @@
 #include "common/shared_com_ptr.hh"
 #include "common/verify.hh"
 
-void phi::d3d12::Adapter::initialize(const backend_config& config, ID3D12Device*& outCreatedDevice)
+bool phi::d3d12::Adapter::initialize(const backend_config& config, ID3D12Device*& outCreatedDevice)
 {
 #ifdef PHI_HAS_OPTICK
     OPTICK_EVENT();
@@ -135,7 +135,12 @@ void phi::d3d12::Adapter::initialize(const backend_config& config, ID3D12Device*
             // fast-path, do not create all D3D12 devices
             uint32_t adapterIndex = 0;
             bool success = getFirstAdapter(mFactory, &chosenAdapter, &chosenDevice, &adapterIndex);
-            CC_RUNTIME_ASSERT(success && "Found no GPU");
+
+            if (!success)
+            {
+                PHI_LOG_ASSERT("Fatal: Found no GPU");
+                return false;
+            }
 
             candidates[0] = getAdapterInfo(chosenAdapter, adapterIndex);
             chosenCandidate = &candidates[0];
@@ -150,7 +155,12 @@ void phi::d3d12::Adapter::initialize(const backend_config& config, ID3D12Device*
 
             // choose the adapter
             numCandidates = getAdapterCandidates(mFactory, candidates, candidateDevices, candidateAdapters);
-            CC_RUNTIME_ASSERT(numCandidates > 0 && "Found no GPU candidates");
+
+            if (numCandidates == 0)
+            {
+                PHI_LOG_ASSERT("Fatal: Found no GPU candidates");
+                return false;
+            }
 
             cc::span<phi::gpu_info> const candidateSpan = cc::span(candidates, numCandidates);
 
@@ -172,12 +182,21 @@ void phi::d3d12::Adapter::initialize(const backend_config& config, ID3D12Device*
                     }
                 }
 
-                CC_RUNTIME_ASSERT(hasFoundExplicitIndex && "Failed to find given explicit adapter index");
+                if (!hasFoundExplicitIndex)
+                {
+                    PHI_LOG_ASSERT("Fatal: Failed to find given explicit adapter (GPU) index");
+                    return false;
+                }
             }
             else
             {
                 chosenCandidateIndex = getPreferredGPU(candidateSpan, config.adapter);
-                CC_RUNTIME_ASSERT(chosenCandidateIndex < numCandidates && "Found no GPU candidates");
+
+                if (chosenCandidateIndex >= numCandidates)
+                {
+                    PHI_LOG_ASSERT("Fatal: Found no GPU candidates");
+                    return false;
+                }
             }
 
             chosenCandidate = &candidateSpan[chosenCandidateIndex];
@@ -217,6 +236,8 @@ void phi::d3d12::Adapter::initialize(const backend_config& config, ID3D12Device*
 
         mGPUInfo = *chosenCandidate;
     }
+
+    return true;
 }
 
 void phi::d3d12::Adapter::destroy()

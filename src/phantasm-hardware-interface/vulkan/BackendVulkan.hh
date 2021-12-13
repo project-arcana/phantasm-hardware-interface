@@ -23,7 +23,7 @@ namespace phi::vk
 class PHI_API BackendVulkan final : public Backend
 {
 public:
-    void initialize(backend_config const& config_arg) override;
+    init_status initialize(backend_config const& config_arg) override;
     void destroy() override;
     ~BackendVulkan() override;
 

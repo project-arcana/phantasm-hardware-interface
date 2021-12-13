@@ -10,7 +10,7 @@ namespace phi::d3d12
 class Device
 {
 public:
-    void initialize(ID3D12Device* deviceToUse, IDXGIAdapter& adapter, backend_config const& config);
+    bool initialize(ID3D12Device* deviceToUse, IDXGIAdapter& adapter, backend_config const& config);
     void destroy();
 
     bool hasSM6WaveIntrinsics() const { return mFeatures.features.has(gpu_feature::hlsl_wave_ops); }
