@@ -13,7 +13,7 @@
 
 namespace phi::arg
 {
-struct framebuffer_config
+struct alignas(4) framebuffer_config
 {
     /// configs of the render targets, [0, n]
     flat_vector<render_target_config, limits::max_render_targets> render_targets;
