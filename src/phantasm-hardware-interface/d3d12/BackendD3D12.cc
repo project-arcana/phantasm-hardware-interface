@@ -395,7 +395,7 @@ phi::handle::shader_view phi::d3d12::BackendD3D12::createShaderView(cc::span<con
 
 phi::handle::shader_view phi::d3d12::BackendD3D12::createEmptyShaderView(arg::shader_view_description const& desc, bool /*usage_compute*/)
 {
-    return mPoolShaderViews.createEmpty(desc.num_srvs + desc.num_uavs, desc.num_samplers);
+    return mPoolShaderViews.createEmpty(desc.num_srvs, desc.num_uavs, desc.num_samplers);
 }
 
 void phi::d3d12::BackendD3D12::writeShaderViewSRVs(handle::shader_view sv, uint32_t offset, cc::span<resource_view const> srvs)
@@ -526,6 +526,7 @@ void phi::d3d12::BackendD3D12::submit(cc::span<const phi::handle::command_list> 
 
 
     ID3D12CommandQueue* const target_queue = getQueueByType(queue);
+    CC_ASSERT(target_queue != nullptr && "Queues not initialized");
 
     for (auto const& wait_op : fence_waits_before)
     {

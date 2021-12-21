@@ -109,7 +109,7 @@ class ShaderViewPool
 public:
     // frontend-facing API
 
-    handle::shader_view createEmpty(uint32_t num_srvs_uavs, uint32_t num_samplers);
+    handle::shader_view createEmpty(uint32_t num_srvs, uint32_t num_uavs, uint32_t num_samplers);
 
     handle::shader_view create(cc::span<resource_view const> srvs, cc::span<resource_view const> uavs, cc::span<sampler_config const> samplers);
 
@@ -161,6 +161,8 @@ private:
         // Descriptor allocator handles
         DescriptorPageAllocator::handle_t srv_uav_alloc_handle;
         DescriptorPageAllocator::handle_t sampler_alloc_handle;
+        uint32_t numSRVs = 0;
+        uint32_t numUAVs = 0;
     };
 
 private:
