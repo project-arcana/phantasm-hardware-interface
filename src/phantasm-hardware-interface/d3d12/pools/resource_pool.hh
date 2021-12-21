@@ -87,7 +87,10 @@ public:
     ID3D12Resource* getRawResource(buffer_address const& addr) const { return internalGet(addr.buffer).resource; }
 
     ID3D12Resource* getRawResourceOrNull(handle::resource res) const { return res.is_valid() ? internalGet(res).resource : nullptr; }
-    ID3D12Resource* getRawResourceOrNull(buffer_address const& addr) const { return addr.buffer.is_valid() ? internalGet(addr.buffer).resource : nullptr; }
+    ID3D12Resource* getRawResourceOrNull(buffer_address const& addr) const
+    {
+        return addr.buffer.is_valid() ? internalGet(addr.buffer).resource : nullptr;
+    }
 
     // Additional information
     bool isImage(handle::resource res) const { return internalGet(res).type == resource_node::resource_type::image; }
@@ -165,6 +168,9 @@ public:
     {
         auto const& data = internalGet(res);
         CC_ASSERT(data.type == resource_node::resource_type::buffer);
+
+        CC_ASSERT((data.buffer.stride == 4 || data.buffer.stride == 2) && "Buffers used as index buffers must specify a stride of 4B (R32) or 2B (R16)");
+
         return {data.buffer.gpu_va, data.buffer.width, (data.buffer.stride == 4) ? DXGI_FORMAT_R32_UINT : DXGI_FORMAT_R16_UINT};
     }
 
@@ -217,4 +223,4 @@ private:
     ResourceAllocator mAllocator;
 };
 
-}
+} // namespace phi::d3d12

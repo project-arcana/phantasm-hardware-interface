@@ -35,18 +35,18 @@ void phi::d3d12::DescriptorPageAllocator::destroy()
     }
 }
 
-phi::handle::shader_view phi::d3d12::ShaderViewPool::createEmpty(uint32_t num_srvs_uavs, uint32_t num_samplers)
+phi::handle::shader_view phi::d3d12::ShaderViewPool::createEmpty(uint32_t num_srvs, uint32_t num_uavs, uint32_t num_samplers)
 {
     DescriptorPageAllocator::handle_t srv_uav_alloc;
     DescriptorPageAllocator::handle_t sampler_alloc;
 
     {
         auto lg = std::lock_guard(mMutex);
-        srv_uav_alloc = mSRVUAVAllocator.allocate(int(num_srvs_uavs));
+        srv_uav_alloc = mSRVUAVAllocator.allocate(int(num_srvs + num_uavs));
         sampler_alloc = mSamplerAllocator.allocate(int(num_samplers));
     }
 
-    
+
     CC_RUNTIME_ASSERTF(!mPool.is_full(),
                        "Reached limit for shader_views, increase max_num_shader_views in the PHI backend config\n"
                        "Current limit: {}",
@@ -58,6 +58,8 @@ phi::handle::shader_view phi::d3d12::ShaderViewPool::createEmpty(uint32_t num_sr
     new_node = {};
     new_node.sampler_alloc_handle = sampler_alloc;
     new_node.srv_uav_alloc_handle = srv_uav_alloc;
+    new_node.numSRVs = num_srvs;
+    new_node.numUAVs = num_uavs;
 
     if (srv_uav_alloc != -1)
     {
@@ -74,7 +76,7 @@ phi::handle::shader_view phi::d3d12::ShaderViewPool::createEmpty(uint32_t num_sr
 
 phi::handle::shader_view phi::d3d12::ShaderViewPool::create(cc::span<resource_view const> srvs, cc::span<resource_view const> uavs, cc::span<sampler_config const> samplers)
 {
-    auto const res = createEmpty(uint32_t(srvs.size() + uavs.size()), uint32_t(samplers.size()));
+    auto const res = createEmpty(uint32_t(srvs.size()), uint32_t(uavs.size()), uint32_t(samplers.size()));
     auto const& new_node = mPool.get(res._value);
 
     // fill out descriptors
@@ -119,12 +121,9 @@ void phi::d3d12::ShaderViewPool::writeShaderViewSRVs(handle::shader_view sv, uin
 {
     auto const& node = internalGet(sv);
     CC_ASSERT(node.srv_uav_alloc_handle != -1 && "writing resource view to shader_view without SRV/UAV slots");
+    CC_ASSERT(srvs.size() + offset <= node.numSRVs && "writeShaderViewSRVs: write OOB");
 
     auto const descriptorBase = mSRVUAVAllocator.getCPUStart(node.srv_uav_alloc_handle);
-
-    uint32_t maxNumDescriptors = mSRVUAVAllocator.getNumDescriptorsInAllocation(node.srv_uav_alloc_handle);
-    CC_ASSERT(srvs.size() + offset <= maxNumDescriptors && "writeShaderViewSRVs: write OOB");
-
     for (auto i = 0u; i < srvs.size(); ++i)
     {
         auto const cpuHandle = mSRVUAVAllocator.incrementToIndex(descriptorBase, offset + i);
@@ -136,12 +135,10 @@ void phi::d3d12::ShaderViewPool::writeShaderViewUAVs(handle::shader_view sv, uin
 {
     auto const& node = internalGet(sv);
     CC_ASSERT(node.srv_uav_alloc_handle != -1 && "writing resource view to shader_view without SRV/UAV slots");
-    uint32_t maxNumDescriptors = mSRVUAVAllocator.getNumDescriptorsInAllocation(node.srv_uav_alloc_handle);
-    CC_ASSERT(uavs.size() + offset <= maxNumDescriptors && "writeShaderViewUAVs: write OOB");
+    CC_ASSERT(uavs.size() + offset <= node.numUAVs && "writeShaderViewUAVs: write OOB");
 
     auto const descriptorBase = mSRVUAVAllocator.getCPUStart(node.srv_uav_alloc_handle);
-
-
+    offset += node.numSRVs; // apply SRV offset (SRVs and UAVs are in the same allocation, contiguous)
     for (auto i = 0u; i < uavs.size(); ++i)
     {
         auto const cpuHandle = mSRVUAVAllocator.incrementToIndex(descriptorBase, offset + i);
