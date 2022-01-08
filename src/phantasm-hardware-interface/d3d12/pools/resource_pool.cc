@@ -88,20 +88,22 @@ void phi::d3d12::ResourcePool::destroy()
     auto num_leaks = 0;
 
     char debugname_buffer[256];
-    mPool.iterate_allocated_nodes([&](resource_node& leaked_node) {
-        if (leaked_node.allocation != nullptr)
+    mPool.iterate_allocated_nodes(
+        [&](resource_node& leaked_node)
         {
-            if (num_leaks == 0)
-                PHI_LOG("handle::resource leaks:");
+            if (leaked_node.allocation != nullptr)
+            {
+                if (num_leaks == 0)
+                    PHI_LOG("handle::resource leaks:");
 
-            ++num_leaks;
+                ++num_leaks;
 
-            auto const strlen = util::get_object_name(leaked_node.resource, debugname_buffer);
-            PHI_LOG("  leaked handle::resource - {}", cc::string_view(debugname_buffer, cc::min<UINT>(strlen, sizeof(debugname_buffer))));
+                auto const strlen = util::get_object_name(leaked_node.resource, debugname_buffer);
+                PHI_LOG("  leaked handle::resource - {}", cc::string_view(debugname_buffer, cc::min<UINT>(strlen, sizeof(debugname_buffer))));
 
-            leaked_node.allocation->Release();
-        }
-    });
+                leaked_node.allocation->Release();
+            }
+        });
 
     if (num_leaks > 0)
     {
@@ -207,6 +209,7 @@ phi::handle::resource phi::d3d12::ResourcePool::createBuffer(arg::buffer_descrip
 
     char formatted_bytes[128];
     byte_print(description.size_bytes, formatted_bytes);
+
     util::set_object_name(alloc->GetResource(), "buf %s (%s, %uB stride, %s heap)", dbg_name ? dbg_name : "", formatted_bytes,
                           description.stride_bytes, d3d12_get_heap_type_literal(description.heap));
 
