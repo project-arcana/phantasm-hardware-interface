@@ -90,7 +90,6 @@ arcana_add_library(PHI phantasm-hardware-interface SOURCES HEADERS)
 target_include_directories(phantasm-hardware-interface
     PUBLIC
         src/
-    PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}/extern/renderdoc_app/include/"
 )
 

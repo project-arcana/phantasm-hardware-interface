@@ -46,10 +46,7 @@ struct transition_info;
 struct resource_view;
 struct vertex_attribute_info;
 struct sampler_config;
-struct pipeline_config;
-struct render_target_config;
 struct rt_clear_value;
-struct blend_state;
 struct gpu_indirect_command_draw;
 struct gpu_indirect_command_draw_indexed;
 struct accel_struct_instance;
@@ -91,9 +88,13 @@ namespace phi::arg
 struct framebuffer_config;
 struct vertex_format;
 
+struct blend_state;
 struct shader_arg_shape;
 struct shader_binary;
 struct graphics_shader;
+struct pipeline_config;
+struct render_target_config;
+struct root_signature_description;
 struct graphics_pipeline_state_description;
 struct compute_pipeline_state_description;
 struct shader_view_description;

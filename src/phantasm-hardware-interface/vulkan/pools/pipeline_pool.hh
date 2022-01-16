@@ -28,7 +28,7 @@ public:
                                                              arg::shader_arg_shapes shader_arg_shapes,
                                                              bool should_have_push_constants,
                                                              arg::graphics_shaders shader_stages,
-                                                             phi::pipeline_config const& primitive_config,
+                                                             phi::arg::pipeline_config const& primitive_config,
                                                              cc::allocator* scratch_alloc,
                                                              char const* dbg_name);
 

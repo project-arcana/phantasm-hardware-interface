@@ -261,7 +261,7 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::draw& draw)
                 CC_ASSERT(arg.constant_buffer.is_valid() && "argument CBV is missing");
 
                 // Set the CBV / offset if it has changed
-                if (bound_arg.update_cbv(arg.constant_buffer, arg.constant_buffer_offset))
+                if (bound_arg.update_cbv(arg.constant_buffer, arg.constant_buffer_offset) && arg.constant_buffer.is_valid())
                 {
                     CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(arg.constant_buffer, arg.constant_buffer_offset, 1) && "CBV offset OOB");
 
@@ -475,11 +475,10 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::dispatch& disp
             auto const& arg = dispatch.shader_arguments[i];
             auto const& map = root_sig.argument_maps[i];
 
-
             if (map.cbv_param != uint32_t(-1))
             {
                 // Set the CBV / offset if it has changed
-                if (bound_arg.update_cbv(arg.constant_buffer, arg.constant_buffer_offset))
+                if (bound_arg.update_cbv(arg.constant_buffer, arg.constant_buffer_offset) && arg.constant_buffer.is_valid())
                 {
                     CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(arg.constant_buffer, arg.constant_buffer_offset, 1) && "CBV offset OOB");
 
@@ -550,7 +549,7 @@ void phi::d3d12::command_list_translator::execute(cmd::dispatch_indirect const& 
             if (map.cbv_param != uint32_t(-1))
             {
                 // Set the CBV / offset if it has changed
-                if (bound_arg.update_cbv(arg.constant_buffer, arg.constant_buffer_offset))
+                if (bound_arg.update_cbv(arg.constant_buffer, arg.constant_buffer_offset) && arg.constant_buffer.is_valid())
                 {
                     CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(arg.constant_buffer, arg.constant_buffer_offset, 1) && "CBV offset OOB");
 

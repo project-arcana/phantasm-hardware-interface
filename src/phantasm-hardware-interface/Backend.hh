@@ -151,25 +151,10 @@ public:
     //
 
     /// create a graphics pipeline state
-    [[nodiscard]] virtual handle::pipeline_state createPipelineState(arg::vertex_format vertex_format,
-                                                                     arg::framebuffer_config const& framebuffer_conf,
-                                                                     arg::shader_arg_shapes shader_arg_shapes,
-                                                                     bool has_root_constants,
-                                                                     arg::graphics_shaders shaders,
-                                                                     phi::pipeline_config const& primitive_config,
-                                                                     char const* debug_name = nullptr)
-        = 0;
-
-    /// create a graphics pipeline state from a compact description struct
     [[nodiscard]] virtual handle::pipeline_state createPipelineState(arg::graphics_pipeline_state_description const& description, char const* debug_name = nullptr)
         = 0;
 
-    [[nodiscard]] virtual handle::pipeline_state createComputePipelineState(arg::shader_arg_shapes shader_arg_shapes,
-                                                                            arg::shader_binary shader,
-                                                                            bool has_root_constants = false,
-                                                                            char const* debug_name = nullptr)
-        = 0;
-
+    /// create a compute pipeline state
     [[nodiscard]] virtual handle::pipeline_state createComputePipelineState(arg::compute_pipeline_state_description const& description, char const* debug_name = nullptr)
         = 0;
 
@@ -339,6 +324,8 @@ public:
     [[nodiscard]] handle::resource createUploadBuffer(uint32_t size_bytes, uint32_t stride_bytes = 0, char const* debug_name = nullptr);
 
     [[nodiscard]] handle::resource createResourceFromInfo(arg::resource_description const& info, char const* debug_name = nullptr);
+
+    [[nodiscard]] handle::pipeline_state createComputePipelineState(arg::shader_arg_shapes arg_shapes, arg::shader_binary shader, bool hasRootConsts = false);
 
     Backend(Backend const&) = delete;
     Backend(Backend&&) = delete;

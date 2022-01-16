@@ -19,6 +19,8 @@
 
 namespace phi
 {
+using bool32_t = uint32_t;
+
 // resources bound to a shader, up to 4 per draw or dispatch command
 struct shader_argument
 {
@@ -551,37 +553,6 @@ enum class cull_mode : uint8_t
     front
 };
 
-// configuration for creation of a graphics handle::pipeline_state
-struct pipeline_config
-{
-    // how to interpret the input primitives
-    primitive_topology topology = primitive_topology::triangles;
-
-    // the function used for depth testing
-    depth_function depth = depth_function::none;
-
-    // whether the depth buffer cannot be written to
-    bool depth_readonly = false;
-
-    // the face culling mode (front / back / none)
-    cull_mode cull = cull_mode::none;
-
-    // amount of (MSAA) samples in the render targets
-    int32_t samples = 1;
-
-    // enable conservative rasterization, not available on all supported GPUs
-    bool conservative_raster = false;
-
-    // how to determine if a face is front-facing (relevant for cull mode)
-    bool frontface_counterclockwise = true; // TODO: this default should be flipped
-
-    // whether to draw in wireframe mode
-    bool wireframe = false;
-
-    // (D3D12 only) whether to create a special command signature required for cmd::draw_indirect using draw_indexed_with_id
-    bool allow_draw_indirect_with_id = false;
-};
-
 // operation to perform on render targets upon render pass begin
 enum class rt_clear_type : uint8_t
 {
@@ -660,82 +631,6 @@ enum class blend_factor : uint8_t
     inv_dest_color,
     dest_alpha,
     inv_dest_alpha
-};
-
-struct blend_state
-{
-    blend_factor blend_color_src = blend_factor::one;
-    blend_factor blend_color_dest = blend_factor::zero;
-    blend_op blend_op_color = blend_op::op_add;
-    blend_factor blend_alpha_src = blend_factor::one;
-    blend_factor blend_alpha_dest = blend_factor::zero;
-    blend_op blend_op_alpha = blend_op::op_add;
-
-public:
-    blend_state() = default;
-
-    blend_state(blend_factor blend_color_src, //
-                blend_factor blend_color_dest,
-                blend_op blend_op_color,
-                blend_factor blend_alpha_src,
-                blend_factor blend_alpha_dest,
-                blend_op blend_op_alpha)
-      : blend_color_src(blend_color_src), //
-        blend_color_dest(blend_color_dest),
-        blend_op_color(blend_op_color),
-        blend_alpha_src(blend_alpha_src),
-        blend_alpha_dest(blend_alpha_dest),
-        blend_op_alpha(blend_op_alpha)
-    {
-    }
-
-    blend_state(blend_factor blend_color_src, //
-                blend_factor blend_color_dest,
-                blend_factor blend_alpha_src,
-                blend_factor blend_alpha_dest)
-      : blend_color_src(blend_color_src), //
-        blend_color_dest(blend_color_dest),
-        blend_op_color(blend_op::op_add),
-        blend_alpha_src(blend_alpha_src),
-        blend_alpha_dest(blend_alpha_dest),
-        blend_op_alpha(blend_op::op_add)
-    {
-    }
-
-    blend_state(blend_factor blend_src, //
-                blend_factor blend_dest,
-                blend_op blend_op = blend_op::op_add)
-      : blend_color_src(blend_src), //
-        blend_color_dest(blend_dest),
-        blend_op_color(blend_op),
-        blend_alpha_src(blend_src),
-        blend_alpha_dest(blend_dest),
-        blend_op_alpha(blend_op)
-    {
-    }
-
-    // blend state for additive blending "src + dest"
-    static blend_state additive() { return blend_state(blend_factor::one, blend_factor::one); }
-
-    // blend state for multiplicative blending "src * dest"
-    static blend_state multiplicative()
-    {
-        return blend_state(blend_factor::dest_color, blend_factor::zero, blend_factor::dest_alpha, blend_factor::zero);
-    }
-
-    // blend state for normal alpha blending "mix(dest, src, src.a)"
-    static blend_state alpha_blending() { return blend_state(blend_factor::src_alpha, blend_factor::inv_src_alpha); }
-
-    // blend state for premultiplied alpha blending "dest * (1 - src.a) + src"
-    static blend_state alpha_blending_premultiplied() { return blend_state(blend_factor::one, blend_factor::inv_src_alpha); }
-};
-
-// the blending configuration for a specific render target slot of a (graphics) handle::pipeline_state
-struct render_target_config
-{
-    format fmt = format::rgba8un;
-    bool blend_enable = false;
-    blend_state state;
 };
 
 // the type of a handle::query_range
