@@ -46,20 +46,14 @@ struct text_buffer
 };
 } // namespace
 
-phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createPipelineState(phi::arg::vertex_format vertex_format,
-                                                                                     phi::arg::framebuffer_config const& framebuffer_format,
-                                                                                     phi::arg::shader_arg_shapes shader_arg_shapes,
-                                                                                     bool has_root_constants,
-                                                                                     phi::arg::graphics_shaders shader_stages,
-                                                                                     phi::pipeline_config const& primitive_config,
-                                                                                     char const* dbg_name)
+phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createPipelineState(phi::arg::graphics_pipeline_state_description const& desc, char const* dbg_name)
 {
     root_signature* pRootSig = nullptr;
     ID3D12CommandSignature* pDrawIDComSig = nullptr;
 
-    bool const bEnableDrawID = primitive_config.allow_draw_indirect_with_id;
+    bool const bEnableDrawID = desc.config.allow_draw_indirect_with_id;
 
-    if (bEnableDrawID && !has_root_constants)
+    if (bEnableDrawID && !desc.root_signature.has_root_constants)
     {
         PHI_LOG_ERROR("Indirect Draw ID mode requires enabled root constants. Aborting compilation of PSO with debug name: {}",
                       dbg_name ? dbg_name : "unnamed (nullptr)");
@@ -70,7 +64,7 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createPipelineS
     {
         auto lg = std::lock_guard(mMutex);
 
-        pRootSig = mRootSigCache.getOrCreate(*mDevice, shader_arg_shapes, has_root_constants, root_signature_type::graphics);
+        pRootSig = mRootSigCache.getOrCreate(*mDevice, desc.root_signature, root_signature_type::graphics);
 
         if (bEnableDrawID)
         {
@@ -90,9 +84,9 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createPipelineS
         return phi::handle::null_pipeline_state;
     }
 
-    auto const vertexFormatNative = util::get_native_vertex_format(vertex_format.attributes);
+    auto const vertexFormatNative = util::get_native_vertex_format(desc.vertices.attributes);
     ID3D12PipelineState* const pPipelineState
-        = create_pipeline_state(*mDevice, pRootSig->raw_root_sig, vertexFormatNative, framebuffer_format, shader_stages, primitive_config);
+        = create_pipeline_state(*mDevice, pRootSig->raw_root_sig, vertexFormatNative, desc.framebuffer, desc.shader_binaries, desc.config);
 
     if (!pPipelineState)
     {
@@ -109,21 +103,18 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createPipelineS
     new_node.pPSO = pPipelineState;
     new_node.pAssociatedRootSig = pRootSig;
     new_node.pAssociatedComSigForDrawID = pDrawIDComSig;
-    new_node.primitive_topology = util::to_native_topology(primitive_config.topology);
+    new_node.primitive_topology = util::to_native_topology(desc.config.topology);
 
     return {res};
 }
 
-phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createComputePipelineState(phi::arg::shader_arg_shapes shader_arg_shapes,
-                                                                                            arg::shader_binary compute_shader,
-                                                                                            bool has_root_constants,
-                                                                                            char const* dbg_name)
+phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createComputePipelineState(arg::compute_pipeline_state_description const& desc, char const* dbg_name)
 {
     root_signature* pRootSig = nullptr;
     // Do things requiring synchronization first
     {
         auto lg = std::lock_guard(mMutex);
-        pRootSig = mRootSigCache.getOrCreate(*mDevice, shader_arg_shapes, has_root_constants, root_signature_type::compute);
+        pRootSig = mRootSigCache.getOrCreate(*mDevice, desc.root_signature, root_signature_type::compute);
     }
 
     if (!pRootSig)
@@ -132,7 +123,7 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createComputePi
         return phi::handle::null_pipeline_state;
     }
 
-    ID3D12PipelineState* const pPipelineState = create_compute_pipeline_state(*mDevice, pRootSig->raw_root_sig, compute_shader.data, compute_shader.size);
+    ID3D12PipelineState* const pPipelineState = create_compute_pipeline_state(*mDevice, pRootSig->raw_root_sig, desc.shader.data, desc.shader.size);
 
     if (!pPipelineState)
     {
@@ -179,8 +170,7 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracin
         // (the global root signature is empty and shared across all RT PSOs)
         for (auto const& aa : arg_assocs)
         {
-            root_signature* const pLocalRootSig
-                = mRootSigCache.getOrCreate(*mDevice, aa.argument_shapes, aa.has_root_constants, root_signature_type::raytrace_local);
+            root_signature* const pLocalRootSig = mRootSigCache.getOrCreate(*mDevice, aa.root_signature, root_signature_type::raytrace_local);
             CC_ASSERT(pLocalRootSig != nullptr && "Failed to create local root siganture for raytracing PSO");
 
             new_node.associated_root_signatures.push_back(pLocalRootSig);
@@ -492,7 +482,7 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracin
                 else
                 {
                     auto const& arg_assoc = arg_assocs[identifiable_info.rootsig_index];
-                    export_info.arg_info.initialize(arg_assoc.argument_shapes, arg_assoc.has_root_constants);
+                    export_info.arg_info.initialize(arg_assoc.root_signature.shader_arg_shapes, arg_assoc.root_signature.has_root_constants);
                 }
             }
         }
@@ -526,7 +516,7 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracin
                 else
                 {
                     auto const& arg_assoc = arg_assocs[rootsig_i];
-                    export_info.arg_info.initialize(arg_assoc.argument_shapes, arg_assoc.has_root_constants);
+                    export_info.arg_info.initialize(arg_assoc.root_signature.shader_arg_shapes, arg_assoc.root_signature.has_root_constants);
                 }
             }
         }
@@ -571,7 +561,8 @@ void phi::d3d12::PipelineStateObjectPool::initialize(
     mComSigCache.initialize((max_num_psos / 2), static_alloc);
 
     // Create empty raytracing rootsig
-    mEmptyRaytraceRootSignature = mRootSigCache.getOrCreate(*mDevice, {}, false, root_signature_type::raytrace_global)->raw_root_sig;
+    arg::root_signature_description emptyRootSig = {};
+    mEmptyRaytraceRootSignature = mRootSigCache.getOrCreate(*mDevice, emptyRootSig, root_signature_type::raytrace_global)->raw_root_sig;
 
     // Create global (indirect drawing) command signatures
     mGlobalComSigDraw = createCommandSignatureForDraw(mDevice);
@@ -679,7 +670,7 @@ bool phi::d3d12::PipelineStateObjectPool::pso_argument_info::is_matching_inputs(
         {
             auto const& shape = shapes[i];
 
-            bool match_cbv = shape.has_cbv == has_cbv(i);
+            bool match_cbv = !!shape.has_cbv == has_cbv(i);
             bool match_srv_uav = (shape.num_srvs + shape.num_uavs > 0) == has_srv_uav(i);
             bool match_sampler = (shape.num_samplers > 0) == has_sampler(i);
 

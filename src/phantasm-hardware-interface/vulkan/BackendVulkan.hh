@@ -101,20 +101,7 @@ public:
     // Pipeline state interface
     //
 
-    [[nodiscard]] handle::pipeline_state createPipelineState(arg::vertex_format vertex_format,
-                                                             arg::framebuffer_config const& framebuffer_conf,
-                                                             arg::shader_arg_shapes shader_arg_shapes,
-                                                             bool has_root_constants,
-                                                             arg::graphics_shaders shaders,
-                                                             phi::pipeline_config const& primitive_config,
-                                                             char const* debug_name = nullptr) override;
-
     [[nodiscard]] handle::pipeline_state createPipelineState(arg::graphics_pipeline_state_description const& description, char const* debug_name = nullptr) override;
-
-    [[nodiscard]] handle::pipeline_state createComputePipelineState(arg::shader_arg_shapes shader_arg_shapes,
-                                                                    arg::shader_binary shader,
-                                                                    bool has_root_constants,
-                                                                    char const* debug_name = nullptr) override;
 
     [[nodiscard]] handle::pipeline_state createComputePipelineState(arg::compute_pipeline_state_description const& description,
                                                                     char const* debug_name = nullptr) override;
@@ -213,6 +200,8 @@ public:
     backend_type getBackendType() const override;
 
     gpu_info const& getGPUInfo() const override { return mGPUInfo; }
+
+    VkInstance nativeGetInstance() { return mInstance; }
 
 public:
     // backend-internal

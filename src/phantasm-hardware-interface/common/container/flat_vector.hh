@@ -14,7 +14,7 @@ namespace phi
 {
 /// cc::capped_vector, but trivial (no move/copy, no dtor)
 /// For serialization purposes
-template <class T, uint8_t N>
+template <class T, uint32_t N>
 struct flat_vector
 {
     static_assert(std::is_trivially_copyable_v<T>, "T not trivial enough");
@@ -27,8 +27,8 @@ public:
     constexpr T* end() { return &_vals[0] + _size; }
     constexpr T const* end() const { return &_vals[0] + _size; }
 
-    constexpr uint8_t size() const { return _size; }
-    constexpr uint8_t capacity() const { return N; }
+    constexpr uint32_t size() const { return _size; }
+    constexpr uint32_t capacity() const { return N; }
     constexpr bool empty() const { return _size == 0; }
     constexpr bool full() const { return _size == N; }
 
@@ -57,13 +57,13 @@ public:
         return _vals[_size - 1];
     }
 
-    constexpr T const& operator[](uint8_t pos) const
+    constexpr T const& operator[](uint32_t pos) const
     {
         CC_CONTRACT(pos < _size);
         return _vals[pos];
     }
 
-    constexpr T& operator[](uint8_t pos)
+    constexpr T& operator[](uint32_t pos)
     {
         CC_CONTRACT(pos < _size);
         return _vals[pos];
@@ -94,7 +94,7 @@ public:
 
     void clear() { _size = 0; }
 
-    void resize(uint8_t size) { _size = size; }
+    void resize(uint32_t size) { _size = size; }
 
 public:
     flat_vector() = default;
@@ -102,12 +102,12 @@ public:
     {
         CC_ASSERT(data.size() <= N && "initializer list too large");
         std::memcpy(_vals, data.begin(), sizeof(T) * data.size());
-        _size = uint8_t(data.size());
+        _size = uint32_t(data.size());
     }
 
 private:
     T _vals[N];
-    uint8_t _size = 0;
+    uint32_t _size = 0;
 };
 
 static_assert(std::is_trivially_copyable_v<flat_vector<int, 5>>);

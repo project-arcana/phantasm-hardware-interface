@@ -31,14 +31,17 @@ void phi::d3d12::RootSignatureCache::destroy()
     mCache.reset();
 }
 
-phi::d3d12::root_signature* phi::d3d12::RootSignatureCache::getOrCreate(ID3D12Device& device, arg::shader_arg_shapes arg_shapes, bool has_root_constants, root_signature_type type)
+phi::d3d12::root_signature* phi::d3d12::RootSignatureCache::getOrCreate(ID3D12Device& device, arg::root_signature_description const& desc, root_signature_type type)
 {
-    auto const readonly_key = rootsig_key_readonly{arg_shapes, has_root_constants, type};
+    auto const readonly_key = rootsig_key_readonly{&desc, type};
+
+    // NOTE: since some d3d12 runtime version, it internally caches/reuses root signatures already
+    // we can scrap this logic eventually
 
     root_signature& val = mCache[readonly_key];
     if (val.raw_root_sig == nullptr)
     {
-        initialize_root_signature(val, device, arg_shapes, has_root_constants, type);
+        initialize_root_signature(&val, &device, desc, type);
         util::set_object_name(val.raw_root_sig, "cached %s root sig", get_root_sig_type_literal(type));
     }
 

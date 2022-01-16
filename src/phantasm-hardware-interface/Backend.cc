@@ -92,3 +92,16 @@ phi::handle::resource phi::Backend::createResourceFromInfo(const phi::arg::resou
     }
     CC_UNREACHABLE("invalid type");
 }
+
+phi::handle::pipeline_state phi::Backend::createComputePipelineState(arg::shader_arg_shapes arg_shapes, arg::shader_binary shader, bool hasRootConsts)
+{
+    arg::compute_pipeline_state_description desc = {};
+    for (auto const& arg : arg_shapes)
+    {
+        desc.root_signature.shader_arg_shapes.push_back(arg);
+    }
+    desc.root_signature.has_root_constants = false;
+    desc.shader = shader;
+
+    return createComputePipelineState(desc);
+}

@@ -14,7 +14,7 @@
 #include "resources/transition_barrier.hh"
 #include "shader.hh"
 
-VkRenderPass phi::vk::create_render_pass(VkDevice device, arg::framebuffer_config const& framebuffer, const phi::pipeline_config& config)
+VkRenderPass phi::vk::create_render_pass(VkDevice device, arg::framebuffer_config const& framebuffer, const phi::arg::pipeline_config& config)
 {
     auto const sample_bits = util::to_native_sample_flags(static_cast<unsigned>(config.samples));
 
@@ -175,7 +175,7 @@ VkPipeline phi::vk::create_pipeline(VkDevice device,
                                     VkRenderPass render_pass,
                                     VkPipelineLayout pipeline_layout,
                                     cc::span<const util::PatchedShaderStage> shaders,
-                                    const phi::pipeline_config& config,
+                                    const phi::arg::pipeline_config& config,
                                     cc::span<const VkVertexInputAttributeDescription> vertex_attribs,
                                     uint32_t vertex_sizes[limits::max_vertex_buffers],
                                     arg::framebuffer_config const& framebuf_config)
@@ -383,7 +383,8 @@ VkPipeline phi::vk::create_raytracing_pipeline(VkDevice device,
                                                unsigned max_attribute_size_bytes,
                                                cc::allocator* scratch_alloc)
 {
-    auto f_get_shader_index_or_unused = [&](int index, shader_stage stage_verification) -> uint32_t {
+    auto f_get_shader_index_or_unused = [&](int index, shader_stage stage_verification) -> uint32_t
+    {
         if (index < 0)
             return VK_SHADER_UNUSED_NV;
 

@@ -13,16 +13,134 @@
 
 namespace phi::arg
 {
-struct alignas(4) framebuffer_config
+// memhashed structs that must not be padded, C4820: warning about padding
+// #pragma warning(error: 4820): enable C4820 and promote it to an error
+#ifdef CC_COMPILER_MSVC
+#pragma warning(push)
+#pragma warning(error : 4820)
+#endif
+
+// configuration of the rasterizer when creating a graphics PSO
+struct pipeline_config
+{
+    // how to interpret the input primitives
+    primitive_topology topology = primitive_topology::triangles;
+
+    // the function used for depth testing
+    depth_function depth = depth_function::none;
+
+    // whether the depth buffer cannot be written to
+    bool depth_readonly = false;
+
+    // the face culling mode (front / back / none)
+    cull_mode cull = cull_mode::none;
+
+    // amount of (MSAA) samples in the render targets
+    int32_t samples = 1;
+
+    // enable conservative rasterization, not available on all supported GPUs
+    bool conservative_raster = false;
+
+    // how to determine if a face is front-facing (relevant for cull mode)
+    bool frontface_counterclockwise = true; // TODO: this default should be flipped
+
+    // whether to draw in wireframe mode
+    bool wireframe = false;
+
+    // (D3D12 only) whether to create a special command signature required for cmd::draw_indirect using draw_indexed_with_id
+    bool allow_draw_indirect_with_id = false;
+};
+
+
+struct blend_state
+{
+    blend_factor blend_color_src = blend_factor::one;
+    blend_factor blend_color_dest = blend_factor::zero;
+    blend_op blend_op_color = blend_op::op_add;
+    blend_factor blend_alpha_src = blend_factor::one;
+    blend_factor blend_alpha_dest = blend_factor::zero;
+    blend_op blend_op_alpha = blend_op::op_add;
+
+public:
+    blend_state() = default;
+
+    blend_state(blend_factor blend_color_src, //
+                blend_factor blend_color_dest,
+                blend_op blend_op_color,
+                blend_factor blend_alpha_src,
+                blend_factor blend_alpha_dest,
+                blend_op blend_op_alpha)
+      : blend_color_src(blend_color_src), //
+        blend_color_dest(blend_color_dest),
+        blend_op_color(blend_op_color),
+        blend_alpha_src(blend_alpha_src),
+        blend_alpha_dest(blend_alpha_dest),
+        blend_op_alpha(blend_op_alpha)
+    {
+    }
+
+    blend_state(blend_factor blend_color_src, //
+                blend_factor blend_color_dest,
+                blend_factor blend_alpha_src,
+                blend_factor blend_alpha_dest)
+      : blend_color_src(blend_color_src), //
+        blend_color_dest(blend_color_dest),
+        blend_op_color(blend_op::op_add),
+        blend_alpha_src(blend_alpha_src),
+        blend_alpha_dest(blend_alpha_dest),
+        blend_op_alpha(blend_op::op_add)
+    {
+    }
+
+    blend_state(blend_factor blend_src, //
+                blend_factor blend_dest,
+                blend_op blend_op = blend_op::op_add)
+      : blend_color_src(blend_src), //
+        blend_color_dest(blend_dest),
+        blend_op_color(blend_op),
+        blend_alpha_src(blend_src),
+        blend_alpha_dest(blend_dest),
+        blend_op_alpha(blend_op)
+    {
+    }
+
+    // blend state for additive blending "src + dest"
+    static blend_state additive() { return blend_state(blend_factor::one, blend_factor::one); }
+
+    // blend state for multiplicative blending "src * dest"
+    static blend_state multiplicative()
+    {
+        return blend_state(blend_factor::dest_color, blend_factor::zero, blend_factor::dest_alpha, blend_factor::zero);
+    }
+
+    // blend state for normal alpha blending "mix(dest, src, src.a)"
+    static blend_state alpha_blending() { return blend_state(blend_factor::src_alpha, blend_factor::inv_src_alpha); }
+
+    // blend state for premultiplied alpha blending "dest * (1 - src.a) + src"
+    static blend_state alpha_blending_premultiplied() { return blend_state(blend_factor::one, blend_factor::inv_src_alpha); }
+};
+
+
+// the blending configuration for a specific render target slot of a graphics PSO
+struct render_target_config
+{
+    format fmt = format::rgba8un;
+    bool blend_enable = false;
+    blend_state state;
+};
+
+struct framebuffer_config
 {
     /// configs of the render targets, [0, n]
     flat_vector<render_target_config, limits::max_render_targets> render_targets;
 
-    bool logic_op_enable = false;
+    bool32_t logic_op_enable = false;
     blend_logic_op logic_op = blend_logic_op::no_op;
 
     /// format of the depth stencil target, or format::none
     format depth_target = format::none;
+    uint8_t _pad0 = 0;
+    uint8_t _pad1 = 0;
 
 public:
     void add_render_target(format fmt)
@@ -36,21 +154,13 @@ public:
     void remove_depth_target() { depth_target = format::none; }
 };
 
-struct vertex_format
-{
-    // vertex attribute descriptions
-    cc::span<vertex_attribute_info const> attributes;
-    // vertex data size in bytes, per vertex buffer (leave at 0 if none)
-    uint32_t vertex_sizes_bytes[limits::max_vertex_buffers] = {};
-};
-
 /// A shader argument consists of SRVs, UAVs, an optional CBV, and an offset into it
 struct shader_arg_shape
 {
     uint32_t num_srvs = 0;
     uint32_t num_uavs = 0;
     uint32_t num_samplers = 0;
-    bool has_cbv = false;
+    bool32_t has_cbv = false;
 
 public:
     constexpr shader_arg_shape(uint32_t srvs, uint32_t uavs = 0, uint32_t samplers = 0, bool cbv = false)
@@ -63,6 +173,40 @@ public:
     {
         return num_srvs == rhs.num_srvs && num_uavs == rhs.num_uavs && has_cbv == rhs.has_cbv && num_samplers == rhs.num_samplers;
     }
+};
+
+struct root_signature_description
+{
+    flat_vector<shader_arg_shape, limits::max_shader_arguments> shader_arg_shapes;
+    bool32_t has_root_constants = false;
+
+    // D3D12: Amount of overlapped descriptor ranges in space0
+    // Use case: Bindless (descriptor indexing)
+    // for example
+    // Texture2D gTextures2D[1024]      : register(space0);
+    // Texture3D gTextures3D[1024]      : register(space0);
+    // ByteAddressBuffer gBuffers[1024] : register(space0);
+    // this would be 1024 SRVs, overlapped 3 times
+    uint32_t num_overlapped_space0_srv_ranges = 1;
+    uint32_t num_overlapped_space0_uav_ranges = 1;
+    uint32_t num_overlapped_space0_sampler_ranges = 1;
+
+    void add_shader_arg(uint32_t num_srvs, uint32_t num_uavs, uint32_t num_samplers, bool has_cbvs)
+    {
+        shader_arg_shapes.push_back(shader_arg_shape{num_srvs, num_uavs, num_samplers, has_cbvs});
+    }
+};
+// end of memhash structs
+#ifdef CC_COMPILER_MSVC
+#pragma warning(pop)
+#endif
+
+struct vertex_format
+{
+    // vertex attribute descriptions
+    cc::span<vertex_attribute_info const> attributes;
+    // vertex data size in bytes, per vertex buffer (leave at 0 if none)
+    uint32_t vertex_sizes_bytes[limits::max_vertex_buffers] = {};
 };
 
 /// A shader payload consists of [1, 4] shader arguments
@@ -83,22 +227,22 @@ struct graphics_shader
 /// A graphics shader bundle consists of up to 1 shader per graphics stage
 using graphics_shaders = cc::span<graphics_shader const>;
 
+
 struct graphics_pipeline_state_description
 {
     pipeline_config config;
     framebuffer_config framebuffer;
+    root_signature_description root_signature;
     vertex_format vertices;
 
     flat_vector<graphics_shader, limits::num_graphics_shader_stages> shader_binaries;
-    flat_vector<shader_arg_shape, limits::max_shader_arguments> shader_arg_shapes;
-    bool has_root_constants = false;
 };
 
 struct compute_pipeline_state_description
 {
+    root_signature_description root_signature;
+
     shader_binary shader;
-    flat_vector<shader_arg_shape, limits::max_shader_arguments> shader_arg_shapes;
-    bool has_root_constants = false;
 };
 
 /// the category of a SRV or UAV descriptor slot in a shader
@@ -193,17 +337,11 @@ struct raytracing_argument_association
     /// NOTE: identifiable shaders are indexed contiguously across libraries, and non-identifiable shaders are skipped
     flat_vector<uint32_t, 16> target_indices;
 
-    flat_vector<shader_arg_shape, limits::max_shader_arguments> argument_shapes;
-    bool has_root_constants = false;
+    root_signature_description root_signature;
 
 public:
     void set_target_identifiable() { target_type = e_target_identifiable_shader; }
     void set_target_hitgroup() { target_type = e_target_hitgroup; }
-
-    void add_shader_arg(uint32_t num_srvs, uint32_t num_uavs, uint32_t num_samplers, bool has_cbv)
-    {
-        argument_shapes.push_back(shader_arg_shape{num_srvs, num_uavs, num_samplers, has_cbv});
-    }
 };
 
 /// a triangle hit group, has a closest hit shader, and optionally an any hit and intersection shader
@@ -315,7 +453,7 @@ public:
                && num_mips == rhs.num_mips && num_samples == rhs.num_samples && optimized_clear_value == rhs.optimized_clear_value;
     }
 
-	uint32_t get_array_size() const { return dim == texture_dimension::t3d ? 1 : depth_or_array_size; }
+    uint32_t get_array_size() const { return dim == texture_dimension::t3d ? 1 : depth_or_array_size; }
 };
 
 struct buffer_description

@@ -417,34 +417,14 @@ void phi::d3d12::BackendD3D12::free(phi::handle::shader_view sv) { mPoolShaderVi
 
 void phi::d3d12::BackendD3D12::freeRange(cc::span<const phi::handle::shader_view> svs) { mPoolShaderViews.free(svs); }
 
-phi::handle::pipeline_state phi::d3d12::BackendD3D12::createPipelineState(phi::arg::vertex_format vertex_format,
-                                                                          const phi::arg::framebuffer_config& framebuffer_conf,
-                                                                          phi::arg::shader_arg_shapes shader_arg_shapes,
-                                                                          bool has_root_constants,
-                                                                          phi::arg::graphics_shaders shaders,
-                                                                          const phi::pipeline_config& primitive_config,
-                                                                          char const* debug_name)
-{
-    return mPoolPSOs.createPipelineState(vertex_format, framebuffer_conf, shader_arg_shapes, has_root_constants, shaders, primitive_config, debug_name);
-}
-
 phi::handle::pipeline_state phi::d3d12::BackendD3D12::createPipelineState(const phi::arg::graphics_pipeline_state_description& description, char const* debug_name)
 {
-    return mPoolPSOs.createPipelineState(description.vertices, description.framebuffer, description.shader_arg_shapes, description.has_root_constants,
-                                         description.shader_binaries, description.config, debug_name);
-}
-
-phi::handle::pipeline_state phi::d3d12::BackendD3D12::createComputePipelineState(phi::arg::shader_arg_shapes shader_arg_shapes,
-                                                                                 phi::arg::shader_binary shader,
-                                                                                 bool has_root_constants,
-                                                                                 char const* debug_name)
-{
-    return mPoolPSOs.createComputePipelineState(shader_arg_shapes, shader, has_root_constants, debug_name);
+    return mPoolPSOs.createPipelineState(description, debug_name);
 }
 
 phi::handle::pipeline_state phi::d3d12::BackendD3D12::createComputePipelineState(const phi::arg::compute_pipeline_state_description& description, char const* debug_name)
 {
-    return mPoolPSOs.createComputePipelineState(description.shader_arg_shapes, description.shader, description.has_root_constants, debug_name);
+    return mPoolPSOs.createComputePipelineState(description, debug_name);
 }
 
 void phi::d3d12::BackendD3D12::free(phi::handle::pipeline_state ps) { mPoolPSOs.free(ps); }

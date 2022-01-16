@@ -21,39 +21,33 @@ public:
 
     // receive an existing root signature matching the shape, or create a new one
     // returns a pointer which remains stable
-    [[nodiscard]] root_signature* getOrCreate(ID3D12Device& device, arg::shader_arg_shapes arg_shapes, bool has_root_constants, root_signature_type type);
+    [[nodiscard]] root_signature* getOrCreate(ID3D12Device& device, arg::root_signature_description const& desc, root_signature_type type);
 
 private:
     struct rootsig_key_readonly
     {
-        arg::shader_arg_shapes arg_shapes;
-        bool has_root_constants;
+        arg::root_signature_description const* pDescription;
         root_signature_type type;
     };
 
     struct rootsig_key
     {
-        cc::capped_vector<arg::shader_arg_shape, limits::max_shader_arguments> arg_shapes;
-        bool has_root_constants;
+        arg::root_signature_description description;
         root_signature_type type;
 
         rootsig_key() = default;
-        rootsig_key(rootsig_key_readonly const& ro) : arg_shapes(ro.arg_shapes), has_root_constants(ro.has_root_constants), type(ro.type) {}
+        rootsig_key(rootsig_key_readonly const& ro) : description(*ro.pDescription), type(ro.type) {}
 
         bool operator==(rootsig_key_readonly const& lhs) const noexcept
         {
-            return type == lhs.type && arg_shapes == lhs.arg_shapes && has_root_constants == lhs.has_root_constants;
+            return type == lhs.type && !memcmp(&description, lhs.pDescription, sizeof(arg::root_signature_description));
         }
     };
 
     struct rootsig_hasher
     {
-        uint64_t operator()(rootsig_key_readonly const& v) const noexcept
-        {
-            return cc::make_hash(hash::compute(v.arg_shapes), v.type, v.has_root_constants);
-        }
-
-        uint64_t operator()(rootsig_key const& v) const noexcept { return cc::make_hash(hash::compute(v.arg_shapes), v.type, v.has_root_constants); }
+        uint64_t operator()(rootsig_key_readonly const& v) const noexcept { return cc::hash_combine(ComputeHash(*v.pDescription), (uint8_t)v.type); }
+        uint64_t operator()(rootsig_key const& v) const noexcept { return cc::hash_combine(ComputeHash(v.description), (uint8_t)v.type); }
     };
 
     phi::detail::stable_map<rootsig_key, root_signature, rootsig_hasher> mCache;

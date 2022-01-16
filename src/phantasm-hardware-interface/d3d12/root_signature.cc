@@ -59,8 +59,14 @@ ID3D12RootSignature* phi::d3d12::create_root_signature(ID3D12Device& device,
     return res;
 }
 
-phi::d3d12::shader_argument_map phi::d3d12::detail::root_signature_params::add_shader_argument_shape(const phi::arg::shader_arg_shape& shape, bool add_fixed_root_constants)
+phi::d3d12::shader_argument_map phi::d3d12::detail::root_signature_params::add_shader_argument_shape(const phi::arg::shader_arg_shape& shape,
+                                                                                                     bool add_fixed_root_constants,
+                                                                                                     uint32_t num_overlapped_srv_ranges,
+                                                                                                     uint32_t num_overlapped_uav_ranges,
+                                                                                                     uint32_t num_overlapped_sampler_ranges)
 {
+    CC_ASSERT(num_overlapped_srv_ranges > 0 && num_overlapped_uav_ranges > 0 && "invalid amount of overlapped SRV/UAV ranges");
+
     shader_argument_map res_map;
     auto const argument_visibility = D3D12_SHADER_VISIBILITY_ALL; // NOTE: Eventually arguments could be constrained to stages
 
@@ -98,14 +104,28 @@ phi::d3d12::shader_argument_map phi::d3d12::detail::root_signature_params::add_s
 
         if (shape.num_srvs > 0)
         {
-            _desc_ranges.emplace_back();
-            _desc_ranges.back().Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, shape.num_srvs, 0, _space);
+            uint32_t baseRegisterT = 0;
+
+            for (auto i = 0u; i < num_overlapped_srv_ranges; ++i)
+            {
+                _desc_ranges.emplace_back();
+                _desc_ranges.back().Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, shape.num_srvs, baseRegisterT, _space, 0);
+
+                baseRegisterT += shape.num_srvs;
+            }
         }
 
         if (shape.num_uavs > 0)
         {
-            _desc_ranges.emplace_back();
-            _desc_ranges.back().Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, shape.num_uavs, 0, _space);
+            uint32_t baseRegisterU = 0;
+
+            for (auto i = 0u; i < num_overlapped_uav_ranges; ++i)
+            {
+                _desc_ranges.emplace_back();
+                _desc_ranges.back().Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, shape.num_uavs, baseRegisterU, _space, shape.num_srvs);
+
+                baseRegisterU += shape.num_uavs;
+            }
         }
 
         auto const desc_range_end = _desc_ranges.size();
@@ -122,8 +142,12 @@ phi::d3d12::shader_argument_map phi::d3d12::detail::root_signature_params::add_s
     if (shape.num_samplers > 0)
     {
         auto const desc_range_start = _desc_ranges.size();
-        _desc_ranges.emplace_back();
-        _desc_ranges.back().Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, shape.num_samplers, 0, _space);
+
+        for (auto i = 0u; i < num_overlapped_sampler_ranges; ++i)
+        {
+            _desc_ranges.emplace_back();
+            _desc_ranges.back().Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, shape.num_samplers, 0, _space, 0);
+        }
 
         auto const desc_range_end = _desc_ranges.size();
 
@@ -159,28 +183,32 @@ void phi::d3d12::detail::root_signature_params::add_static_sampler(const sampler
     );
 }
 
-void phi::d3d12::initialize_root_signature(phi::d3d12::root_signature& root_sig,
-                                           ID3D12Device& device,
-                                           phi::arg::shader_arg_shapes payload_shape,
-                                           bool add_fixed_root_constants,
-                                           root_signature_type type)
+void phi::d3d12::initialize_root_signature(root_signature* pOutRootSignature, ID3D12Device* pDevice, arg::root_signature_description const& desc, root_signature_type type)
 {
+    CC_ASSERT(pOutRootSignature && pDevice);
+
     detail::root_signature_params parameters;
 
-    for (auto i = 0u; i < payload_shape.size(); ++i)
+    for (auto i = 0u; i < desc.shader_arg_shapes.size(); ++i)
     {
-        auto const& arg_shape = payload_shape[i];
-        auto const add_rconsts = add_fixed_root_constants && i == 0;
-        root_sig.argument_maps.push_back(parameters.add_shader_argument_shape(arg_shape, add_rconsts));
+        auto const& arg_shape = desc.shader_arg_shapes[i];
+        auto const add_rconsts = desc.has_root_constants && i == 0;
+
+        uint32_t num_overlapped_srv_ranges = i == 0 ? desc.num_overlapped_space0_srv_ranges : 1;
+        uint32_t num_overlapped_uav_ranges = i == 0 ? desc.num_overlapped_space0_uav_ranges : 1;
+        uint32_t num_overlapped_sampler_ranges = i == 0 ? desc.num_overlapped_space0_sampler_ranges : 1;
+
+        pOutRootSignature->argument_maps.push_back(parameters.add_shader_argument_shape(arg_shape, add_rconsts, num_overlapped_srv_ranges,
+                                                                                        num_overlapped_uav_ranges, num_overlapped_sampler_ranges));
     }
 
-    if (payload_shape.empty() && add_fixed_root_constants)
+    if (desc.shader_arg_shapes.empty() && desc.has_root_constants)
     {
         // create single argument with only root constants
-        root_sig.argument_maps.push_back(parameters.add_shader_argument_shape({}, true));
+        pOutRootSignature->argument_maps.push_back(parameters.add_shader_argument_shape({}, true, 1, 1, 1));
     }
 
-    root_sig.raw_root_sig = create_root_signature(device, parameters.root_params, parameters.samplers, type);
+    pOutRootSignature->raw_root_sig = create_root_signature(*pDevice, parameters.root_params, parameters.samplers, type);
 }
 
 ID3D12CommandSignature* phi::d3d12::createCommandSignatureForDraw(ID3D12Device* pDevice)

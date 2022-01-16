@@ -17,7 +17,7 @@ struct PatchedShaderStage;
 }
 struct patched_shader_intermediates;
 
-[[nodiscard]] VkRenderPass create_render_pass(VkDevice device, const arg::framebuffer_config& framebuffer, phi::pipeline_config const& config);
+[[nodiscard]] VkRenderPass create_render_pass(VkDevice device, const arg::framebuffer_config& framebuffer, phi::arg::pipeline_config const& config);
 
 [[nodiscard]] VkRenderPass create_render_pass(VkDevice device, const phi::cmd::begin_render_pass& begin_rp, unsigned num_samples, cc::span<const format> override_rt_formats);
 
@@ -25,7 +25,7 @@ struct patched_shader_intermediates;
                                          VkRenderPass render_pass,
                                          VkPipelineLayout pipeline_layout,
                                          cc::span<util::PatchedShaderStage const> shaders,
-                                         phi::pipeline_config const& config,
+                                         phi::arg::pipeline_config const& config,
                                          cc::span<VkVertexInputAttributeDescription const> vertex_attribs,
                                          uint32_t vertex_sizes[limits::max_vertex_buffers],
                                          const arg::framebuffer_config& framebuf_config);
