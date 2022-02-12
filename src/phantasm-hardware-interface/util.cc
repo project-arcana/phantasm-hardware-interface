@@ -43,6 +43,50 @@ uint32_t phi::util::get_texture_pixel_byte_offset(tg::isize2 size, phi::format f
     return pixel.y * row_width + pixel.x * bytes_per_pixel;
 }
 
+bool phi::util::is_rowwise_texture_data_copy_in_bounds(uint32_t dest_row_stride_bytes, uint32_t row_size_bytes, uint32_t num_rows, uint32_t source_size_bytes, uint32_t destination_size_bytes)
+{
+    // num_rows is the height in pixels for regular formats, but is lower for block compressed formats
+    auto const largest_src_access = num_rows * row_size_bytes;
+    auto const largest_dest_access = (num_rows - 1) * dest_row_stride_bytes + row_size_bytes;
+
+    bool const is_in_bounds = (largest_src_access <= source_size_bytes) && (largest_dest_access <= destination_size_bytes);
+
+    if (!is_in_bounds)
+    {
+        PHI_LOG_WARN("rowwise copy from texture data to upload buffer is out of bounds");
+        if (largest_src_access > source_size_bytes)
+            PHI_LOG_WARN("src bound error: access {} > size {} (exceeding by {} B)", largest_src_access, source_size_bytes, largest_src_access - source_size_bytes);
+        if (largest_dest_access > destination_size_bytes)
+            PHI_LOG_WARN("dst bound error: access {} > size {} (exceeding by {} B)", largest_dest_access, destination_size_bytes,
+                         largest_dest_access - destination_size_bytes);
+
+        PHI_LOG_WARN("while writing {} rows of {} bytes (strided {})", num_rows, row_size_bytes, dest_row_stride_bytes);
+    }
+
+    return is_in_bounds;
+}
+
+uint32_t phi::util::copy_texture_data_rowwise(void const* __restrict srcArg, void* __restrict destArg, uint32_t dest_row_stride_bytes, uint32_t row_size_bytes, uint32_t num_rows)
+{
+    CC_ASSERT(srcArg && destArg && row_size_bytes > 0 && dest_row_stride_bytes > 0);
+    CC_ASSUME(srcArg && destArg);
+
+    std::byte const* src = static_cast<std::byte const*>(srcArg);
+    std::byte* dest = static_cast<std::byte *>(destArg);
+
+    // num_rows is the height in pixels for regular formats, but is lower for block compressed formats
+    for (auto y = 0u; y < num_rows; ++y)
+    {
+        auto const src_offset = y * row_size_bytes;
+        auto const dst_offset = y * dest_row_stride_bytes;
+
+        // TODO: streaming memcpy (destination is not immediately accessed)
+        std::memcpy(dest + dst_offset, src + src_offset, row_size_bytes);
+    }
+
+    return dest_row_stride_bytes * (num_rows - 1) + row_size_bytes;
+}
+
 void phi::util::unswizzle_bgra_texture_data(cc::span<std::byte> in_out_texture_data)
 {
     for (auto i = 0u; i < in_out_texture_data.size(); i += 4)
