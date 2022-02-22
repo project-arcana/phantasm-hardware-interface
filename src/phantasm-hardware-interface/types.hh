@@ -199,16 +199,16 @@ enum class format : uint8_t
     r9g9b9e5_sharedexp_uf, // three ufloats sharing a single 5 bit exponent, 32b in total
 
     // block-compressed formats
-    bc1,
-    bc1_srgb,
-    bc2,
-    bc2_srgb,
-    bc3,
-    bc3_srgb,
-    bc6h_16f,
-    bc6h_16uf,
-    bc7,
-    bc7_srgb,
+    bc1,       // BC1: 4x4 rgb8 pixels in 64 bit (6:1), DXT1
+    bc1_srgb,  // sRGB version of BC1
+    bc2,       // BC2: 4x4 rgba8 (premultiplied) pixels in 128 bit (4:1), DXT2
+    bc2_srgb,  // sRGB version of BC2
+    bc3,       // BC3: 4x4 rgba8 (non-premultiplied) pixels in 128 bit (4:1), DXT3
+    bc3_srgb,  // sRGB version of BC3
+    bc6h_16f,  // BC6H: 4x4 rgb16f pixels in 128 bit (6:1)
+    bc6h_16uf, // unsigned float version of BC6H
+    bc7,       // BC7: 4x4 rgba8 pixels in 128bit (4:1)
+    bc7_srgb,  // sRGB version of BC7
 
     // view-only formats - depth
     r24un_g8t, // view the depth part of depth24un_stencil8u
