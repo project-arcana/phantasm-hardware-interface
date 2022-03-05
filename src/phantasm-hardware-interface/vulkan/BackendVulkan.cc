@@ -5,6 +5,7 @@
 #endif
 
 #include <clean-core/allocator.hh>
+#include <clean-core/allocators/linear_allocator.hh>
 #include <clean-core/defer.hh>
 #include <clean-core/native/win32_util.hh>
 
