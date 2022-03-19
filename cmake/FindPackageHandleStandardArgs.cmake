@@ -326,6 +326,8 @@ function(FIND_PACKAGE_HANDLE_STANDARD_ARGS _NAME _FIRST_ARG)
   unset(FOUND_COMPONENTS_MSG)
   unset(MISSING_COMPONENTS_MSG)
 
+  set(COMPONENT_MSG "")
+
   if(FPHSA_HANDLE_COMPONENTS)
     foreach(comp ${${_NAME}_FIND_COMPONENTS})
       if(${_NAME}_${comp}_FOUND)
@@ -425,7 +427,8 @@ function(FIND_PACKAGE_HANDLE_STANDARD_ARGS _NAME _FIRST_ARG)
   endif ()
 
   if(VERSION_OK)
-    string(APPEND DETAILS "[v${${FPHSA_VERSION_VAR}}(${${_NAME}_FIND_VERSION})]")
+    # NOTE(Kunstwald): Commented out, these variables are always undefined for Vulkan
+    # string(APPEND DETAILS "[v${${FPHSA_VERSION_VAR}}(${${_NAME}_FIND_VERSION})]")
   else()
     set(${_NAME}_FOUND FALSE)
   endif()
