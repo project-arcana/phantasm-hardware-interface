@@ -10,7 +10,7 @@ namespace phi::util
 {
 /// returns the byte size of a single pixel of a texture in the given format
 /// NOTE: block-compressed formats do not have a per-pixel size, use get_block_format_4x4_size for them instead
-inline unsigned get_format_size_bytes(format fmt)
+inline uint32_t get_format_size_bytes(format fmt)
 {
     unsigned res = 0;
     switch (fmt)
@@ -25,7 +25,7 @@ inline unsigned get_format_size_bytes(format fmt)
 }
 
 /// returns the amount of components of a format (ie. RGBA = 4, Depth-Stencil = 2)
-inline unsigned get_format_num_components(format fmt)
+inline uint32_t get_format_num_components(format fmt)
 {
     switch (fmt)
     {
@@ -37,7 +37,7 @@ inline unsigned get_format_num_components(format fmt)
 }
 
 /// returns the byte size of a 4x4 pixel square of a texture in the given block-compressed format
-inline unsigned get_block_format_4x4_size(format fmt)
+inline uint32_t get_block_format_4x4_size(format fmt)
 {
     switch (fmt)
     {
