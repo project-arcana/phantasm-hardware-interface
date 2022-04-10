@@ -129,3 +129,7 @@ enum format_property_flags_e
 #define PHI_FORMAT_INFO_X_RET_TRUE(PhiName, ...) \
     case format::PhiName:                        \
         return true;
+
+#define PHI_FORMAT_INFO_X_TO_STRING(PhiName, ...) \
+    case format::PhiName:                         \
+        return #PhiName;
