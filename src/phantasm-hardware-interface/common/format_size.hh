@@ -78,7 +78,7 @@ inline format get_format_srgb_variant(format fmt)
     case format::bc7:
         return format::bc7_srgb;
     default:
-        // either fmt is already sRGB or no variant exsits
+        // either fmt is already sRGB or no variant exists
         return fmt;
     }
 }
@@ -145,4 +145,15 @@ inline bool is_srgb_format(format fmt)
         return false;
     }
 }
+
+inline char const* format_to_string(format fmt)
+{
+    switch (fmt)
+    {
+        PHI_FORMAT_INFO_LIST_ALL(PHI_FORMAT_INFO_X_TO_STRING)
+
+    default:
+        return "UNKNOWN";
+    }
 }
+} // namespace phi::util
