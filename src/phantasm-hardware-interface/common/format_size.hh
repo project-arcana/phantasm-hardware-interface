@@ -20,7 +20,6 @@ inline uint32_t get_format_size_bytes(format fmt)
         CC_UNREACHABLE("unknown format");
         break;
     }
-    CC_ASSERT(res > 0 && "compressed block formats have no per-pixel byte size, use get_block_format_4x4_size");
     return res;
 }
 
@@ -57,7 +56,6 @@ inline uint32_t get_block_format_4x4_size(format fmt)
         return 16;
 
     default:
-        CC_UNREACHABLE("not a block-compressed format");
         return 0;
     }
 }
