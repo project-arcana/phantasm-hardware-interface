@@ -251,7 +251,8 @@ public:
 
     // start recording a commandlist directly
     // access to the live command list is not synchronized
-    [[nodiscard]] virtual handle::live_command_list openLiveCommandList(queue_type queue = queue_type::direct)
+    [[nodiscard]] virtual handle::live_command_list openLiveCommandList(queue_type queue = queue_type::direct,
+                                                                        cmd::set_global_profile_scope const* opt_global_pscope = nullptr)
     {
         CC_ASSERT(false && "unimplemented");
         return handle::null_live_command_list;

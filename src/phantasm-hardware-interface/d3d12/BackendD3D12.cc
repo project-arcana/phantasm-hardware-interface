@@ -11,6 +11,7 @@
 #include <clean-core/defer.hh>
 #include <clean-core/vector.hh>
 
+#include <phantasm-hardware-interface/common/command_reading.hh>
 #include <phantasm-hardware-interface/common/log.hh>
 #include <phantasm-hardware-interface/window_handle.hh>
 
@@ -26,7 +27,6 @@ namespace phi::d3d12
 {
 struct BackendD3D12::per_thread_component
 {
-    command_list_translator translator;
     CommandAllocatorsPerThread cmd_list_allocator;
 };
 } // namespace phi::d3d12
@@ -106,9 +106,11 @@ phi::init_status phi::d3d12::BackendD3D12::initialize(const phi::backend_config&
         for (auto i = 0u; i < mNumThreadComponents; ++i)
         {
             auto& thread_comp = mThreadComponents[i];
-            thread_comp.translator.initialize(device, &mPoolShaderViews, &mPoolResources, &mPoolPSOs, &mPoolAccelStructs, &mPoolQueries);
             thread_allocator_ptrs[i] = &thread_comp.cmd_list_allocator;
         }
+
+        mPoolTranslators.initialize(device, &mPoolShaderViews, &mPoolResources, &mPoolPSOs, &mPoolAccelStructs, &mPoolQueries,
+                                    config.static_allocator, config.max_num_live_commandlists);
 
         mPoolCmdLists.initialize(*this, config.static_allocator,                                                              //
                                  config.num_direct_cmdlist_allocators_per_thread, config.num_direct_cmdlists_per_allocator,   //
@@ -275,13 +277,15 @@ void phi::d3d12::BackendD3D12::destroy()
         mPoolShaderViews.destroy();
         mPoolResources.destroy();
         mPoolQueries.destroy();
+        mPoolTranslators.destroy();
 
         for (auto i = 0u; i < mNumThreadComponents; ++i)
         {
             auto& thread_comp = mThreadComponents[i];
             thread_comp.cmd_list_allocator.destroy();
-            thread_comp.translator.destroy();
         }
+
+
         mStaticAlloc->delete_array_sized(mThreadComponents, mNumThreadComponents);
 
         mDirectQueue.destroy();
@@ -431,11 +435,29 @@ void phi::d3d12::BackendD3D12::free(phi::handle::pipeline_state ps) { mPoolPSOs.
 
 phi::handle::command_list phi::d3d12::BackendD3D12::recordCommandList(std::byte const* buffer, size_t size, queue_type queue)
 {
-    auto& thread_comp = getCurrentThreadComponent();
-    ID3D12GraphicsCommandList5* raw_list5;
-    auto const res = mPoolCmdLists.create(raw_list5, thread_comp.cmd_list_allocator, queue);
-    thread_comp.translator.translateCommandList(raw_list5, queue, mPoolCmdLists.getStateCache(res), buffer, size);
-    return res;
+    command_stream_parser parser(buffer, size);
+    command_stream_parser::iterator parserIterator = parser.begin();
+
+    cmd::set_global_profile_scope const* cmdGlobalProfile = nullptr;
+    if (parserIterator.has_cmds_left() && parserIterator.get_current_cmd_type() == phi::cmd::detail::cmd_type::set_global_profile_scope)
+    {
+        // if the very first command is set_global_profile_scope, use the provided event instead of the static one
+        cmdGlobalProfile = static_cast<cmd::set_global_profile_scope const*>(parserIterator.get_current_cmd());
+        parserIterator.skip_one_cmd();
+    }
+
+    auto const liveCmdlist = openLiveCommandList(queue, cmdGlobalProfile);
+
+    auto* const pTranslator = mPoolTranslators.getTranslator(liveCmdlist);
+
+    // translate all contained commands
+    while (parserIterator.has_cmds_left())
+    {
+        cmd::detail::dynamic_dispatch(*parserIterator.get_current_cmd(), *pTranslator);
+        parserIterator.skip_one_cmd();
+    }
+
+    return closeLiveCommandList(liveCmdlist);
 }
 
 void phi::d3d12::BackendD3D12::discard(cc::span<const phi::handle::command_list> cls) { mPoolCmdLists.freeOnDiscard(cls); }
@@ -600,6 +622,118 @@ void phi::d3d12::BackendD3D12::freeRange(cc::span<const phi::handle::accel_struc
 {
     CC_ASSERT(isRaytracingEnabled() && "raytracing is not enabled");
     mPoolAccelStructs.free(as);
+}
+
+phi::handle::live_command_list phi::d3d12::BackendD3D12::openLiveCommandList(queue_type queue, cmd::set_global_profile_scope const* opt_global_pscope)
+{
+    auto& thread_comp = getCurrentThreadComponent();
+
+    ID3D12GraphicsCommandList5* raw_list5 = nullptr;
+    auto const res = mPoolCmdLists.create(raw_list5, thread_comp.cmd_list_allocator, queue);
+
+    return mPoolTranslators.createLiveCmdList(res, raw_list5, queue, mPoolCmdLists.getStateCache(res), opt_global_pscope);
+}
+
+phi::handle::command_list phi::d3d12::BackendD3D12::closeLiveCommandList(handle::live_command_list list)
+{
+    //
+    return mPoolTranslators.freeLiveCmdList(list, true);
+}
+
+void phi::d3d12::BackendD3D12::discardLiveCommandList(handle::live_command_list list)
+{
+    handle::command_list const backingList = mPoolTranslators.freeLiveCmdList(list, false);
+    discard(cc::span{backingList});
+}
+
+void phi::d3d12::BackendD3D12::cmdDraw(handle::live_command_list list, cmd::draw const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::d3d12::BackendD3D12::cmdDrawIndirect(handle::live_command_list list, cmd::draw_indirect const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::d3d12::BackendD3D12::cmdDispatch(handle::live_command_list list, cmd::dispatch const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::d3d12::BackendD3D12::cmdDispatchIndirect(handle::live_command_list list, cmd::dispatch_indirect const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::d3d12::BackendD3D12::cmdTransitionResources(handle::live_command_list list, cmd::transition_resources const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::d3d12::BackendD3D12::cmdBarrierUAV(handle::live_command_list list, cmd::barrier_uav const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::d3d12::BackendD3D12::cmdTransitionImageSlices(handle::live_command_list list, cmd::transition_image_slices const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::d3d12::BackendD3D12::cmdCopyBuffer(handle::live_command_list list, cmd::copy_buffer const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::d3d12::BackendD3D12::cmdCopyTexture(handle::live_command_list list, cmd::copy_texture const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::d3d12::BackendD3D12::cmdCopyBufferToTexture(handle::live_command_list list, cmd::copy_buffer_to_texture const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::d3d12::BackendD3D12::cmdCopyTextureToBuffer(handle::live_command_list list, cmd::copy_texture_to_buffer const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::d3d12::BackendD3D12::cmdResolveTexture(handle::live_command_list list, cmd::resolve_texture const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::d3d12::BackendD3D12::cmdBeginRenderPass(handle::live_command_list list, cmd::begin_render_pass const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::d3d12::BackendD3D12::cmdEndRenderPass(handle::live_command_list list, cmd::end_render_pass const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::d3d12::BackendD3D12::cmdWriteTimestamp(handle::live_command_list list, cmd::write_timestamp const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::d3d12::BackendD3D12::cmdResolveQueries(handle::live_command_list list, cmd::resolve_queries const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::d3d12::BackendD3D12::cmdBeginDebugLabel(handle::live_command_list list, cmd::begin_debug_label const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::d3d12::BackendD3D12::cmdEndDebugLabel(handle::live_command_list list, cmd::end_debug_label const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
 }
 
 phi::arg::resource_description const& phi::d3d12::BackendD3D12::getResourceDescription(handle::resource res) const

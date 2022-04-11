@@ -14,6 +14,7 @@
 #include "common/diagnostic_util.hh"
 #include "pools/accel_struct_pool.hh"
 #include "pools/cmd_list_pool.hh"
+#include "pools/cmdlist_translator_pool.hh"
 #include "pools/fence_pool.hh"
 #include "pools/pso_pool.hh"
 #include "pools/query_pool.hh"
@@ -182,6 +183,40 @@ public:
     void freeRange(cc::span<handle::accel_struct const> as) override;
 
     //
+    // Live command list interface
+    // Experimental API - subject to change
+    //
+
+    // start recording a commandlist directly
+    // access to the live command list is not synchronized
+    [[nodiscard]] handle::live_command_list openLiveCommandList(queue_type queue = queue_type::direct,
+                                                                cmd::set_global_profile_scope const* opt_global_pscope = nullptr);
+
+    // finish recording a commandlist - result can be submitted or discarded
+    [[nodiscard]] handle::command_list closeLiveCommandList(handle::live_command_list list);
+
+    void discardLiveCommandList(handle::live_command_list list);
+
+    void cmdDraw(handle::live_command_list list, cmd::draw const& command);
+    void cmdDrawIndirect(handle::live_command_list list, cmd::draw_indirect const& command);
+    void cmdDispatch(handle::live_command_list list, cmd::dispatch const& command);
+    void cmdDispatchIndirect(handle::live_command_list list, cmd::dispatch_indirect const& command);
+    void cmdTransitionResources(handle::live_command_list list, cmd::transition_resources const& command);
+    void cmdBarrierUAV(handle::live_command_list list, cmd::barrier_uav const& command);
+    void cmdTransitionImageSlices(handle::live_command_list list, cmd::transition_image_slices const& command);
+    void cmdCopyBuffer(handle::live_command_list list, cmd::copy_buffer const& command);
+    void cmdCopyTexture(handle::live_command_list list, cmd::copy_texture const& command);
+    void cmdCopyBufferToTexture(handle::live_command_list list, cmd::copy_buffer_to_texture const& command);
+    void cmdCopyTextureToBuffer(handle::live_command_list list, cmd::copy_texture_to_buffer const& command);
+    void cmdResolveTexture(handle::live_command_list list, cmd::resolve_texture const& command);
+    void cmdBeginRenderPass(handle::live_command_list list, cmd::begin_render_pass const& command);
+    void cmdEndRenderPass(handle::live_command_list list, cmd::end_render_pass const& command);
+    void cmdWriteTimestamp(handle::live_command_list list, cmd::write_timestamp const& command);
+    void cmdResolveQueries(handle::live_command_list list, cmd::resolve_queries const& command);
+    void cmdBeginDebugLabel(handle::live_command_list list, cmd::begin_debug_label const& command);
+    void cmdEndDebugLabel(handle::live_command_list list, cmd::end_debug_label const& command);
+
+    //
     // Resource info interface
     //
 
@@ -277,6 +312,7 @@ private:
     FencePool mPoolFences;
     AccelStructPool mPoolAccelStructs;
     QueryPool mPoolQueries;
+    CmdlistTranslatorPool mPoolTranslators;
 
     // Logic
     per_thread_component* mThreadComponents = nullptr;
