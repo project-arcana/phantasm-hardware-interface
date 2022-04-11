@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <mutex>
 
 #include <clean-core/alloc_array.hh>
@@ -52,17 +53,17 @@ public:
 
         struct buffer_info
         {
-            VkBuffer raw_buffer;
+            VkBuffer raw_buffer = nullptr;
             /// a descriptor set containing a single UNIFORM_BUFFER_DYNAMIC descriptor,
             /// unconditionally created for all qualified buffers
-            VkDescriptorSet raw_uniform_dynamic_ds;
-            VkDescriptorSet raw_uniform_dynamic_ds_compute;
+            VkDescriptorSet raw_uniform_dynamic_ds = nullptr;
+            VkDescriptorSet raw_uniform_dynamic_ds_compute = nullptr;
 
             // vertex size or index size
-            uint32_t stride; 
+            uint32_t stride = 0;
             // VMA requires all maps to be followed by unmaps before destruction, so track maps/unmaps
-            int num_vma_maps;
-            uint64_t width;
+            std::atomic_int num_vma_maps = {};
+            uint64_t width = 0;
 
             bool is_access_in_bounds(uint64_t offset, uint64_t size) const { return offset + size <= width; }
         };
@@ -74,18 +75,18 @@ public:
         };
 
     public:
-        VmaAllocation allocation;
+        VmaAllocation allocation = nullptr;
 
         union
         {
-            buffer_info buffer;
+            buffer_info buffer = {};
             image_info image;
         };
 
-        VkPipelineStageFlags master_state_dependency;
-        resource_state master_state;
-        resource_type type;
-        phi::resource_heap heap;
+        VkPipelineStageFlags master_state_dependency = 0;
+        resource_state master_state = resource_state::unknown;
+        resource_type type = resource_type::buffer;
+        phi::resource_heap heap = resource_heap::gpu;
     };
 
 public:
@@ -225,4 +226,4 @@ private:
     std::mutex mMutex;
 };
 
-}
+} // namespace phi::vk

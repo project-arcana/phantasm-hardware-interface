@@ -62,7 +62,7 @@ constexpr char const* vk_get_heap_type_literal(phi::resource_heap heap)
 
     return "unknown_heap_type";
 }
-}
+} // namespace
 
 phi::handle::resource phi::vk::ResourcePool::createTexture(arg::texture_description const& description, char const* dbg_name)
 {
@@ -170,7 +170,7 @@ std::byte* phi::vk::ResourcePool::mapBuffer(phi::handle::resource res, int begin
     void* data_start_void;
     vmaMapMemory(mAllocator, node.allocation, &data_start_void);
     // read-write access to pool, but access to resource is user-synchronized
-    node.buffer.num_vma_maps++;
+    node.buffer.num_vma_maps.fetch_add(1);
 
 
     // NOTE: Vulkan terminology:
@@ -204,8 +204,8 @@ void phi::vk::ResourcePool::unmapBuffer(phi::handle::resource res, int begin, in
 
     vmaUnmapMemory(mAllocator, node.allocation);
     // read-write access to pool, but access to resource is user-synchronized
-    node.buffer.num_vma_maps--;
-    CC_ASSERT(node.buffer.num_vma_maps >= 0 && "more unmaps than maps on resource");
+    auto const prevNum = node.buffer.num_vma_maps.fetch_sub(1);
+    CC_ASSERT(prevNum >= 1 && "more unmaps than maps on resource");
 
     // see note in ::mapBuffer above
     if (node.heap == resource_heap::upload)
@@ -311,13 +311,15 @@ void phi::vk::ResourcePool::destroy()
     }
 
     auto num_leaks = 0;
-    mPool.iterate_allocated_nodes([&](resource_node& leaked_node) {
-        if (leaked_node.allocation != nullptr)
+    mPool.iterate_allocated_nodes(
+        [&](resource_node& leaked_node)
         {
-            ++num_leaks;
-            internalFree(leaked_node);
-        }
-    });
+            if (leaked_node.allocation != nullptr)
+            {
+                ++num_leaks;
+                internalFree(leaked_node);
+            }
+        });
 
     if (num_leaks > 0)
     {
@@ -424,7 +426,7 @@ phi::handle::resource phi::vk::ResourcePool::acquireBuffer(VmaAllocation alloc, 
     new_node.buffer.raw_uniform_dynamic_ds_compute = cbv_desc_set_compute;
     new_node.buffer.width = desc.size_bytes;
     new_node.buffer.stride = desc.stride_bytes;
-    new_node.buffer.num_vma_maps = 0;
+    new_node.buffer.num_vma_maps.store(0);
 
     new_node.master_state = resource_state::undefined;
     new_node.master_state_dependency = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
@@ -468,7 +470,8 @@ void phi::vk::ResourcePool::internalFree(resource_node& node)
     }
     else
     {
-        for (auto _ = 0; _ < node.buffer.num_vma_maps; ++_)
+        auto const numMaps = node.buffer.num_vma_maps.load();
+        for (auto _ = 0; _ < numMaps; ++_)
         {
             // clear remaining VMA maps
             vmaUnmapMemory(mAllocator, node.allocation);
