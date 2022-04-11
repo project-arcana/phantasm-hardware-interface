@@ -1,8 +1,10 @@
 #pragma once
 
-#include <cstdint>
+#include <stdint.h>
 
 #include <clean-core/fwd.hh>
+
+#include <phantasm-hardware-interface/common/command_base.hh>
 
 namespace phi
 {
@@ -29,6 +31,13 @@ struct fence;
 struct query_range;
 struct accel_struct;
 } // namespace handle
+
+namespace cmd
+{
+#define PHI_X(_val_) struct _val_;
+PHI_CMD_TYPE_VALUES
+#undef PHI_X
+} // namespace cmd
 
 // config structs
 struct backend_config;
