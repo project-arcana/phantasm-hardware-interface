@@ -39,7 +39,7 @@ uint32_t phi::util::get_texture_size_bytes(tg::isize3 size, phi::format fmt, int
     return res_bytes * size.depth;
 }
 
-uint32_t phi::util::get_texture_size_in_buffer(arg::texture_description const& desc, bool is_d3d12)
+uint32_t phi::util::get_texture_size_bytes_on_gpu(arg::texture_description const& desc, bool is_d3d12)
 {
     auto const numSlices = desc.get_array_size();
     auto const depth = desc.get_depth();
@@ -87,44 +87,52 @@ uint32_t phi::util::get_texture_size_in_buffer(arg::texture_description const& d
     return numBytesPerSlice * numSlices;
 }
 
-PHI_API uint32_t phi::util::get_texture_subresource_size_bytes(phi::format fmt, uint32_t width, uint32_t height, uint32_t depth, uint32_t mip_idx, bool is_d3d12)
+phi::util::texture_subresource_sizes phi::util::get_texture_subresource_sizes(phi::format fmt, uint32_t width, uint32_t height, uint32_t depth, uint32_t mip_idx)
 {
     auto const bytesPerPixel = util::get_format_size_bytes(fmt);
     auto const bytesPerBlock = util::get_block_format_4x4_size(fmt);
     bool const bIsBlockFormat = util::is_block_compressed_format(fmt);
 
     uint32_t const rowLength = cc::max(1u, uint32_t(width) >> mip_idx);
-    uint32_t const numDepths = cc::max(1u, uint32_t(depth) >> mip_idx);
-    uint32_t numRows = cc::max(1u, uint32_t(height) >> mip_idx);
-    uint32_t pitch = cc::max(1u, rowLength * bytesPerPixel);
+
+    texture_subresource_sizes res;
+    res.num_depths = cc::max(1u, uint32_t(depth) >> mip_idx);
+    res.num_rows = cc::max(1u, uint32_t(height) >> mip_idx);
 
     if (bIsBlockFormat)
     {
-        numRows = cc::max(1u, (numRows + 3) / 4);
-        pitch = cc::max(bytesPerBlock, ((rowLength + 3) / 4) * bytesPerBlock);
+        res.num_rows = cc::max(1u, (res.num_rows + 3) / 4);
+        res.pitch_on_disk = cc::max(bytesPerBlock, ((rowLength + 3) / 4) * bytesPerBlock);
     }
+    else
+    {
+        res.pitch_on_disk = cc::max(1u, rowLength * bytesPerPixel);
+    }
+
+    return res;
+}
+
+PHI_API uint32_t phi::util::get_texture_subresource_size_bytes_on_gpu(phi::format fmt, uint32_t width, uint32_t height, uint32_t depth, uint32_t mip_idx, bool is_d3d12)
+{
+    auto const subresSizes = get_texture_subresource_sizes(fmt, width, height, depth, mip_idx);
+    return subresSizes.get_size_bytes_on_gpu(is_d3d12);
+}
+
+uint32_t phi::util::get_texture_pixel_byte_offset_on_gpu(tg::isize2 size, phi::format fmt, tg::ivec2 pixel, bool is_d3d12)
+{
+    CC_ASSERT(pixel.x < size.width && pixel.y < size.height && "pixel out of bounds");
+    CC_ASSERT(!util::is_block_compressed_format(fmt) && "block compressed textures do not have 1:1 pixel mappings");
+
+    auto const bytesPerPixel = get_format_size_bytes(fmt);
+
+    uint32_t pitch = cc::max(1u, size.width * bytesPerPixel);
 
     if (is_d3d12)
     {
-        // individual pixel / block rows must be 256 byte aligned in D3D12 GPU buffers
-        // = D3D12_TEXTURE_DATA_PITCH_ALIGNMENT
-        pitch = cc::align_up(pitch, 256);
+        pitch = phi::util::align_up(pitch, 256);
     }
 
-    return numDepths * numRows * pitch;
-}
-
-uint32_t phi::util::get_texture_pixel_byte_offset(tg::isize2 size, phi::format fmt, tg::ivec2 pixel, bool is_d3d12)
-{
-    CC_ASSERT(pixel.x < size.width && pixel.y < size.height && "pixel out of bounds");
-    auto const bytes_per_pixel = get_format_size_bytes(fmt);
-
-    uint32_t row_width = bytes_per_pixel * size.width;
-
-    if (is_d3d12)
-        row_width = phi::util::align_up(row_width, 256);
-
-    return pixel.y * row_width + pixel.x * bytes_per_pixel;
+    return pixel.y * pitch + pixel.x * bytesPerPixel;
 }
 
 bool phi::util::is_rowwise_texture_data_copy_in_bounds(uint32_t dest_row_stride_bytes, uint32_t row_size_bytes, uint32_t num_rows, uint32_t source_size_bytes, uint32_t destination_size_bytes)
@@ -150,18 +158,20 @@ bool phi::util::is_rowwise_texture_data_copy_in_bounds(uint32_t dest_row_stride_
     return is_in_bounds;
 }
 
-uint32_t phi::util::copy_texture_data_rowwise(void const* __restrict srcArg, void* __restrict destArg, uint32_t dest_row_stride_bytes, uint32_t row_size_bytes, uint32_t num_rows)
+uint32_t phi::util::copy_texture_data_rowwise(void const* __restrict srcArg, void* __restrict destArg, uint32_t dest_row_stride_bytes, uint32_t src_row_stride_bytes, uint32_t num_rows)
 {
-    CC_ASSERT(srcArg && destArg && row_size_bytes > 0 && dest_row_stride_bytes > 0);
+    CC_ASSERT(srcArg && destArg && src_row_stride_bytes > 0 && dest_row_stride_bytes > 0);
     CC_ASSUME(srcArg && destArg);
 
     std::byte const* src = static_cast<std::byte const*>(srcArg);
     std::byte* dest = static_cast<std::byte*>(destArg);
 
+    auto const row_size_bytes = cc::min(dest_row_stride_bytes, src_row_stride_bytes);
+
     // num_rows is the height in pixels for regular formats, but is lower for block compressed formats
     for (auto y = 0u; y < num_rows; ++y)
     {
-        auto const src_offset = y * row_size_bytes;
+        auto const src_offset = y * src_row_stride_bytes;
         auto const dst_offset = y * dest_row_stride_bytes;
 
         // TODO: streaming memcpy (destination is not immediately accessed)
