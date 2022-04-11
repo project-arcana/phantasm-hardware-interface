@@ -20,14 +20,98 @@ uint32_t phi::util::get_texture_size_bytes(tg::isize3 size, phi::format fmt, int
 
         uint32_t row_pitch = bytes_per_pixel * mip_width;
 
+        // individual pixel / block rows must be 256 byte aligned in D3D12
         if (is_d3d12)
-            row_pitch = phi::util::align_up(row_pitch, 256);
+            row_pitch = phi::util::align_up(row_pitch, 256u); // D3D12_TEXTURE_DATA_PITCH_ALIGNMENT
 
-        auto const custom_offset = row_pitch * mip_height;
-        res_bytes += custom_offset;
+        // buffer offsets for subresources must be 512 byte aligned in D3D12
+        // in Vulkan, there are multiple rules depending on texture content
+        // (VUID-vkCmdCopyBufferToImage-bufferOffset-01558, VUID-vkCmdCopyBufferToImage-bufferOffset-01559, ...)
+        // but 512 is a safe upper bound (larger than all 4x4 block sizes, etc.)
+        uint32_t mip_level_size = phi::util::align_up(row_pitch * mip_height, 512u); // D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT
+
+        res_bytes += mip_level_size;
     }
 
+    // multiply with depth/array size/face count
+    // subresource alignment is kept intact
+    // NOTE: technically this is greater than the real required amount because the last subresource would not have to be aligned up to 512
     return res_bytes * size.depth;
+}
+
+uint32_t phi::util::get_texture_size_in_buffer(arg::texture_description const& desc, bool is_d3d12)
+{
+    auto const numSlices = desc.get_array_size();
+    auto const depth = desc.get_depth();
+
+    auto const bytesPerPixel = util::get_format_size_bytes(desc.fmt);
+    bool const bIsBlockFormat = util::is_block_compressed_format(desc.fmt);
+    auto const bytesPerBlock = util::get_block_format_4x4_size(desc.fmt);
+
+    uint32_t numBytesPerSlice = 0u;
+
+    for (uint32_t mip = 0; mip < desc.num_mips; ++mip)
+    {
+        uint32_t const rowLength = cc::max(1u, uint32_t(desc.width) >> mip);
+        uint32_t const numDepths = cc::max(1u, uint32_t(depth) >> mip);
+        uint32_t numRows = cc::max(1u, uint32_t(desc.height) >> mip);
+        uint32_t pitch = cc::max(1u, rowLength * bytesPerPixel);
+
+        if (bIsBlockFormat)
+        {
+            numRows = cc::max(1u, (numRows + 3) / 4);
+            pitch = cc::max(bytesPerBlock, ((rowLength + 3) / 4) * bytesPerBlock);
+        }
+
+        uint32_t const numBytesOnDisk = numDepths * numRows * pitch;
+
+        uint32_t numBytesOnGPU = numBytesOnDisk;
+        if (is_d3d12)
+        {
+            // individual pixel / block rows must be 256 byte aligned in D3D12 GPU buffers
+            // = D3D12_TEXTURE_DATA_PITCH_ALIGNMENT
+            numBytesOnGPU = numDepths * numRows * cc::align_up(pitch, 256);
+        }
+
+        // buffer offsets for subresources must be 512 byte aligned in D3D12
+        // = D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT
+        // in Vulkan, there are multiple rules depending on texture content
+        // (VUID-vkCmdCopyBufferToImage-bufferOffset-01558, VUID-vkCmdCopyBufferToImage-bufferOffset-01559, ...)
+        // but 512 is a safe upper bound (larger than all 4x4 block sizes, etc.)
+        numBytesOnGPU = cc::align_up(numBytesOnGPU, 512);
+
+        numBytesPerSlice += numBytesOnGPU;
+    }
+
+    // NOTE: technically this is slightly larger than the real required amount because the last subresource would not have to be aligned up to 512
+    return numBytesPerSlice * numSlices;
+}
+
+PHI_API uint32_t phi::util::get_texture_subresource_size_bytes(phi::format fmt, uint32_t width, uint32_t height, uint32_t depth, uint32_t mip_idx, bool is_d3d12)
+{
+    auto const bytesPerPixel = util::get_format_size_bytes(fmt);
+    auto const bytesPerBlock = util::get_block_format_4x4_size(fmt);
+    bool const bIsBlockFormat = util::is_block_compressed_format(fmt);
+
+    uint32_t const rowLength = cc::max(1u, uint32_t(width) >> mip_idx);
+    uint32_t const numDepths = cc::max(1u, uint32_t(depth) >> mip_idx);
+    uint32_t numRows = cc::max(1u, uint32_t(height) >> mip_idx);
+    uint32_t pitch = cc::max(1u, rowLength * bytesPerPixel);
+
+    if (bIsBlockFormat)
+    {
+        numRows = cc::max(1u, (numRows + 3) / 4);
+        pitch = cc::max(bytesPerBlock, ((rowLength + 3) / 4) * bytesPerBlock);
+    }
+
+    if (is_d3d12)
+    {
+        // individual pixel / block rows must be 256 byte aligned in D3D12 GPU buffers
+        // = D3D12_TEXTURE_DATA_PITCH_ALIGNMENT
+        pitch = cc::align_up(pitch, 256);
+    }
+
+    return numDepths * numRows * pitch;
 }
 
 uint32_t phi::util::get_texture_pixel_byte_offset(tg::isize2 size, phi::format fmt, tg::ivec2 pixel, bool is_d3d12)
@@ -72,7 +156,7 @@ uint32_t phi::util::copy_texture_data_rowwise(void const* __restrict srcArg, voi
     CC_ASSUME(srcArg && destArg);
 
     std::byte const* src = static_cast<std::byte const*>(srcArg);
-    std::byte* dest = static_cast<std::byte *>(destArg);
+    std::byte* dest = static_cast<std::byte*>(destArg);
 
     // num_rows is the height in pixels for regular formats, but is lower for block compressed formats
     for (auto y = 0u; y < num_rows; ++y)
