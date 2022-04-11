@@ -167,6 +167,7 @@ public:
     /// create a command list handle from a software command buffer
     [[nodiscard]] virtual handle::command_list recordCommandList(std::byte const* buffer, size_t size, queue_type queue = queue_type::direct) = 0;
 
+
     /// destroy the given command list handles
     virtual void discard(cc::span<handle::command_list const> cls) = 0;
 
@@ -242,6 +243,47 @@ public:
     virtual void free(handle::accel_struct as) = 0;
 
     virtual void freeRange(cc::span<handle::accel_struct const> as) = 0;
+
+    //
+    // Live command list interface
+    // Experimental API - subject to change
+    //
+
+    // start recording a commandlist directly
+    // access to the live command list is not synchronized
+    [[nodiscard]] virtual handle::live_command_list openLiveCommandList(queue_type queue = queue_type::direct)
+    {
+        CC_ASSERT(false && "unimplemented");
+        return handle::null_live_command_list;
+    }
+
+    // finish recording a commandlist - result can be submitted or discarded
+    [[nodiscard]] virtual handle::command_list closeLiveCommandList(handle::live_command_list list)
+    {
+        CC_ASSERT(false && "unimplemented");
+        return handle::null_command_list;
+    }
+
+    virtual void discardLiveCommandList(handle::live_command_list list) { CC_ASSERT(false && "unimplemented"); }
+
+    virtual void cmdDraw(handle::live_command_list list, cmd::draw const& command) {}
+    virtual void cmdDrawIndirect(handle::live_command_list list, cmd::draw_indirect const& command) {}
+    virtual void cmdDispatch(handle::live_command_list list, cmd::dispatch const& command) {}
+    virtual void cmdDispatchIndirect(handle::live_command_list list, cmd::dispatch_indirect const& command) {}
+    virtual void cmdTransitionResources(handle::live_command_list list, cmd::transition_resources const& command) {}
+    virtual void cmdBarrierUAV(handle::live_command_list list, cmd::barrier_uav const& command) {}
+    virtual void cmdTransitionImageSlices(handle::live_command_list list, cmd::transition_image_slices const& command) {}
+    virtual void cmdCopyBuffer(handle::live_command_list list, cmd::copy_buffer const& command) {}
+    virtual void cmdCopyTexture(handle::live_command_list list, cmd::copy_texture const& command) {}
+    virtual void cmdCopyBufferToTexture(handle::live_command_list list, cmd::copy_buffer_to_texture const& command) {}
+    virtual void cmdCopyTextureToBuffer(handle::live_command_list list, cmd::copy_texture_to_buffer const& command) {}
+    virtual void cmdResolveTexture(handle::live_command_list list, cmd::resolve_texture const& command) {}
+    virtual void cmdBeginRenderPass(handle::live_command_list list, cmd::begin_render_pass const& command) {}
+    virtual void cmdEndRenderPass(handle::live_command_list list, cmd::end_render_pass const& command) {}
+    virtual void cmdWriteTimestamp(handle::live_command_list list, cmd::write_timestamp const& command) {}
+    virtual void cmdResolveQueries(handle::live_command_list list, cmd::resolve_queries const& command) {}
+    virtual void cmdBeginDebugLabel(handle::live_command_list list, cmd::begin_debug_label const& command) {}
+    virtual void cmdEndDebugLabel(handle::live_command_list list, cmd::end_debug_label const& command) {}
 
     //
     // Resource info interface
