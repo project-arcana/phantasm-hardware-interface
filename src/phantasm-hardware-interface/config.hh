@@ -134,6 +134,8 @@ struct backend_config
     uint32_t max_num_accel_structs = 2048;
     // maximum amount of raytracing handle::pipeline_state objects
     uint32_t max_num_raytrace_pipeline_states = 256;
+    // maximum amount of concurrent commandlist translations
+    uint32_t max_num_live_commandlists = 16;
 
     // command list allocators per thread, split into queue types
     // maximum amount of handle::command_list objects is computed as:

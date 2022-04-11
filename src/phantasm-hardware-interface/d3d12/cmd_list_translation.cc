@@ -53,8 +53,10 @@ void phi::d3d12::command_list_translator::initialize(
 
 void phi::d3d12::command_list_translator::destroy() { _thread_local.destroy(); }
 
-void phi::d3d12::command_list_translator::translateCommandList(
-    ID3D12GraphicsCommandList5* list, queue_type type, incomplete_state_cache* state_cache, std::byte const* buffer, size_t buffer_size)
+void phi::d3d12::command_list_translator::beginTranslation(ID3D12GraphicsCommandList5* list,
+                                                           queue_type type,
+                                                           incomplete_state_cache* state_cache,
+                                                           cmd::set_global_profile_scope const* pOptGlobalProfile)
 {
     _cmd_list = list;
     _current_queue_type = type;
@@ -64,69 +66,64 @@ void phi::d3d12::command_list_translator::translateCommandList(
     _state_cache->reset();
     _last_code_location.reset();
 
+#ifdef PHI_HAS_OPTICK
+
+    // start Optick context
+    // (open GPUContextScope)
+    Optick::GPUContext const prevContext = Optick::SetGpuContext(Optick::GPUContext(_cmd_list, phiQueueTypeToOptickD3D12(_current_queue_type), 0));
+    _prev_optick_gpu_context = {};
+    _prev_optick_gpu_context.cmdBuffer = prevContext.cmdBuffer;
+    _prev_optick_gpu_context.node = prevContext.node;
+    _prev_optick_gpu_context.queue = (uint32_t)prevContext.queue;
+
+    // static default optick event if none is user supplied
+    PHI_CREATE_OPTICK_EVENT(defaultOptickEvt, "PHI Command List");
+
+    // use the set_global_profile_scope event if available
+    Optick::EventDescription* globalOptickEvtDesc = defaultOptickEvt;
+    if (pOptGlobalProfile && pOptGlobalProfile->optick_event)
     {
-        command_stream_parser parser(buffer, buffer_size);
-        command_stream_parser::iterator parserIterator = parser.begin();
-
-        cmd::set_global_profile_scope const* cmdGlobalProfile = nullptr;
-        if (parserIterator.has_cmds_left() && parserIterator.get_current_cmd_type() == phi::cmd::detail::cmd_type::set_global_profile_scope)
-        {
-            // if the very first command is set_global_profile_scope, use the provided event instead of the static one
-            cmdGlobalProfile = static_cast<cmd::set_global_profile_scope const*>(parserIterator.get_current_cmd());
-            parserIterator.skip_one_cmd();
-        }
-
-
-#ifdef PHI_HAS_OPTICK
-
-        // start Optick context
-        OPTICK_GPU_CONTEXT(_cmd_list, phiQueueTypeToOptickD3D12(_current_queue_type));
-
-        // static default optick event if none is user supplied
-        PHI_CREATE_OPTICK_EVENT(defaultOptickEvt, "PHI Command List");
-
-        // use the set_global_profile_scope event if available
-        Optick::EventDescription* globalOptickEvtDesc = defaultOptickEvt;
-        if (cmdGlobalProfile && cmdGlobalProfile->optick_event)
-        {
-            globalOptickEvtDesc = cmdGlobalProfile->optick_event;
-        }
-
-        // start the optick GPU event and tag the buffer size
-        Optick::EventData* const globalOptickEvt = Optick::GPUEvent::Start(*globalOptickEvtDesc);
-        OPTICK_TAG("Size (Byte)", buffer_size);
-
-        _current_optick_event_stack.clear();
-#endif
-
-        // bind the global descriptor heaps
-        auto const gpu_heaps = _globals.pool_shader_views->getGPURelevantHeaps();
-        _cmd_list->SetDescriptorHeaps(UINT(gpu_heaps.size()), gpu_heaps.data());
-
-        // translate all contained commands
-        while (parserIterator.has_cmds_left())
-        {
-            cmd::detail::dynamic_dispatch(*parserIterator.get_current_cmd(), *this);
-            parserIterator.skip_one_cmd();
-        }
-
-#ifdef PHI_HAS_OPTICK
-        // end last pending optick events
-        while (!_current_optick_event_stack.empty())
-        {
-            Optick::GPUEvent::Stop(*_current_optick_event_stack.back());
-            _current_optick_event_stack.pop_back();
-        }
-
-        // end the global optick event
-        Optick::GPUEvent::Stop(*globalOptickEvt);
-#endif
+        globalOptickEvtDesc = pOptGlobalProfile->optick_event;
     }
 
-    // close the list
-    PHI_D3D12_VERIFY(_cmd_list->Close());
+    // start the optick GPU event and tag the buffer size
+    _global_optick_event = Optick::GPUEvent::Start(*globalOptickEvtDesc);
 
-    // done
+    _current_optick_event_stack.clear();
+#endif
+
+    // bind the global descriptor heaps
+    auto const gpu_heaps = _globals.pool_shader_views->getGPURelevantHeaps();
+    _cmd_list->SetDescriptorHeaps(UINT(gpu_heaps.size()), gpu_heaps.data());
+}
+
+void phi::d3d12::command_list_translator::endTranslation(bool bDoClose)
+{
+#ifdef PHI_HAS_OPTICK
+
+    _prev_optick_gpu_context = {};
+
+    // end last pending optick events
+    while (!_current_optick_event_stack.empty())
+    {
+        Optick::GPUEvent::Stop(*_current_optick_event_stack.back());
+        _current_optick_event_stack.pop_back();
+    }
+
+    // end the global optick event
+    Optick::GPUEvent::Stop(*_global_optick_event);
+
+    // close the GPUContextScope
+    Optick::SetGpuContext(Optick::GPUContext(_prev_optick_gpu_context.cmdBuffer,                   //
+                                             (Optick::GPUQueueType)_prev_optick_gpu_context.queue, //
+                                             _prev_optick_gpu_context.node));
+#endif
+
+    if (bDoClose)
+    {
+        // close the list
+        PHI_D3D12_VERIFY(_cmd_list->Close());
+    }
 }
 
 void phi::d3d12::command_list_translator::execute(const phi::cmd::begin_render_pass& begin_rp)

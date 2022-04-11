@@ -11,7 +11,8 @@
 namespace Optick
 {
 struct EventData;
-}
+struct GPUContext;
+} // namespace Optick
 #endif
 
 namespace phi::d3d12
@@ -51,7 +52,9 @@ struct command_list_translator
     void initialize(ID3D12Device* device, ShaderViewPool* sv_pool, ResourcePool* resource_pool, PipelineStateObjectPool* pso_pool, AccelStructPool* as_pool, QueryPool* query_pool);
     void destroy();
 
-    void translateCommandList(ID3D12GraphicsCommandList5* list, queue_type type, incomplete_state_cache* state_cache, std::byte const* buffer, size_t buffer_size);
+    void beginTranslation(ID3D12GraphicsCommandList5* list, queue_type type, incomplete_state_cache* state_cache, cmd::set_global_profile_scope const* pOptGlobalProfile = nullptr);
+
+    void endTranslation(bool bDoClose);
 
     void execute(cmd::begin_render_pass const& begin_rp);
 
@@ -227,6 +230,15 @@ private:
 
 // debug state - current Optick GPU Event
 #ifdef PHI_HAS_OPTICK
+    struct OptickGPUContextFwd
+    {
+        void* cmdBuffer;
+        uint32_t queue;
+        int node;
+    };
+
+    OptickGPUContextFwd _prev_optick_gpu_context = {};
+    Optick::EventData* _global_optick_event = nullptr;
     cc::capped_vector<Optick::EventData*, 8> _current_optick_event_stack;
 #endif
 };
