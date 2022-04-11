@@ -7,6 +7,7 @@
 
 #include <typed-geometry/types/size.hh>
 
+#include <phantasm-hardware-interface/fwd.hh>
 #include <phantasm-hardware-interface/types.hh>
 
 #include <phantasm-hardware-interface/common/api.hh>
@@ -18,8 +19,8 @@ namespace phi::util
 // get_mip_size(1024, 3) == 128
 constexpr int get_mip_size(int width_height, int mip_level)
 {
-    int res = int(width_height / float(1u << mip_level));
-    return res > 0 ? res : 1;
+    //
+    return int(cc::max(1u, uint32_t(width_height) >> uint32_t(mip_level)));
 }
 
 constexpr tg::isize2 get_mip_size(tg::isize2 size, int mip_level)
@@ -31,20 +32,19 @@ constexpr tg::isize2 get_mip_size(tg::isize2 size, int mip_level)
 inline int get_num_mips(int width, int height) { return int(cc::bit_log2(uint32_t(cc::max(width, height)))) + 1; }
 inline int get_num_mips(tg::isize2 size) { return get_num_mips(size.width, size.height); }
 
-// computes byte size in a GPU buffer to store contents of a texture subresource
-inline uint32_t get_texture_subresource_size_bytes(uint32_t row_size_bytes, uint32_t num_rows, bool is_d3d12)
-{
-    if (num_rows == 0)
-    {
-        return 0;
-    }
-
-    auto row_stride_bytes = is_d3d12 ? phi::util::align_up(row_size_bytes, 256u) : row_size_bytes;
-    return row_stride_bytes * (num_rows - 1) + row_size_bytes;
-}
-
 // computes byte size in a GPU buffer to store contents of a texture
-PHI_API uint32_t get_texture_size_bytes(tg::isize3 size, format fmt, int num_mips, bool is_d3d12);
+[[deprecated("use get_texture_size_in_buffer, this is wrong for block-compressed and 3D / 2D array cases")]] //
+PHI_API uint32_t
+get_texture_size_bytes(tg::isize3 size, format fmt, int num_mips, bool is_d3d12);
+
+// returns the required size for a buffer that holds all subresources of the texture
+// multisampling is ignored
+PHI_API uint32_t get_texture_size_in_buffer(arg::texture_description const& desc, bool is_d3d12);
+
+// returns the required size for a buffer that holds a single subresource of the given texture
+// the MIP index is applied to compute the real width/height/depth
+// NOTE: to store multiple contiguous subresources in a buffer, offsets must be 512 byte aligned
+PHI_API uint32_t get_texture_subresource_size_bytes(phi::format fmt, uint32_t width, uint32_t height, uint32_t depth, uint32_t mip_idx, bool is_d3d12);
 
 // computes byte offset in a GPU buffer of the given pixel position in a texture
 PHI_API uint32_t get_texture_pixel_byte_offset(tg::isize2 size, format fmt, tg::ivec2 pixel, bool is_d3d12);
