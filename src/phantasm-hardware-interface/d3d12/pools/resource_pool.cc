@@ -331,6 +331,7 @@ phi::handle::resource phi::d3d12::ResourcePool::acquireImage(D3D12MA::Allocation
     arg::resource_description& storedDesc = mParallelResourceDescriptions[descriptionIndex];
     storedDesc.type = arg::resource_description::e_resource_texture;
     storedDesc.info_texture = desc;
+    // override the MIP amount with the actual amount on device
     storedDesc.info_texture.num_mips = uint32_t(realNumMipmaps);
 
     return {res};
