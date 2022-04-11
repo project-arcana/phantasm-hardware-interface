@@ -455,6 +455,8 @@ public:
 
     uint32_t get_array_size() const { return dim == texture_dimension::t3d ? 1 : depth_or_array_size; }
     uint32_t get_depth() const { return dim == texture_dimension::t3d ? depth_or_array_size : 1; }
+    uint32_t get_num_subresources() const { return get_array_size() * num_mips; }
+    bool is_cubemap() const { return dim == texture_dimension::t2d && depth_or_array_size == 6; }
 };
 
 struct buffer_description
