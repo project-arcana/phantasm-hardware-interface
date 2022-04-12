@@ -507,7 +507,7 @@ void phi::d3d12::BackendD3D12::submit(cc::span<const phi::handle::command_list> 
             if (master_before != entry.required_initial)
             {
                 // transition to the state required as the initial one
-                f_addBarrier(util::get_barrier_desc(mPoolResources.getRawResource(entry.ptr), master_before, entry.required_initial));
+                f_addBarrier(util::get_barrier_desc(mPoolResources.getRawResource(entry.ptr), master_before, entry.required_initial, -1, -1, 0u));
             }
 
             // set the master state to the one in which this resource is left
@@ -732,6 +732,36 @@ void phi::d3d12::BackendD3D12::cmdBeginDebugLabel(handle::live_command_list list
 }
 
 void phi::d3d12::BackendD3D12::cmdEndDebugLabel(handle::live_command_list list, cmd::end_debug_label const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::d3d12::BackendD3D12::cmdUpdateBottomLevel(handle::live_command_list list, cmd::update_bottom_level const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::d3d12::BackendD3D12::cmdUpdateTopLevel(handle::live_command_list list, cmd::update_top_level const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::d3d12::BackendD3D12::cmdDispatchRays(handle::live_command_list list, cmd::dispatch_rays const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::d3d12::BackendD3D12::cmdClearTextures(handle::live_command_list list, cmd::clear_textures const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::d3d12::BackendD3D12::cmdBeginProfileScope(handle::live_command_list list, cmd::begin_profile_scope const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::d3d12::BackendD3D12::cmdEndProfileScope(handle::live_command_list list, cmd::end_profile_scope const& command)
 {
     mPoolTranslators.getTranslator(list)->execute(command);
 }

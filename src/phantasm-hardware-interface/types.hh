@@ -363,7 +363,7 @@ public:
         texture_info.mip_start = 0;
         texture_info.mip_size = uint32_t(-1);
         texture_info.array_start = 0;
-        texture_info.array_size = 1;
+        texture_info.array_size = 6;
     }
 
     void init_as_structured_buffer(handle::resource res, uint32_t num_elements, uint32_t stride_bytes, uint32_t element_start = 0)

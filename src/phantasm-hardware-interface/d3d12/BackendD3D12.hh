@@ -215,6 +215,12 @@ public:
     void cmdResolveQueries(handle::live_command_list list, cmd::resolve_queries const& command);
     void cmdBeginDebugLabel(handle::live_command_list list, cmd::begin_debug_label const& command);
     void cmdEndDebugLabel(handle::live_command_list list, cmd::end_debug_label const& command);
+    void cmdUpdateBottomLevel(handle::live_command_list list, cmd::update_bottom_level const& command);
+    void cmdUpdateTopLevel(handle::live_command_list list, cmd::update_top_level const& command);
+    void cmdDispatchRays(handle::live_command_list list, cmd::dispatch_rays const& command);
+    void cmdClearTextures(handle::live_command_list list, cmd::clear_textures const& command);
+    void cmdBeginProfileScope(handle::live_command_list list, cmd::begin_profile_scope const& command);
+    void cmdEndProfileScope(handle::live_command_list list, cmd::end_profile_scope const& command);
 
     //
     // Resource info interface

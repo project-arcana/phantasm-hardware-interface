@@ -30,6 +30,7 @@ struct swapchain;
 struct fence;
 struct query_range;
 struct accel_struct;
+struct live_command_list;
 } // namespace handle
 
 namespace cmd

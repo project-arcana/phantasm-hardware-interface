@@ -608,7 +608,7 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::transition_res
         if (before_known && before != after)
         {
             // The transition is neither the implicit initial one, nor redundant
-            barriers.push_back(util::get_barrier_desc(_globals.pool_resources->getRawResource(transition.resource), before, after));
+            barriers.push_back(util::get_barrier_desc(_globals.pool_resources->getRawResource(transition.resource), before, after, -1, -1, 0));
         }
     }
 
