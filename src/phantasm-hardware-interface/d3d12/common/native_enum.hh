@@ -281,6 +281,7 @@ namespace phi::d3d12::util
     case resource_view_dimension::texture2d_ms:
         return D3D12_DSV_DIMENSION_TEXTURE2DMS;
     case resource_view_dimension::texture2d_array:
+    case resource_view_dimension::texturecube:
         return D3D12_DSV_DIMENSION_TEXTURE2DARRAY;
     case resource_view_dimension::texture2d_ms_array:
         return D3D12_DSV_DIMENSION_TEXTURE2DMSARRAY;

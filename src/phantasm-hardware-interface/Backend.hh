@@ -285,6 +285,12 @@ public:
     virtual void cmdResolveQueries(handle::live_command_list list, cmd::resolve_queries const& command) {}
     virtual void cmdBeginDebugLabel(handle::live_command_list list, cmd::begin_debug_label const& command) {}
     virtual void cmdEndDebugLabel(handle::live_command_list list, cmd::end_debug_label const& command) {}
+    virtual void cmdUpdateBottomLevel(handle::live_command_list list, cmd::update_bottom_level const& command) {}
+    virtual void cmdUpdateTopLevel(handle::live_command_list list, cmd::update_top_level const& command) {}
+    virtual void cmdDispatchRays(handle::live_command_list list, cmd::dispatch_rays const& command) {}
+    virtual void cmdClearTextures(handle::live_command_list list, cmd::clear_textures const& command) {}
+    virtual void cmdBeginProfileScope(handle::live_command_list list, cmd::begin_profile_scope const& command) {}
+    virtual void cmdEndProfileScope(handle::live_command_list list, cmd::end_profile_scope const& command) {}
 
     //
     // Resource info interface
