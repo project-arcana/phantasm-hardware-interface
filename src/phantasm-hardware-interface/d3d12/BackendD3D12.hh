@@ -267,7 +267,7 @@ public:
     // D3D11On12 objects, only valid if native_feature_d3d12_init_d3d11_on_12 is enabled
     ID3D11Device5* nativeGetD11Device() const { return mD11Device; }
     ID3D11DeviceContext4* nativeGetD11Context() const { return mD11Context; }
-    ID3D11On12Device2* nativeGetD11On12() const { return mD11On12; }
+    ID3D11On12Device1* nativeGetD11On12() const { return mD11On12; }
 
     //
     // disable or clear D3D runtime- and driver-level PSO caches, requires running in developer mode
@@ -334,6 +334,6 @@ private:
     // D3D11On12
     ID3D11Device5* mD11Device = nullptr;
     ID3D11DeviceContext4* mD11Context = nullptr;
-    ID3D11On12Device2* mD11On12 = nullptr;
+    ID3D11On12Device1* mD11On12 = nullptr;
 };
 } // namespace phi::d3d12

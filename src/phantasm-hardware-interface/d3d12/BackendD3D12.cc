@@ -209,9 +209,9 @@ phi::init_status phi::d3d12::BackendD3D12::initializeQueues(backend_config const
                 pD11Context->Release();
 
                 // QI 11On12
-                PHI_D3D12_VERIFY(mD11Device->QueryInterface<ID3D11On12Device2>(&mD11On12));
+                PHI_D3D12_VERIFY(mD11Device->QueryInterface<ID3D11On12Device1>(&mD11On12));
 
-                PHI_LOG("d3d12_init_d3d11_on_12: Initialized ID3D11On12Device2");
+                PHI_LOG("d3d12_init_d3d11_on_12: Initialized ID3D11On12Device1");
             }
             else
             {
