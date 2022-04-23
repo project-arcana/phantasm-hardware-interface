@@ -69,6 +69,10 @@ struct command_list_translator
         _globals.initialize(device, sv_pool, resource_pool, pso_pool, cmd_pool, query_pool, as_pool, has_rt);
     }
 
+    void destroy()
+    { /* TODO */
+    }
+
     void translateCommandList(VkCommandBuffer list, handle::command_list list_handle, vk_incomplete_state_cache* state_cache, std::byte const* buffer, size_t buffer_size);
 
     void execute(cmd::begin_render_pass const& begin_rp);
