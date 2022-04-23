@@ -100,7 +100,7 @@ phi::handle::pipeline_state phi::Backend::createComputePipelineState(arg::shader
     {
         desc.root_signature.shader_arg_shapes.push_back(arg);
     }
-    desc.root_signature.has_root_constants = false;
+    desc.root_signature.has_root_constants = hasRootConsts;
     desc.shader = shader;
 
     return createComputePipelineState(desc);
