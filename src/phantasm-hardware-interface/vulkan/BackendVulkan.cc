@@ -164,6 +164,21 @@ phi::init_status phi::vk::BackendVulkan::initialize(const backend_config& config
         if (!mDevice.initialize(chosen_vk_gpu, config))
         {
             PHI_LOG_ASSERT("Failed to intialize on GPU {}", gpu_infos[chosen_index].name);
+
+#ifdef CC_OS_LINUX
+            if (config.enable_raytracing && chosen_gpu.vendor == gpu_vendor::nvidia)
+            {
+                // Potentially preceded by vulkan warnings
+                // "terminator_CreateDevice: Failed in ICD libGLX_nvidia.so.0 vkCreateDevicecall"
+                // and "vkCreateDevice:  Failed to create device chain."
+                //
+                // I got this issue on Nvidia drivers 470.103.01, Debian, RTX 2080, April 22
+                // Only happens when requesting the VK_NV_ray_tracing device extension - no idea about resolution though
+                PHI_LOG_ASSERT("If you got the message \"terminator_CreateDevice: Failed in ICD libGLX_nvidia.so.0 vkCreateDevicecall\":");
+                PHI_LOG_ASSERT("    Known issue - try disabling raytracing in the PHI backend config");
+            }
+#endif
+
             return init_status::err_runtime;
         }
 
