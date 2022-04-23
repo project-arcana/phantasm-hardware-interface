@@ -163,6 +163,7 @@ phi::init_status phi::vk::BackendVulkan::initialize(const backend_config& config
 
         if (!mDevice.initialize(chosen_vk_gpu, config))
         {
+            PHI_LOG_ASSERT("Failed to intialize on GPU {}", gpu_infos[chosen_index].name);
             return init_status::err_runtime;
         }
 
@@ -230,8 +231,15 @@ phi::init_status phi::vk::BackendVulkan::initialize(const backend_config& config
 
 void phi::vk::BackendVulkan::destroy()
 {
-    if (mInstance != nullptr)
+    if (mInstance == nullptr)
     {
+        // never initialized or immediately failed
+        return;
+    }
+
+    if (mDevice.getDevice() != nullptr)
+    {
+        // only shut these components down if the device was initialized
         flushGPU();
 
         mDiagnostics.free();
@@ -255,15 +263,15 @@ void phi::vk::BackendVulkan::destroy()
         static_cast<cc::allocator*>(mThreadComponentAlloc)->delete_array_sized(mThreadComponents, mNumThreadComponents);
 
         mDevice.destroy();
-
-        if (mDebugMessenger != nullptr)
-            vkDestroyDebugUtilsMessengerEXT(mInstance, mDebugMessenger, nullptr);
-
-        vkDestroyInstance(mInstance, nullptr);
-        mInstance = nullptr;
-
-        mThreadAssociation.destroy();
     }
+
+    if (mDebugMessenger != nullptr)
+        vkDestroyDebugUtilsMessengerEXT(mInstance, mDebugMessenger, nullptr);
+
+    vkDestroyInstance(mInstance, nullptr);
+    mInstance = nullptr;
+
+    mThreadAssociation.destroy();
 }
 
 phi::vk::BackendVulkan::~BackendVulkan() { destroy(); }

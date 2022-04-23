@@ -72,6 +72,7 @@ bool phi::vk::Device::initialize(vulkan_gpu_info const& device, backend_config c
     if (vkCreateDevice(mPhysicalDevice, &device_info, nullptr, &mDevice) != VK_SUCCESS)
     {
         PHI_LOG_ASSERT("Fatal: vkCreateDevice call failed");
+        mDevice = nullptr;
         return false;
     }
 
