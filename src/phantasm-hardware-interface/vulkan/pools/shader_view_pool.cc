@@ -1,6 +1,7 @@
 #include "shader_view_pool.hh"
 
 #include <clean-core/alloc_vector.hh>
+#include <clean-core/assertf.hh>
 #include <clean-core/capped_vector.hh>
 
 #include <phantasm-hardware-interface/common/log.hh>
