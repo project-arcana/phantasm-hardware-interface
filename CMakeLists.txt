@@ -53,7 +53,7 @@ if (PHI_BACKEND_VULKAN)
     else()
         set(phi_found_vulkan_sdk_version "")
         _get_vulkan_sdk_version_number_from_folder(${Vulkan_INCLUDE_DIRS}, phi_found_vulkan_sdk_version)
-        message(STATUS "[phantasm hardware interface] found Vulkan SDK ${phi_found_vulkan_sdk_version}")
+        message(STATUS "[phantasm hardware interface] found Vulkan SDK '${phi_found_vulkan_sdk_version}' at ${Vulkan_INCLUDE_DIRS}")
     endif()
 endif()
 
