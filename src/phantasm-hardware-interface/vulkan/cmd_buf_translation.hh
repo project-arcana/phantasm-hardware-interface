@@ -1,5 +1,7 @@
 #pragma once
 
+#include <clean-core/capped_vector.hh>
+
 #include <phantasm-hardware-interface/commands.hh>
 
 #include <phantasm-hardware-interface/vulkan/common/vk_incomplete_state_cache.hh>
@@ -9,7 +11,8 @@
 namespace Optick
 {
 struct EventData;
-}
+struct GPUContext;
+} // namespace Optick
 #endif
 
 namespace phi::vk
@@ -69,9 +72,11 @@ struct command_list_translator
         _globals.initialize(device, sv_pool, resource_pool, pso_pool, cmd_pool, query_pool, as_pool, has_rt);
     }
 
-    void destroy()
-    { /* TODO */
-    }
+    void destroy() {}
+
+    void beginTranslation(VkCommandBuffer list, handle::command_list list_handle, vk_incomplete_state_cache* state_cache, cmd::set_global_profile_scope const* pOptGlobalProfileScope);
+
+    void endTranslation(bool bClose);
 
     void translateCommandList(VkCommandBuffer list, handle::command_list list_handle, vk_incomplete_state_cache* state_cache, std::byte const* buffer, size_t buffer_size);
 
@@ -258,7 +263,16 @@ private:
 
 // debug state - current Optick GPU Event
 #ifdef PHI_HAS_OPTICK
-    Optick::EventData* _current_optick_event = nullptr;
+    struct OptickGPUContextFwd
+    {
+        void* cmdBuffer;
+        uint32_t queue;
+        int node;
+    };
+
+    OptickGPUContextFwd _prev_optick_gpu_context = {};
+    Optick::EventData* _global_optick_event = nullptr;
+    cc::capped_vector<Optick::EventData*, 8> _current_optick_event_stack;
 #endif
 };
 

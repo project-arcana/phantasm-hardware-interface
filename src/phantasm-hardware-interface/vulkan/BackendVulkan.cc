@@ -9,6 +9,7 @@
 #include <clean-core/defer.hh>
 #include <clean-core/native/win32_util.hh>
 
+#include <phantasm-hardware-interface/common/command_reading.hh>
 #include <phantasm-hardware-interface/common/log.hh>
 #include <phantasm-hardware-interface/config.hh>
 
@@ -25,7 +26,6 @@ namespace phi::vk
 {
 struct BackendVulkan::per_thread_component
 {
-    command_list_translator translator;
     CommandAllocatorsPerThread cmdListAllocator;
     cc::alloc_array<std::byte> threadLocalScratchAllocMemory;
     cc::linear_allocator threadLocalScratchAlloc;
@@ -216,10 +216,12 @@ phi::init_status phi::vk::BackendVulkan::initialize(const backend_config& config
         for (auto i = 0u; i < mNumThreadComponents; ++i)
         {
             auto& thread_comp = mThreadComponents[i];
-            thread_comp.translator.initialize(mDevice.getDevice(), &mPoolShaderViews, &mPoolResources, &mPoolPipelines, &mPoolCmdLists, &mPoolQueries,
-                                              &mPoolAccelStructs, mDevice.hasRaytracing());
             thread_allocator_ptrs[i] = &thread_comp.cmdListAllocator;
         }
+
+        // TODO: config struct
+        mPoolTranslators.initialize(mDevice.getDevice(), &mPoolShaderViews, &mPoolResources, &mPoolPipelines, &mPoolCmdLists, &mPoolQueries,
+                                    &mPoolAccelStructs, mDevice.hasRaytracing(), config.static_allocator, config.max_num_live_commandlists);
 
         // TODO: config struct
         mPoolCmdLists.initialize(mDevice,                                                                                               //
@@ -268,6 +270,7 @@ void phi::vk::BackendVulkan::destroy()
         mPoolCmdLists.destroy();
         mPoolPipelines.destroy();
         mPoolResources.destroy();
+        mPoolTranslators.destroy();
 
         for (auto i = 0u; i < mNumThreadComponents; ++i)
         {
@@ -406,15 +409,29 @@ void phi::vk::BackendVulkan::free(phi::handle::pipeline_state ps) { mPoolPipelin
 
 phi::handle::command_list phi::vk::BackendVulkan::recordCommandList(std::byte const* buffer, size_t size, queue_type queue)
 {
-    // possibly fall back to a direct queue
-    queue = mDevice.getQueueTypeOrFallback(queue);
+    command_stream_parser parser(buffer, size);
+    command_stream_parser::iterator parserIterator = parser.begin();
 
-    auto& thread_comp = getCurrentThreadComponent();
+    cmd::set_global_profile_scope const* cmdGlobalProfile = nullptr;
+    if (parserIterator.has_cmds_left() && parserIterator.get_current_cmd_type() == phi::cmd::detail::cmd_type::set_global_profile_scope)
+    {
+        // if the very first command is set_global_profile_scope, use the provided event instead of the static one
+        cmdGlobalProfile = static_cast<cmd::set_global_profile_scope const*>(parserIterator.get_current_cmd());
+        parserIterator.skip_one_cmd();
+    }
 
-    VkCommandBuffer raw_list;
-    auto const res = mPoolCmdLists.create(raw_list, thread_comp.cmdListAllocator, queue);
-    thread_comp.translator.translateCommandList(raw_list, res, mPoolCmdLists.getStateCache(res), buffer, size);
-    return res;
+    auto const liveCmdlist = openLiveCommandList(queue, cmdGlobalProfile);
+
+    auto* const pTranslator = mPoolTranslators.getTranslator(liveCmdlist);
+
+    // translate all contained commands
+    while (parserIterator.has_cmds_left())
+    {
+        cmd::detail::dynamic_dispatch(*parserIterator.get_current_cmd(), *pTranslator);
+        parserIterator.skip_one_cmd();
+    }
+
+    return closeLiveCommandList(liveCmdlist);
 }
 
 void phi::vk::BackendVulkan::discard(cc::span<const phi::handle::command_list> cls) { mPoolCmdLists.freeAndDiscard(cls); }
@@ -627,6 +644,152 @@ void phi::vk::BackendVulkan::freeRange(cc::span<const phi::handle::accel_struct>
 {
     CC_ASSERT(isRaytracingEnabled() && "raytracing is not enabled");
     mPoolAccelStructs.free(as);
+}
+
+phi::handle::live_command_list phi::vk::BackendVulkan::openLiveCommandList(queue_type queue, const cmd::set_global_profile_scope* opt_global_pscope)
+{
+    // possibly fall back to a direct queue
+    queue = mDevice.getQueueTypeOrFallback(queue);
+
+    auto& thread_comp = getCurrentThreadComponent();
+
+    VkCommandBuffer raw_list;
+    auto const res = mPoolCmdLists.create(raw_list, thread_comp.cmdListAllocator, queue);
+
+    return mPoolTranslators.createLiveCmdList(res, raw_list, queue, mPoolCmdLists.getStateCache(res), opt_global_pscope);
+}
+
+phi::handle::command_list phi::vk::BackendVulkan::closeLiveCommandList(handle::live_command_list list)
+{
+    //
+    return mPoolTranslators.freeLiveCmdList(list, true);
+}
+
+void phi::vk::BackendVulkan::discardLiveCommandList(handle::live_command_list list)
+{
+    handle::command_list const backingList = mPoolTranslators.freeLiveCmdList(list, false);
+    discard(cc::span{backingList});
+}
+
+
+void phi::vk::BackendVulkan::cmdDraw(handle::live_command_list list, cmd::draw const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::vk::BackendVulkan::cmdDrawIndirect(handle::live_command_list list, cmd::draw_indirect const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::vk::BackendVulkan::cmdDispatch(handle::live_command_list list, cmd::dispatch const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::vk::BackendVulkan::cmdDispatchIndirect(handle::live_command_list list, cmd::dispatch_indirect const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::vk::BackendVulkan::cmdTransitionResources(handle::live_command_list list, cmd::transition_resources const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::vk::BackendVulkan::cmdBarrierUAV(handle::live_command_list list, cmd::barrier_uav const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::vk::BackendVulkan::cmdTransitionImageSlices(handle::live_command_list list, cmd::transition_image_slices const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::vk::BackendVulkan::cmdCopyBuffer(handle::live_command_list list, cmd::copy_buffer const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::vk::BackendVulkan::cmdCopyTexture(handle::live_command_list list, cmd::copy_texture const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::vk::BackendVulkan::cmdCopyBufferToTexture(handle::live_command_list list, cmd::copy_buffer_to_texture const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::vk::BackendVulkan::cmdCopyTextureToBuffer(handle::live_command_list list, cmd::copy_texture_to_buffer const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::vk::BackendVulkan::cmdResolveTexture(handle::live_command_list list, cmd::resolve_texture const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::vk::BackendVulkan::cmdBeginRenderPass(handle::live_command_list list, cmd::begin_render_pass const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::vk::BackendVulkan::cmdEndRenderPass(handle::live_command_list list, cmd::end_render_pass const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::vk::BackendVulkan::cmdWriteTimestamp(handle::live_command_list list, cmd::write_timestamp const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::vk::BackendVulkan::cmdResolveQueries(handle::live_command_list list, cmd::resolve_queries const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::vk::BackendVulkan::cmdBeginDebugLabel(handle::live_command_list list, cmd::begin_debug_label const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::vk::BackendVulkan::cmdEndDebugLabel(handle::live_command_list list, cmd::end_debug_label const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::vk::BackendVulkan::cmdUpdateBottomLevel(handle::live_command_list list, cmd::update_bottom_level const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::vk::BackendVulkan::cmdUpdateTopLevel(handle::live_command_list list, cmd::update_top_level const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::vk::BackendVulkan::cmdDispatchRays(handle::live_command_list list, cmd::dispatch_rays const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::vk::BackendVulkan::cmdClearTextures(handle::live_command_list list, cmd::clear_textures const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::vk::BackendVulkan::cmdBeginProfileScope(handle::live_command_list list, cmd::begin_profile_scope const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::vk::BackendVulkan::cmdEndProfileScope(handle::live_command_list list, cmd::end_profile_scope const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
 }
 
 phi::arg::resource_description const& phi::vk::BackendVulkan::getResourceDescription(handle::resource res) const

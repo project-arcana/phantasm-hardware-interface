@@ -190,37 +190,37 @@ public:
     // start recording a commandlist directly
     // access to the live command list is not synchronized
     [[nodiscard]] handle::live_command_list openLiveCommandList(queue_type queue = queue_type::direct,
-                                                                cmd::set_global_profile_scope const* opt_global_pscope = nullptr);
+                                                                cmd::set_global_profile_scope const* opt_global_pscope = nullptr) override;
 
     // finish recording a commandlist - result can be submitted or discarded
-    [[nodiscard]] handle::command_list closeLiveCommandList(handle::live_command_list list);
+    [[nodiscard]] handle::command_list closeLiveCommandList(handle::live_command_list list) override;
 
-    void discardLiveCommandList(handle::live_command_list list);
+    void discardLiveCommandList(handle::live_command_list list) override;
 
-    void cmdDraw(handle::live_command_list list, cmd::draw const& command);
-    void cmdDrawIndirect(handle::live_command_list list, cmd::draw_indirect const& command);
-    void cmdDispatch(handle::live_command_list list, cmd::dispatch const& command);
-    void cmdDispatchIndirect(handle::live_command_list list, cmd::dispatch_indirect const& command);
-    void cmdTransitionResources(handle::live_command_list list, cmd::transition_resources const& command);
-    void cmdBarrierUAV(handle::live_command_list list, cmd::barrier_uav const& command);
-    void cmdTransitionImageSlices(handle::live_command_list list, cmd::transition_image_slices const& command);
-    void cmdCopyBuffer(handle::live_command_list list, cmd::copy_buffer const& command);
-    void cmdCopyTexture(handle::live_command_list list, cmd::copy_texture const& command);
-    void cmdCopyBufferToTexture(handle::live_command_list list, cmd::copy_buffer_to_texture const& command);
-    void cmdCopyTextureToBuffer(handle::live_command_list list, cmd::copy_texture_to_buffer const& command);
-    void cmdResolveTexture(handle::live_command_list list, cmd::resolve_texture const& command);
-    void cmdBeginRenderPass(handle::live_command_list list, cmd::begin_render_pass const& command);
-    void cmdEndRenderPass(handle::live_command_list list, cmd::end_render_pass const& command);
-    void cmdWriteTimestamp(handle::live_command_list list, cmd::write_timestamp const& command);
-    void cmdResolveQueries(handle::live_command_list list, cmd::resolve_queries const& command);
-    void cmdBeginDebugLabel(handle::live_command_list list, cmd::begin_debug_label const& command);
-    void cmdEndDebugLabel(handle::live_command_list list, cmd::end_debug_label const& command);
-    void cmdUpdateBottomLevel(handle::live_command_list list, cmd::update_bottom_level const& command);
-    void cmdUpdateTopLevel(handle::live_command_list list, cmd::update_top_level const& command);
-    void cmdDispatchRays(handle::live_command_list list, cmd::dispatch_rays const& command);
-    void cmdClearTextures(handle::live_command_list list, cmd::clear_textures const& command);
-    void cmdBeginProfileScope(handle::live_command_list list, cmd::begin_profile_scope const& command);
-    void cmdEndProfileScope(handle::live_command_list list, cmd::end_profile_scope const& command);
+    void cmdDraw(handle::live_command_list list, cmd::draw const& command) override;
+    void cmdDrawIndirect(handle::live_command_list list, cmd::draw_indirect const& command) override;
+    void cmdDispatch(handle::live_command_list list, cmd::dispatch const& command) override;
+    void cmdDispatchIndirect(handle::live_command_list list, cmd::dispatch_indirect const& command) override;
+    void cmdTransitionResources(handle::live_command_list list, cmd::transition_resources const& command) override;
+    void cmdBarrierUAV(handle::live_command_list list, cmd::barrier_uav const& command) override;
+    void cmdTransitionImageSlices(handle::live_command_list list, cmd::transition_image_slices const& command) override;
+    void cmdCopyBuffer(handle::live_command_list list, cmd::copy_buffer const& command) override;
+    void cmdCopyTexture(handle::live_command_list list, cmd::copy_texture const& command) override;
+    void cmdCopyBufferToTexture(handle::live_command_list list, cmd::copy_buffer_to_texture const& command) override;
+    void cmdCopyTextureToBuffer(handle::live_command_list list, cmd::copy_texture_to_buffer const& command) override;
+    void cmdResolveTexture(handle::live_command_list list, cmd::resolve_texture const& command) override;
+    void cmdBeginRenderPass(handle::live_command_list list, cmd::begin_render_pass const& command) override;
+    void cmdEndRenderPass(handle::live_command_list list, cmd::end_render_pass const& command) override;
+    void cmdWriteTimestamp(handle::live_command_list list, cmd::write_timestamp const& command) override;
+    void cmdResolveQueries(handle::live_command_list list, cmd::resolve_queries const& command) override;
+    void cmdBeginDebugLabel(handle::live_command_list list, cmd::begin_debug_label const& command) override;
+    void cmdEndDebugLabel(handle::live_command_list list, cmd::end_debug_label const& command) override;
+    void cmdUpdateBottomLevel(handle::live_command_list list, cmd::update_bottom_level const& command) override;
+    void cmdUpdateTopLevel(handle::live_command_list list, cmd::update_top_level const& command) override;
+    void cmdDispatchRays(handle::live_command_list list, cmd::dispatch_rays const& command) override;
+    void cmdClearTextures(handle::live_command_list list, cmd::clear_textures const& command) override;
+    void cmdBeginProfileScope(handle::live_command_list list, cmd::begin_profile_scope const& command) override;
+    void cmdEndProfileScope(handle::live_command_list list, cmd::end_profile_scope const& command) override;
 
     //
     // Resource info interface

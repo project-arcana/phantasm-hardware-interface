@@ -29,10 +29,7 @@ void phi::vk::CmdlistTranslatorPool::initialize(VkDevice device,
 
 void phi::vk::CmdlistTranslatorPool::destroy()
 {
-    mPool.iterate_allocated_nodes([](Node& node) {
-        // TODO
-        // node.pTranslator->endTranslation(true);
-    });
+    mPool.iterate_allocated_nodes([](Node& node) { node.pTranslator->endTranslation(true); });
 
     for (auto* const pTranslator : mTranslators)
     {
@@ -55,16 +52,14 @@ phi::handle::live_command_list phi::vk::CmdlistTranslatorPool::createLiveCmdList
     node.hBackingList = backing;
     node.pTranslator = mTranslators[mPool.get_handle_index(res)];
 
-    // TODO
-    // node.pTranslator->beginTranslation(pRawList, queue, pStateCache, pOptGlobalProfileScope);
+    node.pTranslator->beginTranslation(pRawCmdBuf, backing, pStateCache, pOptGlobalProfileScope);
 
     return {res};
 }
 
 phi::handle::command_list phi::vk::CmdlistTranslatorPool::freeLiveCmdList(handle::live_command_list list, bool bDoClose)
 {
-    // TODO
-    // this->getTranslator(list)->endTranslation(bDoClose);
+    this->getTranslator(list)->endTranslation(bDoClose);
     auto const res = this->getBackingList(list);
 
     mPool.release(list._value);
