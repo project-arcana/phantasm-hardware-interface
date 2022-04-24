@@ -69,7 +69,7 @@ void phi::d3d12::command_list_translator::beginTranslation(ID3D12GraphicsCommand
 #ifdef PHI_HAS_OPTICK
 
     // start Optick context
-    // (open GPUContextScope)
+    // (open Optick::GPUContextScope manually - the RAII doesn't work here)
     Optick::GPUContext const prevContext = Optick::SetGpuContext(Optick::GPUContext(_cmd_list, phiQueueTypeToOptickD3D12(_current_queue_type), 0));
     _prev_optick_gpu_context = {};
     _prev_optick_gpu_context.cmdBuffer = prevContext.cmdBuffer;
@@ -86,7 +86,7 @@ void phi::d3d12::command_list_translator::beginTranslation(ID3D12GraphicsCommand
         globalOptickEvtDesc = pOptGlobalProfile->optick_event;
     }
 
-    // start the optick GPU event and tag the buffer size
+    // start the optick GPU event
     _global_optick_event = Optick::GPUEvent::Start(*globalOptickEvtDesc);
 
     _current_optick_event_stack.clear();
