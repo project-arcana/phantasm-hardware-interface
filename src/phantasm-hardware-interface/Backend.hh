@@ -103,14 +103,16 @@ public:
 
     /// maps a buffer created on resource_heap::upload or ::readback to CPU-accessible memory and returns a pointer
     /// multiple (nested) maps are allowed, leaving a resource_heap::upload buffer persistently mapped is valid
-    /// begin and end specify the range of CPU-side read data in bytes, end == -1 being the entire width
+    /// invalidate_begin and invalidate_end specify the range of data that will be read on CPU (in bytes), end == -1 being the entire width
+    /// if the memory will only be written to, disable invalidation by setting both to 0
     /// NOTE: begin > 0 does not add an offset to the returned pointer
     [[nodiscard]] virtual std::byte* mapBuffer(handle::resource res, int invalidate_begin = 0, int invalidate_end = -1) = 0;
 
     /// unmaps a buffer, must have been previously mapped using mapBuffer
     /// it is not necessary to unmap a buffer before destruction
     /// on non-desktop it might be required to unmap upload buffers for the writes to become visible
-    /// begin and end specify the range of CPU-side modified data in bytes, end == -1 being the entire width
+    /// flush_begin and flush_end specify the range of CPU-side modified data in bytes, end == -1 being the entire width
+    /// if the memory was only read from, disable flushing by setting both to 0
     virtual void unmapBuffer(handle::resource res, int flush_begin = 0, int flush_end = -1) = 0;
 
     /// destroy a resource
@@ -253,44 +255,37 @@ public:
     // access to the live command list is not synchronized
     [[nodiscard]] virtual handle::live_command_list openLiveCommandList(queue_type queue = queue_type::direct,
                                                                         cmd::set_global_profile_scope const* opt_global_pscope = nullptr)
-    {
-        CC_ASSERT(false && "unimplemented");
-        return handle::null_live_command_list;
-    }
+        = 0;
 
     // finish recording a commandlist - result can be submitted or discarded
-    [[nodiscard]] virtual handle::command_list closeLiveCommandList(handle::live_command_list list)
-    {
-        CC_ASSERT(false && "unimplemented");
-        return handle::null_command_list;
-    }
+    [[nodiscard]] virtual handle::command_list closeLiveCommandList(handle::live_command_list list) = 0;
 
-    virtual void discardLiveCommandList(handle::live_command_list list) { CC_ASSERT(false && "unimplemented"); }
+    virtual void discardLiveCommandList(handle::live_command_list list) = 0;
 
-    virtual void cmdDraw(handle::live_command_list list, cmd::draw const& command) {}
-    virtual void cmdDrawIndirect(handle::live_command_list list, cmd::draw_indirect const& command) {}
-    virtual void cmdDispatch(handle::live_command_list list, cmd::dispatch const& command) {}
-    virtual void cmdDispatchIndirect(handle::live_command_list list, cmd::dispatch_indirect const& command) {}
-    virtual void cmdTransitionResources(handle::live_command_list list, cmd::transition_resources const& command) {}
-    virtual void cmdBarrierUAV(handle::live_command_list list, cmd::barrier_uav const& command) {}
-    virtual void cmdTransitionImageSlices(handle::live_command_list list, cmd::transition_image_slices const& command) {}
-    virtual void cmdCopyBuffer(handle::live_command_list list, cmd::copy_buffer const& command) {}
-    virtual void cmdCopyTexture(handle::live_command_list list, cmd::copy_texture const& command) {}
-    virtual void cmdCopyBufferToTexture(handle::live_command_list list, cmd::copy_buffer_to_texture const& command) {}
-    virtual void cmdCopyTextureToBuffer(handle::live_command_list list, cmd::copy_texture_to_buffer const& command) {}
-    virtual void cmdResolveTexture(handle::live_command_list list, cmd::resolve_texture const& command) {}
-    virtual void cmdBeginRenderPass(handle::live_command_list list, cmd::begin_render_pass const& command) {}
-    virtual void cmdEndRenderPass(handle::live_command_list list, cmd::end_render_pass const& command) {}
-    virtual void cmdWriteTimestamp(handle::live_command_list list, cmd::write_timestamp const& command) {}
-    virtual void cmdResolveQueries(handle::live_command_list list, cmd::resolve_queries const& command) {}
-    virtual void cmdBeginDebugLabel(handle::live_command_list list, cmd::begin_debug_label const& command) {}
-    virtual void cmdEndDebugLabel(handle::live_command_list list, cmd::end_debug_label const& command) {}
-    virtual void cmdUpdateBottomLevel(handle::live_command_list list, cmd::update_bottom_level const& command) {}
-    virtual void cmdUpdateTopLevel(handle::live_command_list list, cmd::update_top_level const& command) {}
-    virtual void cmdDispatchRays(handle::live_command_list list, cmd::dispatch_rays const& command) {}
-    virtual void cmdClearTextures(handle::live_command_list list, cmd::clear_textures const& command) {}
-    virtual void cmdBeginProfileScope(handle::live_command_list list, cmd::begin_profile_scope const& command) {}
-    virtual void cmdEndProfileScope(handle::live_command_list list, cmd::end_profile_scope const& command) {}
+    virtual void cmdDraw(handle::live_command_list list, cmd::draw const& command) = 0;
+    virtual void cmdDrawIndirect(handle::live_command_list list, cmd::draw_indirect const& command) = 0;
+    virtual void cmdDispatch(handle::live_command_list list, cmd::dispatch const& command) = 0;
+    virtual void cmdDispatchIndirect(handle::live_command_list list, cmd::dispatch_indirect const& command) = 0;
+    virtual void cmdTransitionResources(handle::live_command_list list, cmd::transition_resources const& command) = 0;
+    virtual void cmdBarrierUAV(handle::live_command_list list, cmd::barrier_uav const& command) = 0;
+    virtual void cmdTransitionImageSlices(handle::live_command_list list, cmd::transition_image_slices const& command) = 0;
+    virtual void cmdCopyBuffer(handle::live_command_list list, cmd::copy_buffer const& command) = 0;
+    virtual void cmdCopyTexture(handle::live_command_list list, cmd::copy_texture const& command) = 0;
+    virtual void cmdCopyBufferToTexture(handle::live_command_list list, cmd::copy_buffer_to_texture const& command) = 0;
+    virtual void cmdCopyTextureToBuffer(handle::live_command_list list, cmd::copy_texture_to_buffer const& command) = 0;
+    virtual void cmdResolveTexture(handle::live_command_list list, cmd::resolve_texture const& command) = 0;
+    virtual void cmdBeginRenderPass(handle::live_command_list list, cmd::begin_render_pass const& command) = 0;
+    virtual void cmdEndRenderPass(handle::live_command_list list, cmd::end_render_pass const& command) = 0;
+    virtual void cmdWriteTimestamp(handle::live_command_list list, cmd::write_timestamp const& command) = 0;
+    virtual void cmdResolveQueries(handle::live_command_list list, cmd::resolve_queries const& command) = 0;
+    virtual void cmdBeginDebugLabel(handle::live_command_list list, cmd::begin_debug_label const& command) = 0;
+    virtual void cmdEndDebugLabel(handle::live_command_list list, cmd::end_debug_label const& command) = 0;
+    virtual void cmdUpdateBottomLevel(handle::live_command_list list, cmd::update_bottom_level const& command) = 0;
+    virtual void cmdUpdateTopLevel(handle::live_command_list list, cmd::update_top_level const& command) = 0;
+    virtual void cmdDispatchRays(handle::live_command_list list, cmd::dispatch_rays const& command) = 0;
+    virtual void cmdClearTextures(handle::live_command_list list, cmd::clear_textures const& command) = 0;
+    virtual void cmdBeginProfileScope(handle::live_command_list list, cmd::begin_profile_scope const& command) = 0;
+    virtual void cmdEndProfileScope(handle::live_command_list list, cmd::end_profile_scope const& command) = 0;
 
     //
     // Resource info interface
