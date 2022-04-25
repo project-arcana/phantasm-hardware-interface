@@ -52,7 +52,7 @@ phi::handle::live_command_list phi::vk::CmdlistTranslatorPool::createLiveCmdList
     node.hBackingList = backing;
     node.pTranslator = mTranslators[mPool.get_handle_index(res)];
 
-    node.pTranslator->beginTranslation(pRawCmdBuf, backing, pStateCache, pOptGlobalProfileScope);
+    node.pTranslator->beginTranslation(pRawCmdBuf, backing, queue, pStateCache, pOptGlobalProfileScope);
 
     return {res};
 }

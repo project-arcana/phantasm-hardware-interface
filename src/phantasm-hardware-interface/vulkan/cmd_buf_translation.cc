@@ -23,8 +23,28 @@
 #include "pools/shader_view_pool.hh"
 #include "resources/transition_barrier.hh"
 
+namespace
+{
+#ifdef PHI_HAS_OPTICK
+Optick::GPUQueueType phiQueueTypeToOptickVk(phi::queue_type type)
+{
+    switch (type)
+    {
+    case phi::queue_type::direct:
+    default:
+        return Optick::GPU_QUEUE_GRAPHICS;
+    case phi::queue_type::compute:
+        return Optick::GPU_QUEUE_COMPUTE;
+    case phi::queue_type::copy:
+        return Optick::GPU_QUEUE_TRANSFER;
+    }
+}
+#endif
+} // namespace
+
 void phi::vk::command_list_translator::beginTranslation(VkCommandBuffer list,
                                                         handle::command_list list_handle,
+                                                        queue_type queue,
                                                         vk_incomplete_state_cache* state_cache,
                                                         const cmd::set_global_profile_scope* pOptGlobalProfileScope)
 {
@@ -41,7 +61,7 @@ void phi::vk::command_list_translator::beginTranslation(VkCommandBuffer list,
 
     // start Optick context
     // (open Optick::GPUContextScope manually - the RAII doesn't work here)
-    Optick::GPUContext const prevContext = Optick::SetGpuContext(Optick::GPUContext(_cmd_list, phiQueueTypeToOptickD3D12(_current_queue_type), 0));
+    Optick::GPUContext const prevContext = Optick::SetGpuContext(Optick::GPUContext(_cmd_list, phiQueueTypeToOptickVk(queue), 0));
     _prev_optick_gpu_context = {};
     _prev_optick_gpu_context.cmdBuffer = prevContext.cmdBuffer;
     _prev_optick_gpu_context.node = prevContext.node;
@@ -52,9 +72,9 @@ void phi::vk::command_list_translator::beginTranslation(VkCommandBuffer list,
 
     // use the set_global_profile_scope event if available
     Optick::EventDescription* globalOptickEvtDesc = defaultOptickEvt;
-    if (pOptGlobalProfile && pOptGlobalProfile->optick_event)
+    if (pOptGlobalProfileScope && pOptGlobalProfileScope->optick_event)
     {
-        globalOptickEvtDesc = pOptGlobalProfile->optick_event;
+        globalOptickEvtDesc = pOptGlobalProfileScope->optick_event;
     }
 
     // start the optick GPU event
@@ -98,32 +118,6 @@ void phi::vk::command_list_translator::endTranslation(bool bClose)
         // close the list
         PHI_VK_VERIFY_SUCCESS(vkEndCommandBuffer(_cmd_list));
     }
-}
-
-void phi::vk::command_list_translator::translateCommandList(
-    VkCommandBuffer list, handle::command_list list_handle, vk_incomplete_state_cache* state_cache, std::byte const* buffer, size_t buffer_size)
-{
-    command_stream_parser parser(buffer, buffer_size);
-    command_stream_parser::iterator parserIterator = parser.begin();
-
-    cmd::set_global_profile_scope const* cmdGlobalProfile = nullptr;
-    if (parserIterator.has_cmds_left() && parserIterator.get_current_cmd_type() == phi::cmd::detail::cmd_type::set_global_profile_scope)
-    {
-        // if the very first command is set_global_profile_scope, use the provided event instead of the static one
-        cmdGlobalProfile = static_cast<cmd::set_global_profile_scope const*>(parserIterator.get_current_cmd());
-        parserIterator.skip_one_cmd();
-    }
-
-    this->beginTranslation(list, list_handle, state_cache, cmdGlobalProfile);
-
-    // translate all contained commands
-    while (parserIterator.has_cmds_left())
-    {
-        cmd::detail::dynamic_dispatch(*parserIterator.get_current_cmd(), *this);
-        parserIterator.skip_one_cmd();
-    }
-
-    this->endTranslation(true);
 }
 
 void phi::vk::command_list_translator::execute(const phi::cmd::begin_render_pass& begin_rp)

@@ -74,11 +74,13 @@ struct command_list_translator
 
     void destroy() {}
 
-    void beginTranslation(VkCommandBuffer list, handle::command_list list_handle, vk_incomplete_state_cache* state_cache, cmd::set_global_profile_scope const* pOptGlobalProfileScope);
+    void beginTranslation(VkCommandBuffer list,
+                          handle::command_list list_handle,
+                          queue_type queue,
+                          vk_incomplete_state_cache* state_cache,
+                          cmd::set_global_profile_scope const* pOptGlobalProfileScope);
 
     void endTranslation(bool bClose);
-
-    void translateCommandList(VkCommandBuffer list, handle::command_list list_handle, vk_incomplete_state_cache* state_cache, std::byte const* buffer, size_t buffer_size);
 
     void execute(cmd::begin_render_pass const& begin_rp);
 
