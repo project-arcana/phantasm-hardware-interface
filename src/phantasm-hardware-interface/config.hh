@@ -65,7 +65,7 @@ struct backend_config
         // Vulkan: Dump all Vulkan API calls in text form
         native_feature_vk_api_dump = 1 << 0,
 
-        // D3D12: Cause a breakpoint on any warning, useful to find it's source
+        // D3D12: Cause a breakpoint on any validation warning, useful to find its source
         // for an equivalent Vulkan feature, set a breakpoint in <phi>/vulkan/common/debug_callback.cc
         native_feature_d3d12_break_on_warn = 1 << 1,
 
