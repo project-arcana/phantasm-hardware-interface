@@ -260,6 +260,7 @@ public:
     // finish recording a commandlist - result can be submitted or discarded
     [[nodiscard]] virtual handle::command_list closeLiveCommandList(handle::live_command_list list) = 0;
 
+    // abort recording a command list
     virtual void discardLiveCommandList(handle::live_command_list list) = 0;
 
     virtual void cmdDraw(handle::live_command_list list, cmd::draw const& command) = 0;
