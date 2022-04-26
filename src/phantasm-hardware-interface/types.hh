@@ -91,7 +91,7 @@ enum class present_mode : uint8_t
 enum class resource_state : uint8_t
 {
     // unknown to pr
-    unknown,
+    unknown = 0,
     // undefined in API semantics
     undefined,
 
