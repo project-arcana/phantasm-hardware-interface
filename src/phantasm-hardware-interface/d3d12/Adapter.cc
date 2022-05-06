@@ -242,6 +242,24 @@ bool phi::d3d12::Adapter::initialize(const backend_config& config, ID3D12Device*
 
 void phi::d3d12::Adapter::destroy()
 {
+    // attempt to load Dxgidebug.dll to get a detailed reporting of live (meaning leaked) D3D12 objects
+    if (HMODULE mod = ::GetModuleHandleA("Dxgidebug.dll"))
+    {
+        using FPtrDXGIGetDebugInterface = HRESULT(__cdecl*)(REFIID, void**);
+        FPtrDXGIGetDebugInterface fpDXGIGetDebugInterface
+            = reinterpret_cast<FPtrDXGIGetDebugInterface>(::GetProcAddress(mod, "DXGIGetDebugInterface"));
+
+        if (fpDXGIGetDebugInterface)
+        {
+            IDXGIDebug* pDXGIDebug = nullptr;
+            if (detail::hr_succeeded(fpDXGIGetDebugInterface(IID_PPV_ARGS(&pDXGIDebug))) && pDXGIDebug)
+            {
+                pDXGIDebug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
+                pDXGIDebug->Release();
+            }
+        }
+    }
+
     PHI_D3D12_SAFE_RELEASE(mAdapter);
     PHI_D3D12_SAFE_RELEASE(mFactory);
     PHI_D3D12_SAFE_RELEASE(mInfoQueue);
