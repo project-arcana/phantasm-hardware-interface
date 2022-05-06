@@ -5,7 +5,7 @@
 #endif
 
 #ifdef PHI_HAS_OPTICK
-#include <optick/optick.h>
+#include <optick.h>
 #endif
 
 #include <clean-core/defer.hh>
