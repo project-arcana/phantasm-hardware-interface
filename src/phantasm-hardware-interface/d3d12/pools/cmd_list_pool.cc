@@ -3,7 +3,7 @@
 #include <clean-core/bit_cast.hh>
 
 #ifdef PHI_HAS_OPTICK
-#include <optick/optick.h>
+#include <optick.h>
 #endif
 
 #include <phantasm-hardware-interface/d3d12/BackendD3D12.hh>

@@ -1,7 +1,7 @@
 #include "cmd_buf_translation.hh"
 
 #ifdef PHI_HAS_OPTICK
-#include <optick/optick.h>
+#include <optick.h>
 #endif
 
 #include <phantasm-hardware-interface/common/byte_util.hh>
