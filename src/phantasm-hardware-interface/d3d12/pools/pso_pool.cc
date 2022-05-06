@@ -572,18 +572,34 @@ void phi::d3d12::PipelineStateObjectPool::initialize(
 
 void phi::d3d12::PipelineStateObjectPool::destroy()
 {
+    char debugname_buffer[256];
     auto num_leaks = 0;
+
     mPool.iterate_allocated_nodes(
         [&](pso_node& leaked_node)
         {
+            if (num_leaks == 0)
+                PHI_LOG("handle::pipeline_state leaks:");
+
             ++num_leaks;
+
+            auto const strlen = util::get_object_name(leaked_node.pPSO, debugname_buffer);
+            PHI_LOG("  leaked handle::resource - {}", cc::string_view(debugname_buffer, cc::min<UINT>(strlen, sizeof(debugname_buffer))));
+
             leaked_node.pPSO->Release();
         });
 
     mPoolRaytracing.iterate_allocated_nodes(
         [&](rt_pso_node& leaked_node)
         {
+            if (num_leaks == 0)
+                PHI_LOG("handle::pipeline_state leaks:");
+
             ++num_leaks;
+            
+			auto const strlen = util::get_object_name(leaked_node.raw_state_object, debugname_buffer);
+            PHI_LOG("  leaked handle::resource - {}", cc::string_view(debugname_buffer, cc::min<UINT>(strlen, sizeof(debugname_buffer))));
+
             leaked_node.raw_state_object->Release();
             leaked_node.raw_state_object_props->Release();
         });
