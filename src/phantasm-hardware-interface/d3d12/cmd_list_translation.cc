@@ -132,16 +132,26 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::begin_render_p
     CC_ASSERT(begin_rp.viewport.width + begin_rp.viewport.height != 0 && "recording begin_render_pass with empty viewport");
 
     // depthrange is hardcoded to [0, 1]
-    auto const viewport = D3D12_VIEWPORT{float(begin_rp.viewport_offset.x),
-                                         float(begin_rp.viewport_offset.y),
-                                         float(begin_rp.viewport.width),
-                                         float(begin_rp.viewport.height),
-                                         0.f,
-                                         1.f};
+    D3D12_VIEWPORT const viewport = D3D12_VIEWPORT{float(begin_rp.viewport_offset.x),
+                                                   float(begin_rp.viewport_offset.y),
+                                                   float(begin_rp.viewport.width),
+                                                   float(begin_rp.viewport.height),
+                                                   0.f,
+                                                   1.f};
 
-    // by default, set scissor exactly to viewport
-    auto const scissor_rect
-        = D3D12_RECT{0, 0, LONG(begin_rp.viewport.width + begin_rp.viewport_offset.x), LONG(begin_rp.viewport.height + begin_rp.viewport_offset.y)};
+    D3D12_RECT scissor_rect;
+
+    if (begin_rp.scissor.min.x != -1)
+    {
+        // explicit scissor
+        scissor_rect = {begin_rp.scissor.min.x, begin_rp.scissor.min.y, begin_rp.scissor.max.x, begin_rp.scissor.max.y};
+    }
+    else
+    {
+        // by default, set scissor exactly to viewport
+        scissor_rect
+            = D3D12_RECT{0, 0, LONG(begin_rp.viewport.width + begin_rp.viewport_offset.x), LONG(begin_rp.viewport.height + begin_rp.viewport_offset.y)};
+    }
 
     _cmd_list->RSSetViewports(1, &viewport);
     _cmd_list->RSSetScissorRects(1, &scissor_rect);

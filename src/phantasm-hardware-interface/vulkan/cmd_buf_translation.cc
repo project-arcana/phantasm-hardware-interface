@@ -255,9 +255,21 @@ void phi::vk::command_list_translator::execute(const phi::cmd::begin_render_pass
         viewport.maxDepth = 1.0f;
 
         VkRect2D scissor = {};
-        scissor.offset = {0, 0};
-        scissor.extent.width = unsigned(begin_rp.viewport.width + begin_rp.viewport_offset.x);
-        scissor.extent.height = unsigned(begin_rp.viewport.height + begin_rp.viewport_offset.y);
+
+        if (begin_rp.scissor.min.x != -1)
+        {
+            // explicit scissor
+            scissor.offset = VkOffset2D{begin_rp.scissor.min.x, begin_rp.scissor.min.y};
+            scissor.extent = VkExtent2D{uint32_t(begin_rp.scissor.max.x - begin_rp.scissor.min.x), //
+                                        uint32_t(begin_rp.scissor.max.y - begin_rp.scissor.min.y)};
+        }
+        else
+        {
+            // by default, set scissor exactly to viewport
+            scissor.offset = {0, 0};
+            scissor.extent.width = unsigned(begin_rp.viewport.width + begin_rp.viewport_offset.x);
+            scissor.extent.height = unsigned(begin_rp.viewport.height + begin_rp.viewport_offset.y);
+        }
 
         vkCmdSetViewport(_cmd_list, 0, 1, &viewport);
         vkCmdSetScissor(_cmd_list, 0, 1, &scissor);

@@ -54,8 +54,15 @@ PHI_DEFINE_CMD(begin_render_pass)
 
     flat_vector<render_target_info, limits::max_render_targets> render_targets;
     depth_stencil_info depth_target;
-    tg::isize2 viewport = {0, 0};       ///< viewport dimensions being rendered to, in pixels
-    tg::ivec2 viewport_offset = {0, 0}; ///< offset of the viewport, in pixels from the top left corner
+
+    // viewport dimensions being rendered to, in pixels
+    tg::isize2 viewport = {0, 0};
+    // offset of the viewport, in pixels from the top left corner
+    tg::ivec2 viewport_offset = {0, 0};
+
+    // the additional scissor rectangle to set, none if -1
+    // left, top, right, bottom of the rectangle in absolute pixel values
+    tg::iaabb2 scissor = tg::iaabb2(-1, -1);
 
 public:
     void add_backbuffer_rt(handle::resource res, bool clear = true)
