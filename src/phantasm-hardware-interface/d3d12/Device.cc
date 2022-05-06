@@ -180,5 +180,7 @@ void phi::d3d12::Device::destroy()
         return;
     }
 
+	
+
     PHI_D3D12_SAFE_RELEASE(mDevice);
 }
