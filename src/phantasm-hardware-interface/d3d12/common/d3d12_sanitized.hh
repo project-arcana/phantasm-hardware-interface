@@ -1,8 +1,8 @@
 #pragma once
 
-// Check if CC win32 sanitized was included before this error
+// Check if CC win32 sanitized was included before this header
 #ifdef CC_SANITIZED_WINDOWS_H
-#error "This header is incompatbile with clean-core's sanitized win32"
+#error "This header is incompatbile with clean core sanitized win32"
 #endif
 
 // Check if <Windows.h> was included somewhere before this header
