@@ -835,6 +835,7 @@ struct shader_table_strides
     uint32_t stride_callable = 0;
 };
 
+// info about current VRAM usage
 struct vram_state_info
 {
     // OS-provided VRAM budget in bytes, usage should stay below this
@@ -844,11 +845,27 @@ struct vram_state_info
     uint64_t current_reservation_bytes = 0;
 };
 
+// info required to correlate CPU and GPU time measurements
 struct clock_synchronization_info
 {
+    // the CPU clock is the one used by <clean-core/native/timing.hh>
+    // on Win32: QueryPerformanceCounter/QueryPerformanceFrequency
+    // on Linux: clock_gettime with CLOCK_MONOTONIC
+
+    // amount of ticks of the CPU clock per second
     int64_t cpu_frequency = 0;
+    // amount of ticks of the GPU clock per second
     int64_t gpu_frequency = 0;
+
+    // CPU and GPU timestamps both representing the same real point in time
     int64_t cpu_reference_timestamp = 0;
     int64_t gpu_reference_timestamp = 0;
+
+    // given a GPU timestamp (received via cmd::write_timestamp), returns
+    // a representation comparable with regularly measured CPU timestamps
+    int64_t convert_gpu_to_cpu(int64_t gpu_timestamp) const
+    {
+        return cpu_reference_timestamp + (gpu_timestamp - gpu_reference_timestamp) * cpu_frequency / gpu_frequency;
+    }
 };
 } // namespace phi
