@@ -7,7 +7,7 @@
 #include <clean-core/allocator.hh>
 #include <clean-core/allocators/linear_allocator.hh>
 #include <clean-core/defer.hh>
-#include <clean-core/native/win32_util.hh>
+#include <clean-core/native/timing.hh>
 
 #include <phantasm-hardware-interface/common/command_reading.hh>
 #include <phantasm-hardware-interface/common/log.hh>
@@ -815,6 +815,64 @@ void phi::vk::BackendVulkan::setDebugName(phi::handle::resource res, cc::string_
 bool phi::vk::BackendVulkan::startForcedDiagnosticCapture() { return mDiagnostics.start_capture(); }
 
 bool phi::vk::BackendVulkan::endForcedDiagnosticCapture() { return mDiagnostics.end_capture(); }
+
+phi::clock_synchronization_info phi::vk::BackendVulkan::getClockSynchronizationInfo()
+{
+    // Vulkan has no builtin reference clock mechanism
+    // we have to write a dummy timestamp, flush, then resolve and measure CPU time at once
+    // (very slow operation)
+
+
+    auto const queue = queue_type::direct;
+
+    // create temp query for this operation
+    auto const hTempQuery = this->createQueryRange(query_type::timestamp, 1);
+
+    // start a (direct queue) command buffer
+    auto& thread_comp = getCurrentThreadComponent();
+    VkCommandBuffer pCmdBuf = nullptr;
+    auto const hCmdList = mPoolCmdLists.create(pCmdBuf, thread_comp.cmdListAllocator, queue);
+
+    // record the timestamp write command
+    VkQueryPool pPool = nullptr;
+    uint32_t const queryIdx = mPoolQueries.getQuery(hTempQuery, query_type::timestamp, 0, pPool);
+    vkCmdResetQueryPool(pCmdBuf, pPool, queryIdx, 1);
+    vkCmdWriteTimestamp(pCmdBuf, VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, pPool, queryIdx);
+
+    // finish recording
+    vkEndCommandBuffer(pCmdBuf);
+
+    // submit as usual
+    VkSubmitInfo submitInfo = {};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &pCmdBuf;
+
+    VkFence pSubmitFence = nullptr;
+    auto const submitFenceIdx = mPoolCmdLists.acquireFence(pSubmitFence);
+    PHI_VK_VERIFY_SUCCESS(vkQueueSubmit(mDevice.getRawQueue(queue), 1, &submitInfo, pSubmitFence));
+
+    cc::span<handle::command_list const> submit_spans[] = {cc::span{hCmdList}};
+    mPoolCmdLists.freeOnSubmit(submit_spans, submitFenceIdx);
+
+    // immediately wait for the submit fence on CPU, infinite timeout
+    vkWaitForFences(mDevice.getDevice(), 1, &pSubmitFence, VK_TRUE, uint64_t(-1));
+
+    // read the query result to CPU
+    int64_t ref_time_gpu = 0;
+    vkGetQueryPoolResults(mDevice.getDevice(), pPool, queryIdx, 1, sizeof(ref_time_gpu), &ref_time_gpu, sizeof(ref_time_gpu), VK_QUERY_RESULT_64_BIT);
+    // immediately measure the OS CPU clock afterwards
+    int64_t const ref_time_cpu = cc::get_high_precision_time();
+
+    this->free(hTempQuery);
+
+    clock_synchronization_info res = {};
+    res.cpu_frequency = cc::get_high_precision_frequency();
+    res.gpu_frequency = int64_t(1000000000ll / mDevice.getDeviceProperties().limits.timestampPeriod);
+    res.cpu_reference_timestamp = ref_time_cpu;
+    res.gpu_reference_timestamp = ref_time_gpu;
+    return res;
+}
 
 uint64_t phi::vk::BackendVulkan::getGPUTimestampFrequency() const
 {

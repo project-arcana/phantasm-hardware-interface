@@ -843,4 +843,12 @@ struct vram_state_info
     uint64_t available_for_reservation_bytes = 0;
     uint64_t current_reservation_bytes = 0;
 };
+
+struct clock_synchronization_info
+{
+    int64_t cpu_frequency = 0;
+    int64_t gpu_frequency = 0;
+    int64_t cpu_reference_timestamp = 0;
+    int64_t gpu_reference_timestamp = 0;
+};
 } // namespace phi
