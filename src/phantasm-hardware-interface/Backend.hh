@@ -318,6 +318,10 @@ public:
     // GPU info interface
     //
 
+    /// queries info regarding CPU/GPU clock (timestamp) synchronization
+    /// NOTE: Very expensive on vulkan! Do not call every frame
+    virtual clock_synchronization_info getClockSynchronizationInfo() = 0;
+
     /// returns the frequency of GPU timestamps in Hz (seconds = timestamp_delta / getGPUTimestampFrequency())
     virtual uint64_t getGPUTimestampFrequency() const = 0;
 

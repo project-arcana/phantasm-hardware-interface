@@ -235,6 +235,8 @@ public:
     // GPU info interface
     //
 
+    clock_synchronization_info getClockSynchronizationInfo() override;
+
     uint64_t getGPUTimestampFrequency() const override;
 
     bool isRaytracingEnabled() const override;

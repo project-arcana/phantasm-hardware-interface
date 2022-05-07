@@ -790,6 +790,25 @@ bool phi::d3d12::BackendD3D12::startForcedDiagnosticCapture() { return mDiagnost
 
 bool phi::d3d12::BackendD3D12::endForcedDiagnosticCapture() { return mDiagnostics.end_capture(); }
 
+phi::clock_synchronization_info phi::d3d12::BackendD3D12::getClockSynchronizationInfo()
+{
+    ::LARGE_INTEGER frequency;
+    ::QueryPerformanceFrequency(&frequency);
+
+    UINT64 gpuFrequency = 0;
+    mDirectQueue.command_queue->GetTimestampFrequency(&gpuFrequency);
+
+    UINT64 clockRefGPU, clockRefCPU;
+    mDirectQueue.command_queue->GetClockCalibration(&clockRefGPU, &clockRefCPU);
+
+    clock_synchronization_info res = {};
+    res.cpu_frequency = (int64_t)frequency.QuadPart;
+    res.gpu_frequency = (int64_t)gpuFrequency;
+    res.cpu_reference_timestamp = (int64_t)clockRefCPU;
+    res.gpu_reference_timestamp = (int64_t)clockRefGPU;
+    return res;
+}
+
 uint64_t phi::d3d12::BackendD3D12::getGPUTimestampFrequency() const
 {
     uint64_t res;
