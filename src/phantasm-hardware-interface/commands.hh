@@ -16,13 +16,18 @@ namespace Optick
 struct EventDescription;
 }
 
-// create an Optick event name for use with cmd::begin_debug_label
-#define PHI_CREATE_OPTICK_EVENT(VariableName, NameString)                                  \
-    static ::Optick::EventDescription* VariableName = nullptr;                             \
-    if (VariableName == nullptr)                                                           \
-    {                                                                                      \
-        VariableName = ::Optick::EventDescription::Create(NameString, __FILE__, __LINE__); \
-    }                                                                                      \
+// create an Optick event name for use with cmd::begin_profile_scope
+// usage:
+// PHI_CREATE_OPTICK_EVENT(MyEvent, "Optional Name");
+// phi::cmd::begin_profile_scope cmd = {};
+// cmd.optick_event = MyEvent;
+// ...
+#define PHI_CREATE_OPTICK_EVENT(VariableName, ...)                                                  \
+    static ::Optick::EventDescription* VariableName = nullptr;                                      \
+    if (VariableName == nullptr)                                                                    \
+    {                                                                                               \
+        VariableName = ::Optick::CreateDescription(OPTICK_FUNC, __FILE__, __LINE__, ##__VA_ARGS__); \
+    }                                                                                               \
     CC_FORCE_SEMICOLON
 #endif
 
