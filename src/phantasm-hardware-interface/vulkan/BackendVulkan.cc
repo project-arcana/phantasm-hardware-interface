@@ -862,7 +862,7 @@ phi::clock_synchronization_info phi::vk::BackendVulkan::getClockSynchronizationI
     int64_t ref_time_gpu = 0;
     vkGetQueryPoolResults(mDevice.getDevice(), pPool, queryIdx, 1, sizeof(ref_time_gpu), &ref_time_gpu, sizeof(ref_time_gpu), VK_QUERY_RESULT_64_BIT);
     // immediately measure the OS CPU clock afterwards
-    int64_t const ref_time_cpu = cc::get_high_precision_time();
+    int64_t const ref_time_cpu = cc::get_high_precision_ticks();
 
     this->free(hTempQuery);
 
