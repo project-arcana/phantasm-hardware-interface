@@ -7,13 +7,13 @@
 
 #include <phantasm-hardware-interface/common/sse_hash.hh>
 
-PHI_API uint64_t phi::ComputeHash(arg::root_signature_description const& rootSignatureDesc)
+uint64_t phi::ComputeHash(arg::root_signature_description const& rootSignatureDesc)
 {
     //
     return util::sse_hash_type(&rootSignatureDesc);
 }
 
-PHI_API uint64_t phi::ComputeHash(arg::graphics_pipeline_state_description const& psoDesc)
+uint64_t phi::ComputeHash(arg::graphics_pipeline_state_description const& psoDesc)
 {
     uint64_t psoHash = cc::hash_combine(           //
         util::sse_hash_type(&psoDesc.config),      //
@@ -36,11 +36,36 @@ PHI_API uint64_t phi::ComputeHash(arg::graphics_pipeline_state_description const
     return psoHash;
 }
 
-PHI_API uint64_t phi::ComputeHash(arg::compute_pipeline_state_description const& psoDesc)
+uint64_t phi::ComputeHash(arg::compute_pipeline_state_description const& psoDesc)
 {
     uint64_t psoHash = util::sse_hash_type(&psoDesc.root_signature);
 
     // shader
     psoHash = cc::hash_combine(psoHash, cc::hash_xxh3(cc::span(psoDesc.shader.data, psoDesc.shader.size), 0u));
     return psoHash;
+}
+
+uint64_t phi::ComputeHash(arg::texture_description const& texDesc)
+{
+    //
+    return util::sse_hash_type(&texDesc);
+}
+
+uint64_t phi::ComputeHash(arg::buffer_description const& bufDesc)
+{
+    //
+    return util::sse_hash_type(&bufDesc);
+}
+
+uint64_t phi::ComputeHash(arg::resource_description const& resDesc)
+{
+    switch (resDesc.type)
+    {
+    case arg::resource_description::e_resource_buffer:
+        return cc::hash_combine(uint64_t(resDesc.type), util::sse_hash_type(&resDesc.info_buffer));
+    case arg::resource_description::e_resource_texture:
+        return cc::hash_combine(uint64_t(resDesc.type), util::sse_hash_type(&resDesc.info_texture));
+    }
+
+    return 0;
 }

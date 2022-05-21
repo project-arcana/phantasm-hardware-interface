@@ -12,4 +12,10 @@ PHI_API uint64_t ComputeHash(arg::root_signature_description const& rootSignatur
 PHI_API uint64_t ComputeHash(arg::graphics_pipeline_state_description const& psoDesc);
 
 PHI_API uint64_t ComputeHash(arg::compute_pipeline_state_description const& psoDesc);
+
+PHI_API uint64_t ComputeHash(arg::texture_description const& texDesc);
+
+PHI_API uint64_t ComputeHash(arg::buffer_description const& bufDesc);
+
+PHI_API uint64_t ComputeHash(arg::resource_description const& resDesc);
 } // namespace phi
