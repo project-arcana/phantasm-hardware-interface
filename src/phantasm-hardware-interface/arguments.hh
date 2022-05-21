@@ -64,13 +64,8 @@ struct blend_state
 public:
     blend_state() = default;
 
-    blend_state(blend_factor blend_color_src, //
-                blend_factor blend_color_dest,
-                blend_op blend_op_color,
-                blend_factor blend_alpha_src,
-                blend_factor blend_alpha_dest,
-                blend_op blend_op_alpha)
-      : blend_color_src(blend_color_src), //
+    blend_state(blend_factor blend_color_src, blend_factor blend_color_dest, blend_op blend_op_color, blend_factor blend_alpha_src, blend_factor blend_alpha_dest, blend_op blend_op_alpha)
+      : blend_color_src(blend_color_src),
         blend_color_dest(blend_color_dest),
         blend_op_color(blend_op_color),
         blend_alpha_src(blend_alpha_src),
@@ -79,11 +74,8 @@ public:
     {
     }
 
-    blend_state(blend_factor blend_color_src, //
-                blend_factor blend_color_dest,
-                blend_factor blend_alpha_src,
-                blend_factor blend_alpha_dest)
-      : blend_color_src(blend_color_src), //
+    blend_state(blend_factor blend_color_src, blend_factor blend_color_dest, blend_factor blend_alpha_src, blend_factor blend_alpha_dest)
+      : blend_color_src(blend_color_src),
         blend_color_dest(blend_color_dest),
         blend_op_color(blend_op::op_add),
         blend_alpha_src(blend_alpha_src),
@@ -92,15 +84,8 @@ public:
     {
     }
 
-    blend_state(blend_factor blend_src, //
-                blend_factor blend_dest,
-                blend_op blend_op = blend_op::op_add)
-      : blend_color_src(blend_src), //
-        blend_color_dest(blend_dest),
-        blend_op_color(blend_op),
-        blend_alpha_src(blend_src),
-        blend_alpha_dest(blend_dest),
-        blend_op_alpha(blend_op)
+    blend_state(blend_factor blend_src, blend_factor blend_dest, blend_op blend_op = blend_op::op_add)
+      : blend_color_src(blend_src), blend_color_dest(blend_dest), blend_op_color(blend_op), blend_alpha_src(blend_src), blend_alpha_dest(blend_dest), blend_op_alpha(blend_op)
     {
     }
 
@@ -196,6 +181,160 @@ struct root_signature_description
         shader_arg_shapes.push_back(shader_arg_shape{num_srvs, num_uavs, num_samplers, has_cbvs});
     }
 };
+
+// resource creation info
+
+struct texture_description
+{
+    phi::format fmt = phi::format::none;
+    phi::texture_dimension dim = phi::texture_dimension::none;
+    uint8_t _pad0 = 0;
+    uint8_t _pad1 = 0;
+    resource_usage_flags_t usage = resource_usage_flags::none;
+    int width = 0;
+    int height = 0;
+    uint32_t depth_or_array_size = 0;
+    uint32_t num_mips = 0;
+    uint32_t num_samples = 0;
+    uint32_t optimized_clear_value = 0;
+
+public:
+    [[nodiscard]] static texture_description create_tex(phi::format fmt,
+                                                        tg::isize2 size,
+                                                        uint32_t num_mips = 1,
+                                                        phi::texture_dimension dim = phi::texture_dimension::t2d,
+                                                        uint32_t depth_or_array_size = 1,
+                                                        bool allow_uav = false)
+    {
+        texture_description res = {};
+        res.fmt = fmt;
+        res.dim = dim;
+        res.usage = allow_uav ? resource_usage_flags::allow_uav : 0;
+        res.width = size.width;
+        res.height = size.height;
+        res.depth_or_array_size = depth_or_array_size;
+        res.num_mips = num_mips;
+        res.num_samples = 1;
+        res.optimized_clear_value = 0;
+        return res;
+    }
+
+    [[nodiscard]] static texture_description create_rt(
+        phi::format fmt, tg::isize2 size, uint32_t num_samples = 1, uint32_t array_size = 1, rt_clear_value clear_val = {0.f, 0.f, 0.f, 1.f})
+    {
+        arg::texture_description res = {};
+        res.fmt = fmt;
+        res.dim = texture_dimension::t2d;
+        res.usage = util::is_depth_format(fmt) ? resource_usage_flags::allow_depth_stencil : resource_usage_flags::allow_render_target;
+        res.width = size.width;
+        res.height = size.height;
+        res.depth_or_array_size = array_size;
+        res.num_mips = 1;
+        res.num_samples = num_samples;
+
+        res.usage |= resource_usage_flags::use_optimized_clear_value;
+        res.optimized_clear_value = util::pack_rgba8(clear_val.red_or_depth, clear_val.green_or_stencil, clear_val.blue, clear_val.alpha);
+
+        return res;
+    }
+
+    bool operator==(texture_description const& rhs) const noexcept { return std::memcmp(this, &rhs, sizeof(texture_description)) == 0; }
+
+    uint32_t get_array_size() const { return dim == texture_dimension::t3d ? 1 : depth_or_array_size; }
+    uint32_t get_depth() const { return dim == texture_dimension::t3d ? depth_or_array_size : 1; }
+    uint32_t get_num_subresources() const { return get_array_size() * num_mips; }
+    bool is_cubemap() const { return dim == texture_dimension::t2d && depth_or_array_size == 6; }
+};
+
+struct buffer_description
+{
+    uint32_t size_bytes = 0;
+    uint32_t stride_bytes = 0;
+    bool allow_uav = false;
+    phi::resource_heap heap = phi::resource_heap::none;
+    uint8_t _pad0 = 0;
+    uint8_t _pad1 = 0;
+
+public:
+    static buffer_description create(uint32_t size_bytes, uint32_t stride_bytes, phi::resource_heap heap = phi::resource_heap::gpu, bool allow_uav = false)
+    {
+        return buffer_description{size_bytes, stride_bytes, allow_uav, heap};
+    }
+
+    bool operator==(buffer_description const& rhs) const noexcept { return std::memcmp(this, &rhs, sizeof(buffer_description)) == 0; }
+};
+
+struct resource_description
+{
+    enum e_resource_type
+    {
+        e_resource_undefined = 0,
+
+        e_resource_texture,
+        e_resource_buffer
+    };
+
+    e_resource_type type = e_resource_undefined;
+
+    union
+    {
+        texture_description info_texture;
+        buffer_description info_buffer;
+    };
+
+    constexpr resource_description() : type(e_resource_undefined), info_texture() {}
+
+    bool operator==(resource_description const& rhs) const noexcept
+    {
+        if (type != rhs.type)
+            return false;
+
+        if (type == e_resource_undefined)
+            return true;
+
+        return type == e_resource_texture ? info_texture == rhs.info_texture : info_buffer == rhs.info_buffer;
+    }
+
+public:
+    // static convenience
+
+    static resource_description create(texture_description const& tex_info)
+    {
+        resource_description res;
+        res.type = e_resource_texture;
+        res.info_texture = tex_info;
+        return res;
+    }
+    static resource_description create(buffer_description const& buf_info)
+    {
+        resource_description res;
+        res.type = e_resource_buffer;
+        res.info_buffer = buf_info;
+        return res;
+    }
+
+    static resource_description render_target(
+        phi::format fmt, tg::isize2 size, uint32_t num_samples = 1, uint32_t array_size = 1, rt_clear_value clear_val = {0.f, 0.f, 0.f, 1.f})
+    {
+        return create(texture_description::create_rt(fmt, size, num_samples, array_size, clear_val));
+    }
+
+    static resource_description texture(phi::format fmt,
+                                        tg::isize2 size,
+                                        uint32_t num_mips = 1,
+                                        phi::texture_dimension dim = phi::texture_dimension::t2d,
+                                        uint32_t depth_or_array_size = 1,
+                                        bool allow_uav = false)
+    {
+        return create(texture_description::create_tex(fmt, size, num_mips, dim, depth_or_array_size, allow_uav));
+    }
+
+    static resource_description buffer(uint32_t size_bytes, uint32_t stride_bytes, phi::resource_heap heap = phi::resource_heap::gpu, bool allow_uav = false)
+    {
+        return create(buffer_description::create(size_bytes, stride_bytes, heap, allow_uav));
+    }
+};
+
 // end of memhash structs
 #ifdef CC_COMPILER_MSVC
 #pragma warning(pop)
@@ -399,138 +538,6 @@ struct shader_table_record
     void add_shader_arg(handle::resource cbv, uint32_t cbv_off = 0, handle::shader_view sv = handle::null_shader_view)
     {
         shader_arguments.push_back(shader_argument{cbv, sv, cbv_off});
-    }
-};
-
-// resource creation info
-
-struct texture_description
-{
-    phi::format fmt;
-    phi::texture_dimension dim;
-    resource_usage_flags_t usage;
-    int width;
-    int height;
-    uint32_t depth_or_array_size;
-    uint32_t num_mips;
-    uint32_t num_samples;
-    uint32_t optimized_clear_value;
-
-public:
-    [[nodiscard]] static texture_description create_tex(phi::format fmt,
-                                                        tg::isize2 size,
-                                                        uint32_t num_mips = 1,
-                                                        phi::texture_dimension dim = phi::texture_dimension::t2d,
-                                                        uint32_t depth_or_array_size = 1,
-                                                        bool allow_uav = false)
-    {
-        return texture_description{fmt, dim, allow_uav ? resource_usage_flags::allow_uav : 0, size.width, size.height, depth_or_array_size, num_mips,
-                                   1u,  0u};
-    }
-
-    [[nodiscard]] static texture_description create_rt(
-        phi::format fmt, tg::isize2 size, uint32_t num_samples = 1, uint32_t array_size = 1, rt_clear_value clear_val = {0.f, 0.f, 0.f, 1.f})
-    {
-        arg::texture_description res = {};
-        res.fmt = fmt;
-        res.dim = texture_dimension::t2d;
-        res.usage = util::is_depth_format(fmt) ? resource_usage_flags::allow_depth_stencil : resource_usage_flags::allow_render_target;
-        res.width = size.width;
-        res.height = size.height;
-        res.depth_or_array_size = array_size;
-        res.num_mips = 1;
-        res.num_samples = num_samples;
-
-        res.usage |= resource_usage_flags::use_optimized_clear_value;
-        res.optimized_clear_value = util::pack_rgba8(clear_val.red_or_depth, clear_val.green_or_stencil, clear_val.blue, clear_val.alpha);
-
-        return res;
-    }
-
-    constexpr bool operator==(texture_description const& rhs) const noexcept
-    {
-        return fmt == rhs.fmt && dim == rhs.dim && usage == rhs.usage && width == rhs.width && height == rhs.height && depth_or_array_size == rhs.depth_or_array_size
-               && num_mips == rhs.num_mips && num_samples == rhs.num_samples && optimized_clear_value == rhs.optimized_clear_value;
-    }
-
-    uint32_t get_array_size() const { return dim == texture_dimension::t3d ? 1 : depth_or_array_size; }
-    uint32_t get_depth() const { return dim == texture_dimension::t3d ? depth_or_array_size : 1; }
-    uint32_t get_num_subresources() const { return get_array_size() * num_mips; }
-    bool is_cubemap() const { return dim == texture_dimension::t2d && depth_or_array_size == 6; }
-};
-
-struct buffer_description
-{
-    uint32_t size_bytes;
-    uint32_t stride_bytes;
-    bool allow_uav;
-    phi::resource_heap heap;
-
-public:
-    static buffer_description create(uint32_t size_bytes, uint32_t stride_bytes, phi::resource_heap heap = phi::resource_heap::gpu, bool allow_uav = false)
-    {
-        return buffer_description{size_bytes, stride_bytes, allow_uav, heap};
-    }
-    constexpr bool operator==(buffer_description const& rhs) const noexcept
-    {
-        return size_bytes == rhs.size_bytes && stride_bytes == rhs.stride_bytes && allow_uav == rhs.allow_uav && heap == rhs.heap;
-    }
-};
-
-struct resource_description
-{
-    enum e_resource_type
-    {
-        e_resource_undefined,
-        e_resource_texture,
-        e_resource_buffer
-    };
-
-    e_resource_type type = e_resource_undefined;
-
-    union
-    {
-        texture_description info_texture;
-        buffer_description info_buffer;
-    };
-
-public:
-    // static convenience
-
-    static resource_description create(texture_description const& tex_info)
-    {
-        resource_description res;
-        res.type = e_resource_texture;
-        res.info_texture = tex_info;
-        return res;
-    }
-    static resource_description create(buffer_description const& buf_info)
-    {
-        resource_description res;
-        res.type = e_resource_buffer;
-        res.info_buffer = buf_info;
-        return res;
-    }
-
-    static resource_description render_target(
-        phi::format fmt, tg::isize2 size, uint32_t num_samples = 1, uint32_t array_size = 1, rt_clear_value clear_val = {0.f, 0.f, 0.f, 1.f})
-    {
-        return create(texture_description::create_rt(fmt, size, num_samples, array_size, clear_val));
-    }
-
-    static resource_description texture(phi::format fmt,
-                                        tg::isize2 size,
-                                        uint32_t num_mips = 1,
-                                        phi::texture_dimension dim = phi::texture_dimension::t2d,
-                                        uint32_t depth_or_array_size = 1,
-                                        bool allow_uav = false)
-    {
-        return create(texture_description::create_tex(fmt, size, num_mips, dim, depth_or_array_size, allow_uav));
-    }
-
-    static resource_description buffer(uint32_t size_bytes, uint32_t stride_bytes, phi::resource_heap heap = phi::resource_heap::gpu, bool allow_uav = false)
-    {
-        return create(buffer_description::create(size_bytes, stride_bytes, heap, allow_uav));
     }
 };
 } // namespace phi::arg

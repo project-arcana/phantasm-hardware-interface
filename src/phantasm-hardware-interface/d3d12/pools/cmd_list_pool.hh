@@ -94,10 +94,7 @@ class CommandAllocatorBundle
 public:
     void preallocate(uint32_t num_allocs, cc::allocator* static_alloc);
 
-    void initialize(ID3D12Device5& device,
-                    D3D12_COMMAND_LIST_TYPE type,
-                    uint32_t num_lists_per_alloc,
-                    cc::span<ID3D12GraphicsCommandList5*> out_list);
+    void initialize(ID3D12Device5& device, D3D12_COMMAND_LIST_TYPE type, uint32_t num_lists_per_alloc, cc::span<ID3D12GraphicsCommandList5*> out_list);
     void destroy();
 
     /// Resets the given command list to use memory by an appropriate allocator

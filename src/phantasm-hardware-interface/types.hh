@@ -80,6 +80,8 @@ enum class queue_type : uint8_t
 // the swapchain presentation mode
 enum class present_mode : uint8_t
 {
+    none = 0,
+
     synced,                 // synchronize presentation every vblank
     synced_2nd_vblank,      // synchronize presentation every second vblank (effectively halves refreshrate)
     unsynced,               // do not synchronize presentation
@@ -130,6 +132,8 @@ struct transition_info
 
 enum class resource_heap : uint8_t
 {
+    none = 0,
+
     gpu,     // default, fastest to access for the GPU
     upload,  // for CPU -> GPU transfer
     readback // for GPU -> CPU transfer
@@ -239,6 +243,8 @@ struct vertex_attribute_info
 
 enum class texture_dimension : uint8_t
 {
+    none = 0,
+
     t1d,
     t2d,
     t3d
@@ -248,6 +254,7 @@ enum class texture_dimension : uint8_t
 enum class resource_view_dimension : uint8_t
 {
     none = 0,
+
     buffer,
     raw_buffer, // ByteAddressBuffer and similar views
     texture1d,
