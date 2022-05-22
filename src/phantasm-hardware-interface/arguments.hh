@@ -284,6 +284,9 @@ struct resource_description
 
     constexpr resource_description() : type(e_resource_undefined), info_texture() {}
 
+    constexpr bool is_buffer() const { return type == e_resource_buffer; }
+    constexpr bool is_texture() const { return type == e_resource_texture; }
+
     bool operator==(resource_description const& rhs) const noexcept
     {
         if (type != rhs.type)

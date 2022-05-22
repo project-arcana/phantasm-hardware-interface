@@ -4,8 +4,11 @@
 #include <optick.h>
 #endif
 
+#include <clean-core/assertf.hh>
+
 #include <phantasm-hardware-interface/common/byte_util.hh>
 #include <phantasm-hardware-interface/common/command_reading.hh>
+#include <phantasm-hardware-interface/common/enums_from_string.hh>
 #include <phantasm-hardware-interface/common/format_size.hh>
 #include <phantasm-hardware-interface/common/log.hh>
 #include <phantasm-hardware-interface/common/sse_hash.hh>
@@ -610,6 +613,15 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::transition_res
 
     for (auto const& transition : transition_res.transitions)
     {
+#ifdef CC_ENABLE_ASSERTIONS
+        if CC_CONDITION_UNLIKELY(_globals.pool_resources->isBuffer(transition.resource) && _globals.pool_resources->getBufferDescription(transition.resource).heap != resource_heap::gpu)
+        {
+            char buf[512] = {};
+            util::get_object_name(_globals.pool_resources->getRawResource(transition.resource), buf);
+            CC_ASSERTF(false, "Cannot transition buffer \"{}\" on non-GPU heap to {}", buf, enum_to_string(transition.target_state));
+        }
+#endif
+
         D3D12_RESOURCE_STATES const after = util::to_native(transition.target_state);
         D3D12_RESOURCE_STATES before;
 
