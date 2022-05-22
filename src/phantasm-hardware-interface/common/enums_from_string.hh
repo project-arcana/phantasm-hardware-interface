@@ -15,7 +15,12 @@ namespace phi
 #define PHI_LIST_PRIMITIVE_TOPOLOGY(X) X(triangles) X(lines) X(points) X(patches)
 #define PHI_LIST_DEPTH_FUNCTION(X) X(none) X(less) X(less_equal) X(greater) X(greater_equal) X(equal) X(not_equal) X(always) X(never)
 #define PHI_LIST_CULL_MODE(X) X(none) X(back) X(front)
-#define PHI_LIST_PRESENT_MODE(X) X(synced) X(synced_2nd_vblank) X(unsynced) X(unsynced_allow_tearing)
+#define PHI_LIST_PRESENT_MODE(X) X(none) X(synced) X(synced_2nd_vblank) X(unsynced) X(unsynced_allow_tearing)
+
+#define PHI_LIST_RESOURCE_STATE(X)                                                                                                                       \
+    X(unknown)                                                                                                                                           \
+    X(undefined) X(vertex_buffer) X(index_buffer) X(constant_buffer) X(shader_resource) X(shader_resource_nonpixel) X(unordered_access) X(render_target) \
+        X(depth_read) X(depth_write) X(indirect_argument) X(copy_src) X(copy_dest) X(resolve_src) X(resolve_dest) X(present) X(raytrace_accel_struct)
 
 
 #define PHI_X_TOSTRING_CASE(Val, ...) \
@@ -71,8 +76,11 @@ PHI_DECLARE_FROMSTRING(enum_from_string, cull_mode, PHI_LIST_CULL_MODE);
 PHI_DECLARE_TOSTRING(enum_to_string, present_mode, PHI_LIST_PRESENT_MODE);
 PHI_DECLARE_FROMSTRING(enum_from_string, present_mode, PHI_LIST_PRESENT_MODE);
 
+PHI_DECLARE_TOSTRING(enum_to_string, resource_state, PHI_LIST_RESOURCE_STATE);
+PHI_DECLARE_FROMSTRING(enum_from_string, resource_state, PHI_LIST_RESOURCE_STATE);
+
 #undef PHI_X_TOSTRING_CASE
 #undef PHI_X_FROMSTRING_IF
 #undef PHI_DECLARE_TOSTRING
 #undef PHI_DECLARE_FROMSTRING
-}
+} // namespace phi
