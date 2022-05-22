@@ -61,6 +61,8 @@ public:
 public:
     D3D12_CPU_DESCRIPTOR_HANDLE getCPUStart(handle_t handle) const
     {
+        CC_ASSERT(handle != -1);
+
         // index = page index * page size
         auto const index = handle * mPageAllocator.get_page_size();
         return D3D12_CPU_DESCRIPTOR_HANDLE{mHeapStartCPU.ptr + SIZE_T(index) * SIZE_T(mDescriptorSize)};
@@ -68,12 +70,19 @@ public:
 
     D3D12_GPU_DESCRIPTOR_HANDLE getGPUStart(handle_t handle) const
     {
+        CC_ASSERT(handle != -1);
+
         // index = page index * page size
         auto const index = handle * mPageAllocator.get_page_size();
         return D3D12_GPU_DESCRIPTOR_HANDLE{mHeapStartGPU.ptr + SIZE_T(index) * SIZE_T(mDescriptorSize)};
     }
 
-    uint32_t getNumDescriptorsInAllocation(handle_t handle) const { return uint32_t(mPageAllocator.get_allocation_size_in_elements(handle)); }
+    uint32_t getNumDescriptorsInAllocation(handle_t handle) const
+    {
+        CC_ASSERT(handle != -1);
+
+        return uint32_t(mPageAllocator.get_allocation_size_in_elements(handle));
+    }
 
     [[nodiscard]] D3D12_CPU_DESCRIPTOR_HANDLE incrementToIndex(D3D12_CPU_DESCRIPTOR_HANDLE desc, uint32_t i) const
     {
@@ -155,12 +164,12 @@ private:
     struct shader_view_data
     {
         // pre-constructed gpu handles
-        D3D12_GPU_DESCRIPTOR_HANDLE srv_uav_handle;
-        D3D12_GPU_DESCRIPTOR_HANDLE sampler_handle;
+        D3D12_GPU_DESCRIPTOR_HANDLE srv_uav_handle = {};
+        D3D12_GPU_DESCRIPTOR_HANDLE sampler_handle = {};
 
         // Descriptor allocator handles
-        DescriptorPageAllocator::handle_t srv_uav_alloc_handle;
-        DescriptorPageAllocator::handle_t sampler_alloc_handle;
+        DescriptorPageAllocator::handle_t srv_uav_alloc_handle = -1;
+        DescriptorPageAllocator::handle_t sampler_alloc_handle = -1;
         uint32_t numSRVs = 0;
         uint32_t numUAVs = 0;
     };

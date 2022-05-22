@@ -37,8 +37,8 @@ void phi::d3d12::DescriptorPageAllocator::destroy()
 
 phi::handle::shader_view phi::d3d12::ShaderViewPool::createEmpty(uint32_t num_srvs, uint32_t num_uavs, uint32_t num_samplers)
 {
-    DescriptorPageAllocator::handle_t srv_uav_alloc;
-    DescriptorPageAllocator::handle_t sampler_alloc;
+    DescriptorPageAllocator::handle_t srv_uav_alloc = -1;
+    DescriptorPageAllocator::handle_t sampler_alloc = -1;
 
     {
         auto lg = std::lock_guard(mMutex);
@@ -64,11 +64,13 @@ phi::handle::shader_view phi::d3d12::ShaderViewPool::createEmpty(uint32_t num_sr
     if (srv_uav_alloc != -1)
     {
         new_node.srv_uav_handle = mSRVUAVAllocator.getGPUStart(srv_uav_alloc);
+        CC_ASSERT(new_node.srv_uav_handle.ptr != 0 && "Failed to get new SRV/UAV shader view handle");
     }
 
     if (sampler_alloc != -1)
     {
         new_node.sampler_handle = mSamplerAllocator.getGPUStart(sampler_alloc);
+        CC_ASSERT(new_node.sampler_handle.ptr != 0 && "Failed to get new Sampler shader view handle");
     }
 
     return {pool_index};

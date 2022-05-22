@@ -502,13 +502,17 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::dispatch& disp
             {
                 if (map.srv_uav_table_param != uint32_t(-1))
                 {
-                    auto const sv_desc_table = _globals.pool_shader_views->getSRVUAVGPUHandle(arg.shader_view);
+                    D3D12_GPU_DESCRIPTOR_HANDLE const sv_desc_table = _globals.pool_shader_views->getSRVUAVGPUHandle(arg.shader_view);
+                    CC_ASSERT(sv_desc_table.ptr != 0 && "Bound shader_view is missing SRVs/UAVs but the PSO expects them");
+
                     _cmd_list->SetComputeRootDescriptorTable(map.srv_uav_table_param, sv_desc_table);
                 }
 
                 if (map.sampler_table_param != uint32_t(-1))
                 {
-                    auto const sampler_desc_table = _globals.pool_shader_views->getSamplerGPUHandle(arg.shader_view);
+                    D3D12_GPU_DESCRIPTOR_HANDLE const sampler_desc_table = _globals.pool_shader_views->getSamplerGPUHandle(arg.shader_view);
+                    CC_ASSERT(sampler_desc_table.ptr != 0 && "Bound shader_view is missing samplers but the PSO expects them");
+
                     _cmd_list->SetComputeRootDescriptorTable(map.sampler_table_param, sampler_desc_table);
                 }
             }
@@ -614,7 +618,8 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::transition_res
     for (auto const& transition : transition_res.transitions)
     {
 #ifdef CC_ENABLE_ASSERTIONS
-        if CC_CONDITION_UNLIKELY(_globals.pool_resources->isBuffer(transition.resource) && _globals.pool_resources->getBufferDescription(transition.resource).heap != resource_heap::gpu)
+        if CC_CONDITION_UNLIKELY (_globals.pool_resources->isBuffer(transition.resource)
+                                  && _globals.pool_resources->getBufferDescription(transition.resource).heap != resource_heap::gpu)
         {
             char buf[512] = {};
             util::get_object_name(_globals.pool_resources->getRawResource(transition.resource), buf);
