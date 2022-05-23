@@ -259,10 +259,12 @@ VkPipeline phi::vk::create_pipeline(VkDevice device,
     rasterizer.lineWidth = 1.0f;
     rasterizer.cullMode = util::to_native(config.cull);
     rasterizer.frontFace = config.frontface_counterclockwise ? VK_FRONT_FACE_COUNTER_CLOCKWISE : VK_FRONT_FACE_CLOCKWISE;
-    rasterizer.depthBiasEnable = VK_FALSE;
-    rasterizer.depthBiasConstantFactor = 0.0f; // Optional
-    rasterizer.depthBiasClamp = 0.0f;          // Optional
-    rasterizer.depthBiasSlopeFactor = 0.0f;    // Optional
+    rasterizer.depthBiasEnable = config.depth_bias != 0 || config.slope_scaled_depth_bias != 0.f;
+    // this seems to be the correct mapping
+    // ref https://www.gamedev.net/forums/topic/693280-comparing-depth-bias-in-dx-vs-vulkan/
+    rasterizer.depthBiasConstantFactor = float(config.depth_bias);
+    rasterizer.depthBiasClamp = 0.0f;
+    rasterizer.depthBiasSlopeFactor = config.slope_scaled_depth_bias;
 
     VkPipelineRasterizationConservativeStateCreateInfoEXT conservative_raster = {};
 

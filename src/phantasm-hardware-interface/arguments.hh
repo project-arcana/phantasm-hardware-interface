@@ -49,6 +49,11 @@ struct pipeline_config
 
     // (D3D12 only) whether to create a special command signature required for cmd::draw_indirect using draw_indexed_with_id
     bool allow_draw_indirect_with_id = false;
+
+    // depth biasing
+    // see https://docs.microsoft.com/en-us/windows/win32/direct3d11/d3d10-graphics-programming-guide-output-merger-stage-depth-bias
+    int32_t depth_bias = 0;
+    float slope_scaled_depth_bias = 0.f;
 };
 
 
