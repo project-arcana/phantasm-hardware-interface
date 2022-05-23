@@ -54,6 +54,8 @@ ID3D12PipelineState* phi::d3d12::create_pipeline_state(ID3D12Device& device,
     pso_desc.RasterizerState.FillMode = config.wireframe ? D3D12_FILL_MODE_WIREFRAME : D3D12_FILL_MODE_SOLID;
     pso_desc.RasterizerState.FrontCounterClockwise = config.frontface_counterclockwise;
     pso_desc.RasterizerState.ConservativeRaster = config.conservative_raster ? D3D12_CONSERVATIVE_RASTERIZATION_MODE_ON : D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
+    pso_desc.RasterizerState.DepthBias = config.depth_bias;
+    pso_desc.RasterizerState.SlopeScaledDepthBias = config.slope_scaled_depth_bias;
 
     pso_desc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
     pso_desc.DepthStencilState.DepthEnable = config.depth != phi::depth_function::none && framebuffer_format.depth_target != format::none;
