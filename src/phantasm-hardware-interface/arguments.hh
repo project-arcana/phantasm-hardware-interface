@@ -121,13 +121,13 @@ struct render_target_config
 
 struct framebuffer_config
 {
-    /// configs of the render targets, [0, n]
+    // configs of the render targets, [0, n]
     flat_vector<render_target_config, limits::max_render_targets> render_targets;
 
     bool32_t logic_op_enable = false;
     blend_logic_op logic_op = blend_logic_op::no_op;
 
-    /// format of the depth stencil target, or format::none
+    // format of the depth stencil target, or format::none
     format depth_target = format::none;
     uint8_t _pad0 = 0;
     uint8_t _pad1 = 0;
@@ -191,13 +191,11 @@ struct root_signature_description
 
 struct texture_description
 {
-    phi::format fmt = phi::format::none;
-    phi::texture_dimension dim = phi::texture_dimension::none;
-    uint8_t _pad0 = 0;
-    uint8_t _pad1 = 0;
+    format fmt = format::none;
+    texture_dimension dim = texture_dimension::none;
     resource_usage_flags_t usage = resource_usage_flags::none;
-    int width = 0;
-    int height = 0;
+    int32_t width = 0;
+    int32_t height = 0;
     uint32_t depth_or_array_size = 0;
     uint32_t num_mips = 0;
     uint32_t num_samples = 0;
