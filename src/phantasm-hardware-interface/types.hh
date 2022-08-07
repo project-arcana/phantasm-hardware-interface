@@ -90,7 +90,7 @@ enum class present_mode : uint8_t
 
 // state of a handle::resource, determining legal operations
 // (D3D12: resource states, Vulkan: access masks, image layouts and pipeline stage dependencies)
-enum class resource_state : uint8_t
+enum class resource_state : uint32_t
 {
     // unknown to pr
     unknown = 0,
@@ -122,12 +122,27 @@ enum class resource_state : uint8_t
     raytrace_accel_struct,
 };
 
+// a single signal- or wait operation on a fence
+struct fence_operation
+{
+    handle::fence fence = handle::null_fence;
+    uint64_t value = 0;
+};
+
+// memhashed structs that must not be padded, C4820: warning about padding
+// #pragma warning(error: 4820): enable C4820 and promote it to an error
+#ifdef CC_COMPILER_MSVC
+#pragma warning(push)
+#pragma warning(error : 4820)
+#endif
+
 // information describing a single resource transition, specifying only the target state
 struct transition_info
 {
     handle::resource resource = handle::null_resource;       //< the resource to transition
     resource_state target_state = resource_state::undefined; //< the state the resource is transitioned into
     shader_stage_flags_t dependent_shaders = shader_stage::none; //< the shader stages accessing the resource afterwards, only applies to CBV, SRV and UAV states
+    uint16_t _pad0 = 0;
 };
 
 enum class resource_heap : uint8_t
@@ -239,6 +254,7 @@ struct vertex_attribute_info
     uint32_t offset = 0;
     format fmt = format::none;
     uint8_t vertex_buffer_i = 0;
+    uint16_t _pad0 = 0;
 };
 
 enum class texture_dimension : uint8_t
@@ -251,21 +267,33 @@ enum class texture_dimension : uint8_t
 };
 
 // the type of a resource_view
-enum class resource_view_dimension : uint8_t
+enum class resource_view_dimension : uint32_t
 {
     none = 0,
 
+    // [RW]Buffer, [RW]StructuredBuffer
     buffer,
-    raw_buffer, // ByteAddressBuffer and similar views
+    // [RW]ByteAddressBuffer
+    raw_buffer,
+    // [RW]Texture1D
     texture1d,
+    // [RW]Texture1DArray
     texture1d_array,
+    // [RW]Texture2D
     texture2d,
+    // [RW]Texture2DMS (multisampled)
     texture2d_ms,
+    // [RW]Texture2DArray
     texture2d_array,
+    // [RW]Texture2DMSArray (multisampled)
     texture2d_ms_array,
+    // [RW]Texture3D
     texture3d,
+    // TextureCube (SRV only)
     texturecube,
+    // TextureCubeArray (SRV only)
     texturecube_array,
+    // RaytracingAccelerationStructure (SRV only)
     raytracing_accel_struct,
 
     MAX_DIMENSION_RANGE,
@@ -275,23 +303,24 @@ enum class resource_view_dimension : uint8_t
 // describes an element (either SRV or UAV) of a handle::shader_view
 struct resource_view
 {
-    handle::resource resource;
-    resource_view_dimension dimension;
+    handle::resource resource = handle::null_resource;
+    resource_view_dimension dimension = resource_view_dimension::none;
 
     struct texture_info_t
     {
         format pixel_format;
-        uint32_t mip_start;   //< index of the first usable mipmap (usually: 0)
-        uint32_t mip_size;    //< amount of usable mipmaps, starting from mip_start (usually: -1 / all)
-        uint32_t array_start; //< index of the first usable array element [if applicable] (usually: 0)
-        uint32_t array_size;  //< amount of usable array elements [if applicable]
+        uint8_t _pad0[3];
+        uint32_t mip_start;   // index of the first usable mipmap (usually: 0)
+        uint32_t mip_size;    // amount of usable mipmaps, starting from mip_start (usually: -1 / all)
+        uint32_t array_start; // index of the first usable array element [if applicable] (usually: 0)
+        uint32_t array_size;  // amount of usable array elements [if applicable]
     };
 
     struct buffer_info_t
     {
-        uint32_t element_start;        //< index of the first element in the buffer (for raw buffers, the first byte)
-        uint32_t num_elements;         //< amount of elements in the buffer (for raw buffers, amount of bytes)
-        uint32_t element_stride_bytes; //< the stride of elements in bytes (for raw buffers ignored)
+        uint32_t element_start;        // index of the first element in the buffer (for raw buffers, the first byte)
+        uint32_t num_elements;         // amount of elements in the buffer (for raw buffers, amount of bytes)
+        uint32_t element_stride_bytes; // the stride of elements in bytes (for raw buffers ignored)
     };
 
     struct accel_struct_info_t
@@ -306,10 +335,7 @@ struct resource_view
         accel_struct_info_t accel_struct_info;
     };
 
-    resource_view()
-    {
-        std::memset(this, 0, sizeof(*this)); // this is required to zero out padding for hashes
-    }
+    constexpr resource_view() : resource(handle::null_resource), dimension(resource_view_dimension::none), texture_info() {}
 
 public:
     // convenience
@@ -329,46 +355,47 @@ public:
         // no need to specify
     }
 
-    void init_as_tex2d(handle::resource res, format pf, bool multisampled = false, uint32_t mip_slice = 0)
+    void init_as_tex2d(handle::resource res, format pf, bool multisampled = false, uint32_t mip_start = 0, uint32_t num_mips = uint32_t(-1))
     {
         dimension = multisampled ? resource_view_dimension::texture2d_ms : resource_view_dimension::texture2d;
         resource = res;
         texture_info.pixel_format = pf;
-        texture_info.mip_start = mip_slice;
-        texture_info.mip_size = 1;
+        texture_info.mip_start = mip_start;
+        texture_info.mip_size = num_mips;
         texture_info.array_start = 0;
         texture_info.array_size = 1;
     }
 
-    void init_as_tex2d_array(handle::resource res, format pf, bool multisampled, uint32_t array_start = 0, uint32_t array_size = 1, uint32_t mip_slice = 0)
+    void init_as_tex2d_array(
+        handle::resource res, format pf, bool multisampled, uint32_t array_start = 0, uint32_t array_size = 1, uint32_t mip_start = 0, uint32_t num_mips = uint32_t(-1))
     {
         dimension = multisampled ? resource_view_dimension::texture2d_ms_array : resource_view_dimension::texture2d_array;
         resource = res;
         texture_info.pixel_format = pf;
-        texture_info.mip_start = mip_slice;
-        texture_info.mip_size = 1;
+        texture_info.mip_start = mip_start;
+        texture_info.mip_size = num_mips;
         texture_info.array_start = array_start;
         texture_info.array_size = array_size;
     }
 
-    void init_as_tex3d(handle::resource res, format pf, uint32_t array_start, uint32_t array_size, uint32_t mip_slice = 0)
+    void init_as_tex3d(handle::resource res, format pf, uint32_t array_start, uint32_t array_size, uint32_t mip_slice = 0, uint32_t num_mips = uint32_t(-1))
     {
         dimension = resource_view_dimension::texture3d;
         resource = res;
         texture_info.pixel_format = pf;
         texture_info.mip_start = mip_slice;
-        texture_info.mip_size = 1;
+        texture_info.mip_size = num_mips;
         texture_info.array_start = array_start;
         texture_info.array_size = array_size;
     }
 
-    void init_as_texcube(handle::resource res, format pf)
+    void init_as_texcube(handle::resource res, format pf, uint32_t mip_start = 0, uint32_t num_mips = uint32_t(-1))
     {
         dimension = resource_view_dimension::texturecube;
         resource = res;
         texture_info.pixel_format = pf;
-        texture_info.mip_start = 0;
-        texture_info.mip_size = uint32_t(-1);
+        texture_info.mip_start = mip_start;
+        texture_info.mip_size = num_mips;
         texture_info.array_start = 0;
         texture_info.array_size = 6;
     }
@@ -413,22 +440,39 @@ public:
         rv.init_as_backbuffer(res);
         return rv;
     }
-    static resource_view tex2d(handle::resource res, format pf, bool multisampled = false, uint32_t mip_slice = 0)
+
+    static resource_view tex2d(handle::resource res, format pf, bool multisampled = false, uint32_t mip_start = 0, uint32_t num_mips = uint32_t(-1))
     {
         resource_view rv;
-        rv.init_as_tex2d(res, pf, multisampled, mip_slice);
+        rv.init_as_tex2d(res, pf, multisampled, mip_start, num_mips);
         return rv;
     }
-    static resource_view texcube(handle::resource res, format pf)
+
+    static resource_view tex3d(handle::resource tex, format fmt, uint32_t array_start = 0, uint32_t array_size = 1, uint32_t mip_start = 0, uint32_t num_mips = uint32_t(-1))
     {
         resource_view rv;
-        rv.init_as_texcube(res, pf);
+        rv.init_as_tex3d(tex, fmt, array_start, array_size, mip_start, num_mips);
         return rv;
     }
-    static resource_view structured_buffer(handle::resource res, uint32_t num_elements, uint32_t stride_bytes)
+
+    static resource_view tex2d_array(
+        handle::resource res, format pf, uint32_t array_start, uint32_t array_size, bool multisampled = false, uint32_t mip_start = 0, uint32_t num_mips = uint32_t(-1))
     {
         resource_view rv;
-        rv.init_as_structured_buffer(res, num_elements, stride_bytes);
+        rv.init_as_tex2d_array(res, pf, multisampled, array_start, array_size, mip_start, num_mips);
+        return rv;
+    }
+
+    static resource_view texcube(handle::resource res, format pf, uint32_t mip_start = 0, uint32_t num_mips = uint32_t(-1))
+    {
+        resource_view rv;
+        rv.init_as_texcube(res, pf, mip_start, num_mips);
+        return rv;
+    }
+    static resource_view structured_buffer(handle::resource res, uint32_t num_elements, uint32_t stride_bytes, uint32_t element_start = 0)
+    {
+        resource_view rv;
+        rv.init_as_structured_buffer(res, num_elements, stride_bytes, element_start);
         return rv;
     }
     static resource_view byte_address_buffer(handle::resource res, uint32_t num_bytes, uint32_t offset_bytes = 0)
@@ -507,6 +551,8 @@ struct sampler_config
     uint32_t max_anisotropy = 16u; //< maximum amount of anisotropy in [1, 16], req. sampler_filter::anisotropic
     sampler_compare_func compare_func = sampler_compare_func::disabled;
     sampler_border_color border_color = sampler_border_color::white_float; //< the border color to use, req. sampler_address_mode::clamp_border
+    uint8_t _pad0 = 0;
+    uint8_t _pad1 = 0;
 
     void init_default(sampler_filter filter, uint32_t anisotropy = 16u, sampler_address_mode address_mode = sampler_address_mode::wrap)
     {
@@ -648,13 +694,6 @@ enum class query_type : uint8_t
     pipeline_stats
 };
 
-// a single signal- or wait operation on a fence
-struct fence_operation
-{
-    handle::fence fence = handle::null_fence;
-    uint64_t value = 0;
-};
-
 enum class indirect_command_type : uint8_t
 {
     INVALID = 0,
@@ -711,7 +750,7 @@ struct gpu_indirect_command_dispatch
 
 struct resource_usage_flags
 {
-    enum : uint32_t
+    enum : uint16_t
     {
         none = 0,
         allow_uav = 1 << 0,
@@ -721,7 +760,7 @@ struct resource_usage_flags
         use_optimized_clear_value = 1 << 4,
     };
 };
-using resource_usage_flags_t = uint32_t;
+using resource_usage_flags_t = uint16_t;
 
 struct accel_struct_prebuild_info
 {
@@ -875,4 +914,9 @@ struct clock_synchronization_info
         return cpu_reference_timestamp + (gpu_timestamp - gpu_reference_timestamp) * cpu_frequency / gpu_frequency;
     }
 };
+
+// end of memhash structs
+#ifdef CC_COMPILER_MSVC
+#pragma warning(pop)
+#endif
 } // namespace phi

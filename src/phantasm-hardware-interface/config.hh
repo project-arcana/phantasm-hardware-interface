@@ -6,7 +6,7 @@
 
 namespace phi
 {
-enum class adapter_preference : uint8_t
+enum class adapter_preference : uint32_t
 {
     // use the GPU with the highest VRAM
     highest_vram,
@@ -21,7 +21,7 @@ enum class adapter_preference : uint8_t
     explicit_index
 };
 
-enum class validation_level : uint8_t
+enum class validation_level : uint32_t
 {
     // No validation, fastest
     off,

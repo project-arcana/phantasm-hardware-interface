@@ -46,9 +46,9 @@ struct window_handle;
 struct gpu_info;
 
 // config enums
-enum class backend_type : uint8_t;
-enum class adapter_preference : uint8_t;
-enum class validation_level : uint8_t;
+enum class backend_type : uint32_t;
+enum class adapter_preference : uint32_t;
+enum class validation_level : uint32_t;
 
 // data structs
 struct shader_argument;
@@ -70,10 +70,10 @@ enum class format : uint8_t;
 enum class shader_stage : uint8_t;
 enum class queue_type : uint8_t;
 enum class present_mode : uint8_t;
-enum class resource_state : uint8_t;
+enum class resource_state : uint32_t;
 enum class resource_heap : uint8_t;
 enum class texture_dimension : uint8_t;
-enum class resource_view_dimension : uint8_t;
+enum class resource_view_dimension : uint32_t;
 enum class sampler_filter : uint8_t;
 enum class sampler_address_mode : uint8_t;
 enum class sampler_compare_func : uint8_t;
