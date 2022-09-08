@@ -36,7 +36,7 @@ unsigned get_sync_interval(phi::present_mode mode)
         return 0;
     }
 }
-}
+} // namespace
 
 void phi::d3d12::SwapchainPool::initialize(IDXGIFactory4* factory, ID3D12Device* device, ID3D12CommandQueue* queue, unsigned max_num_swapchains, cc::allocator* static_alloc)
 {
@@ -67,10 +67,12 @@ void phi::d3d12::SwapchainPool::destroy()
     if (mParentFactory != nullptr)
     {
         unsigned num_leaks = 0;
-        mPool.iterate_allocated_nodes([&](swapchain& node) {
-            internalFree(node);
-            ++num_leaks;
-        });
+        mPool.iterate_allocated_nodes(
+            [&](swapchain& node)
+            {
+                internalFree(node);
+                ++num_leaks;
+            });
 
         if (num_leaks > 0)
         {
@@ -82,7 +84,8 @@ void phi::d3d12::SwapchainPool::destroy()
     }
 }
 
-phi::handle::swapchain phi::d3d12::SwapchainPool::createSwapchain(HWND window_handle, int initial_w, int initial_h, unsigned num_backbuffers, phi::present_mode mode)
+phi::handle::swapchain phi::d3d12::SwapchainPool::createSwapchain(
+    HWND window_handle, int initial_w, int initial_h, unsigned num_backbuffers, phi::present_mode mode, char const* pDebugName)
 {
     CC_CONTRACT(initial_w > 0 && initial_h > 0);
     handle::handle_t const res = mPool.acquire();
@@ -96,11 +99,13 @@ phi::handle::swapchain phi::d3d12::SwapchainPool::createSwapchain(HWND window_ha
     CC_ASSERT(num_backbuffers < 6 && "too many backbuffers configured");
     new_node.backbuffers.resize(num_backbuffers);
 
+    snprintf(new_node.debugname, sizeof(new_node.debugname), "%s", pDebugName ? pDebugName : "(Unnamed)");
+
     // Create fences
     for (auto i = 0u; i < new_node.backbuffers.size(); ++i)
     {
         new_node.backbuffers[i].fence.initialize(*mParentDevice);
-        util::set_object_name(new_node.backbuffers[i].fence.getRawFence(), "swapchain %u - fence #%u", mPool.get_handle_index(res), i);
+        util::set_object_name(new_node.backbuffers[i].fence.getRawFence(), "swapchain %s - fence #%u", new_node.debugname, i);
     }
 
     // create swapchain
@@ -119,6 +124,8 @@ phi::handle::swapchain phi::d3d12::SwapchainPool::createSwapchain(HWND window_ha
         shared_com_ptr<IDXGISwapChain1> temp_swapchain;
         PHI_D3D12_VERIFY(mParentFactory->CreateSwapChainForHwnd(mParentQueue, window_handle, &swapchain_desc, nullptr, nullptr, temp_swapchain.override()));
         PHI_D3D12_VERIFY(temp_swapchain->QueryInterface(IID_PPV_ARGS(&new_node.swapchain_com)));
+
+        util::set_object_name(new_node.swapchain_com, "swapchain %s", new_node.debugname);
     }
 
     // Disable Alt + Enter behavior
@@ -203,7 +210,7 @@ void phi::d3d12::SwapchainPool::updateBackbuffers(phi::handle::swapchain handle)
         backbuffer.rtv.ptr += mRTVSize * (swapchain_index * 6 + i);
 
         PHI_D3D12_VERIFY(node.swapchain_com->GetBuffer(i, IID_PPV_ARGS(&backbuffer.resource)));
-        util::set_object_name(backbuffer.resource, "swapchain %u backbuffer #%u", swapchain_index, i);
+        util::set_object_name(backbuffer.resource, "swapchain %s backbuffer #%u", node.debugname, i);
 
         mParentDevice->CreateRenderTargetView(backbuffer.resource, nullptr, backbuffer.rtv);
 

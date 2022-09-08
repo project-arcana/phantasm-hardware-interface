@@ -52,7 +52,7 @@ public:
     };
 
 public:
-    handle::swapchain createSwapchain(window_handle const& window_handle, int initial_w, int initial_h, unsigned num_backbuffers, present_mode mode, cc::allocator* scratch);
+    handle::swapchain createSwapchain(window_handle const& window_handle, int initial_w, int initial_h, unsigned num_backbuffers, present_mode mode, cc::allocator* scratch, char const* pDebugName);
 
     void free(handle::swapchain handle);
 

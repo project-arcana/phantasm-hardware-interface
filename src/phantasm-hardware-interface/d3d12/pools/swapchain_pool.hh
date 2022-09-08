@@ -32,10 +32,11 @@ public:
         bool has_resized;
         cc::capped_vector<backbuffer, 6> backbuffers; // all backbuffers
         uint32_t last_acquired_backbuf_i = 0;
+		char debugname[32] = {};
     };
 
 public:
-    handle::swapchain createSwapchain(HWND window_handle, int initial_w, int initial_h, unsigned num_backbuffers, present_mode mode);
+    handle::swapchain createSwapchain(HWND window_handle, int initial_w, int initial_h, unsigned num_backbuffers, present_mode mode, char const* pDebugName);
 
     void free(handle::swapchain handle);
 

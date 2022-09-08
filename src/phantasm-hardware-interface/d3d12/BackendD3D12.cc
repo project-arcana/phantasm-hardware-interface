@@ -320,7 +320,8 @@ void phi::d3d12::BackendD3D12::flushGPU()
     ::WaitForSingleObject(mFlushEvent, INFINITE);
 }
 
-phi::handle::swapchain phi::d3d12::BackendD3D12::createSwapchain(const phi::window_handle& window_handle, tg::isize2 initial_size, phi::present_mode mode, uint32_t num_backbuffers)
+phi::handle::swapchain phi::d3d12::BackendD3D12::createSwapchain(
+    const phi::window_handle& window_handle, tg::isize2 initial_size, phi::present_mode mode, uint32_t num_backbuffers, char const* debug_name)
 {
     ::HWND native_hwnd = nullptr;
     {
@@ -345,7 +346,7 @@ phi::handle::swapchain phi::d3d12::BackendD3D12::createSwapchain(const phi::wind
         }
     }
 
-    return mPoolSwapchains.createSwapchain(native_hwnd, initial_size.width, initial_size.height, num_backbuffers, mode);
+    return mPoolSwapchains.createSwapchain(native_hwnd, initial_size.width, initial_size.height, num_backbuffers, mode, debug_name);
 }
 
 void phi::d3d12::BackendD3D12::free(phi::handle::swapchain sc) { mPoolSwapchains.free(sc); }
