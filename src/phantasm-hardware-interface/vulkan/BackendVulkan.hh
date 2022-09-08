@@ -38,7 +38,8 @@ public:
     [[nodiscard]] handle::swapchain createSwapchain(window_handle const& window_handle,
                                                     tg::isize2 initial_size,
                                                     present_mode mode = present_mode::synced,
-                                                    uint32_t num_backbuffers = 3) override;
+                                                    uint32_t num_backbuffers = 3,
+		char const* debug_name = nullptr) override;
 
     void free(handle::swapchain sc) override;
 

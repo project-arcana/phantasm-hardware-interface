@@ -45,6 +45,22 @@ void phi::d3d12::util::set_object_name(ID3D12Object* object, const char* name, .
     object->SetPrivateData(WKPDID_D3DDebugObjectName, static_cast<UINT>(strlen(name_formatted)), name_formatted);
 }
 
+void phi::d3d12::util::set_object_name(IDXGIObject* object, const char* name, ...)
+{
+    CC_ASSERT(name != nullptr);
+    CC_ASSERT(object != nullptr);
+
+    char name_formatted[1024];
+    {
+        va_list args;
+        va_start(args, name);
+        ::vsprintf_s(name_formatted, 1024, name, args);
+        va_end(args);
+    }
+
+    object->SetPrivateData(WKPDID_D3DDebugObjectName, static_cast<UINT>(strlen(name_formatted)), name_formatted);
+}
+
 unsigned phi::d3d12::util::get_object_name(ID3D12Object* object, cc::span<char> out_name)
 {
     CC_ASSERT(object != nullptr);

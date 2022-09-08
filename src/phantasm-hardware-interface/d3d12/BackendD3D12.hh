@@ -46,7 +46,8 @@ public:
     [[nodiscard]] handle::swapchain createSwapchain(window_handle const& window_handle,
                                                     tg::isize2 initial_size,
                                                     present_mode mode = present_mode::synced,
-                                                    uint32_t num_backbuffers = 3) override;
+                                                    uint32_t num_backbuffers = 3,
+                                                    char const* debug_name = nullptr) override;
 
     void free(handle::swapchain sc) override;
 
@@ -189,6 +190,7 @@ public:
 
     // start recording a commandlist directly
     // access to the live command list is not synchronized
+    // NOTE: Only a single live command list can be active at a time per thread
     [[nodiscard]] handle::live_command_list openLiveCommandList(queue_type queue = queue_type::direct,
                                                                 cmd::set_global_profile_scope const* opt_global_pscope = nullptr) override;
 

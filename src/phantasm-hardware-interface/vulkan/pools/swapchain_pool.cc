@@ -22,8 +22,10 @@ constexpr VkFormat gc_assumed_backbuffer_format = VK_FORMAT_B8G8R8A8_UNORM;
 }
 
 phi::handle::swapchain phi::vk::SwapchainPool::createSwapchain(
-    const window_handle& window_handle, int initial_w, int initial_h, unsigned num_backbuffers, phi::present_mode mode, cc::allocator* scratch)
+    const window_handle& window_handle, int initial_w, int initial_h, unsigned num_backbuffers, phi::present_mode mode, cc::allocator* scratch, char const* pDebugName)
 {
+    (void)pDebugName; // TODO - this must be re-set on each teardown/re-setup
+
     CC_CONTRACT(initial_w > 0 && initial_h > 0);
     handle::handle_t const res = mPool.acquire();
 
@@ -272,10 +274,12 @@ void phi::vk::SwapchainPool::initialize(VkInstance instance, const phi::vk::Devi
 void phi::vk::SwapchainPool::destroy()
 {
     unsigned num_leaks = 0;
-    mPool.iterate_allocated_nodes([&](swapchain& node) {
-        internalFree(node);
-        ++num_leaks;
-    });
+    mPool.iterate_allocated_nodes(
+        [&](swapchain& node)
+        {
+            internalFree(node);
+            ++num_leaks;
+        });
 
     if (num_leaks > 0)
     {
