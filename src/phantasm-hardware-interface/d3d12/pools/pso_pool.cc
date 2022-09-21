@@ -236,14 +236,17 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracin
             par_export_symbols.push_back(symbol_name);
             par_export_stages.push_back(exp.stage);
 
-            if (shader_stage_mask_ray_identifiable & exp.stage)
+            static_assert(to_shader_stage_flags(shader_stage::ray_miss) == shader_stage_flags::ray_miss, "");
+            auto const stageAsFlags = to_shader_stage_flags(exp.stage);
+
+            if (stageAsFlags & shader_stage_flags::MASK_ray_identifiable)
             {
                 // if this stage is "identifiable" (raygen, miss or callable), add its index to the list
                 identifiable_exports.push_back({new_export_index});
             }
             else
             {
-                CC_ASSERT(shader_stage_mask_ray_hitgroup & exp.stage && "unexpected stage");
+                CC_ASSERT(!!(stageAsFlags & shader_stage_flags::MASK_ray_hitgroup) && "unexpected stage");
             }
         }
 
@@ -596,8 +599,8 @@ void phi::d3d12::PipelineStateObjectPool::destroy()
                 PHI_LOG("handle::pipeline_state leaks:");
 
             ++num_leaks;
-            
-			auto const strlen = util::get_object_name(leaked_node.raw_state_object, debugname_buffer);
+
+            auto const strlen = util::get_object_name(leaked_node.raw_state_object, debugname_buffer);
             PHI_LOG("  leaked handle::resource - {}", cc::string_view(debugname_buffer, cc::min<UINT>(strlen, sizeof(debugname_buffer))));
 
             leaked_node.raw_state_object->Release();

@@ -1,21 +1,9 @@
 #pragma once
 
-#include <cstdint>
-#include <cstring>
-
-#include <clean-core/flags.hh>
+#include <stdint.h>
+#include <string.h>
 
 #include <phantasm-hardware-interface/handles.hh>
-
-#define PHI_DEFINE_FLAG_TYPE(_flags_t_, _enum_t_, _max_num_)    \
-    using _flags_t_ = cc::flags<_enum_t_, uint32_t(_max_num_)>; \
-    CC_FLAGS_ENUM_SIZED(_enum_t_, uint32_t(_max_num_));
-
-#define PHI_DEFINE_FLAG_OPERATORS(FlagT, RealT)                                                                  \
-    [[maybe_unused]] constexpr FlagT operator|(FlagT a, FlagT b) noexcept { return FlagT(RealT(a) | RealT(b)); } \
-    [[maybe_unused]] constexpr FlagT operator&(FlagT a, FlagT b) noexcept { return FlagT(RealT(a) & RealT(b)); } \
-    [[maybe_unused]] constexpr FlagT operator^(FlagT a, FlagT b) noexcept { return FlagT(RealT(a) ^ RealT(b)); } \
-    [[maybe_unused]] constexpr FlagT operator~(FlagT a) noexcept { return FlagT(~RealT(a)); }
 
 namespace phi
 {
@@ -56,19 +44,44 @@ enum class shader_stage : uint8_t
     NUM_SHADER_STAGES = MAX_SHADER_STAGE_RANGE - 1
 };
 
+using shader_stage_flags_t = uint16_t;
+struct shader_stage_flags
+{
+    enum : shader_stage_flags_t
+    {
+        none = 0,
+
+        // graphics
+        vertex = 1 << 0,
+        hull = 1 << 1,
+        domain = 1 << 2,
+        geometry = 1 << 3,
+        pixel = 1 << 4,
+
+        // compute
+        compute = 1 << 5,
+
+        // raytracing
+        ray_gen = 1 << 6,
+        ray_miss = 1 << 7,
+        ray_closest_hit = 1 << 8,
+        ray_intersect = 1 << 9,
+        ray_any_hit = 1 << 10,
+        ray_callable = 1 << 11,
+
+        MASK_all_graphics = vertex | hull | domain | geometry | pixel,
+        MASK_ray_identifiable = ray_gen | ray_miss | ray_callable,
+        MASK_ray_hitgroup = ray_closest_hit | ray_any_hit | ray_intersect,
+        MASK_all_ray = MASK_ray_identifiable | MASK_ray_hitgroup,
+    };
+};
+
 constexpr bool is_valid_shader_stage(shader_stage s) { return s > shader_stage::none && s < shader_stage::MAX_SHADER_STAGE_RANGE; }
 
-PHI_DEFINE_FLAG_TYPE(shader_stage_flags_t, shader_stage, shader_stage::NUM_SHADER_STAGES);
-
-inline constexpr shader_stage_flags_t shader_stage_mask_all_graphics
-    = shader_stage::vertex | shader_stage::hull | shader_stage::domain | shader_stage::geometry | shader_stage::pixel;
-
-inline constexpr shader_stage_flags_t shader_stage_mask_all_ray = shader_stage::ray_gen | shader_stage::ray_miss | shader_stage::ray_closest_hit
-                                                                  | shader_stage::ray_intersect | shader_stage::ray_any_hit | shader_stage::ray_callable;
-
-inline constexpr shader_stage_flags_t shader_stage_mask_ray_identifiable = shader_stage::ray_gen | shader_stage::ray_miss | shader_stage::ray_callable;
-
-inline constexpr shader_stage_flags_t shader_stage_mask_ray_hitgroup = shader_stage::ray_closest_hit | shader_stage::ray_any_hit | shader_stage::ray_intersect;
+constexpr shader_stage_flags_t to_shader_stage_flags(shader_stage s)
+{
+    return s == shader_stage::none ? 0 : shader_stage_flags_t(1 << (uint8_t(s) - 1));
+}
 
 enum class queue_type : uint8_t
 {
@@ -141,7 +154,7 @@ struct transition_info
 {
     handle::resource resource = handle::null_resource;       //< the resource to transition
     resource_state target_state = resource_state::undefined; //< the state the resource is transitioned into
-    shader_stage_flags_t dependent_shaders = shader_stage::none; //< the shader stages accessing the resource afterwards, only applies to CBV, SRV and UAV states
+    shader_stage_flags_t dependent_shaders = shader_stage_flags::none; //< the shader stages accessing the resource afterwards, only applies to CBV, SRV and UAV states
     uint16_t _pad0 = 0;
 };
 
@@ -748,9 +761,10 @@ struct gpu_indirect_command_dispatch
     uint32_t dispatch_z = 0;
 };
 
+using resource_usage_flags_t = uint16_t;
 struct resource_usage_flags
 {
-    enum : uint16_t
+    enum : resource_usage_flags_t
     {
         none = 0,
         allow_uav = 1 << 0,
@@ -760,7 +774,6 @@ struct resource_usage_flags
         use_optimized_clear_value = 1 << 4,
     };
 };
-using resource_usage_flags_t = uint16_t;
 
 struct accel_struct_prebuild_info
 {
@@ -775,37 +788,41 @@ struct accel_struct_prebuild_info
 };
 
 // flags to configure the building process of a raytracing acceleration structure
-enum class accel_struct_build_flags : uint8_t
+using accel_struct_build_flags_t = uint16_t;
+struct accel_struct_build_flags
 {
-    // build the AS so that it supports future updates
-    allow_update,
+    enum : accel_struct_build_flags_t
+    {
+        none = 0,
 
-    // enable option to compact the AS
-    // NOTE: compaction is not possible via PHI API
-    allow_compaction,
+        // build the AS so that it supports future updates
+        allow_update = 1 << 0,
 
-    // maximize raytracing performance at the cost of build time
-    // typically 2-3 times longer
-    // mutually exclusive with prefer_fast_build
-    prefer_fast_trace,
+        // enable option to compact the AS
+        // NOTE: compaction is not possible via PHI API
+        allow_compaction = 1 << 1,
 
-    // sacrifice raytracing performance for faster build time
-    // typically 1/2 to 1/3 of the build time
-    // mutually exclusive with prefer_fast_trace
-    prefer_fast_build,
+        // maximize raytracing performance at the cost of build time
+        // typically 2-3 times longer
+        // mutually exclusive with prefer_fast_build
+        prefer_fast_trace = 1 << 2,
 
-    // minimize the scratch memory used and the result size
-    // at the cost of build time and raytracing performance
-    minimize_memory,
+        // sacrifice raytracing performance for faster build time
+        // typically 1/2 to 1/3 of the build time
+        // mutually exclusive with prefer_fast_trace
+        prefer_fast_build = 1 << 3,
 
-    // do not create an internal scratch buffer
-    // (PHI level, not native API)
-    // if using this flag, you must supply a sufficiently large
-    // scratch buffer in cmd::update_bottom_level/cmd::update_top_level
-    no_internal_scratch_buffer
+        // minimize the scratch memory used and the result size
+        // at the cost of build time and raytracing performance
+        minimize_memory = 1 << 4,
+
+        // do not create an internal scratch buffer
+        // (PHI level, not native API)
+        // if using this flag, you must supply a sufficiently large
+        // scratch buffer in cmd::update_bottom_level/cmd::update_top_level
+        no_internal_scratch_buffer = 1 << 5
+    };
 };
-
-PHI_DEFINE_FLAG_TYPE(accel_struct_build_flags_t, accel_struct_build_flags, 8);
 
 // these flags align exactly with both vulkan and d3d12, and are not translated
 struct accel_struct_instance_flags

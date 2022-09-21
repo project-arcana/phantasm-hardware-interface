@@ -151,27 +151,27 @@ constexpr VkPipelineStageFlags to_pipeline_stage_flags_bitwise(phi::shader_stage
 {
     VkPipelineStageFlags res = 0;
 
-    if (stage_flags & shader_stage::vertex)
+    if (stage_flags & shader_stage_flags::vertex)
         res |= VK_PIPELINE_STAGE_VERTEX_SHADER_BIT;
 
-    if (stage_flags & shader_stage::hull)
+    if (stage_flags & shader_stage_flags::hull)
         res |= VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT;
 
-    if (stage_flags & shader_stage::domain)
+    if (stage_flags & shader_stage_flags::domain)
         res |= VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT;
 
-    if (stage_flags & shader_stage::geometry)
+    if (stage_flags & shader_stage_flags::geometry)
         res |= VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT;
 
-    if (stage_flags & shader_stage::pixel)
+    if (stage_flags & shader_stage_flags::pixel)
         res |= VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
 
 
-    if (stage_flags & shader_stage::compute)
+    if (stage_flags & shader_stage_flags::compute)
         res |= VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
 
 
-    if (stage_flags.has_any_of(shader_stage_mask_all_ray))
+    if (stage_flags & shader_stage_flags::MASK_all_ray)
         res |= VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV;
 
     return res;
