@@ -19,13 +19,9 @@ struct stable_map;
 
 namespace phi
 {
-template <class T, bool GenCheckEnabled>
-struct linked_pool;
-
 template <class T, uint32_t N>
 struct flat_vector;
 
 struct page_allocator;
 struct ThreadAssociation;
-struct unique_buffer;
 }

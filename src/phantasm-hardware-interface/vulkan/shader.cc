@@ -4,8 +4,6 @@
 
 #include <clean-core/bit_cast.hh>
 
-#include <phantasm-hardware-interface/common/container/unique_buffer.hh>
-
 #include "common/native_enum.hh"
 #include "common/verify.hh"
 
