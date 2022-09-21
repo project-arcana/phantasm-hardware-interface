@@ -3,7 +3,6 @@
 #include <clean-core/capped_vector.hh>
 
 #include <phantasm-hardware-interface/arguments.hh>
-#include <phantasm-hardware-interface/common/container/unique_buffer.hh>
 #include <phantasm-hardware-interface/types.hh>
 
 #include <phantasm-hardware-interface/d3d12/common/d3dx12.hh>
