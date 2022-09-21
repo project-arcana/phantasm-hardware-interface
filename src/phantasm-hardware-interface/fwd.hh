@@ -86,7 +86,6 @@ enum class blend_logic_op : uint8_t;
 enum class blend_op : uint8_t;
 enum class blend_factor : uint8_t;
 enum class query_type : uint8_t;
-enum class accel_struct_build_flags : uint8_t;
 
 // helpers
 struct command_stream_parser;
