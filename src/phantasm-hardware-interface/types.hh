@@ -825,9 +825,10 @@ struct accel_struct_build_flags
 };
 
 // these flags align exactly with both vulkan and d3d12, and are not translated
+using accel_struct_instance_flags_t = uint32_t;
 struct accel_struct_instance_flags
 {
-    enum : uint32_t
+    enum : accel_struct_instance_flags_t
     {
         none = 0,
         triangle_cull_disable = 1 << 0,
@@ -836,7 +837,6 @@ struct accel_struct_instance_flags
         force_no_opaque = 1 << 3
     };
 };
-using accel_struct_instance_flags_t = uint32_t;
 
 // bottom level accel struct instance within a top level accel struct (layout dictated by DXR/Vulkan RT Extension)
 struct accel_struct_instance
