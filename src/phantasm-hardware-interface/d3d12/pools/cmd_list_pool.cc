@@ -36,8 +36,8 @@ void phi::d3d12::cmd_allocator_node::acquire(ID3D12GraphicsCommandList5* cmd_lis
     if (is_full())
     {
         // the allocator is full, we are almost dead but might be able to reset
-        auto const reset_success = try_reset_blocking();
-        CC_RUNTIME_ASSERT(reset_success && "cmdlist allocator node overcommitted and unable to recover");
+        auto const bSuccess = try_reset_blocking();
+        CC_RUNTIME_ASSERT(bSuccess && "cmdlist allocator node overcommitted and unable to recover");
         // we were able to recover, but should warn even now
     }
 
@@ -79,8 +79,12 @@ bool phi::d3d12::cmd_allocator_node::try_reset_blocking()
 {
     if (can_reset())
     {
+        uint64_t const submitIdx = _submit_counter.load();
+
+        PHI_LOG_WARN("Command allocator {} forced to CPU-wait on submit #{} ({} of {} cmdlists in flight)", _allocator, submitIdx, _num_in_flight, _max_num_in_flight);
+
         // full, and all acquired cmdlists have been either submitted or discarded, wait for the fence
-        _fence.waitCPU(_submit_counter);
+        _fence.waitCPU(submitIdx);
         do_reset();
         return true;
     }
@@ -353,8 +357,8 @@ void phi::d3d12::CommandAllocatorBundle::updateActiveIndex()
 
 void phi::d3d12::CommandAllocatorBundle::internalDestroy(phi::d3d12::cmd_allocator_node& node)
 {
-    auto const reset_success = node.try_reset_blocking();
-    CC_RUNTIME_ASSERT(reset_success);
+    auto const bSuccess = node.try_reset_blocking();
+    CC_RUNTIME_ASSERT(bSuccess);
     node.destroy();
 }
 
