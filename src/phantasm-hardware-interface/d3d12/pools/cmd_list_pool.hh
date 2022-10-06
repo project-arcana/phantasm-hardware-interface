@@ -49,7 +49,7 @@ public:
 
     /// blocking reset attempt
     /// returns true if the allocator is usable afterwards
-    [[nodiscard]] bool try_reset_blocking();
+    [[nodiscard]] bool try_reset_blocking(bool bWarn = true);
 
 public:
     // events
