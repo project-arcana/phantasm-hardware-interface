@@ -10,7 +10,7 @@ namespace phi::util
 {
 /// returns the byte size of a single pixel of a texture in the given format
 /// NOTE: block-compressed formats do not have a per-pixel size, use get_block_format_4x4_size for them instead
-inline uint32_t get_format_size_bytes(format fmt)
+constexpr uint32_t get_format_size_bytes(format fmt)
 {
     unsigned res = 0;
     switch (fmt)
@@ -24,7 +24,7 @@ inline uint32_t get_format_size_bytes(format fmt)
 }
 
 /// returns the amount of components of a format (ie. RGBA = 4, Depth-Stencil = 2)
-inline uint32_t get_format_num_components(format fmt)
+constexpr uint32_t get_format_num_components(format fmt)
 {
     switch (fmt)
     {
@@ -36,7 +36,7 @@ inline uint32_t get_format_num_components(format fmt)
 }
 
 /// returns the byte size of a 4x4 pixel square of a texture in the given block-compressed format
-inline uint32_t get_block_format_4x4_size(format fmt)
+constexpr uint32_t get_block_format_4x4_size(format fmt)
 {
     switch (fmt)
     {
@@ -61,7 +61,7 @@ inline uint32_t get_block_format_4x4_size(format fmt)
 }
 
 /// returns the format's sRGB variant if existing, or the format itself otherwise
-inline format get_format_srgb_variant(format fmt)
+constexpr format get_format_srgb_variant(format fmt)
 {
     switch (fmt)
     {
@@ -94,7 +94,7 @@ constexpr bool is_view_format(format fmt)
 }
 
 /// returns true if the format is a block-compressed format
-inline bool is_block_compressed_format(format fmt)
+constexpr bool is_block_compressed_format(format fmt)
 {
     using namespace phi::format_property_flags;
     switch (fmt)
@@ -107,7 +107,7 @@ inline bool is_block_compressed_format(format fmt)
 }
 
 /// returns true if the format is a depth OR depth stencil format
-inline bool is_depth_format(format fmt)
+constexpr bool is_depth_format(format fmt)
 {
     using namespace phi::format_property_flags;
     switch (fmt)
@@ -120,7 +120,7 @@ inline bool is_depth_format(format fmt)
 }
 
 /// returns true if the format is a depth stencil format
-inline bool is_depth_stencil_format(format fmt)
+constexpr bool is_depth_stencil_format(format fmt)
 {
     using namespace phi::format_property_flags;
     switch (fmt)
@@ -132,7 +132,7 @@ inline bool is_depth_stencil_format(format fmt)
     }
 }
 
-inline bool is_srgb_format(format fmt)
+constexpr bool is_srgb_format(format fmt)
 {
     using namespace phi::format_property_flags;
     switch (fmt)
@@ -144,7 +144,7 @@ inline bool is_srgb_format(format fmt)
     }
 }
 
-inline char const* format_to_string(format fmt)
+constexpr char const* format_to_string(format fmt)
 {
     switch (fmt)
     {
