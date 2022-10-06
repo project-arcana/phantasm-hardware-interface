@@ -75,13 +75,15 @@ bool phi::d3d12::cmd_allocator_node::try_reset()
     }
 }
 
-bool phi::d3d12::cmd_allocator_node::try_reset_blocking()
+bool phi::d3d12::cmd_allocator_node::try_reset_blocking(bool bWarn)
 {
     if (can_reset())
     {
         uint64_t const submitIdx = _submit_counter.load();
 
-        PHI_LOG_WARN("Command allocator {} forced to CPU-wait on submit #{} ({} of {} cmdlists in flight)", _allocator, submitIdx, _num_in_flight, _max_num_in_flight);
+        if (bWarn)
+            PHI_LOG_WARN("Command allocator {} forced to CPU-wait on submit #{} ({} of {} cmdlists in flight)", _allocator, submitIdx, _num_in_flight,
+                         _max_num_in_flight);
 
         // full, and all acquired cmdlists have been either submitted or discarded, wait for the fence
         _fence.waitCPU(submitIdx);
@@ -357,7 +359,7 @@ void phi::d3d12::CommandAllocatorBundle::updateActiveIndex()
 
 void phi::d3d12::CommandAllocatorBundle::internalDestroy(phi::d3d12::cmd_allocator_node& node)
 {
-    auto const bSuccess = node.try_reset_blocking();
+    auto const bSuccess = node.try_reset_blocking(false); // do not warn on destruction
     CC_RUNTIME_ASSERT(bSuccess);
     node.destroy();
 }
