@@ -18,26 +18,20 @@ namespace phi::d3d12
 {
 /// A single command allocator that keeps track of its lists
 /// Unsynchronized - N per CommandAllocatorBundle
-struct cmd_allocator_node
+struct CommandAllocator
 {
 public:
     void initialize(ID3D12Device5& device, D3D12_COMMAND_LIST_TYPE type, int max_num_cmdlists);
     void destroy();
 
-public:
-    // API for initial creation of commandlists
-
-    [[nodiscard]] int get_max_num_cmdlists() const { return _max_num_in_flight; }
-    [[nodiscard]] ID3D12CommandAllocator* get_allocator() const { return _allocator; }
+    void create_command_lists(ID3D12Device5& device, cc::span<ID3D12GraphicsCommandList5*> out_cmdlists);
 
 public:
-    // API for normal use
-
     /// returns true if this node is full
-    [[nodiscard]] bool is_full() const { return _full_and_waiting; }
+    [[nodiscard]] bool is_full() const { return _num_in_flight >= _max_num_in_flight; }
 
     /// returns true if this node is full and capable of resetting
-    [[nodiscard]] bool can_reset() const { return _full_and_waiting && is_submit_counter_up_to_date(); }
+    [[nodiscard]] bool can_reset() const { return is_full() && is_submit_counter_up_to_date(); }
 
     /// acquire memory from this allocator for the given commandlist
     /// do not call if full (best case: blocking, worst case: crash)
@@ -77,13 +71,13 @@ private:
 
 private:
     ID3D12CommandAllocator* _allocator;
+    D3D12_COMMAND_LIST_TYPE _type;
     SimpleFence _fence;
     std::atomic<uint64_t> _submit_counter = 0;
     uint64_t _submit_counter_at_last_reset = 0;
     int _num_in_flight = 0;
     std::atomic<int> _num_discarded = 0;
     int _max_num_in_flight = 0;
-    bool _full_and_waiting = false;
 };
 
 /// A bundle of single command allocators which automatically
@@ -99,16 +93,12 @@ public:
 
     /// Resets the given command list to use memory by an appropriate allocator
     /// Returns a pointer to the backing allocator node
-    cmd_allocator_node* acquireMemory(ID3D12GraphicsCommandList5* list);
+    CommandAllocator* acquireMemory(ID3D12GraphicsCommandList5* list);
 
     void updateActiveIndex();
 
 private:
-    void internalDestroy(cmd_allocator_node& node);
-    void internalInit(ID3D12Device5& device, cmd_allocator_node& node, D3D12_COMMAND_LIST_TYPE list_type, uint32_t num_cmdlists, cc::span<ID3D12GraphicsCommandList5*> out_cmdlists);
-
-private:
-    cc::alloc_array<cmd_allocator_node> mAllocators;
+    cc::alloc_array<CommandAllocator> mAllocators;
     size_t mActiveIndex = 0u;
 };
 
@@ -152,7 +142,7 @@ private:
         // an allocated node is always in the following state:
         // - the command list is freshly reset using an appropriate allocator
         // - the responsible_allocator must be informed on submit or discard
-        cmd_allocator_node* responsible_allocator;
+        CommandAllocator* responsible_allocator;
         incomplete_state_cache state_cache;
     };
 

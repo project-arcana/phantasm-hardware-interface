@@ -10,28 +10,51 @@
 #include <phantasm-hardware-interface/d3d12/common/util.hh>
 #include <phantasm-hardware-interface/d3d12/common/verify.hh>
 
-void phi::d3d12::cmd_allocator_node::initialize(ID3D12Device5& device, D3D12_COMMAND_LIST_TYPE type, int max_num_cmdlists)
+void phi::d3d12::CommandAllocator::initialize(ID3D12Device5& device, D3D12_COMMAND_LIST_TYPE type, int max_num_cmdlists)
 {
     _max_num_in_flight = max_num_cmdlists;
     _submit_counter = 0;
     _submit_counter_at_last_reset = 0;
     _num_in_flight = 0;
     _num_discarded = 0;
-    _full_and_waiting = false;
+
+    _type = type;
 
     _fence.initialize(device);
-    util::set_object_name(_fence.fence, "cmd_allocator_node fence for %zx", this);
+    util::set_object_name(_fence.fence, "CommandAllocator fence for %zx", this);
 
     PHI_D3D12_VERIFY(device.CreateCommandAllocator(type, IID_PPV_ARGS(&_allocator)));
 }
 
-void phi::d3d12::cmd_allocator_node::destroy()
+void phi::d3d12::CommandAllocator::destroy()
 {
+    auto const bSuccess = try_reset_blocking(false); // do not warn on destruction
+    CC_RUNTIME_ASSERT(bSuccess);
+
     _allocator->Release();
     _fence.destroy();
 }
 
-void phi::d3d12::cmd_allocator_node::acquire(ID3D12GraphicsCommandList5* cmd_list)
+void phi::d3d12::CommandAllocator::create_command_lists(ID3D12Device5& device, cc::span<ID3D12GraphicsCommandList5*> out_cmdlists)
+{
+#ifdef PHI_HAS_OPTICK
+    OPTICK_EVENT();
+#endif
+
+    CC_ASSERT(_allocator != nullptr && "not initialized");
+
+    char const* const pTypeName = util::to_queue_type_literal(_type);
+
+    for (auto i = 0u; i < out_cmdlists.size(); ++i)
+    {
+        PHI_D3D12_VERIFY(device.CreateCommandList(0, _type, _allocator, nullptr, IID_PPV_ARGS(&out_cmdlists[i])));
+        out_cmdlists[i]->Close();
+
+        util::set_object_name(out_cmdlists[i], "pooled %s cmdlist #%d", pTypeName, i);
+    }
+}
+
+void phi::d3d12::CommandAllocator::acquire(ID3D12GraphicsCommandList5* cmd_list)
 {
     if (is_full())
     {
@@ -43,12 +66,9 @@ void phi::d3d12::cmd_allocator_node::acquire(ID3D12GraphicsCommandList5* cmd_lis
 
     PHI_D3D12_VERIFY(cmd_list->Reset(_allocator, nullptr));
     ++_num_in_flight;
-
-    if (_num_in_flight == _max_num_in_flight)
-        _full_and_waiting = true;
 }
 
-bool phi::d3d12::cmd_allocator_node::try_reset()
+bool phi::d3d12::CommandAllocator::try_reset()
 {
     if (can_reset())
     {
@@ -75,7 +95,7 @@ bool phi::d3d12::cmd_allocator_node::try_reset()
     }
 }
 
-bool phi::d3d12::cmd_allocator_node::try_reset_blocking(bool bWarn)
+bool phi::d3d12::CommandAllocator::try_reset_blocking(bool bWarn)
 {
     if (can_reset())
     {
@@ -97,16 +117,15 @@ bool phi::d3d12::cmd_allocator_node::try_reset_blocking(bool bWarn)
     }
 }
 
-void phi::d3d12::cmd_allocator_node::do_reset()
+void phi::d3d12::CommandAllocator::do_reset()
 {
     PHI_D3D12_VERIFY(_allocator->Reset());
-    _full_and_waiting = false;
     _num_in_flight = 0;
     _num_discarded = 0;
     _submit_counter_at_last_reset = _submit_counter;
 }
 
-bool phi::d3d12::cmd_allocator_node::is_submit_counter_up_to_date() const
+bool phi::d3d12::CommandAllocator::is_submit_counter_up_to_date() const
 {
     // two atomics are being loaded in this function, _submit_counter and _num_discarded
     // both are monotonously increasing, so submits_since_reset grows, possible_submits_remaining shrinks
@@ -308,20 +327,24 @@ void phi::d3d12::CommandAllocatorBundle::initialize(ID3D12Device5& device, D3D12
 
     // create command lists
     auto cmdlist_i = 0u;
-    for (cmd_allocator_node& alloc_node : mAllocators)
+    for (CommandAllocator& alloc_node : mAllocators)
     {
-        internalInit(device, alloc_node, type, num_lists_per_alloc, out_list.subspan(cmdlist_i, num_lists_per_alloc));
+        alloc_node.initialize(device, type, num_lists_per_alloc);
+        alloc_node.create_command_lists(device, out_list.subspan(cmdlist_i, num_lists_per_alloc));
+
         cmdlist_i += num_lists_per_alloc;
     }
 }
 
 void phi::d3d12::CommandAllocatorBundle::destroy()
 {
-    for (cmd_allocator_node& node : mAllocators)
-        internalDestroy(node);
+    for (CommandAllocator& node : mAllocators)
+    {
+        node.destroy();
+    }
 }
 
-phi::d3d12::cmd_allocator_node* phi::d3d12::CommandAllocatorBundle::acquireMemory(ID3D12GraphicsCommandList5* list)
+phi::d3d12::CommandAllocator* phi::d3d12::CommandAllocatorBundle::acquireMemory(ID3D12GraphicsCommandList5* list)
 {
     updateActiveIndex();
     mAllocators[mActiveIndex].acquire(list);
@@ -355,35 +378,4 @@ void phi::d3d12::CommandAllocatorBundle::updateActiveIndex()
 
     // all allocators have at least 1 dangling cmdlist, we cannot recover
     CC_RUNTIME_ASSERT(false && "all allocators overcommitted and unresettable");
-}
-
-void phi::d3d12::CommandAllocatorBundle::internalDestroy(phi::d3d12::cmd_allocator_node& node)
-{
-    auto const bSuccess = node.try_reset_blocking(false); // do not warn on destruction
-    CC_RUNTIME_ASSERT(bSuccess);
-    node.destroy();
-}
-
-void phi::d3d12::CommandAllocatorBundle::internalInit(ID3D12Device5& device,
-                                                      phi::d3d12::cmd_allocator_node& node,
-                                                      D3D12_COMMAND_LIST_TYPE list_type,
-                                                      uint32_t num_cmdlists,
-                                                      cc::span<ID3D12GraphicsCommandList5*> out_cmdlists)
-{
-#ifdef PHI_HAS_OPTICK
-    OPTICK_EVENT("CreateCommandList calls");
-#endif
-
-    node.initialize(device, list_type, num_cmdlists);
-    ID3D12CommandAllocator* const raw_alloc = node.get_allocator();
-
-    char const* const queuetype_literal = util::to_queue_type_literal(list_type);
-
-    for (auto i = 0u; i < num_cmdlists; ++i)
-    {
-        PHI_D3D12_VERIFY(device.CreateCommandList(0, list_type, raw_alloc, nullptr, IID_PPV_ARGS(&out_cmdlists[i])));
-        out_cmdlists[i]->Close();
-
-        util::set_object_name(out_cmdlists[i], "pooled %s cmdlist #%d, alloc_bundle %p", queuetype_literal, i, this);
-    }
 }
