@@ -573,12 +573,7 @@ struct sampler_config
         address_u = address_mode;
         address_v = address_mode;
         address_w = address_mode;
-        min_lod = 0.f;
-        max_lod = 100000.f;
-        lod_bias = 0.f;
         max_anisotropy = anisotropy;
-        compare_func = sampler_compare_func::disabled;
-        border_color = sampler_border_color::white_float;
     }
 
     sampler_config(sampler_filter filter, uint32_t anisotropy = 16u, sampler_address_mode address_mode = sampler_address_mode::wrap)
