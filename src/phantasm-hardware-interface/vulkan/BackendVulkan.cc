@@ -458,7 +458,6 @@ void phi::vk::BackendVulkan::submit(cc::span<const phi::handle::command_list> cl
 
     for (handle::command_list const cl : cls)
     {
-        // silently ignore invalid handles
         if (cl == handle::null_command_list)
             continue;
 
@@ -497,13 +496,13 @@ void phi::vk::BackendVulkan::submit(cc::span<const phi::handle::command_list> cl
         if (!barriers.empty())
         {
             VkCommandBuffer t_cmd_list;
-            barrier_lists.push_back(mPoolCmdLists.create(t_cmd_list, thread_comp.cmdListAllocator, queue));
+            barrier_lists.emplace_back_stable(mPoolCmdLists.create(t_cmd_list, thread_comp.cmdListAllocator, queue));
             barriers.record(t_cmd_list);
             vkEndCommandBuffer(t_cmd_list);
-            cmd_bufs_to_submit.push_back(t_cmd_list);
+            cmd_bufs_to_submit.emplace_back_stable(t_cmd_list);
         }
 
-        cmd_bufs_to_submit.push_back(mPoolCmdLists.getRawBuffer(cl));
+        cmd_bufs_to_submit.emplace_back_stable(mPoolCmdLists.getRawBuffer(cl));
     }
 
     // submission
