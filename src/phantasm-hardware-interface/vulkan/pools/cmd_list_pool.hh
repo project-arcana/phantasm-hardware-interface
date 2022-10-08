@@ -247,8 +247,8 @@ public:
     {
         // an allocated node is always in the following state:
         // - the command list is freshly reset using an appropriate allocator
-        // - the responsible_allocator must be informed on submit or discard
-        CommandAllocator* responsible_allocator;
+        // - the pResponsibleAllocator must be informed on submit or discard
+        CommandAllocator* pResponsibleAllocator;
         vk_incomplete_state_cache state_cache;
         VkCommandBuffer raw_buffer;
     };
@@ -267,7 +267,7 @@ public:
 
     void addAssociatedFramebuffer(handle::command_list cl, VkFramebuffer fb, cc::span<VkImageView const> imgviews)
     {
-        getCommandListNode(cl).responsible_allocator->add_associated_framebuffer(fb, imgviews);
+        getCommandListNode(cl).pResponsibleAllocator->add_associated_framebuffer(fb, imgviews);
     }
 
 public:

@@ -83,7 +83,7 @@ void phi::vk::CommandAllocator::on_submit(unsigned num, unsigned fence_index)
     }
 
     // second, increment the pending execution counter, as it guards access to _latest_fence
-    // (an increment here might turn is_submit_counter_up_to_date true)
+    // (an increment here might turn isSubmitCounterUpToDate true)
     _num_pending_execution.fetch_add(num);
 }
 
@@ -332,7 +332,7 @@ phi::handle::command_list phi::vk::CommandListPool::create(VkCommandBuffer& out_
     unsigned const res_index = mPool.get_handle_index(res);
 
     cmd_list_node& new_node = mPool.get(res);
-    new_node.responsible_allocator = thread_allocator.get(type).acquireMemory(mDevice, new_node.raw_buffer);
+    new_node.pResponsibleAllocator = thread_allocator.get(type).acquireMemory(mDevice, new_node.raw_buffer);
     new_node.state_cache.initialize(cc::span(mFlatStateCacheEntries).subspan(res_index * mNumStateCacheEntriesPerCmdlist, mNumStateCacheEntriesPerCmdlist));
 
     out_cmdlist = new_node.raw_buffer;
@@ -344,7 +344,7 @@ void phi::vk::CommandListPool::freeOnSubmit(phi::handle::command_list cl, unsign
     cmd_list_node& freed_node = mPool.get(cl._value);
     {
         auto lg = std::lock_guard(mMutex);
-        freed_node.responsible_allocator->on_submit(1, fence_index);
+        freed_node.pResponsibleAllocator->on_submit(1, fence_index);
     }
     mPool.release(cl._value);
 }
@@ -362,7 +362,7 @@ void phi::vk::CommandListPool::freeOnSubmit(cc::span<const phi::handle::command_
                 continue;
 
             cmd_list_node& freed_node = mPool.get(cl._value);
-            unique_allocators.get_value(freed_node.responsible_allocator, 0u) += 1;
+            unique_allocators.get_value(freed_node.pResponsibleAllocator, 0u) += 1;
             mPool.release(cl._value);
         }
     }
@@ -395,7 +395,7 @@ void phi::vk::CommandListPool::freeOnSubmit(cc::span<const cc::span<const phi::h
                     continue;
 
                 cmd_list_node& freed_node = mPool.get(cl._value);
-                unique_allocators.get_value(freed_node.responsible_allocator, 0u) += 1;
+                unique_allocators.get_value(freed_node.pResponsibleAllocator, 0u) += 1;
                 mPool.release(cl._value);
             }
     }
@@ -422,7 +422,7 @@ void phi::vk::CommandListPool::freeAndDiscard(cc::span<const handle::command_lis
     {
         if (cl.is_valid())
         {
-            mPool.get(cl._value).responsible_allocator->on_discard();
+            mPool.get(cl._value).pResponsibleAllocator->on_discard();
             mPool.release(cl._value);
         }
     }
@@ -435,7 +435,7 @@ unsigned phi::vk::CommandListPool::discardAndFreeAll()
     auto num_freed = 0u;
     mPool.iterate_allocated_nodes([&](cmd_list_node& leaked_node) {
         ++num_freed;
-        leaked_node.responsible_allocator->on_discard();
+        leaked_node.pResponsibleAllocator->on_discard();
         mPool.unsafe_release_node(&leaked_node);
     });
 
