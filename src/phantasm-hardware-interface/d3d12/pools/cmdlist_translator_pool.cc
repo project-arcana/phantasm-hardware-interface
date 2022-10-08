@@ -55,12 +55,13 @@ phi::handle::live_command_list phi::d3d12::CmdlistTranslatorPool::createLiveCmdL
     return {res};
 }
 
-phi::handle::command_list phi::d3d12::CmdlistTranslatorPool::freeLiveCmdList(handle::live_command_list list, bool bDoClose)
+phi::handle::command_list phi::d3d12::CmdlistTranslatorPool::freeLiveCmdList(handle::live_command_list hLiveList, bool bDoClose)
 {
-    this->getTranslator(list)->endTranslation(bDoClose);
-    auto const res = this->getBackingList(list);
+    command_list_translator* const pTranslator = getTranslator(hLiveList);
+    pTranslator->endTranslation(bDoClose);
 
-    mPool.release(list._value);
+    auto const hBackingList = getBackingList(hLiveList);
+    mPool.release(hLiveList._value);
 
-    return res;
+    return hBackingList;
 }

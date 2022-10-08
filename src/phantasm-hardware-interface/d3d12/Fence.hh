@@ -15,7 +15,9 @@ public:
     void signalCPU(uint64_t new_val);
     void signalGPU(uint64_t new_val, ID3D12CommandQueue& queue);
 
-    void waitCPU(uint64_t val);
+    // returns true if a wait occured
+    bool waitCPU(uint64_t val);
+
     void waitGPU(uint64_t val, ID3D12CommandQueue& queue);
 
     uint64_t getCurrentValue() const;
