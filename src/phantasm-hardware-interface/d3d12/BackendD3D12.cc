@@ -8,8 +8,9 @@
 #include <optick.h>
 #endif
 
+#include <clean-core/alloc_vector.hh>
+#include <clean-core/allocators/linear_allocator.hh>
 #include <clean-core/defer.hh>
-#include <clean-core/vector.hh>
 
 #include <phantasm-hardware-interface/common/command_reading.hh>
 #include <phantasm-hardware-interface/common/log.hh>
@@ -27,7 +28,8 @@ namespace phi::d3d12
 {
 struct BackendD3D12::per_thread_component
 {
-    CommandAllocatorsPerThread cmd_list_allocator;
+    cc::alloc_array<std::byte> threadLocalScratchAllocMemory;
+    cc::linear_allocator threadLocalScratchAlloc;
 };
 } // namespace phi::d3d12
 
@@ -101,23 +103,29 @@ phi::init_status phi::d3d12::BackendD3D12::initialize(const phi::backend_config&
         mThreadComponents = config.static_allocator->new_array_sized<per_thread_component>(config.num_threads);
         mNumThreadComponents = config.num_threads;
 
-        cc::alloc_array<CommandAllocatorsPerThread*> thread_allocator_ptrs(mNumThreadComponents, config.dynamic_allocator);
-
         for (auto i = 0u; i < mNumThreadComponents; ++i)
         {
             auto& thread_comp = mThreadComponents[i];
-            thread_allocator_ptrs[i] = &thread_comp.cmd_list_allocator;
+            // 5 MB scratch alloc per thread
+            thread_comp.threadLocalScratchAllocMemory.reset(config.static_allocator, 1024 * 1024 * 5);
+            thread_comp.threadLocalScratchAlloc = cc::linear_allocator(thread_comp.threadLocalScratchAllocMemory);
         }
 
         mPoolTranslators.initialize(device, &mPoolShaderViews, &mPoolResources, &mPoolPSOs, &mPoolAccelStructs, &mPoolQueries,
                                     config.static_allocator, config.max_num_live_commandlists);
 
-        mPoolCmdLists.initialize(*this, config.static_allocator,                                                              //
-                                 config.num_direct_cmdlist_allocators_per_thread, config.num_direct_cmdlists_per_allocator,   //
-                                 config.num_compute_cmdlist_allocators_per_thread, config.num_compute_cmdlists_per_allocator, //
-                                 config.num_copy_cmdlist_allocators_per_thread, config.num_copy_cmdlists_per_allocator,
-                                 config.max_num_unique_transitions_per_cmdlist, //
-                                 thread_allocator_ptrs);
+        uint32_t numAllocsDirect = config.num_direct_cmdlists_per_allocator * config.num_threads;
+        uint32_t numAllocsCompute = config.num_compute_cmdlist_allocators_per_thread * config.num_threads;
+        uint32_t numAllocsCopy = config.num_copy_cmdlist_allocators_per_thread * config.num_threads;
+
+        uint32_t numListsDirect = numAllocsDirect * config.num_direct_cmdlists_per_allocator;
+        uint32_t numListsCompute = numAllocsCompute * config.num_compute_cmdlists_per_allocator;
+        uint32_t numListsCopy = numAllocsCopy * config.num_copy_cmdlists_per_allocator;
+
+        mPoolCmdLists.initialize(*this, config.static_allocator,    //
+                                 numAllocsDirect, numListsDirect,   //
+                                 numAllocsCompute, numListsCompute, //
+                                 numAllocsCopy, numListsCopy, config.max_num_unique_transitions_per_cmdlist);
 
         if (!config.enable_parallel_init)
         {
@@ -127,7 +135,7 @@ phi::init_status phi::d3d12::BackendD3D12::initialize(const phi::backend_config&
             ID3D12Device5* device = nativeGetDevice();
             for (auto i = 0u; i < mNumThreadComponents; ++i)
             {
-                mPoolCmdLists.initialize_nth_thread(device, i, thread_allocator_ptrs[i]);
+                mPoolCmdLists.initialize_nth_thread(device, i, mNumThreadComponents);
             }
         }
     }
@@ -157,10 +165,8 @@ phi::init_status phi::d3d12::BackendD3D12::initializeParallel(backend_config con
     CC_ASSERT(config.enable_parallel_init && "parallel init disabled");
     CC_ASSERT(idx < mNumThreadComponents && "index out of range or no main init called");
 
-    CommandAllocatorsPerThread* cmdAllocators = &mThreadComponents[idx].cmd_list_allocator;
-
     ID3D12Device5* device = nativeGetDevice();
-    mPoolCmdLists.initialize_nth_thread(device, idx, cmdAllocators);
+    mPoolCmdLists.initialize_nth_thread(device, idx, mNumThreadComponents);
 
     return init_status::success;
 }
@@ -282,7 +288,7 @@ void phi::d3d12::BackendD3D12::destroy()
         for (auto i = 0u; i < mNumThreadComponents; ++i)
         {
             auto& thread_comp = mThreadComponents[i];
-            thread_comp.cmd_list_allocator.destroy();
+            thread_comp.threadLocalScratchAllocMemory = {};
         }
 
 
@@ -463,88 +469,84 @@ phi::handle::command_list phi::d3d12::BackendD3D12::recordCommandList(std::byte 
 
 void phi::d3d12::BackendD3D12::discard(cc::span<const phi::handle::command_list> cls) { mPoolCmdLists.freeOnDiscard(cls); }
 
-void phi::d3d12::BackendD3D12::submit(cc::span<const phi::handle::command_list> cls,
+void phi::d3d12::BackendD3D12::submit(cc::span<const phi::handle::command_list> spCmdLists,
                                       queue_type queue,
                                       cc::span<const fence_operation> fence_waits_before,
                                       cc::span<const fence_operation> fence_signals_after)
 {
-    constexpr uint32_t c_max_num_command_lists = 32u;
-    cc::capped_vector<ID3D12CommandList*, c_max_num_command_lists * 2> cmd_bufs_to_submit;
-    cc::capped_vector<handle::command_list, c_max_num_command_lists> barrier_lists;
-    CC_ASSERT(cls.size() <= c_max_num_command_lists && "too many commandlists submitted at once");
+    auto* scratch = getCurrentScratchAlloc();
 
-    auto& thread_comp = getCurrentThreadComponent();
+    cc::alloc_vector<ID3D12CommandList*> cmdListsToSubmit;
+    cmdListsToSubmit.reset_reserve(scratch, spCmdLists.size() * 2);
 
+    cc::alloc_vector<handle::command_list> barrierCmdLists;
+    barrierCmdLists.reset_reserve(scratch, spCmdLists.size());
 
-    for (auto const cl : cls)
+    cc::alloc_vector<D3D12_RESOURCE_BARRIER> barriers;
+    barriers.reset_reserve(scratch, 64);
+
+    for (auto const hCmdList : spCmdLists)
     {
-        if (cl == handle::null_command_list)
+        if (hCmdList == handle::null_command_list)
             continue;
 
-        auto const* const state_cache = mPoolCmdLists.getStateCache(cl);
+        auto const* const pStateCache = mPoolCmdLists.getStateCache(hCmdList);
 
-        cc::alloc_array<D3D12_RESOURCE_BARRIER> barriers_heap;
-        D3D12_RESOURCE_BARRIER barriers_sbo[32];
+        barriers.clear();
+        barriers.reserve(pStateCache->num_entries);
 
-        constexpr auto barrierSize = sizeof(D3D12_RESOURCE_BARRIER);
-
-        uint32_t numBarriers = 0;
-        D3D12_RESOURCE_BARRIER* barrierPtr = barriers_sbo;
-
-        if (state_cache->num_entries > CC_COUNTOF(barriers_sbo))
+        for (auto i = 0u; i < pStateCache->num_entries; ++i)
         {
-            barriers_heap.reset(mDynamicAllocator, state_cache->num_entries);
-            barrierPtr = barriers_heap.data();
-        }
+            auto const& entry = pStateCache->entries[i];
 
-        auto f_addBarrier = [&](D3D12_RESOURCE_BARRIER const& barrier) -> void { barrierPtr[numBarriers++] = barrier; };
+            D3D12_RESOURCE_STATES const masterStateBefore = mPoolResources.getResourceState(entry.ptr);
 
-        for (auto i = 0u; i < state_cache->num_entries; ++i)
-        {
-            auto const& entry = state_cache->entries[i];
-
-            D3D12_RESOURCE_STATES const master_before = mPoolResources.getResourceState(entry.ptr);
-
-            if (master_before != entry.required_initial)
+            if (masterStateBefore != entry.required_initial)
             {
                 // transition to the state required as the initial one
-                f_addBarrier(util::get_barrier_desc(mPoolResources.getRawResource(entry.ptr), master_before, entry.required_initial, -1, -1, 0u));
+                barriers.emplace_back_stable(
+                    util::get_barrier_desc(mPoolResources.getRawResource(entry.ptr), masterStateBefore, entry.required_initial, -1, -1, 0u));
             }
 
             // set the master state to the one in which this resource is left
             mPoolResources.setResourceState(entry.ptr, entry.current);
         }
 
-        if (numBarriers > 0)
+        if (barriers.size() > 0)
         {
-            ID3D12GraphicsCommandList5* inserted_barrier_cmdlist;
-            barrier_lists.push_back(mPoolCmdLists.create(inserted_barrier_cmdlist, thread_comp.cmd_list_allocator, queue));
-            inserted_barrier_cmdlist->ResourceBarrier(numBarriers, barrierPtr);
-            inserted_barrier_cmdlist->Close();
-            cmd_bufs_to_submit.push_back(inserted_barrier_cmdlist);
+            ID3D12GraphicsCommandList5* pBarrierCmdlist = nullptr;
+            auto const hBarrierList = mPoolCmdLists.create(pBarrierCmdlist, queue);
+
+            pBarrierCmdlist->ResourceBarrier(barriers.size(), barriers.data());
+            pBarrierCmdlist->Close();
+
+            mPoolCmdLists.onClose(hBarrierList);
+
+            barrierCmdLists.emplace_back_stable(hBarrierList);
+            cmdListsToSubmit.emplace_back_stable(pBarrierCmdlist);
         }
 
-        cmd_bufs_to_submit.push_back(mPoolCmdLists.getRawList(cl));
+        cmdListsToSubmit.emplace_back_stable(mPoolCmdLists.getRawList(hCmdList));
     }
 
 
-    ID3D12CommandQueue* const target_queue = getQueueByType(queue);
-    CC_ASSERT(target_queue != nullptr && "Queues not initialized");
+    ID3D12CommandQueue* const pTargetQueue = getQueueByType(queue);
+    CC_ASSERT(pTargetQueue != nullptr && "Queues not initialized");
 
-    for (auto const& wait_op : fence_waits_before)
+    for (auto const& waitOp : fence_waits_before)
     {
-        mPoolFences.waitGPU(wait_op.fence, wait_op.value, target_queue);
+        mPoolFences.waitGPU(waitOp.fence, waitOp.value, pTargetQueue);
     }
 
-    target_queue->ExecuteCommandLists(UINT(cmd_bufs_to_submit.size()), cmd_bufs_to_submit.data());
+    pTargetQueue->ExecuteCommandLists(UINT(cmdListsToSubmit.size()), cmdListsToSubmit.data());
 
-    for (auto const& signal_op : fence_signals_after)
+    for (auto const& signalOp : fence_signals_after)
     {
-        mPoolFences.signalGPU(signal_op.fence, signal_op.value, target_queue);
+        mPoolFences.signalGPU(signalOp.fence, signalOp.value, pTargetQueue);
     }
 
-    mPoolCmdLists.freeOnSubmit(barrier_lists, *target_queue);
-    mPoolCmdLists.freeOnSubmit(cls, *target_queue);
+    mPoolCmdLists.freeOnSubmit(barrierCmdLists, *pTargetQueue);
+    mPoolCmdLists.freeOnSubmit(spCmdLists, *pTargetQueue);
 }
 
 phi::handle::fence phi::d3d12::BackendD3D12::createFence() { return mPoolFences.createFence(); }
@@ -625,20 +627,20 @@ void phi::d3d12::BackendD3D12::freeRange(cc::span<const phi::handle::accel_struc
     mPoolAccelStructs.free(as);
 }
 
-phi::handle::live_command_list phi::d3d12::BackendD3D12::openLiveCommandList(queue_type queue, cmd::set_global_profile_scope const* opt_global_pscope)
+phi::handle::live_command_list phi::d3d12::BackendD3D12::openLiveCommandList(queue_type queue, cmd::set_global_profile_scope const* pOptGlobalScope)
 {
-    auto& thread_comp = getCurrentThreadComponent();
+    ID3D12GraphicsCommandList5* pCmdList = nullptr;
+    auto const hList = mPoolCmdLists.create(pCmdList, queue);
 
-    ID3D12GraphicsCommandList5* raw_list5 = nullptr;
-    auto const res = mPoolCmdLists.create(raw_list5, thread_comp.cmd_list_allocator, queue);
-
-    return mPoolTranslators.createLiveCmdList(res, raw_list5, queue, mPoolCmdLists.getStateCache(res), opt_global_pscope);
+    return mPoolTranslators.createLiveCmdList(hList, pCmdList, queue, mPoolCmdLists.getStateCache(hList), pOptGlobalScope);
 }
 
 phi::handle::command_list phi::d3d12::BackendD3D12::closeLiveCommandList(handle::live_command_list list)
 {
     //
-    return mPoolTranslators.freeLiveCmdList(list, true);
+    auto const hList = mPoolTranslators.freeLiveCmdList(list, true);
+    mPoolCmdLists.onClose(hList);
+    return hList;
 }
 
 void phi::d3d12::BackendD3D12::discardLiveCommandList(handle::live_command_list list)
@@ -881,4 +883,11 @@ phi::d3d12::BackendD3D12::per_thread_component& phi::d3d12::BackendD3D12::getCur
                   "Accessed phi Backend from more OS threads than configured in backend_config\n"
                   "recordCommandList() and submit() must only be used from at most backend_config::num_threads unique OS threads in total");
     return mThreadComponents[current_index];
+}
+
+cc::allocator* phi::d3d12::BackendD3D12::getCurrentScratchAlloc()
+{
+    cc::linear_allocator* res = &getCurrentThreadComponent().threadLocalScratchAlloc;
+    res->reset();
+    return res;
 }

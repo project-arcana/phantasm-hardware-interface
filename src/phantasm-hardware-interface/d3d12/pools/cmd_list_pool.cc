@@ -10,280 +10,275 @@
 #include <phantasm-hardware-interface/d3d12/common/util.hh>
 #include <phantasm-hardware-interface/d3d12/common/verify.hh>
 
-void phi::d3d12::CommandAllocator::initialize(ID3D12Device5& device, D3D12_COMMAND_LIST_TYPE type, int max_num_cmdlists)
+namespace
 {
-    _max_num_in_flight = max_num_cmdlists;
-    _submit_counter = 0;
-    _submit_counter_at_last_reset = 0;
-    _num_in_flight = 0;
-    _num_discarded = 0;
+struct Range
+{
+    uint32_t fromIdx;
+    uint32_t toIdx;
+};
 
-    _type = type;
+Range SplitRangeEven(uint32_t numElems, uint32_t threadIdx, uint32_t numThreads)
+{
+    uint32_t const numPerThread = cc::max(1u, numElems / numThreads);
 
-    _fence.initialize(device);
-    util::set_object_name(_fence.fence, "CommandAllocator fence for %zx", this);
+    Range res;
+    res.fromIdx = threadIdx * numPerThread;
+    res.toIdx = cc::min(res.fromIdx + numPerThread, numElems);
+    return res;
+}
+} // namespace
 
-    PHI_D3D12_VERIFY(device.CreateCommandAllocator(type, IID_PPV_ARGS(&_allocator)));
+void phi::d3d12::CommandAllocator::initialize(ID3D12Device5& device, D3D12_COMMAND_LIST_TYPE type)
+{
+    mSubmitCounter = 0;
+    mSubmitCounterAtLastReset = 0;
+    mNumBackedCmdlists = 0;
+    mNumDiscardedCmdlists = 0;
+
+    mType = type;
+
+    mFence.initialize(device);
+    util::set_object_name(mFence.fence, "CommandAllocator fence for %zx", this);
+
+    PHI_D3D12_VERIFY(device.CreateCommandAllocator(type, IID_PPV_ARGS(&mAllocator)));
 }
 
 void phi::d3d12::CommandAllocator::destroy()
 {
-    auto const bSuccess = try_reset_blocking(false); // do not warn on destruction
-    CC_RUNTIME_ASSERT(bSuccess);
+    tryResetStalling(false); // do not warn on destruction
 
-    _allocator->Release();
-    _fence.destroy();
+    mAllocator->Release();
+    mFence.destroy();
 }
 
-void phi::d3d12::CommandAllocator::create_command_lists(ID3D12Device5& device, cc::span<ID3D12GraphicsCommandList5*> out_cmdlists)
+void phi::d3d12::CommandAllocator::createCommandLists(ID3D12Device5& device, cc::span<ID3D12GraphicsCommandList5*> out_cmdlists)
 {
 #ifdef PHI_HAS_OPTICK
     OPTICK_EVENT();
 #endif
 
-    CC_ASSERT(_allocator != nullptr && "not initialized");
+    CC_ASSERT(mAllocator != nullptr && "not initialized");
 
-    char const* const pTypeName = util::to_queue_type_literal(_type);
+    char const* const pTypeName = util::to_queue_type_literal(mType);
 
     for (auto i = 0u; i < out_cmdlists.size(); ++i)
     {
-        PHI_D3D12_VERIFY(device.CreateCommandList(0, _type, _allocator, nullptr, IID_PPV_ARGS(&out_cmdlists[i])));
+        PHI_D3D12_VERIFY(device.CreateCommandList(0, mType, mAllocator, nullptr, IID_PPV_ARGS(&out_cmdlists[i])));
         out_cmdlists[i]->Close();
 
         util::set_object_name(out_cmdlists[i], "pooled %s cmdlist #%d", pTypeName, i);
     }
 }
 
-void phi::d3d12::CommandAllocator::acquire(ID3D12GraphicsCommandList5* cmd_list)
+void phi::d3d12::CommandAllocator::acquireMemory(ID3D12GraphicsCommandList5* cmd_list)
 {
-    if (is_full())
-    {
-        // the allocator is full, we are almost dead but might be able to reset
-        auto const bSuccess = try_reset_blocking();
-        CC_RUNTIME_ASSERT(bSuccess && "cmdlist allocator node overcommitted and unable to recover");
-        // we were able to recover, but should warn even now
-    }
-
-    PHI_D3D12_VERIFY(cmd_list->Reset(_allocator, nullptr));
-    ++_num_in_flight;
+    PHI_D3D12_VERIFY(cmd_list->Reset(mAllocator, nullptr));
+    ++mNumBackedCmdlists;
 }
 
-bool phi::d3d12::CommandAllocator::try_reset()
-{
-    if (can_reset())
-    {
-        // full, and all acquired cmdlists have been either submitted or discarded, check the fence
 
-        auto const fence_current = _fence.getCurrentValue();
-        CC_ASSERT(fence_current <= _submit_counter && "counter overflow (after > 4*10^8 years)");
-        if (fence_current == _submit_counter)
-        {
-            // can reset, and the fence has reached its goal
-            do_reset();
-            return true;
-        }
-        else
-        {
-            // can reset, but the fence hasn't reached its goal yet
-            return false;
-        }
-    }
-    else
+// reset the allocator if possible, stalling the CPU if necessary
+// returns true if the reset succeeded
+
+inline bool phi::d3d12::CommandAllocator::tryResetStalling(bool bWarnOnStall)
+{
+    // even for blocking resets, the submit counter must be up to date
+    if (mNumBackedCmdlists == 0 || !isSubmitCounterUpToDate())
+        return false;
+
+    uint64_t const submitCounterToReach = mSubmitCounter.load();
+    bool bDidWait = mFence.waitCPU(submitCounterToReach);
+
+    if (bDidWait && bWarnOnStall)
     {
-        // can't reset
-        return !is_full();
+        PHI_LOG_WARN("Command allocator {} forced to stall CPU on submit #{} ({} cmdlists in flight)", mAllocator, submitCounterToReach, mNumBackedCmdlists);
     }
+
+    resetAllocator();
+
+    return true;
 }
 
-bool phi::d3d12::CommandAllocator::try_reset_blocking(bool bWarn)
+void phi::d3d12::CommandAllocator::resetAllocator()
 {
-    if (can_reset())
-    {
-        uint64_t const submitIdx = _submit_counter.load();
+    PHI_D3D12_VERIFY(mAllocator->Reset());
 
-        if (bWarn)
-            PHI_LOG_WARN("Command allocator {} forced to CPU-wait on submit #{} ({} of {} cmdlists in flight)", _allocator, submitIdx, _num_in_flight,
-                         _max_num_in_flight);
+    // PHI_LOG_TRACE("Resetted command alloc {} ({} were in flight)", mAllocator, mNumBackedCmdlists);
 
-        // full, and all acquired cmdlists have been either submitted or discarded, wait for the fence
-        _fence.waitCPU(submitIdx);
-        do_reset();
-        return true;
-    }
-    else
-    {
-        // can't reset
-        return !is_full();
-    }
+    mNumBackedCmdlists = 0;
+    mNumDiscardedCmdlists = 0;
+    mSubmitCounterAtLastReset = mSubmitCounter;
 }
 
-void phi::d3d12::CommandAllocator::do_reset()
+bool phi::d3d12::CommandAllocator::isSubmitCounterUpToDate() const
 {
-    PHI_D3D12_VERIFY(_allocator->Reset());
-    _num_in_flight = 0;
-    _num_discarded = 0;
-    _submit_counter_at_last_reset = _submit_counter;
-}
-
-bool phi::d3d12::CommandAllocator::is_submit_counter_up_to_date() const
-{
-    // two atomics are being loaded in this function, _submit_counter and _num_discarded
-    // both are monotonously increasing, so submits_since_reset grows, possible_submits_remaining shrinks
+    // two atomics are being loaded in this function, mSubmitCounter and _num_discarded
+    // both are monotonously increasing, so numSubmitsSinceReset grows, maxNumSubmitsRemaining shrinks
     // as far as i can tell there is no failure mode and the order of the two loads does not matter
-    // if submits_since_reset is loaded early, we assume too few submits (-> return false)
-    // if possible_submits_remaining is loaded early, we assume too many pending lists (-> return false)
+    // if numSubmitsSinceReset is loaded early, we assume too few submits (-> return false)
+    // if maxNumSubmitsRemaining is loaded early, we assume too many pending lists (-> return false)
     // as the two values can only ever reach equality (and not go past each other), this is safe.
     // this function can only ever prevent resets, never cause them too early
     // once the two values are equal, no further changes will occur to the atomics until the next reset
 
-    // Check if all lists acquired from this allocator
-    // since the last reset have been either submitted or discarded
-    int const submits_since_reset = static_cast<int>(_submit_counter.load() - _submit_counter_at_last_reset);
-    int const possible_submits_remaining = _num_in_flight - _num_discarded.load();
+    // Check if all lists acquired from this allocator since the last reset have been either submitted or discarded
+    int const numSubmitsSinceReset = static_cast<int>(mSubmitCounter.load() - mSubmitCounterAtLastReset);
+    int const maxNumSubmitsRemaining = mNumBackedCmdlists - mNumDiscardedCmdlists.load();
 
-    // this assert is paranoia-tier
-    CC_ASSERT(submits_since_reset >= 0 && submits_since_reset <= possible_submits_remaining);
+    CC_ASSERT(numSubmitsSinceReset >= 0 && numSubmitsSinceReset <= maxNumSubmitsRemaining);
 
     // if this condition is false, there have been less submits than acquired lists (minus the discarded ones)
     // so some are still pending submit (or discardation [sic])
-    // we cannot check the fence yet since _submit_counter is currently meaningless
-    return (submits_since_reset == possible_submits_remaining);
+    // we cannot check the fence yet since mSubmitCounter is currently meaningless
+    return (numSubmitsSinceReset == maxNumSubmitsRemaining);
 }
 
-phi::handle::command_list phi::d3d12::CommandListPool::create(ID3D12GraphicsCommandList5*& out_cmdlist, CommandAllocatorsPerThread& thread_allocator, queue_type type)
+phi::handle::command_list phi::d3d12::CommandListPool::create(ID3D12GraphicsCommandList5*& out_cmdlist, queue_type type)
 {
-    handle::command_list res_handle;
-    cmd_list_node* new_node;
-    res_handle = acquireNodeInternal(type, new_node, out_cmdlist);
+    handle::command_list hRes;
+    cmd_list_node* pNewNode;
+    hRes = acquireNodeInternal(type, pNewNode, out_cmdlist);
 
+    auto* const pNewAllocator = mQueue.acquireAllocator(type);
+    pNewAllocator->acquireMemory(out_cmdlist);
 
-    new_node->responsible_allocator = thread_allocator.get(type).acquireMemory(out_cmdlist);
-    return res_handle;
+    pNewNode->bIsLive = true;
+    pNewNode->pResponsibleAllocator = pNewAllocator;
+
+    return hRes;
 }
 
-void phi::d3d12::CommandListPool::freeOnSubmit(phi::handle::command_list cl, ID3D12CommandQueue& queue)
+void phi::d3d12::CommandListPool::onClose(handle::command_list hList)
 {
-    cmdlist_linked_pool_t* pool;
-    ID3D12GraphicsCommandList5* list;
-    cmd_list_node* const node = getNodeInternal(cl, pool, list);
-    node->responsible_allocator->on_submit(queue);
-    pool->unsafe_release_node(node);
+    cmdlist_linked_pool_t* pPool;
+    ID3D12GraphicsCommandList5* pList;
+    cmd_list_node* const pNode = getNodeInternal(hList, pPool, pList);
+
+    CC_ASSERT(pNode->bIsLive && "Node is expected to be live when closing");
+    mQueue.releaseAllocator(pNode->pResponsibleAllocator, HandleToQueueType(hList));
+
+    pNode->bIsLive = false;
 }
 
-void phi::d3d12::CommandListPool::freeOnSubmit(cc::span<const phi::handle::command_list> cls, ID3D12CommandQueue& queue)
+void phi::d3d12::CommandListPool::freeOnSubmit(phi::handle::command_list hList, ID3D12CommandQueue& queue)
 {
-    for (auto const& cl : cls)
+    cmdlist_linked_pool_t* pPool;
+    ID3D12GraphicsCommandList5* pList;
+    cmd_list_node* const pNode = getNodeInternal(hList, pPool, pList);
+
+    if (pNode->bIsLive)
     {
-        if (!cl.is_valid())
+        mQueue.releaseAllocator(pNode->pResponsibleAllocator, HandleToQueueType(hList));
+        pNode->bIsLive = false;
+    }
+
+    pNode->pResponsibleAllocator->onListSubmit(queue);
+    pPool->unsafe_release_node(pNode);
+}
+
+void phi::d3d12::CommandListPool::freeOnSubmit(cc::span<const phi::handle::command_list> spLists, ID3D12CommandQueue& queue)
+{
+    for (auto const& hList : spLists)
+    {
+        if (!hList.is_valid())
             continue;
 
-        cmdlist_linked_pool_t* pool;
-        ID3D12GraphicsCommandList5* list;
-        cmd_list_node* const node = getNodeInternal(cl, pool, list);
-
-        node->responsible_allocator->on_submit(queue);
-        pool->unsafe_release_node(node);
+        freeOnSubmit(hList, queue);
     }
 }
 
 void phi::d3d12::CommandListPool::freeOnDiscard(cc::span<const phi::handle::command_list> cls)
 {
-    for (auto cl : cls)
+    for (auto hList : cls)
     {
-        if (cl.is_valid())
-        {
-            cmdlist_linked_pool_t* pool;
-            ID3D12GraphicsCommandList5* list;
-            cmd_list_node* const node = getNodeInternal(cl, pool, list);
+        if (!hList.is_valid())
+            continue;
 
-            node->responsible_allocator->on_discard();
-            pool->unsafe_release_node(node);
+        cmdlist_linked_pool_t* pool;
+        ID3D12GraphicsCommandList5* list;
+        cmd_list_node* const pNode = getNodeInternal(hList, pool, list);
+
+        if (pNode->bIsLive)
+        {
+            mQueue.releaseAllocator(pNode->pResponsibleAllocator, HandleToQueueType(hList));
+            pNode->bIsLive = false;
         }
+
+        pNode->pResponsibleAllocator->onListDiscard();
+        pool->unsafe_release_node(pNode);
     }
 }
 
 void phi::d3d12::CommandListPool::initialize(phi::d3d12::BackendD3D12& backend,
                                              cc::allocator* static_alloc,
                                              uint32_t num_direct_allocs,
-                                             uint32_t num_direct_lists_per_alloc,
+                                             uint32_t num_direct_lists,
                                              uint32_t num_compute_allocs,
-                                             uint32_t num_compute_lists_per_alloc,
+                                             uint32_t num_compute_lists,
                                              uint32_t num_copy_allocs,
-                                             uint32_t num_copy_lists_per_alloc,
-                                             uint32_t max_num_unique_transitions_per_cmdlist,
-                                             cc::span<CommandAllocatorsPerThread*> thread_allocators)
+                                             uint32_t num_copy_lists,
+                                             uint32_t max_num_unique_transitions_per_cmdlist)
 {
 #ifdef PHI_HAS_OPTICK
     OPTICK_EVENT();
 #endif
 
-    mNumAllocsDirect = num_direct_allocs;
-    mNumAllocsCompute = num_compute_allocs;
-    mNumAllocsCopy = num_copy_allocs;
-
-    mNumListsPerAllocDirect = num_direct_lists_per_alloc;
-    mNumListsPerAllocCompute = num_compute_lists_per_alloc;
-    mNumListsPerAllocCopy = num_copy_lists_per_alloc;
-
-    mNumThreads = (uint32_t)thread_allocators.size();
-    auto const numListsTotalDirect = num_direct_allocs * num_direct_lists_per_alloc * mNumThreads;
-    auto const numListsTotalCompute = num_compute_allocs * num_compute_lists_per_alloc * mNumThreads;
-    auto const numListsTotalCopy = num_copy_allocs * num_copy_lists_per_alloc * mNumThreads;
-    auto const numListsTotal = numListsTotalDirect + numListsTotalCompute + numListsTotalCopy;
-
     // initialize data structures
-    mPoolDirect.initialize(numListsTotalDirect, static_alloc);
-    mRawListsDirect = mRawListsDirect.uninitialized(numListsTotalDirect, static_alloc);
-    mPoolCompute.initialize(numListsTotalCompute, static_alloc);
-    mRawListsCompute = mRawListsCompute.uninitialized(numListsTotalCompute, static_alloc);
-    mPoolCopy.initialize(numListsTotalCopy, static_alloc);
-    mRawListsCopy = mRawListsCopy.uninitialized(numListsTotalCopy, static_alloc);
+    mPoolDirect.initialize(num_direct_lists, static_alloc);
+    mRawListsDirect = mRawListsDirect.uninitialized(num_direct_lists, static_alloc);
+    mPoolCompute.initialize(num_compute_lists, static_alloc);
+    mRawListsCompute = mRawListsCompute.uninitialized(num_compute_lists, static_alloc);
+    mPoolCopy.initialize(num_copy_lists, static_alloc);
+    mRawListsCopy = mRawListsCopy.uninitialized(num_copy_lists, static_alloc);
 
+    uint32_t numListsTotal = num_direct_lists + num_compute_lists + num_copy_lists;
     mNumStateCacheEntriesPerCmdlist = max_num_unique_transitions_per_cmdlist;
     mFlatStateCacheEntries = mFlatStateCacheEntries.uninitialized(numListsTotal * max_num_unique_transitions_per_cmdlist, static_alloc);
 
-    // pre-allocate the three allocator bundles (direct, compute, copy)
-    for (size_t i = 0u; i < mNumThreads; ++i)
-    {
-        thread_allocators[i]->bundle_direct.preallocate(mNumAllocsDirect, static_alloc);
-        thread_allocators[i]->bundle_compute.preallocate(mNumAllocsCompute, static_alloc);
-        thread_allocators[i]->bundle_copy.preallocate(mNumAllocsCopy, static_alloc);
-    }
+    mQueue.initialize(static_alloc, num_direct_allocs, num_compute_allocs, num_copy_allocs);
+
+    mAllocatorsDirect.reset(static_alloc, num_direct_allocs);
+    mAllocatorsCompute.reset(static_alloc, num_compute_allocs);
+    mAllocatorsCopy.reset(static_alloc, num_copy_allocs);
 }
 
-void phi::d3d12::CommandListPool::initialize_nth_thread(ID3D12Device5* device, uint32_t thread_idx, CommandAllocatorsPerThread* allocators)
+void phi::d3d12::CommandListPool::initialize_nth_thread(ID3D12Device5* device, uint32_t thread_idx, uint32_t num_threads)
 {
 #ifdef PHI_HAS_OPTICK
     OPTICK_EVENT("Command List init for Thread");
     OPTICK_TAG("Thread Index", thread_idx);
 #endif
 
-    CC_ASSERT(thread_idx < mNumThreads);
+#if 1
+    // this parallelizes extremely poorly, do it serially for now
+    if (thread_idx != 0)
+        return;
 
-    auto const numListsPerThreadDirect = mNumAllocsDirect * mNumListsPerAllocDirect;
-    auto const numListsPerThreadCompute = mNumAllocsCompute * mNumListsPerAllocCompute;
-    auto const numListsPerThreadCopy = mNumAllocsCopy * mNumListsPerAllocCopy;
+    for (auto& alloc : mAllocatorsDirect)
+    {
+        alloc.initialize(*device, D3D12_COMMAND_LIST_TYPE_DIRECT);
+        mQueue.releaseAllocator(&alloc, queue_type::direct);
+    }
+    for (auto& alloc : mAllocatorsCompute)
+    {
+        alloc.initialize(*device, D3D12_COMMAND_LIST_TYPE_COMPUTE);
+        mQueue.releaseAllocator(&alloc, queue_type::compute);
+    }
+    for (auto& alloc : mAllocatorsCopy)
+    {
+        alloc.initialize(*device, D3D12_COMMAND_LIST_TYPE_COPY);
+        mQueue.releaseAllocator(&alloc, queue_type::copy);
+    }
 
-    allocators->bundle_direct.initialize(                                                                //
-        *device,                                                                                         //
-        D3D12_COMMAND_LIST_TYPE_DIRECT,                                                                  //
-        mNumListsPerAllocDirect,                                                                         //
-        cc::span{mRawListsDirect}.subspan(thread_idx * numListsPerThreadDirect, numListsPerThreadDirect) //
-    );
-
-    allocators->bundle_compute.initialize(                                                                  //
-        *device,                                                                                            //
-        D3D12_COMMAND_LIST_TYPE_COMPUTE,                                                                    //
-        mNumListsPerAllocCompute,                                                                           //
-        cc::span{mRawListsCompute}.subspan(thread_idx * numListsPerThreadCompute, numListsPerThreadCompute) //
-    );
-
-    allocators->bundle_copy.initialize(                                                            //
-        *device,                                                                                   //
-        D3D12_COMMAND_LIST_TYPE_COPY,                                                              //
-        mNumListsPerAllocCopy,                                                                     //
-        cc::span{mRawListsCopy}.subspan(thread_idx * numListsPerThreadCopy, numListsPerThreadCopy) //
-    );
+    mAllocatorsDirect.begin()->createCommandLists(*device, mRawListsDirect);
+    mAllocatorsCompute.begin()->createCommandLists(*device, mRawListsCompute);
+    mAllocatorsCopy.begin()->createCommandLists(*device, mRawListsCopy);
+#else
+    initializeAllocatorsAndLists(device, queue_type::direct, mAllocatorsDirect, mRawListsDirect, thread_idx, num_threads);
+    initializeAllocatorsAndLists(device, queue_type::compute, mAllocatorsCompute, mRawListsCompute, thread_idx, num_threads);
+    initializeAllocatorsAndLists(device, queue_type::copy, mAllocatorsCopy, mRawListsCopy, thread_idx, num_threads);
+#endif
 }
 
 void phi::d3d12::CommandListPool::destroy()
@@ -296,6 +291,50 @@ void phi::d3d12::CommandListPool::destroy()
 
     for (auto const list : mRawListsCopy)
         list->Release();
+
+    for (auto& alloc : mAllocatorsDirect)
+        alloc.destroy();
+
+    for (auto& alloc : mAllocatorsCompute)
+        alloc.destroy();
+
+    for (auto& alloc : mAllocatorsCopy)
+        alloc.destroy();
+}
+
+void phi::d3d12::CommandListPool::initializeAllocatorsAndLists(
+    ID3D12Device5* pDevice, queue_type type, cc::span<CommandAllocator> spAllocators, cc::span<ID3D12GraphicsCommandList5*> spLists, uint32_t threadIdx, uint32_t numThreads)
+{
+    Range const rangeAllocs = SplitRangeEven(spAllocators.size(), threadIdx, numThreads);
+    PHI_LOG_TRACE("Thr#{} of {} initializing allocators #{} until {}", threadIdx, numThreads, rangeAllocs.fromIdx, rangeAllocs.toIdx);
+
+    D3D12_COMMAND_LIST_TYPE const nativeType = util::to_native(type);
+
+    uint32_t numAllocsInitialized = 0;
+    for (size_t i = rangeAllocs.fromIdx; i < rangeAllocs.toIdx; ++i)
+    {
+        spAllocators[i].initialize(*pDevice, nativeType);
+        mQueue.releaseAllocator(&spAllocators[i], type);
+        ++numAllocsInitialized;
+    }
+
+    if (numAllocsInitialized == 0)
+    {
+        // do not touch lists if we do not have a single allocator
+        return;
+    }
+
+    Range rangeLists = SplitRangeEven(spLists.size(), threadIdx, numThreads);
+
+    if (rangeAllocs.toIdx == spAllocators.size())
+    {
+        // if we were the thread to init the very last allocator, extend the range of lists to init to all
+        rangeLists.toIdx = spLists.size();
+    }
+    PHI_LOG_TRACE("Thr#{} of {} initializing lists #{} until {}", threadIdx, numThreads, rangeLists.fromIdx, rangeLists.toIdx);
+
+    auto const spListsToInit = spLists.subspan(rangeLists.fromIdx, rangeLists.toIdx - rangeLists.fromIdx);
+    spAllocators[rangeAllocs.fromIdx].createCommandLists(*pDevice, spListsToInit);
 }
 
 phi::handle::command_list phi::d3d12::CommandListPool::acquireNodeInternal(phi::queue_type type,
@@ -313,69 +352,4 @@ phi::handle::command_list phi::d3d12::CommandListPool::acquireNodeInternal(phi::
     auto const res_with_padding_flags = AddHandlePaddingFlags(res, type);
     out_cmdlist = getList(res_with_padding_flags, type);
     return res_with_padding_flags;
-}
-
-void phi::d3d12::CommandAllocatorBundle::preallocate(uint32_t num_allocs, cc::allocator* static_alloc)
-{
-    // Initialize allocators
-    mAllocators.reset(static_alloc, num_allocs);
-}
-
-void phi::d3d12::CommandAllocatorBundle::initialize(ID3D12Device5& device, D3D12_COMMAND_LIST_TYPE type, uint32_t num_lists_per_alloc, cc::span<ID3D12GraphicsCommandList5*> out_list)
-{
-    CC_ASSERT(mAllocators.size() > 0 && "bundle not pre-allocated");
-
-    // create command lists
-    auto cmdlist_i = 0u;
-    for (CommandAllocator& alloc_node : mAllocators)
-    {
-        alloc_node.initialize(device, type, num_lists_per_alloc);
-        alloc_node.create_command_lists(device, out_list.subspan(cmdlist_i, num_lists_per_alloc));
-
-        cmdlist_i += num_lists_per_alloc;
-    }
-}
-
-void phi::d3d12::CommandAllocatorBundle::destroy()
-{
-    for (CommandAllocator& node : mAllocators)
-    {
-        node.destroy();
-    }
-}
-
-phi::d3d12::CommandAllocator* phi::d3d12::CommandAllocatorBundle::acquireMemory(ID3D12GraphicsCommandList5* list)
-{
-    updateActiveIndex();
-    mAllocators[mActiveIndex].acquire(list);
-    return &mAllocators[mActiveIndex];
-}
-
-void phi::d3d12::CommandAllocatorBundle::updateActiveIndex()
-{
-    for (auto it = 0u; it < mAllocators.size(); ++it)
-    {
-        if (!mAllocators[mActiveIndex].is_full() || mAllocators[mActiveIndex].try_reset())
-            // not full, or nonblocking reset successful
-            return;
-        else
-        {
-            mActiveIndex = cc::wrapped_increment(mActiveIndex, mAllocators.size());
-        }
-    }
-
-    // all non-blocking resets failed, try blocking now
-    for (auto it = 0u; it < mAllocators.size(); ++it)
-    {
-        if (mAllocators[mActiveIndex].try_reset_blocking())
-            // blocking reset successful
-            return;
-        else
-        {
-            mActiveIndex = cc::wrapped_increment(mActiveIndex, mAllocators.size());
-        }
-    }
-
-    // all allocators have at least 1 dangling cmdlist, we cannot recover
-    CC_RUNTIME_ASSERT(false && "all allocators overcommitted and unresettable");
 }

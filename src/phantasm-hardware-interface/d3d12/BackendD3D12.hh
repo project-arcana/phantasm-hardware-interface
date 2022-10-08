@@ -300,6 +300,8 @@ private:
     struct per_thread_component;
     per_thread_component& getCurrentThreadComponent();
 
+    cc::allocator* getCurrentScratchAlloc();
+
 private:
     // Core components
     Adapter mAdapter;
