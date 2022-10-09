@@ -10,25 +10,6 @@
 #include <phantasm-hardware-interface/d3d12/common/util.hh>
 #include <phantasm-hardware-interface/d3d12/common/verify.hh>
 
-namespace
-{
-struct Range
-{
-    uint32_t fromIdx;
-    uint32_t toIdx;
-};
-
-Range SplitRangeEven(uint32_t numElems, uint32_t threadIdx, uint32_t numThreads)
-{
-    uint32_t const numPerThread = cc::max(1u, numElems / numThreads);
-
-    Range res;
-    res.fromIdx = threadIdx * numPerThread;
-    res.toIdx = cc::min(res.fromIdx + numPerThread, numElems);
-    return res;
-}
-} // namespace
-
 void phi::d3d12::CommandAllocator::initialize(ID3D12Device5& device, D3D12_COMMAND_LIST_TYPE type)
 {
     mSubmitCounter = 0;
@@ -250,7 +231,6 @@ void phi::d3d12::CommandListPool::initialize_nth_thread(ID3D12Device5* device, u
     OPTICK_TAG("Thread Index", thread_idx);
 #endif
 
-#if 1
     // this parallelizes extremely poorly, do it serially for now
     if (thread_idx != 0)
         return;
@@ -274,11 +254,6 @@ void phi::d3d12::CommandListPool::initialize_nth_thread(ID3D12Device5* device, u
     mAllocatorsDirect.begin()->createCommandLists(*device, mRawListsDirect);
     mAllocatorsCompute.begin()->createCommandLists(*device, mRawListsCompute);
     mAllocatorsCopy.begin()->createCommandLists(*device, mRawListsCopy);
-#else
-    initializeAllocatorsAndLists(device, queue_type::direct, mAllocatorsDirect, mRawListsDirect, thread_idx, num_threads);
-    initializeAllocatorsAndLists(device, queue_type::compute, mAllocatorsCompute, mRawListsCompute, thread_idx, num_threads);
-    initializeAllocatorsAndLists(device, queue_type::copy, mAllocatorsCopy, mRawListsCopy, thread_idx, num_threads);
-#endif
 }
 
 void phi::d3d12::CommandListPool::destroy()
@@ -300,41 +275,6 @@ void phi::d3d12::CommandListPool::destroy()
 
     for (auto& alloc : mAllocatorsCopy)
         alloc.destroy();
-}
-
-void phi::d3d12::CommandListPool::initializeAllocatorsAndLists(
-    ID3D12Device5* pDevice, queue_type type, cc::span<CommandAllocator> spAllocators, cc::span<ID3D12GraphicsCommandList5*> spLists, uint32_t threadIdx, uint32_t numThreads)
-{
-    Range const rangeAllocs = SplitRangeEven(spAllocators.size(), threadIdx, numThreads);
-    PHI_LOG_TRACE("Thr#{} of {} initializing allocators #{} until {}", threadIdx, numThreads, rangeAllocs.fromIdx, rangeAllocs.toIdx);
-
-    D3D12_COMMAND_LIST_TYPE const nativeType = util::to_native(type);
-
-    uint32_t numAllocsInitialized = 0;
-    for (size_t i = rangeAllocs.fromIdx; i < rangeAllocs.toIdx; ++i)
-    {
-        spAllocators[i].initialize(*pDevice, nativeType);
-        mQueue.releaseAllocator(&spAllocators[i], type);
-        ++numAllocsInitialized;
-    }
-
-    if (numAllocsInitialized == 0)
-    {
-        // do not touch lists if we do not have a single allocator
-        return;
-    }
-
-    Range rangeLists = SplitRangeEven(spLists.size(), threadIdx, numThreads);
-
-    if (rangeAllocs.toIdx == spAllocators.size())
-    {
-        // if we were the thread to init the very last allocator, extend the range of lists to init to all
-        rangeLists.toIdx = spLists.size();
-    }
-    PHI_LOG_TRACE("Thr#{} of {} initializing lists #{} until {}", threadIdx, numThreads, rangeLists.fromIdx, rangeLists.toIdx);
-
-    auto const spListsToInit = spLists.subspan(rangeLists.fromIdx, rangeLists.toIdx - rangeLists.fromIdx);
-    spAllocators[rangeAllocs.fromIdx].createCommandLists(*pDevice, spListsToInit);
 }
 
 phi::handle::command_list phi::d3d12::CommandListPool::acquireNodeInternal(phi::queue_type type,
