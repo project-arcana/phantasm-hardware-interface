@@ -303,14 +303,6 @@ public:
     void destroy();
 
 private:
-    void initializeAllocatorsAndLists(ID3D12Device5* pDevice,
-                                      queue_type type,
-                                      cc::span<CommandAllocator> spAllocators,
-                                      cc::span<ID3D12GraphicsCommandList5*> spLists,
-                                      uint32_t threadIdx,
-                                      uint32_t numThreads);
-
-private:
     handle::command_list acquireNodeInternal(queue_type type, cmd_list_node*& out_node, ID3D12GraphicsCommandList5*& out_cmdlist);
 
     [[nodiscard]] cmd_list_node* getNodeInternal(handle::command_list cl)
