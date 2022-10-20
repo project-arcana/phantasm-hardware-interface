@@ -6,6 +6,8 @@
 #include <clean-core/alloc_array.hh>
 #include <clean-core/atomic_linked_pool.hh>
 #include <clean-core/bits.hh>
+
+#define CC_MPMC_QUEUE_TRACK_SIZE true
 #include <clean-core/experimental/mpmc_queue.hh>
 
 #include <phantasm-hardware-interface/arguments.hh>
@@ -166,6 +168,9 @@ struct CommandAllocatorQueue
         case queue_type::copy:
             bSuccess = queueCopy.enqueue(pAllocator);
             break;
+		default:
+			CC_UNREACHABLE("Invalid queue type");
+			break;
         }
 
         CC_ASSERT(bSuccess && "Double-released command allocator");
