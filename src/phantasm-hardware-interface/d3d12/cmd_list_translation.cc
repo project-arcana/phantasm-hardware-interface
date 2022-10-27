@@ -93,6 +93,7 @@ void phi::d3d12::command_list_translator::beginTranslation(ID3D12GraphicsCommand
     _global_optick_event = Optick::GPUEvent::Start(*globalOptickEvtDesc);
 
     _current_optick_event_stack.clear();
+    _num_optick_event_overflow = 0;
 #endif
 
     // bind the global descriptor heaps
@@ -105,6 +106,12 @@ void phi::d3d12::command_list_translator::endTranslation(bool bDoClose)
 #ifdef PHI_HAS_OPTICK
 
     _prev_optick_gpu_context = {};
+
+    auto const numOpenOptickScopes = _current_optick_event_stack.size() + _num_optick_event_overflow;
+    if (numOpenOptickScopes)
+    {
+        PHI_LOG_ERROR("Failed to close {} profile scopes", numOpenOptickScopes);
+    }
 
     // end last pending optick events
     while (!_current_optick_event_stack.empty())
@@ -850,15 +857,19 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::end_debug_labe
 void phi::d3d12::command_list_translator::execute(cmd::begin_profile_scope const& scope)
 {
 #ifdef PHI_HAS_OPTICK
-    if (_current_optick_event_stack.full())
-    {
-        PHI_LOG_WARN("Profile scopes are nested too deep, trace will be distorted");
-        return;
-    }
+
 
     if (scope.optick_event)
     {
-        _current_optick_event_stack.push_back(Optick::GPUEvent::Start(*scope.optick_event));
+        if (_current_optick_event_stack.full())
+        {
+            PHI_LOG_WARN("Profile scopes are nested too deep");
+            ++_num_optick_event_overflow;
+        }
+        else
+        {
+            _current_optick_event_stack.push_back(Optick::GPUEvent::Start(*scope.optick_event));
+        }
     }
 #endif
 }
@@ -866,10 +877,18 @@ void phi::d3d12::command_list_translator::execute(cmd::begin_profile_scope const
 void phi::d3d12::command_list_translator::execute(cmd::end_profile_scope const&)
 {
 #ifdef PHI_HAS_OPTICK
-    if (!_current_optick_event_stack.empty())
+    if (_num_optick_event_overflow > 0)
+    {
+        --_num_optick_event_overflow;
+    }
+    else if (!_current_optick_event_stack.empty())
     {
         Optick::GPUEvent::Stop(*_current_optick_event_stack.back());
         _current_optick_event_stack.pop_back();
+    }
+    else
+    {
+        PHI_LOG_ERROR("cmd::end_profile_scope without matching begin");
     }
 #endif
 }

@@ -240,6 +240,7 @@ private:
     OptickGPUContextFwd _prev_optick_gpu_context = {};
     Optick::EventData* _global_optick_event = nullptr;
     cc::capped_vector<Optick::EventData*, 8> _current_optick_event_stack;
+    int32_t _num_optick_event_overflow = 0;
 #endif
 };
 
