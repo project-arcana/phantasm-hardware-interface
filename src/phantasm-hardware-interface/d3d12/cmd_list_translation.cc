@@ -97,8 +97,11 @@ void phi::d3d12::command_list_translator::beginTranslation(ID3D12GraphicsCommand
 #endif
 
     // bind the global descriptor heaps
-    auto const gpu_heaps = _globals.pool_shader_views->getGPURelevantHeaps();
-    _cmd_list->SetDescriptorHeaps(UINT(gpu_heaps.size()), gpu_heaps.data());
+    if (type != queue_type::copy)
+    {
+        auto const gpu_heaps = _globals.pool_shader_views->getGPURelevantHeaps();
+        _cmd_list->SetDescriptorHeaps(UINT(gpu_heaps.size()), gpu_heaps.data());
+    }
 }
 
 void phi::d3d12::command_list_translator::endTranslation(bool bDoClose)
@@ -632,6 +635,14 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::transition_res
             util::get_object_name(_globals.pool_resources->getRawResource(transition.resource), buf);
             CC_ASSERTF(false, "Cannot transition buffer \"{}\" on non-GPU heap to {}", buf, enum_to_string(transition.target_state));
         }
+#endif
+
+#if 0
+		 // TODO: assert this instead of filtering?
+		if (_current_queue_type == queue_type::copy && transition.target_state != resource_state::copy_dest && transition.target_state != resource_state::copy_src)
+		{
+			continue;
+		}
 #endif
 
         D3D12_RESOURCE_STATES const after = util::to_native(transition.target_state);
