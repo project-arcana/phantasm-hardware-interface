@@ -7,6 +7,7 @@
 #include <phantasm-hardware-interface/common/byte_util.hh>
 #include <phantasm-hardware-interface/common/container/flat_vector.hh>
 #include <phantasm-hardware-interface/common/format_size.hh>
+#include <phantasm-hardware-interface/window_handle.hh>
 
 #include "limits.hh"
 #include "types.hh"
@@ -428,6 +429,28 @@ struct shader_view_description
 
     /// total amount of samplers in the shader view
     uint32_t num_samplers = 0;
+};
+
+/// describes a swapchain
+struct swapchain_description
+{
+    // the window for which this swapchain is created
+    window_handle handle = {};
+
+    // initial size, must be specified
+    int32_t initial_width = 0;
+    int32_t initial_height = 0;
+
+    // present mode / v-sync settings
+    present_mode mode = present_mode::synced;
+
+    // amount of backbuffers to create
+    uint32_t num_backbuffers = 3;
+
+    // format preference is not necessarily satisfied, check the swapchain format using
+    // getBackbufferFormat after swapchain creation
+    // format::none - no preference, use 8bit default
+    format format_preference = format::none;
 };
 
 /// an element in a bottom-level acceleration strucutre

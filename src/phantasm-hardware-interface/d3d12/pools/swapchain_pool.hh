@@ -28,15 +28,16 @@ public:
         IDXGISwapChain3* swapchain_com; // Swapchain COM Ptr
         int backbuf_width;
         int backbuf_height;
+        DXGI_FORMAT fmt;
         present_mode mode;
         bool has_resized;
         cc::capped_vector<backbuffer, 6> backbuffers; // all backbuffers
         uint32_t last_acquired_backbuf_i = 0;
-		char debugname[32] = {};
+        char debugname[32] = {};
     };
 
 public:
-    handle::swapchain createSwapchain(HWND window_handle, int initial_w, int initial_h, unsigned num_backbuffers, present_mode mode, char const* pDebugName);
+    handle::swapchain createSwapchain(HWND window_handle, int initial_w, int initial_h, unsigned num_backbuffers, format fmt, present_mode mode, char const* pDebugName);
 
     void free(handle::swapchain handle);
 
@@ -62,10 +63,10 @@ public:
 
     unsigned getSwapchainIndex(handle::swapchain handle) const { return mPool.get_handle_index(handle._value); }
 
-    DXGI_FORMAT getBackbufferFormat() const;
+    DXGI_FORMAT getBackbufferFormat(handle::swapchain handle) const { return get(handle).fmt; }
 
 public:
-    void initialize(IDXGIFactory4* factory, ID3D12Device* device, ID3D12CommandQueue* queue, unsigned max_num_swapchains, cc::allocator* static_alloc);
+    void initialize(IDXGIFactory6* factory, ID3D12Device* device, ID3D12CommandQueue* queue, unsigned max_num_swapchains, cc::allocator* static_alloc);
     void destroy();
 
 
@@ -78,13 +79,14 @@ private:
 
 private:
     // nonowning
-    IDXGIFactory4* mParentFactory = nullptr;    ///< The parent adapter's factory
+    IDXGIFactory6* mParentFactory = nullptr;    ///< The parent adapter's factory
     ID3D12Device* mParentDevice = nullptr;      ///< The device
     ID3D12CommandQueue* mParentQueue = nullptr; ///< The device's queue being used to present
 
     // owning
     cc::atomic_linked_pool<swapchain> mPool;
-    ID3D12DescriptorHeap* mRTVHeap;
-    UINT mRTVSize;
+    ID3D12DescriptorHeap* mRTVHeap = nullptr;
+    UINT mRTVSize = 0;
+	bool mTearingSupported = false;
 };
-}
+} // namespace phi::d3d12

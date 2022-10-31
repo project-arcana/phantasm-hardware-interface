@@ -326,21 +326,20 @@ void phi::d3d12::BackendD3D12::flushGPU()
     ::WaitForSingleObject(mFlushEvent, INFINITE);
 }
 
-phi::handle::swapchain phi::d3d12::BackendD3D12::createSwapchain(
-    const phi::window_handle& window_handle, tg::isize2 initial_size, phi::present_mode mode, uint32_t num_backbuffers, char const* debug_name)
+phi::handle::swapchain phi::d3d12::BackendD3D12::createSwapchain(arg::swapchain_description const& desc, char const* debug_name)
 {
     ::HWND native_hwnd = nullptr;
     {
-        if (window_handle.type == window_handle::wh_win32_hwnd)
+        if (desc.handle.type == window_handle::wh_win32_hwnd)
         {
-            native_hwnd = window_handle.value.win32_hwnd;
+            native_hwnd = desc.handle.value.win32_hwnd;
         }
-        else if (window_handle.type == window_handle::wh_sdl)
+        else if (desc.handle.type == window_handle::wh_sdl)
         {
 #ifdef PHI_HAS_SDL2
             SDL_SysWMinfo wmInfo;
             SDL_VERSION(&wmInfo.version)
-            SDL_GetWindowWMInfo(window_handle.value.sdl_handle, &wmInfo);
+            SDL_GetWindowWMInfo(desc.handle.value.sdl_handle, &wmInfo);
             native_hwnd = wmInfo.info.win.window;
 #else
             CC_RUNTIME_ASSERT(false && "SDL handle given, but compiled without SDL present");
@@ -352,7 +351,13 @@ phi::handle::swapchain phi::d3d12::BackendD3D12::createSwapchain(
         }
     }
 
-    return mPoolSwapchains.createSwapchain(native_hwnd, initial_size.width, initial_size.height, num_backbuffers, mode, debug_name);
+    format pixelFormat = desc.format_preference;
+    if (pixelFormat == format::none)
+    {
+        // default
+        pixelFormat = format::bgra8un;
+    }
+    return mPoolSwapchains.createSwapchain(native_hwnd, desc.initial_width, desc.initial_height, desc.num_backbuffers, pixelFormat, desc.mode, debug_name);
 }
 
 void phi::d3d12::BackendD3D12::free(phi::handle::swapchain sc) { mPoolSwapchains.free(sc); }
@@ -361,8 +366,10 @@ phi::handle::resource phi::d3d12::BackendD3D12::acquireBackbuffer(handle::swapch
 {
     auto const swapchain_index = mPoolSwapchains.getSwapchainIndex(sc);
     auto const backbuffer_i = mPoolSwapchains.acquireBackbuffer(sc);
-    auto const& backbuffer = mPoolSwapchains.get(sc).backbuffers[backbuffer_i];
-    return mPoolResources.injectBackbufferResource(swapchain_index, getBackbufferSize(sc), backbuffer.resource, backbuffer.state);
+
+    auto const& swapchain = mPoolSwapchains.get(sc);
+    auto const& backbuffer = swapchain.backbuffers[backbuffer_i];
+    return mPoolResources.injectBackbufferResource(swapchain_index, getBackbufferSize(sc), getBackbufferFormat(sc), backbuffer.resource, backbuffer.state);
 }
 
 void phi::d3d12::BackendD3D12::present(phi::handle::swapchain sc) { mPoolSwapchains.present(sc); }
@@ -373,9 +380,9 @@ void phi::d3d12::BackendD3D12::onResize(handle::swapchain sc, tg::isize2 size)
     mPoolSwapchains.onResize(sc, size.width, size.height);
 }
 
-phi::format phi::d3d12::BackendD3D12::getBackbufferFormat(handle::swapchain /*sc*/) const
+phi::format phi::d3d12::BackendD3D12::getBackbufferFormat(handle::swapchain sc) const
 {
-    return util::to_pr_format(mPoolSwapchains.getBackbufferFormat());
+    return util::to_pr_format(mPoolSwapchains.getBackbufferFormat(sc));
 }
 
 phi::handle::resource phi::d3d12::BackendD3D12::createTexture(arg::texture_description const& desc, char const* debug_name)

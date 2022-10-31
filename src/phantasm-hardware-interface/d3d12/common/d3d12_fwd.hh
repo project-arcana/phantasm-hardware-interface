@@ -33,6 +33,7 @@ struct ID3D11On12Device2;
 struct IDXGIAdapter;
 struct IDXGIAdapter3;
 struct IDXGIFactory4;
+struct IDXGIFactory6;
 struct IDXGISwapChain3;
 struct IDXGIInfoQueue;
 

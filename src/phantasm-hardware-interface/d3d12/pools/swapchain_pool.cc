@@ -14,14 +14,6 @@
 
 namespace
 {
-// NOTE: The _SRGB variant crashes at factory.CreateSwapChainForHwnd
-constexpr auto gc_pool_backbuffer_format = DXGI_FORMAT_B8G8R8A8_UNORM;
-
-DXGI_SWAP_CHAIN_FLAG get_pool_swapchain_flags(phi::present_mode mode)
-{
-    return mode == phi::present_mode::unsynced_allow_tearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : DXGI_SWAP_CHAIN_FLAG(0);
-}
-
 unsigned get_sync_interval(phi::present_mode mode)
 {
     switch (mode)
@@ -38,7 +30,7 @@ unsigned get_sync_interval(phi::present_mode mode)
 }
 } // namespace
 
-void phi::d3d12::SwapchainPool::initialize(IDXGIFactory4* factory, ID3D12Device* device, ID3D12CommandQueue* queue, unsigned max_num_swapchains, cc::allocator* static_alloc)
+void phi::d3d12::SwapchainPool::initialize(IDXGIFactory6* factory, ID3D12Device* device, ID3D12CommandQueue* queue, unsigned max_num_swapchains, cc::allocator* static_alloc)
 {
     CC_ASSERT(mParentFactory == nullptr && "double init");
     mParentFactory = factory;
@@ -59,6 +51,14 @@ void phi::d3d12::SwapchainPool::initialize(IDXGIFactory4* factory, ID3D12Device*
         util::set_object_name(mRTVHeap, "swapchain pool backbuffer RTV heap");
 
         mRTVSize = mParentDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+    }
+
+    // test for tearing support
+    {
+        BOOL bTearingSupported = FALSE;
+        HRESULT hr = mParentFactory->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &bTearingSupported, sizeof(mTearingSupported));
+
+        mTearingSupported = SUCCEEDED(hr) && bTearingSupported;
     }
 }
 
@@ -85,15 +85,15 @@ void phi::d3d12::SwapchainPool::destroy()
 }
 
 phi::handle::swapchain phi::d3d12::SwapchainPool::createSwapchain(
-    HWND window_handle, int initial_w, int initial_h, unsigned num_backbuffers, phi::present_mode mode, char const* pDebugName)
+    HWND window_handle, int initial_w, int initial_h, unsigned num_backbuffers, format fmt, phi::present_mode mode, char const* pDebugName)
 {
     CC_CONTRACT(initial_w > 0 && initial_h > 0);
     handle::handle_t const res = mPool.acquire();
 
     swapchain& new_node = mPool.get(res);
-
     new_node.backbuf_width = initial_w;
     new_node.backbuf_height = initial_h;
+    new_node.fmt = util::to_dxgi_format(fmt);
     new_node.mode = mode;
     new_node.has_resized = false;
     CC_ASSERT(num_backbuffers < 6 && "too many backbuffers configured");
@@ -115,21 +115,21 @@ phi::handle::swapchain phi::d3d12::SwapchainPool::createSwapchain(
         swapchain_desc.BufferCount = num_backbuffers;
         swapchain_desc.Width = UINT(initial_w);
         swapchain_desc.Height = UINT(initial_h);
-        swapchain_desc.Format = gc_pool_backbuffer_format;
+        swapchain_desc.Format = new_node.fmt;
         swapchain_desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
         swapchain_desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
         swapchain_desc.SampleDesc.Count = 1;
-        swapchain_desc.Flags = get_pool_swapchain_flags(mode);
+        swapchain_desc.Flags = mTearingSupported ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
 
         shared_com_ptr<IDXGISwapChain1> temp_swapchain;
         PHI_D3D12_VERIFY(mParentFactory->CreateSwapChainForHwnd(mParentQueue, window_handle, &swapchain_desc, nullptr, nullptr, temp_swapchain.override()));
         PHI_D3D12_VERIFY(temp_swapchain->QueryInterface(IID_PPV_ARGS(&new_node.swapchain_com)));
 
-        util::set_object_name(new_node.swapchain_com, "swapchain %s", new_node.debugname);
+        util::set_object_name(new_node.swapchain_com, "PHI Swapchain %s", new_node.debugname);
     }
 
     // Disable Alt + Enter behavior
-    PHI_D3D12_VERIFY(mParentFactory->MakeWindowAssociation(window_handle, DXGI_MWA_NO_WINDOW_CHANGES));
+    PHI_D3D12_VERIFY(mParentFactory->MakeWindowAssociation(window_handle, DXGI_MWA_NO_ALT_ENTER));
 
     // Create backbuffer RTVs
     auto const res_handle = handle::swapchain{res};
@@ -154,8 +154,8 @@ void phi::d3d12::SwapchainPool::onResize(phi::handle::swapchain handle, int w, i
     node.backbuf_height = h;
     node.has_resized = true;
     releaseBackbuffers(node);
-    PHI_D3D12_VERIFY(node.swapchain_com->ResizeBuffers(unsigned(node.backbuffers.size()), UINT(w), UINT(h), gc_pool_backbuffer_format,
-                                                       get_pool_swapchain_flags(node.mode)));
+    PHI_D3D12_VERIFY(node.swapchain_com->ResizeBuffers(unsigned(node.backbuffers.size()), UINT(w), UINT(h), node.fmt,
+                                                       mTearingSupported ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0));
     updateBackbuffers(handle);
 }
 
@@ -178,7 +178,7 @@ void phi::d3d12::SwapchainPool::present(phi::handle::swapchain handle)
 
     // present
     UINT const sync_interval = get_sync_interval(node.mode);
-    UINT const flags = node.mode == present_mode::unsynced_allow_tearing ? DXGI_PRESENT_ALLOW_TEARING : 0;
+    UINT const flags = mTearingSupported ? DXGI_PRESENT_ALLOW_TEARING : 0;
     PHI_D3D12_VERIFY_FULL(node.swapchain_com->Present(sync_interval, flags), mParentDevice);
 
     // issue present fence on GPU for the next backbuffer in line
@@ -192,8 +192,6 @@ unsigned phi::d3d12::SwapchainPool::acquireBackbuffer(phi::handle::swapchain han
     node.last_acquired_backbuf_i = node.swapchain_com->GetCurrentBackBufferIndex();
     return node.last_acquired_backbuf_i;
 }
-
-DXGI_FORMAT phi::d3d12::SwapchainPool::getBackbufferFormat() const { return gc_pool_backbuffer_format; }
 
 void phi::d3d12::SwapchainPool::updateBackbuffers(phi::handle::swapchain handle)
 {
