@@ -33,6 +33,11 @@ phi::handle::swapchain phi::vk::SwapchainPool::createSwapchain(arg::swapchain_de
         PHI_LOG_WARN("present_mode::synced_2nd_vblank falls back to synced on vulkan");
     }
 
+    if (desc.enable_hdr)
+    {
+        PHI_LOG_WARN("HDR unsupported on vulkan");
+    }
+
     swapchain& new_node = mPool.get(res);
     new_node.backbuf_width = -1;
     new_node.backbuf_height = -1;

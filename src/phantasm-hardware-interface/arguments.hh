@@ -451,6 +451,19 @@ struct swapchain_description
     // getBackbufferFormat after swapchain creation
     // format::none - no preference, use 8bit default
     format format_preference = format::none;
+
+    // if a format with more than 8 bit per channel is chosen, enable HDR features
+    // color space:
+    // HDR off: DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709 (sRGB curve)
+    // HDR on, 10 bit per channel: DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020 (ST2048 curve)
+    // HDR on, 16 bit per channel: DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709 (no curve, linear)
+    bool enable_hdr = false;
+
+    // settings only have effect if HDR is on
+    float hdr_max_output_nits = 1000.f;
+    float hdr_min_output_nits = 0.001f;
+    float hdr_max_content_light_level = 2000.f;
+    float hdr_max_frame_average_light_level = 500.f;
 };
 
 /// an element in a bottom-level acceleration strucutre
