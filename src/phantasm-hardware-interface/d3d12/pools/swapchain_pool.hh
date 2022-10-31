@@ -25,7 +25,7 @@ public:
 
     struct swapchain
     {
-        IDXGISwapChain3* swapchain_com; // Swapchain COM Ptr
+        IDXGISwapChain4* swapchain_com; // Swapchain COM Ptr
         int backbuf_width;
         int backbuf_height;
         DXGI_FORMAT fmt;
@@ -37,7 +37,7 @@ public:
     };
 
 public:
-    handle::swapchain createSwapchain(HWND window_handle, int initial_w, int initial_h, unsigned num_backbuffers, format fmt, present_mode mode, char const* pDebugName);
+    handle::swapchain createSwapchain(HWND window_handle, arg::swapchain_description const& desc, char const* pDebugName);
 
     void free(handle::swapchain handle);
 

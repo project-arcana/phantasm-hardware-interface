@@ -351,13 +351,7 @@ phi::handle::swapchain phi::d3d12::BackendD3D12::createSwapchain(arg::swapchain_
         }
     }
 
-    format pixelFormat = desc.format_preference;
-    if (pixelFormat == format::none)
-    {
-        // default
-        pixelFormat = format::bgra8un;
-    }
-    return mPoolSwapchains.createSwapchain(native_hwnd, desc.initial_width, desc.initial_height, desc.num_backbuffers, pixelFormat, desc.mode, debug_name);
+    return mPoolSwapchains.createSwapchain(native_hwnd, desc, debug_name);
 }
 
 void phi::d3d12::BackendD3D12::free(phi::handle::swapchain sc) { mPoolSwapchains.free(sc); }
