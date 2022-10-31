@@ -116,7 +116,7 @@ void phi::d3d12::ResourcePool::destroy()
     mAllocator.destroy();
 }
 
-phi::handle::resource phi::d3d12::ResourcePool::injectBackbufferResource(unsigned swapchain_index, tg::isize2 size, ID3D12Resource* raw_resource, D3D12_RESOURCE_STATES state)
+phi::handle::resource phi::d3d12::ResourcePool::injectBackbufferResource(unsigned swapchain_index, tg::isize2 size, format fmt, ID3D12Resource* raw_resource, D3D12_RESOURCE_STATES state)
 {
     CC_ASSERT(swapchain_index < mNumReservedBackbuffers && "swapchain index OOB");
     auto const res_handle = mPool.unsafe_construct_handle_for_index(swapchain_index);
@@ -127,7 +127,7 @@ phi::handle::resource phi::d3d12::ResourcePool::injectBackbufferResource(unsigne
 
 
     arg::resource_description& storedDesc = mParallelResourceDescriptions[swapchain_index];
-    storedDesc = arg::resource_description::texture(format::bgra8un, size);
+    storedDesc = arg::resource_description::texture(fmt, size);
 
     return {res_handle};
 }

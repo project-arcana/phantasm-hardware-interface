@@ -107,6 +107,7 @@ struct root_signature_description;
 struct graphics_pipeline_state_description;
 struct compute_pipeline_state_description;
 struct shader_view_description;
+struct swapchain_description;
 
 using shader_arg_shapes = cc::span<shader_arg_shape const>;
 using graphics_shaders = cc::span<graphics_shader const>;

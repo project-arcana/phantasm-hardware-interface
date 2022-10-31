@@ -52,7 +52,7 @@ public:
     };
 
 public:
-    handle::swapchain createSwapchain(window_handle const& window_handle, int initial_w, int initial_h, unsigned num_backbuffers, present_mode mode, cc::allocator* scratch, char const* pDebugName);
+    handle::swapchain createSwapchain(arg::swapchain_description const& desc, cc::allocator* scratch, char const* pDebugName);
 
     void free(handle::swapchain handle);
 
@@ -104,4 +104,4 @@ private:
     VkRenderPass mRenderPass = nullptr;
     VkCommandPool mDummyPresentCommandPool;
 };
-}
+} // namespace phi::vk

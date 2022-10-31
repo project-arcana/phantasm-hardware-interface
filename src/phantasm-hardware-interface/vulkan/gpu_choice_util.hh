@@ -70,7 +70,8 @@ backbuffer_information get_backbuffer_information(VkPhysicalDevice device, VkSur
 /// receive surface capabilities
 VkSurfaceCapabilitiesKHR get_surface_capabilities(VkPhysicalDevice device, VkSurfaceKHR surface, uint32_t present_queue_family_index);
 
-VkSurfaceFormatKHR choose_backbuffer_format(cc::span<VkSurfaceFormatKHR const> available_formats);
+VkSurfaceFormatKHR choose_backbuffer_format(cc::span<VkSurfaceFormatKHR const> available_formats, phi::format preference);
+
 VkPresentModeKHR choose_present_mode(cc::span<VkPresentModeKHR const> available_modes, present_mode mode);
 
 VkExtent2D get_swap_extent(VkSurfaceCapabilitiesKHR const& capabilities, VkExtent2D extent_hint);

@@ -294,11 +294,9 @@ void phi::vk::BackendVulkan::destroy()
 
 phi::vk::BackendVulkan::~BackendVulkan() { destroy(); }
 
-phi::handle::swapchain phi::vk::BackendVulkan::createSwapchain(
-    const phi::window_handle& window_handle, tg::isize2 initial_size, phi::present_mode mode, uint32_t num_backbuffers, char const* debug_name)
+phi::handle::swapchain phi::vk::BackendVulkan::createSwapchain(arg::swapchain_description const& desc, char const* debug_name)
 {
-    auto const res = mPoolSwapchains.createSwapchain(window_handle, initial_size.width, initial_size.height, num_backbuffers, mode,
-                                                     getCurrentScratchAlloc(), debug_name);
+    auto const res = mPoolSwapchains.createSwapchain(desc, getCurrentScratchAlloc(), debug_name);
     return res;
 }
 

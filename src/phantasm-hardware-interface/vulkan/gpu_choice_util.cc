@@ -139,8 +139,17 @@ VkSurfaceCapabilitiesKHR phi::vk::get_surface_capabilities(VkPhysicalDevice devi
     return res;
 }
 
-VkSurfaceFormatKHR phi::vk::choose_backbuffer_format(cc::span<const VkSurfaceFormatKHR> available_formats)
+VkSurfaceFormatKHR phi::vk::choose_backbuffer_format(cc::span<const VkSurfaceFormatKHR> available_formats, phi::format preference)
 {
+    if (preference != format::none)
+    {
+        auto const nativePreference = util::to_vk_format(preference);
+
+        for (auto const& f : available_formats)
+            if (f.format == nativePreference)
+                return f;
+    }
+
     for (auto const& f : available_formats)
         if (f.format == VK_FORMAT_B8G8R8A8_UNORM && f.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
             return f;

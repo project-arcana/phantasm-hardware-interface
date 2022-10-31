@@ -21,15 +21,14 @@ namespace
 constexpr VkFormat gc_assumed_backbuffer_format = VK_FORMAT_B8G8R8A8_UNORM;
 }
 
-phi::handle::swapchain phi::vk::SwapchainPool::createSwapchain(
-    const window_handle& window_handle, int initial_w, int initial_h, unsigned num_backbuffers, phi::present_mode mode, cc::allocator* scratch, char const* pDebugName)
+phi::handle::swapchain phi::vk::SwapchainPool::createSwapchain(arg::swapchain_description const& desc, cc::allocator* scratch, char const* pDebugName)
 {
     (void)pDebugName; // TODO - this must be re-set on each teardown/re-setup
 
-    CC_CONTRACT(initial_w > 0 && initial_h > 0);
+    CC_CONTRACT(desc.initial_width > 0 && desc.initial_height > 0);
     handle::handle_t const res = mPool.acquire();
 
-    if (mode == present_mode::synced_2nd_vblank)
+    if (desc.mode == present_mode::synced_2nd_vblank)
     {
         PHI_LOG_WARN("present_mode::synced_2nd_vblank falls back to synced on vulkan");
     }
@@ -37,19 +36,20 @@ phi::handle::swapchain phi::vk::SwapchainPool::createSwapchain(
     swapchain& new_node = mPool.get(res);
     new_node.backbuf_width = -1;
     new_node.backbuf_height = -1;
-    new_node.mode = mode;
-    new_node.surface = create_platform_surface(mInstance, window_handle);
+    new_node.mode = desc.mode;
+    new_node.surface = create_platform_surface(mInstance, desc.handle);
     new_node.has_resized = true;
     new_node.active_fence_index = 0;
     new_node.active_image_index = 0;
 
     auto const surface_capabilities = get_surface_capabilities(mPhysicalDevice, new_node.surface, mPresentQueueFamilyIndex);
-    CC_RUNTIME_ASSERT(num_backbuffers >= surface_capabilities.minImageCount && "Not enough backbuffers specified");
-    CC_RUNTIME_ASSERT(num_backbuffers <= 6 && "Too many backbuffers specified");
-    CC_RUNTIME_ASSERT((surface_capabilities.maxImageCount == 0 || num_backbuffers <= surface_capabilities.maxImageCount) && "Too many backbuffers specified");
+    CC_RUNTIME_ASSERT(desc.num_backbuffers >= surface_capabilities.minImageCount && "Not enough backbuffers specified");
+    CC_RUNTIME_ASSERT(desc.num_backbuffers <= 6 && "Too many backbuffers specified");
+    CC_RUNTIME_ASSERT((surface_capabilities.maxImageCount == 0 || desc.num_backbuffers <= surface_capabilities.maxImageCount) && "Too many backbuffers specified");
 
     auto const backbuffer_format_info = get_backbuffer_information(mPhysicalDevice, new_node.surface, scratch);
-    new_node.backbuf_format = choose_backbuffer_format(backbuffer_format_info.backbuffer_formats);
+    new_node.backbuf_format = choose_backbuffer_format(backbuffer_format_info.backbuffer_formats, desc.format_preference);
+
     // The reason for assuming a backbuffer format here is to be able to use a global VkRenderPass created at pool init
     // If this turns out to be a problem, we'll have to use a cache for multiple ones instead
     CC_RUNTIME_ASSERT(new_node.backbuf_format.format == gc_assumed_backbuffer_format && "Assumed backbuffer format wrong, please contact maintainers");
@@ -62,13 +62,13 @@ phi::handle::swapchain phi::vk::SwapchainPool::createSwapchain(
         info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
         info.commandPool = mDummyPresentCommandPool;
         info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-        info.commandBufferCount = num_backbuffers;
+        info.commandBufferCount = desc.num_backbuffers;
 
         PHI_VK_VERIFY_SUCCESS(vkAllocateCommandBuffers(mDevice, &info, linear_cmd_buffers));
     }
 
     // Create synchronization primitives and assign dummy command buffers
-    new_node.backbuffers.resize(num_backbuffers);
+    new_node.backbuffers.resize(desc.num_backbuffers);
     for (auto i = 0u; i < new_node.backbuffers.size(); ++i)
     {
         auto& backbuffer = new_node.backbuffers[i];
@@ -106,7 +106,7 @@ phi::handle::swapchain phi::vk::SwapchainPool::createSwapchain(
     }
 
     auto res_handle = handle::swapchain{res};
-    setupSwapchain(res_handle, initial_w, initial_h, scratch);
+    setupSwapchain(res_handle, desc.initial_width, desc.initial_height, scratch);
     return res_handle;
 }
 

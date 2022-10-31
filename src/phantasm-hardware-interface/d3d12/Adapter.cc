@@ -62,11 +62,8 @@ bool phi::d3d12::Adapter::initialize(const backend_config& config, ID3D12Device*
         OPTICK_EVENT("IDXGIFactory Create");
 #endif
 
-        shared_com_ptr<IDXGIFactory> tempFactory;
-        PHI_D3D12_VERIFY(::CreateDXGIFactory(PHI_COM_WRITE(tempFactory)));
-        PHI_D3D12_VERIFY(tempFactory->QueryInterface(IID_PPV_ARGS(&mFactory)));
+        PHI_D3D12_VERIFY(::CreateDXGIFactory1(IID_PPV_ARGS(&mFactory)));
     }
-
 
     // Debug layer init
     // NOTE: This must come BEFORE D3D12Device creation!

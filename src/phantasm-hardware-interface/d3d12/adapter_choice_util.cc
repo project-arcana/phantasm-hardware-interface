@@ -39,7 +39,7 @@ bool testDeviceOnAdapter(IDXGIAdapter* pAdapter, ID3D12Device** ppOptOutDevice)
 }
 } // namespace
 
-uint32_t phi::d3d12::getAdapterCandidates(IDXGIFactory4* factory,
+uint32_t phi::d3d12::getAdapterCandidates(IDXGIFactory6* factory,
                                           cc::span<phi::gpu_info> outCandidateInfos,
                                           cc::span<ID3D12Device*> outCandidateDevices,
                                           cc::span<IDXGIAdapter*> outCandidateAdapters)
@@ -118,7 +118,7 @@ phi::gpu_info phi::d3d12::getAdapterInfo(IDXGIAdapter* adapter, uint32_t index)
     return info;
 }
 
-bool phi::d3d12::getFirstAdapter(IDXGIFactory4* factory, IDXGIAdapter** outAdapter, ID3D12Device** outDevice, uint32_t* outIndex)
+bool phi::d3d12::getFirstAdapter(IDXGIFactory6* factory, IDXGIAdapter** outAdapter, ID3D12Device** outDevice, uint32_t* outIndex)
 {
 #ifdef PHI_HAS_OPTICK
     OPTICK_EVENT();

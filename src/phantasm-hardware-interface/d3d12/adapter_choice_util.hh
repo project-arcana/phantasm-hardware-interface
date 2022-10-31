@@ -14,7 +14,7 @@ namespace phi::d3d12
 [[nodiscard]] gpu_feature_info getGPUFeaturesFromDevice(ID3D12Device5* device);
 
 // Get all available adapter candidates
-uint32_t getAdapterCandidates(IDXGIFactory4* factory,
+uint32_t getAdapterCandidates(IDXGIFactory6* factory,
                               cc::span<phi::gpu_info> outCandidateInfos,
                               cc::span<ID3D12Device*> outCandidateDevices,
                               cc::span<IDXGIAdapter*> outCandidateAdapters);
@@ -22,5 +22,5 @@ uint32_t getAdapterCandidates(IDXGIFactory4* factory,
 phi::gpu_info getAdapterInfo(IDXGIAdapter* adapter, uint32_t index);
 
 // get the first supported adapter, faster than getAdapterCandidates
-bool getFirstAdapter(IDXGIFactory4* factory, IDXGIAdapter** outAdapter, ID3D12Device** outDevice, uint32_t* outIndex);
+bool getFirstAdapter(IDXGIFactory6* factory, IDXGIAdapter** outAdapter, ID3D12Device** outDevice, uint32_t* outIndex);
 } // namespace phi::d3d12

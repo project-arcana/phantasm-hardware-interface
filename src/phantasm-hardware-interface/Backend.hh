@@ -54,12 +54,7 @@ public:
     //
 
     /// create a swapchain on a given window
-    [[nodiscard]] virtual handle::swapchain createSwapchain(window_handle const& window_handle,
-                                                            tg::isize2 initial_size,
-                                                            present_mode mode = present_mode::synced,
-                                                            uint32_t num_backbuffers = 3,
-                                                            char const* debug_name = nullptr)
-        = 0;
+    [[nodiscard]] virtual handle::swapchain createSwapchain(arg::swapchain_description const& desc, char const* debug_name = nullptr) = 0;
 
     /// destroy a swapchain
     virtual void free(handle::swapchain sc) = 0;

@@ -1,7 +1,5 @@
 #pragma once
 
-#include <cstdint>
-
 struct SDL_Window;
 typedef struct HWND__* HWND;
 typedef struct _XDisplay Display;

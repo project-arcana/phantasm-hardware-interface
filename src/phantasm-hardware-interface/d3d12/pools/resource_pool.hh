@@ -189,7 +189,7 @@ public:
     // the first of either phi::present or phi::resize
     //
 
-    [[nodiscard]] handle::resource injectBackbufferResource(unsigned swapchain_index, tg::isize2 size, ID3D12Resource* raw_resource, D3D12_RESOURCE_STATES state);
+    [[nodiscard]] handle::resource injectBackbufferResource(unsigned swapchain_index, tg::isize2 size, format fmt, ID3D12Resource* raw_resource, D3D12_RESOURCE_STATES state);
 
     [[nodiscard]] bool isBackbuffer(handle::resource res) const { return mPool.get_handle_index(res._value) < mNumReservedBackbuffers; }
 
