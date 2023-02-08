@@ -22,7 +22,8 @@ void phi::d3d12::util::diagnostic_state::init()
     if (detail::hr_succeeded(::DXGIGetDebugInterface1(0, IID_PPV_ARGS(&_pix_handle))))
     {
         _pix_capture_running = false;
-        PHI_LOG << "PIX detected";
+		// This succeeds if PIX is attached, but also if Renderdoc is, possibly others
+        //PHI_LOG << "PIX detected";
     }
     else
 #endif
@@ -32,10 +33,6 @@ void phi::d3d12::util::diagnostic_state::init()
 
     // RenderDoc
     _renderdoc_handle = ::phi::detail::load_renderdoc();
-    if (_renderdoc_handle)
-    {
-        PHI_LOG << "RenderDoc detected";
-    }
 }
 
 void phi::d3d12::util::diagnostic_state::free()
