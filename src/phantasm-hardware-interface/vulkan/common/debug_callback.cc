@@ -36,7 +36,7 @@ namespace
         return "unknown type";
     }
 }
-}
+} // namespace
 
 VkBool32 phi::vk::detail::debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT severity,
                                          VkDebugUtilsMessageTypeFlagsEXT type,
@@ -47,7 +47,8 @@ VkBool32 phi::vk::detail::debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT 
     {
         (void)type;
         // RICH_LOG_IMPL(phi::detail::vulkan_log)("{} message - {}", to_literal(type), to_literal(severity));
-        RICH_LOG_IMPL(phi::detail::vulkan_log)("{}", callback_data->pMessage);
+        // RICH_LOG_IMPL(phi::detail::vulkan_log)("{}", callback_data->pMessage);
+        PHI_LOG_WARN("Vulkan Message: {}", callback_data->pMessage);
         // cc::breakpoint(); // NOTE: setting a breakpoint here sometimes doesn't suffice, this does
     }
     return VK_FALSE;

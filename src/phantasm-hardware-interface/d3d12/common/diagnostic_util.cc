@@ -59,7 +59,7 @@ bool phi::d3d12::util::diagnostic_state::start_capture()
 #ifdef PHI_HAS_PIX
     if (_pix_handle)
     {
-        PHI_LOG << "starting PIX capture";
+        PHI_LOG("starting PIX capture");
         _pix_handle->BeginCapture();
         _pix_capture_running = true;
         return true;
@@ -68,7 +68,7 @@ bool phi::d3d12::util::diagnostic_state::start_capture()
 
     if (_renderdoc_handle)
     {
-        PHI_LOG << "starting RenderDoc capture";
+        PHI_LOG("starting RenderDoc capture");
         _renderdoc_handle->StartFrameCapture(nullptr, nullptr);
         _renderdoc_capture_running = true;
         return true;
@@ -82,7 +82,7 @@ bool phi::d3d12::util::diagnostic_state::end_capture()
 #ifdef PHI_HAS_PIX
     if (_pix_handle && _pix_capture_running)
     {
-        PHI_LOG << "ending PIX capture";
+        PHI_LOG("ending PIX capture");
         _pix_handle->EndCapture();
         _pix_capture_running = false;
         return true;
@@ -91,7 +91,7 @@ bool phi::d3d12::util::diagnostic_state::end_capture()
 
     if (_renderdoc_handle && _renderdoc_capture_running)
     {
-        PHI_LOG << "ending RenderDoc capture";
+        PHI_LOG("ending RenderDoc capture");
         _renderdoc_handle->EndFrameCapture(nullptr, nullptr);
         _renderdoc_capture_running = false;
         return true;

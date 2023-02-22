@@ -32,7 +32,11 @@ bool testDeviceOnAdapter(IDXGIAdapter* pAdapter, ID3D12Device** ppOptOutDevice)
     {
         DXGI_ADAPTER_DESC adapterDesc = {};
         PHI_D3D12_VERIFY(pAdapter->GetDesc(&adapterDesc));
-        PHI_LOG_TRACE.printf("GPU \"%ws\" does not support DirectX 12", adapterDesc.Description);
+
+        // just making sure here, not sure if cc format supports %ws
+        char buf[512] = "";
+        snprintf(buf, sizeof(buf), "GPU \"%ws\" does not support DirectX 12", adapterDesc.Description);
+        PHI_LOG_TRACE("{}", buf);
     }
 
     return isEligible;

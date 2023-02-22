@@ -229,12 +229,14 @@ void sortDescriptorsBySetAndBinding(cc::span<phi::vk::util::ReflectedDescriptorI
 {
     using namespace phi::vk::util;
 
-    std::sort(inOutDescriptorInfos.begin(), inOutDescriptorInfos.end(), [](ReflectedDescriptorInfo const& lhs, ReflectedDescriptorInfo const& rhs) {
-        if (lhs.set != rhs.set)
-            return lhs.set < rhs.set;
-        else
-            return lhs.binding < rhs.binding;
-    });
+    std::sort(inOutDescriptorInfos.begin(), inOutDescriptorInfos.end(),
+              [](ReflectedDescriptorInfo const& lhs, ReflectedDescriptorInfo const& rhs)
+              {
+                  if (lhs.set != rhs.set)
+                      return lhs.set < rhs.set;
+                  else
+                      return lhs.binding < rhs.binding;
+              });
 }
 
 constexpr uint32_t gc_patched_spirv_binary_version = 0xDEAD0001;
@@ -355,7 +357,8 @@ size_t phi::vk::util::addDummyDescriptors(cc::span<arg::shader_arg_shape const> 
     descriptorsToRangeInfos(inOutFillerDescriptors, range_infos);
 
     size_t numWritten = 0;
-    auto F_AddDescriptor = [&](VkDescriptorType type, uint32_t set, uint32_t binding) {
+    auto F_AddDescriptor = [&](VkDescriptorType type, uint32_t set, uint32_t binding)
+    {
         // TODO: visibility flags are arbitrary, might cause problems (ALL_GRAPHICS works for naive graphics PSOs)
         inOutFillerDescriptors.push_back(ReflectedDescriptorInfo{set, binding, 1, type, VK_SHADER_STAGE_ALL_GRAPHICS, VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT});
         ++numWritten;
@@ -470,23 +473,23 @@ bool phi::vk::util::warnIfReflectionIsInconsistent(cc::span<const phi::vk::util:
 
         if (ri.num_cbvs != (shape.has_cbv ? 1 : 0))
         {
-            PHI_LOG_WARN << "SPIR-V reflection inconsistent - CBVs: " << ri.num_cbvs << " reflected, vs " << (shape.has_cbv ? 1 : 0) << " in argument #" << i;
+            PHI_LOG_WARN("SPIR-V reflection inconsistent - CBVs: {} reflected, vs {} in argument #{}", ri.num_cbvs, (shape.has_cbv ? 1 : 0), i);
             isInconsistent = true;
         }
 
         if (ri.num_srvs != shape.num_srvs)
         {
-            PHI_LOG_WARN << "SPIR-V reflection inconsistent - SRVs: " << ri.num_srvs << " reflected, vs " << shape.num_srvs << " in argument #" << i;
+            PHI_LOG_WARN("SPIR-V reflection inconsistent - SRVs: {} reflected, vs {} in argument #{}", ri.num_srvs, shape.num_srvs, i);
             isInconsistent = true;
         }
         if (ri.num_uavs != shape.num_uavs)
         {
-            PHI_LOG_WARN << "SPIR-V reflection inconsistent - UAVs: " << ri.num_uavs << " reflected, vs " << shape.num_uavs << " in argument #" << i;
+            PHI_LOG_WARN("SPIR-V reflection inconsistent - UAVs: {} reflected, vs {} in argument #{}", ri.num_uavs, shape.num_uavs, i);
             isInconsistent = true;
         }
         if (ri.num_samplers != shape.num_samplers)
         {
-            PHI_LOG_WARN << "SPIR-V reflection inconsistent - Samplers: " << ri.num_samplers << " reflected, vs " << shape.num_samplers << " in argument #" << i;
+            PHI_LOG_WARN("SPIR-V reflection inconsistent - Samplers: {} reflected, vs {} in argument #{}", ri.num_samplers, shape.num_samplers, i);
             isInconsistent = true;
         }
     }
@@ -496,10 +499,9 @@ bool phi::vk::util::warnIfReflectionIsInconsistent(cc::span<const phi::vk::util:
 
 void phi::vk::util::logReflectedDescriptors(cc::span<const phi::vk::util::ReflectedDescriptorInfo> info)
 {
-    auto log_obj = PHI_LOG;
-    log_obj("SPIR-V descriptor info:\n");
+    PHI_LOG("SPIR-V descriptor info:");
     for (auto const& i : info)
     {
-        log_obj.printf("  set %u, binding %u, array size %u, VkDescriptorType %d\n", i.set, i.binding, i.binding_array_size, i.type);
+        PHI_LOG("  set %u, binding %u, array size %u, VkDescriptorType %d", i.set, i.binding, i.binding_array_size, i.type);
     }
 }

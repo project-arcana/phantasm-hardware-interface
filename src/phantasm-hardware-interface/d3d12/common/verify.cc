@@ -201,10 +201,7 @@ void print_dred_information(ID3D12Device* device)
                 if (bc_node->pCommandQueueDebugNameA != nullptr)
                     PHI_LOG_ASSERT("  on queue \"{}\"", bc_node->pCommandQueueDebugNameA);
 
-
-                auto logger = PHI_LOG_ASSERT;
-                logger.set_separator("");
-                logger << "    ";
+                cc::string logger = "    ";
 
                 unsigned const last_executed_i = *bc_node->pLastBreadcrumbValue;
                 unsigned num_logged_contiguous = 0;
@@ -212,26 +209,29 @@ void print_dred_information(ID3D12Device* device)
                 {
                     if (num_logged_contiguous == 6)
                     {
-                        logger << ",\n                                          ";
+                        logger += ",\n                                          ";
                         num_logged_contiguous = 0;
                     }
 
                     if (i == last_executed_i)
-                        logger << "[[> " << get_breadcrumb_op_literal(bc_node->pCommandHistory[i]) << " <]] ";
+                        logger += "[[> " + cc::string(get_breadcrumb_op_literal(bc_node->pCommandHistory[i])) + " <]] ";
                     else
-                        logger << "[" << get_breadcrumb_op_literal(bc_node->pCommandHistory[i]) << "] ";
+                        logger += "[" + cc::string(get_breadcrumb_op_literal(bc_node->pCommandHistory[i])) + "] ";
                     ++num_logged_contiguous;
                 }
 
                 if (last_executed_i == bc_node->BreadcrumbCount)
-                    logger << "  (fully executed)";
+                    logger += "  (fully executed)";
                 else
-                    logger << "  (execution halted at #" << last_executed_i << ")";
+                    logger += "  (execution halted at #" + cc::to_string(last_executed_i) + ")";
 
                 bc_node = bc_node->pNext;
                 ++num_breadcrumbs;
+
+                PHI_LOG_ASSERT("{}", logger.c_str());
             }
-            PHI_LOG_ASSERT << "end of breadcrumb data";
+
+            PHI_LOG_ASSERT("end of breadcrumb data");
         }
         else
         {
@@ -266,7 +266,7 @@ void print_dred_information(ID3D12Device* device)
                 allocated_node = allocated_node->pNext;
             }
 
-            PHI_LOG_ASSERT << "end of pagefault data";
+            PHI_LOG_ASSERT("end of pagefault data");
         }
         else
         {

@@ -89,7 +89,7 @@ bool phi::d3d12::Device::initialize(ID3D12Device* deviceToUse, IDXGIAdapter& ada
         }
         else
         {
-            PHI_LOG_ERROR << "failed to enable DRED";
+            PHI_LOG_ERROR("failed to enable DRED");
         }
     }
 
