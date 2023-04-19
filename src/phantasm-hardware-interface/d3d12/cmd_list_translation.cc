@@ -61,6 +61,8 @@ void phi::d3d12::command_list_translator::beginTranslation(ID3D12GraphicsCommand
                                                            incomplete_state_cache* state_cache,
                                                            cmd::set_global_profile_scope const* pOptGlobalProfile)
 {
+    CC_ASSERT(_globals.device && _globals.pool_shader_views && _globals.pool_resources && "Globals not present");
+
     _cmd_list = list;
     _current_queue_type = type;
     _state_cache = state_cache;
