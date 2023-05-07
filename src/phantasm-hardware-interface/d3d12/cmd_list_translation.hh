@@ -112,6 +112,8 @@ private:
     void bind_vertex_buffers(handle::resource const vertex_buffers[limits::max_vertex_buffers]);
 
 private:
+    friend class CmdlistTranslatorPool;
+
     // non-owning constant (global)
     translator_global_memory _globals;
 

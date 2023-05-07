@@ -20,6 +20,8 @@ void phi::d3d12::CmdlistTranslatorPool::initialize(ID3D12Device* device,
         auto* const pNewTranslator = pStaticAlloc->new_t<command_list_translator>();
         pNewTranslator->initialize(device, sv_pool, resource_pool, pso_pool, as_pool, query_pool);
         mTranslators[i] = pNewTranslator;
+
+        CC_ASSERT(pNewTranslator->_globals.device != nullptr && "Translator has invalid ID3D12Device*");
     }
 
     mBackingAlloc = pStaticAlloc;
@@ -31,6 +33,7 @@ void phi::d3d12::CmdlistTranslatorPool::destroy()
 
     for (auto* const pTranslator : mTranslators)
     {
+        CC_ASSERT(pTranslator->_globals.device != nullptr && "Translator has invalid ID3D12Device*");
         pTranslator->destroy();
         mBackingAlloc->delete_t(pTranslator);
     }
@@ -49,6 +52,7 @@ phi::handle::live_command_list phi::d3d12::CmdlistTranslatorPool::createLiveCmdL
     Node& node = mPool.get(res);
     node.hBackingList = backing;
     node.pTranslator = mTranslators[mPool.get_handle_index(res)];
+    CC_ASSERT(node.pTranslator->_globals.device != nullptr && "Translator has invalid ID3D12Device*");
 
     node.pTranslator->beginTranslation(pRawList, queue, pStateCache, pOptGlobalProfileScope);
 
@@ -58,6 +62,7 @@ phi::handle::live_command_list phi::d3d12::CmdlistTranslatorPool::createLiveCmdL
 phi::handle::command_list phi::d3d12::CmdlistTranslatorPool::freeLiveCmdList(handle::live_command_list hLiveList, bool bDoClose)
 {
     command_list_translator* const pTranslator = getTranslator(hLiveList);
+    CC_ASSERT(pTranslator->_globals.device != nullptr && "Translator has invalid ID3D12Device*");
     pTranslator->endTranslation(bDoClose);
 
     auto const hBackingList = getBackingList(hLiveList);
