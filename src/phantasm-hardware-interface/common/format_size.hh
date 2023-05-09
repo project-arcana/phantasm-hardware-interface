@@ -48,11 +48,12 @@ constexpr uint32_t get_block_format_4x4_size(format fmt)
     case format::bc2_srgb:
     case format::bc3:
     case format::bc3_srgb:
+    case format::bc5:
     case format::bc6h_16f:
     case format::bc6h_16uf:
     case format::bc7:
     case format::bc7_srgb:
-        // BC2, 3, 5, 6H and 7 cost 16 B per 4x4 pixels
+        // BC2, BC3, BC5, BC6H and BC7 cost 16 B per 4x4 pixels
         return 16;
 
     default:

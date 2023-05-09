@@ -237,6 +237,7 @@ enum class format : uint8_t
     bc2_srgb,  // sRGB version of BC2
     bc3,       // BC3: 4x4 rgba8 (non-premultiplied) pixels in 128 bit (4:1), DXT3
     bc3_srgb,  // sRGB version of BC3
+    bc5,       // BC5 4x4 rg8 pixels in 128 bit (2:1) - ideal for normal map compression
     bc6h_16f,  // BC6H: 4x4 rgb16f pixels in 128 bit (6:1)
     bc6h_16uf, // unsigned float version of BC6H
     bc7,       // BC7: 4x4 rgba8 pixels in 128bit (4:1)
