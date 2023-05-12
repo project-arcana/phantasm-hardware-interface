@@ -6,40 +6,7 @@
 
 #include <clean-core/span.hh>
 
-uint32_t phi::util::get_texture_size_bytes(tg::isize3 size, phi::format fmt, int num_mips, bool is_d3d12)
-{
-    // calculate number of mips if zero is given
-    num_mips = num_mips > 0 ? num_mips : get_num_mips(size.width, size.height);
-    auto const bytes_per_pixel = get_format_size_bytes(fmt);
-    auto res_bytes = 0u;
-
-    for (auto mip = 0; mip < num_mips; ++mip)
-    {
-        auto const mip_width = get_mip_size(size.width, mip);
-        auto const mip_height = get_mip_size(size.height, mip);
-
-        uint32_t row_pitch = bytes_per_pixel * mip_width;
-
-        // individual pixel / block rows must be 256 byte aligned in D3D12
-        if (is_d3d12)
-            row_pitch = phi::util::align_up(row_pitch, 256u); // D3D12_TEXTURE_DATA_PITCH_ALIGNMENT
-
-        // buffer offsets for subresources must be 512 byte aligned in D3D12
-        // in Vulkan, there are multiple rules depending on texture content
-        // (VUID-vkCmdCopyBufferToImage-bufferOffset-01558, VUID-vkCmdCopyBufferToImage-bufferOffset-01559, ...)
-        // but 512 is a safe upper bound (larger than all 4x4 block sizes, etc.)
-        uint32_t mip_level_size = phi::util::align_up(row_pitch * mip_height, 512u); // D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT
-
-        res_bytes += mip_level_size;
-    }
-
-    // multiply with depth/array size/face count
-    // subresource alignment is kept intact
-    // NOTE: technically this is greater than the real required amount because the last subresource would not have to be aligned up to 512
-    return res_bytes * size.depth;
-}
-
-uint32_t phi::util::get_texture_size_bytes_on_gpu(arg::texture_description const& desc, bool is_d3d12)
+uint32_t phi::util::get_texture_size_bytes_on_gpu(arg::texture_description const& desc, bool is_d3d12, uint32_t max_num_mips)
 {
     auto const numSlices = desc.get_array_size();
     auto const depth = desc.get_depth();
@@ -50,7 +17,8 @@ uint32_t phi::util::get_texture_size_bytes_on_gpu(arg::texture_description const
 
     uint32_t numBytesPerSlice = 0u;
 
-    for (uint32_t mip = 0; mip < desc.num_mips; ++mip)
+    uint32_t const effective_num_mips = max_num_mips > 0 ? cc::min(max_num_mips, desc.num_mips) : desc.num_mips;
+    for (uint32_t mip = 0; mip < effective_num_mips; ++mip)
     {
         uint32_t const rowLength = cc::max(1u, uint32_t(desc.width) >> mip);
         uint32_t const numDepths = cc::max(1u, uint32_t(depth) >> mip);

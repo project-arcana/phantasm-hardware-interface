@@ -32,14 +32,10 @@ constexpr tg::isize2 get_mip_size(tg::isize2 size, int mip_level)
 inline int get_num_mips(int width, int height) { return int(cc::bit_log2(uint32_t(cc::max(width, height)))) + 1; }
 inline int get_num_mips(tg::isize2 size) { return get_num_mips(size.width, size.height); }
 
-// computes byte size in a GPU buffer to store contents of a texture
-[[deprecated("use get_texture_size_bytes_on_gpu, this is wrong for block-compressed and 3D / 2D array cases")]] //
-PHI_API uint32_t
-get_texture_size_bytes(tg::isize3 size, format fmt, int num_mips, bool is_d3d12);
-
 // returns the required size for a buffer that holds all subresources of the texture
 // multisampling is ignored
-PHI_API uint32_t get_texture_size_bytes_on_gpu(arg::texture_description const& desc, bool is_d3d12);
+// max_num_mips: if not 0, only compute size for these many MIP levels instead of all that are contained in the description
+PHI_API uint32_t get_texture_size_bytes_on_gpu(arg::texture_description const& desc, bool is_d3d12, uint32_t max_num_mips = 0);
 
 struct PHI_API texture_subresource_sizes
 {
