@@ -41,7 +41,7 @@ public:
     using handle_t = int32_t;
 
 public:
-    void initialize(ID3D12Device& device, D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t num_descriptors, uint32_t page_size, cc::allocator* static_alloc);
+    void initialize(ID3D12Device& device, D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t num_descriptors, uint32_t page_size, cc::allocator* static_alloc, bool bShaderVisible);
 
     void destroy();
 
@@ -105,6 +105,7 @@ private:
     D3D12_CPU_DESCRIPTOR_HANDLE mHeapStartCPU;
     D3D12_GPU_DESCRIPTOR_HANDLE mHeapStartGPU;
     phi::page_allocator mPageAllocator;
+public:
     uint32_t mDescriptorSize = 0;
     D3D12_DESCRIPTOR_HEAP_TYPE mDescriptorType;
 };
@@ -118,7 +119,7 @@ class ShaderViewPool
 public:
     // frontend-facing API
 
-    handle::shader_view createEmpty(uint32_t num_srvs, uint32_t num_uavs, uint32_t num_samplers);
+    handle::shader_view createEmpty(uint32_t num_srvs, uint32_t num_uavs, uint32_t num_samplers, bool bStaging);
 
     handle::shader_view create(cc::span<resource_view const> srvs, cc::span<resource_view const> uavs, cc::span<sampler_config const> samplers);
 
@@ -127,6 +128,12 @@ public:
     void writeShaderViewUAVs(handle::shader_view sv, uint32_t offset, cc::span<resource_view const> uavs);
 
     void writeShaderViewSamplers(handle::shader_view sv, uint32_t offset, cc::span<sampler_config const> samplers);
+
+    void copyShaderViewSRVs(handle::shader_view hDest, uint32_t offsetDest, handle::shader_view hSrc, uint32_t offsetSrc, uint32_t numDescriptors);
+
+    void copyShaderViewUAVs(handle::shader_view hDest, uint32_t offsetDest, handle::shader_view hSrc, uint32_t offsetSrc, uint32_t numDescriptors);
+
+    void copyShaderViewSamplers(handle::shader_view hDest, uint32_t offsetDest, handle::shader_view hSrc, uint32_t offsetSrc, uint32_t numDescriptors);
 
     void free(handle::shader_view sv);
     void free(cc::span<handle::shader_view const> svs);
@@ -172,6 +179,7 @@ private:
         DescriptorPageAllocator::handle_t sampler_alloc_handle = -1;
         uint32_t numSRVs = 0;
         uint32_t numUAVs = 0;
+        bool bIsStaging = false;
     };
 
 private:
@@ -200,8 +208,13 @@ private:
     AccelStructPool* mAccelStructPool = nullptr;
 
     cc::atomic_linked_pool<shader_view_data> mPool;
+
     DescriptorPageAllocator mSRVUAVAllocator;
     DescriptorPageAllocator mSamplerAllocator;
+
+    DescriptorPageAllocator mStagingSRVUAVAllocator;
+    DescriptorPageAllocator mStagingSamplerAllocator;
+
     std::mutex mMutex;
 };
 } // namespace phi::d3d12

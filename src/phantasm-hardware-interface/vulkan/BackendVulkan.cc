@@ -386,6 +386,22 @@ void phi::vk::BackendVulkan::writeShaderViewSamplers(handle::shader_view sv, uin
     mPoolShaderViews.writeShaderViewSamplers(sv, offset, samplers, getCurrentScratchAlloc());
 }
 
+void phi::vk::BackendVulkan::copyShaderViewSRVs(handle::shader_view hDest, uint32_t offsetDest, handle::shader_view hSrc, uint32_t offsetSrc, uint32_t numDescriptors)
+{
+    mPoolShaderViews.copyShaderViewSRVs(hDest, offsetDest, hSrc, offsetSrc, numDescriptors);
+}
+
+void phi::vk::BackendVulkan::copyShaderViewUAVs(handle::shader_view hDest, uint32_t offsetDest, handle::shader_view hSrc, uint32_t offsetSrc, uint32_t numDescriptors)
+{
+    mPoolShaderViews.copyShaderViewUAVs(hDest, offsetDest, hSrc, offsetSrc, numDescriptors);
+}
+
+void phi::vk::BackendVulkan::copyShaderViewSamplers(handle::shader_view hDest, uint32_t offsetDest, handle::shader_view hSrc, uint32_t offsetSrc, uint32_t numDescriptors)
+{
+    mPoolShaderViews.copyShaderViewSamplers(hDest, offsetDest, hSrc, offsetSrc, numDescriptors);
+}
+
+
 void phi::vk::BackendVulkan::free(phi::handle::shader_view sv) { mPoolShaderViews.free(sv); }
 
 void phi::vk::BackendVulkan::freeRange(cc::span<const phi::handle::shader_view> svs) { mPoolShaderViews.free(svs); }
