@@ -130,15 +130,19 @@ public:
     /// create an empty shader view without specific resources written to it
     [[nodiscard]] virtual handle::shader_view createEmptyShaderView(arg::shader_view_description const& desc, bool usage_compute = false) = 0;
 
-    /// write resources as contiguous SRVs to a shader view at a specified offset
-    /// SRVs are indexed flat, meaning descriptor arrays are treated as sequential regular descriptors
+    /// write resources as contiguous SRVs/UAVs to a shader view at a specified offset
+    /// SRVs and UAVs are indexed flat, meaning descriptor arrays are treated as sequential regular descriptors
     virtual void writeShaderViewSRVs(handle::shader_view sv, uint32_t offset, cc::span<resource_view const> srvs) = 0;
-
-    /// write resources as contiguous UAVs to a shader view at a specified offset
-    /// UAVs are indexed flat, meaning descriptor arrays are treated as sequential regular descriptors
     virtual void writeShaderViewUAVs(handle::shader_view sv, uint32_t offset, cc::span<resource_view const> uavs) = 0;
 
+    /// write contiguous samplers to a shader view at a specified offset
     virtual void writeShaderViewSamplers(handle::shader_view sv, uint32_t offset, cc::span<sampler_config const> samplers) = 0;
+
+    /// copy existing descriptors from one range in a shader view to another
+    /// destination and source are allowed to alias
+    virtual void copyShaderViewSRVs(handle::shader_view hDest, uint32_t offsetDest, handle::shader_view hSrc, uint32_t offsetSrc, uint32_t numDescriptors) = 0;
+    virtual void copyShaderViewUAVs(handle::shader_view hDest, uint32_t offsetDest, handle::shader_view hSrc, uint32_t offsetSrc, uint32_t numDescriptors) = 0;
+    virtual void copyShaderViewSamplers(handle::shader_view hDest, uint32_t offsetDest, handle::shader_view hSrc, uint32_t offsetSrc, uint32_t numDescriptors) = 0;
 
     virtual void free(handle::shader_view sv) = 0;
 

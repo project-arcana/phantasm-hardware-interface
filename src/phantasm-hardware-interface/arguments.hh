@@ -429,6 +429,9 @@ struct shader_view_description
 
     /// total amount of samplers in the shader view
     uint32_t num_samplers = 0;
+
+    /// staging shader views can be used as copy sources in Backend::copyShaderViewSRVs/UAVs/Samplers
+    bool is_staging = false;
 };
 
 /// describes a swapchain

@@ -66,7 +66,8 @@ void phi::vk::ShaderViewPool::writeShaderViewSRVs(handle::shader_view sv, uint32
     cc::alloc_vector<VkWriteDescriptorSet> writes;
     writes.reset_reserve(scratch, srvs.size());
 
-    auto F_AddWrite = [&](VkDescriptorType type, uint32_t flatIndex) {
+    auto F_AddWrite = [&](VkDescriptorType type, uint32_t flatIndex)
+    {
         auto& write = writes.emplace_back_stable();
         write = {};
         write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -160,7 +161,8 @@ void phi::vk::ShaderViewPool::writeShaderViewUAVs(handle::shader_view sv, uint32
     cc::alloc_vector<VkWriteDescriptorSet> writes;
     writes.reset_reserve(scratch, uavs.size());
 
-    auto F_AddWrite = [&](VkDescriptorType type, uint32_t flatIndex) {
+    auto F_AddWrite = [&](VkDescriptorType type, uint32_t flatIndex)
+    {
         auto& write = writes.emplace_back_stable();
         write = {};
         write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -246,7 +248,8 @@ void phi::vk::ShaderViewPool::writeShaderViewSamplers(handle::shader_view sv, ui
     cc::alloc_vector<VkWriteDescriptorSet> writes;
     writes.reset_reserve(scratch, samplers.size());
 
-    auto F_AddWrite = [&](VkDescriptorType type, uint32_t dest_binding) {
+    auto F_AddWrite = [&](VkDescriptorType type, uint32_t dest_binding)
+    {
         auto& write = writes.emplace_back_stable();
         write = {};
         write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -283,6 +286,72 @@ void phi::vk::ShaderViewPool::writeShaderViewSamplers(handle::shader_view sv, ui
     }
 
     vkUpdateDescriptorSets(mAllocator.getDevice(), uint32_t(writes.size()), writes.data(), 0, nullptr);
+}
+
+void phi::vk::ShaderViewPool::copyShaderViewSRVs(handle::shader_view hDest, uint32_t offsetDest, handle::shader_view hSrc, uint32_t offsetSrc, uint32_t numDescriptors)
+{
+    auto& nodeDest = internalGet(hDest);
+    CC_ASSERT(numDescriptors + offsetDest <= nodeDest.numSRVs && "SRV copy destination out of bounds");
+
+    auto& nodeSrc = internalGet(hSrc);
+    CC_ASSERT(numDescriptors + offsetSrc <= nodeSrc.numSRVs && "SRV copy source out of bounds");
+
+    VkCopyDescriptorSet copy = {};
+    copy.sType = VK_STRUCTURE_TYPE_COPY_DESCRIPTOR_SET;
+    copy.pNext = nullptr;
+    copy.srcSet = nodeSrc.descriptorSet;
+    bool const bInBoundSrc = flatSRVIndexToBindingAndArrayIndex(nodeSrc, offsetSrc, copy.srcBinding, copy.srcArrayElement);
+    CC_ASSERT(bInBoundSrc && "SRV copy source OOB");
+    copy.dstSet = nodeDest.descriptorSet;
+    bool const bInBoundDest = flatSRVIndexToBindingAndArrayIndex(nodeDest, offsetDest, copy.dstBinding, copy.dstArrayElement);
+    CC_ASSERT(bInBoundDest && "SRV copy source OOB");
+    copy.descriptorCount = numDescriptors;
+
+    vkUpdateDescriptorSets(mAllocator.getDevice(), 0, nullptr, 1, &copy);
+}
+
+void phi::vk::ShaderViewPool::copyShaderViewUAVs(handle::shader_view hDest, uint32_t offsetDest, handle::shader_view hSrc, uint32_t offsetSrc, uint32_t numDescriptors)
+{
+    auto& nodeDest = internalGet(hDest);
+    CC_ASSERT(nodeDest.numSRVs + numDescriptors + offsetDest <= nodeDest.imageViews.size() && "UAV copy destination out of bounds");
+
+    auto& nodeSrc = internalGet(hSrc);
+    CC_ASSERT(nodeSrc.numSRVs + numDescriptors + offsetSrc <= nodeSrc.imageViews.size() && "UAV copy source out of bounds");
+
+    VkCopyDescriptorSet copy = {};
+    copy.sType = VK_STRUCTURE_TYPE_COPY_DESCRIPTOR_SET;
+    copy.pNext = nullptr;
+    copy.srcSet = nodeSrc.descriptorSet;
+    bool const bInBoundSrc = flatUAVIndexToBindingAndArrayIndex(nodeSrc, offsetSrc, copy.srcBinding, copy.srcArrayElement);
+    CC_ASSERT(bInBoundSrc && "UAV copy source OOB");
+    copy.dstSet = nodeDest.descriptorSet;
+    bool const bInBoundDest = flatUAVIndexToBindingAndArrayIndex(nodeDest, offsetDest, copy.dstBinding, copy.dstArrayElement);
+    CC_ASSERT(bInBoundDest && "UAV copy source OOB");
+    copy.descriptorCount = numDescriptors;
+
+    vkUpdateDescriptorSets(mAllocator.getDevice(), 0, nullptr, 1, &copy);
+}
+
+void phi::vk::ShaderViewPool::copyShaderViewSamplers(handle::shader_view hDest, uint32_t offsetDest, handle::shader_view hSrc, uint32_t offsetSrc, uint32_t numDescriptors)
+{
+    auto& nodeDest = internalGet(hDest);
+    CC_ASSERT(numDescriptors + offsetDest <= nodeDest.samplers.size() && "Sampler copy destination out of bounds");
+
+    auto& nodeSrc = internalGet(hSrc);
+    CC_ASSERT(numDescriptors + offsetSrc <= nodeSrc.samplers.size() && "Sampler copy source out of bounds");
+
+    VkCopyDescriptorSet copy = {};
+    copy.sType = VK_STRUCTURE_TYPE_COPY_DESCRIPTOR_SET;
+    copy.pNext = nullptr;
+    copy.srcSet = nodeSrc.descriptorSet;
+    copy.srcBinding = offsetSrc;
+    copy.srcArrayElement = 0;
+    copy.dstSet = nodeDest.descriptorSet;
+    copy.dstBinding = offsetDest;
+    copy.dstArrayElement = 0;
+    copy.descriptorCount = numDescriptors;
+
+    vkUpdateDescriptorSets(mAllocator.getDevice(), 0, nullptr, 1, &copy);
 }
 
 void phi::vk::ShaderViewPool::free(phi::handle::shader_view sv)
@@ -326,12 +395,14 @@ void phi::vk::ShaderViewPool::initialize(
 void phi::vk::ShaderViewPool::destroy()
 {
     auto num_leaks = 0;
-    mPool.iterate_allocated_nodes([&](ShaderViewNode& leaked_node) {
-        ++num_leaks;
+    mPool.iterate_allocated_nodes(
+        [&](ShaderViewNode& leaked_node)
+        {
+            ++num_leaks;
 
-        internalFree(leaked_node);
-        mAllocator.free(leaked_node.descriptorSet);
-    });
+            internalFree(leaked_node);
+            mAllocator.free(leaked_node.descriptorSet);
+        });
 
     if (num_leaks > 0)
     {

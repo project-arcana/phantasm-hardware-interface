@@ -407,7 +407,7 @@ phi::handle::shader_view phi::d3d12::BackendD3D12::createShaderView(cc::span<con
 
 phi::handle::shader_view phi::d3d12::BackendD3D12::createEmptyShaderView(arg::shader_view_description const& desc, bool /*usage_compute*/)
 {
-    return mPoolShaderViews.createEmpty(desc.num_srvs, desc.num_uavs, desc.num_samplers);
+    return mPoolShaderViews.createEmpty(desc.num_srvs, desc.num_uavs, desc.num_samplers, desc.is_staging);
 }
 
 void phi::d3d12::BackendD3D12::writeShaderViewSRVs(handle::shader_view sv, uint32_t offset, cc::span<resource_view const> srvs)
@@ -423,6 +423,21 @@ void phi::d3d12::BackendD3D12::writeShaderViewUAVs(handle::shader_view sv, uint3
 void phi::d3d12::BackendD3D12::writeShaderViewSamplers(handle::shader_view sv, uint32_t offset, cc::span<sampler_config const> samplers)
 {
     mPoolShaderViews.writeShaderViewSamplers(sv, offset, samplers);
+}
+
+void phi::d3d12::BackendD3D12::copyShaderViewSRVs(handle::shader_view hDest, uint32_t offsetDest, handle::shader_view hSrc, uint32_t offsetSrc, uint32_t numDescriptors)
+{
+    mPoolShaderViews.copyShaderViewSRVs(hDest, offsetDest, hSrc, offsetSrc, numDescriptors);
+}
+
+void phi::d3d12::BackendD3D12::copyShaderViewUAVs(handle::shader_view hDest, uint32_t offsetDest, handle::shader_view hSrc, uint32_t offsetSrc, uint32_t numDescriptors)
+{
+    mPoolShaderViews.copyShaderViewUAVs(hDest, offsetDest, hSrc, offsetSrc, numDescriptors);
+}
+
+void phi::d3d12::BackendD3D12::copyShaderViewSamplers(handle::shader_view hDest, uint32_t offsetDest, handle::shader_view hSrc, uint32_t offsetSrc, uint32_t numDescriptors)
+{
+    mPoolShaderViews.copyShaderViewSamplers(hDest, offsetDest, hSrc, offsetSrc, numDescriptors);
 }
 
 void phi::d3d12::BackendD3D12::free(phi::handle::shader_view sv) { mPoolShaderViews.free(sv); }
