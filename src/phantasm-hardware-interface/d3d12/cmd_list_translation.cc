@@ -116,6 +116,10 @@ void phi::d3d12::command_list_translator::endTranslation(bool bDoClose)
     if (numOpenOptickScopes)
     {
         PHI_LOG_ERROR("Failed to close {} profile scopes", numOpenOptickScopes);
+        for (Optick::EventData const* pEvent : _current_optick_event_stack)
+        {
+            PHI_LOG_ERROR("  Open profile scope: \"{}\" in {}:{}", pEvent->description->name, pEvent->description->file, pEvent->description->line);
+        }
     }
 
     // end last pending optick events
@@ -876,8 +880,9 @@ void phi::d3d12::command_list_translator::execute(cmd::begin_profile_scope const
     {
         if (_current_optick_event_stack.full())
         {
-            PHI_LOG_WARN("Profile scopes are nested too deep");
             ++_num_optick_event_overflow;
+            PHI_LOG_WARN("Profile scopes are nested too deep - max depth {} - using nesting up to depth {}", _current_optick_event_stack.size(),
+                         _current_optick_event_stack.size() + _num_optick_event_overflow);
         }
         else
         {
