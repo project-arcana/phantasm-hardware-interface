@@ -32,7 +32,13 @@ public:
 
     handle::command_list freeLiveCmdList(handle::live_command_list list, bool bDoClose);
 
-    command_list_translator* getTranslator(handle::live_command_list list) const { return mPool.get(list._value).pTranslator; }
+    command_list_translator* getTranslator(handle::live_command_list list) const
+    {
+        CC_ASSERT(list.is_valid());
+        auto const& node = mPool.get(list._value);
+        CC_ASSERT(node.pTranslator && "Accessed uninitialized command list translator");
+        return node.pTranslator;
+    }
 
     handle::command_list getBackingList(handle::live_command_list list) const { return mPool.get(list._value).hBackingList; }
 
