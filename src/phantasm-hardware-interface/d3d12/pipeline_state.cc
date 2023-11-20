@@ -1,5 +1,9 @@
 #include "pipeline_state.hh"
 
+#ifdef PHI_HAS_OPTICK
+#include <optick.h>
+#endif
+
 #include <phantasm-hardware-interface/d3d12/common/d3dx12.hh>
 #include <phantasm-hardware-interface/d3d12/common/dxgi_format.hh>
 #include <phantasm-hardware-interface/d3d12/common/native_enum.hh>
@@ -10,7 +14,7 @@ ID3D12PipelineState* phi::d3d12::create_pipeline_state(ID3D12Device& device,
                                                        cc::span<const D3D12_INPUT_ELEMENT_DESC> vertex_input_layout,
                                                        phi::arg::framebuffer_config const& framebuffer_format,
                                                        phi::arg::graphics_shaders shader_stages,
-                                                       const phi::pipeline_config& config)
+                                                       const phi::arg::pipeline_config& config)
 {
     D3D12_GRAPHICS_PIPELINE_STATE_DESC pso_desc = {};
     pso_desc.InputLayout = {!vertex_input_layout.empty() ? vertex_input_layout.data() : nullptr, UINT(vertex_input_layout.size())};
@@ -50,6 +54,8 @@ ID3D12PipelineState* phi::d3d12::create_pipeline_state(ID3D12Device& device,
     pso_desc.RasterizerState.FillMode = config.wireframe ? D3D12_FILL_MODE_WIREFRAME : D3D12_FILL_MODE_SOLID;
     pso_desc.RasterizerState.FrontCounterClockwise = config.frontface_counterclockwise;
     pso_desc.RasterizerState.ConservativeRaster = config.conservative_raster ? D3D12_CONSERVATIVE_RASTERIZATION_MODE_ON : D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
+    pso_desc.RasterizerState.DepthBias = config.depth_bias;
+    pso_desc.RasterizerState.SlopeScaledDepthBias = config.slope_scaled_depth_bias;
 
     pso_desc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
     pso_desc.DepthStencilState.DepthEnable = config.depth != phi::depth_function::none && framebuffer_format.depth_target != format::none;
@@ -92,8 +98,12 @@ ID3D12PipelineState* phi::d3d12::create_pipeline_state(ID3D12Device& device,
     pso_desc.NodeMask = 0;
     pso_desc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
 
-    ID3D12PipelineState* pso;
-    PHI_D3D12_VERIFY(device.CreateGraphicsPipelineState(&pso_desc, IID_PPV_ARGS(&pso)));
+    ID3D12PipelineState* pso = nullptr;
+
+#ifdef PHI_HAS_OPTICK
+    OPTICK_EVENT("ID3D12Device::CreateGraphicsPipelineState");
+#endif
+    HRESULT const hres = device.CreateGraphicsPipelineState(&pso_desc, IID_PPV_ARGS(&pso));
     return pso;
 }
 
@@ -103,7 +113,11 @@ ID3D12PipelineState* phi::d3d12::create_compute_pipeline_state(ID3D12Device& dev
     pso_desc.pRootSignature = root_sig;
     pso_desc.CS = D3D12_SHADER_BYTECODE{binary_data, binary_size};
 
-    ID3D12PipelineState* pso;
-    PHI_D3D12_VERIFY(device.CreateComputePipelineState(&pso_desc, IID_PPV_ARGS(&pso)));
+    ID3D12PipelineState* pso = nullptr;
+
+#ifdef PHI_HAS_OPTICK
+    OPTICK_EVENT("ID3D12Device::CreateComputePipelineState");
+#endif
+    HRESULT const hres = device.CreateComputePipelineState(&pso_desc, IID_PPV_ARGS(&pso));
     return pso;
 }

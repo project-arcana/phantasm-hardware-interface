@@ -65,6 +65,7 @@ enum format_property_flags_e
     X(bc2_srgb, 4, 0, efp_is_bc | efp_is_srgb, DXGI_FORMAT_BC2_UNORM_SRGB, VK_FORMAT_BC2_SRGB_BLOCK, 0x00)                   \
     X(bc3, 4, 0, efp_is_bc, DXGI_FORMAT_BC3_UNORM, VK_FORMAT_BC3_UNORM_BLOCK, 0x00)                                          \
     X(bc3_srgb, 4, 0, efp_is_bc | efp_is_srgb, DXGI_FORMAT_BC3_UNORM_SRGB, VK_FORMAT_BC3_SRGB_BLOCK, 0x00)                   \
+    X(bc5, 2, 0, efp_is_bc, DXGI_FORMAT_BC5_UNORM, VK_FORMAT_BC5_UNORM_BLOCK, 0x00)                                          \
     X(bc6h_16f, 3, 0, efp_is_bc, DXGI_FORMAT_BC6H_SF16, VK_FORMAT_BC6H_SFLOAT_BLOCK, 0x00)                                   \
     X(bc6h_16uf, 3, 0, efp_is_bc, DXGI_FORMAT_BC6H_UF16, VK_FORMAT_BC6H_UFLOAT_BLOCK, 0x00)                                  \
     X(bc7, 4, 0, efp_is_bc, DXGI_FORMAT_BC7_UNORM, VK_FORMAT_BC7_UNORM_BLOCK, 0x00)                                          \
@@ -129,3 +130,7 @@ enum format_property_flags_e
 #define PHI_FORMAT_INFO_X_RET_TRUE(PhiName, ...) \
     case format::PhiName:                        \
         return true;
+
+#define PHI_FORMAT_INFO_X_TO_STRING(PhiName, ...) \
+    case format::PhiName:                         \
+        return #PhiName;

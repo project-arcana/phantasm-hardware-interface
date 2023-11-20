@@ -21,6 +21,8 @@ namespace phi::d3d12::util
 
 void set_object_name(ID3D12Object* object, char const* name, ...) CC_PRINTF_FUNC(2);
 
+void set_object_name(IDXGIObject* object, char const* name, ...) CC_PRINTF_FUNC(2);
+
 unsigned get_object_name(ID3D12Object* object, cc::span<char> out_name);
 
 /// create a SRV description based on a shader_view_element

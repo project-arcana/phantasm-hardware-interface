@@ -1,7 +1,7 @@
 #include "swapchain_pool.hh"
 
 #ifdef PHI_HAS_OPTICK
-#include <optick/optick.h>
+#include <optick.h>
 #endif
 
 #include <clean-core/assert.hh>
@@ -21,37 +21,45 @@ namespace
 constexpr VkFormat gc_assumed_backbuffer_format = VK_FORMAT_B8G8R8A8_UNORM;
 }
 
-phi::handle::swapchain phi::vk::SwapchainPool::createSwapchain(const window_handle& window_handle, int initial_w, int initial_h, unsigned num_backbuffers, phi::present_mode mode)
+phi::handle::swapchain phi::vk::SwapchainPool::createSwapchain(arg::swapchain_description const& desc, cc::allocator* scratch, char const* pDebugName)
 {
-    CC_CONTRACT(initial_w > 0 && initial_h > 0);
+    (void)pDebugName; // TODO - this must be re-set on each teardown/re-setup
+
+    CC_CONTRACT(desc.initial_width > 0 && desc.initial_height > 0);
     handle::handle_t const res = mPool.acquire();
 
-    if (mode == present_mode::synced_2nd_vblank)
+    if (desc.mode == present_mode::synced_2nd_vblank)
     {
         PHI_LOG_WARN("present_mode::synced_2nd_vblank falls back to synced on vulkan");
+    }
+
+    if (desc.enable_hdr)
+    {
+        PHI_LOG_WARN("HDR unsupported on vulkan");
     }
 
     swapchain& new_node = mPool.get(res);
     new_node.backbuf_width = -1;
     new_node.backbuf_height = -1;
-    new_node.mode = mode;
-    new_node.surface = create_platform_surface(mInstance, window_handle);
+    new_node.mode = desc.mode;
+    new_node.surface = create_platform_surface(mInstance, desc.handle);
     new_node.has_resized = true;
     new_node.active_fence_index = 0;
     new_node.active_image_index = 0;
 
     auto const surface_capabilities = get_surface_capabilities(mPhysicalDevice, new_node.surface, mPresentQueueFamilyIndex);
-    CC_RUNTIME_ASSERT(num_backbuffers >= surface_capabilities.minImageCount && "Not enough backbuffers specified");
-    CC_RUNTIME_ASSERT(num_backbuffers <= 6 && "Too many backbuffers specified");
-    CC_RUNTIME_ASSERT((surface_capabilities.maxImageCount == 0 || num_backbuffers <= surface_capabilities.maxImageCount) && "Too many backbuffers specified");
+    CC_RUNTIME_ASSERT(desc.num_backbuffers >= surface_capabilities.minImageCount && "Not enough backbuffers specified");
+    CC_RUNTIME_ASSERT(desc.num_backbuffers <= 6 && "Too many backbuffers specified");
+    CC_RUNTIME_ASSERT((surface_capabilities.maxImageCount == 0 || desc.num_backbuffers <= surface_capabilities.maxImageCount) && "Too many backbuffers specified");
 
-    auto const backbuffer_format_info = get_backbuffer_information(mPhysicalDevice, new_node.surface);
-    new_node.backbuf_format = choose_backbuffer_format(backbuffer_format_info.backbuffer_formats);
+    auto const backbuffer_format_info = get_backbuffer_information(mPhysicalDevice, new_node.surface, scratch);
+    new_node.backbuf_format = choose_backbuffer_format(backbuffer_format_info.backbuffer_formats, desc.format_preference);
+
     // The reason for assuming a backbuffer format here is to be able to use a global VkRenderPass created at pool init
     // If this turns out to be a problem, we'll have to use a cache for multiple ones instead
     CC_RUNTIME_ASSERT(new_node.backbuf_format.format == gc_assumed_backbuffer_format && "Assumed backbuffer format wrong, please contact maintainers");
 
-    cc::array<VkCommandBuffer> linear_cmd_buffers = cc::array<VkCommandBuffer>::uninitialized(num_backbuffers);
+    VkCommandBuffer linear_cmd_buffers[6] = {};
 
     // Create dummy command buffers in linear container
     {
@@ -59,13 +67,13 @@ phi::handle::swapchain phi::vk::SwapchainPool::createSwapchain(const window_hand
         info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
         info.commandPool = mDummyPresentCommandPool;
         info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-        info.commandBufferCount = num_backbuffers;
+        info.commandBufferCount = desc.num_backbuffers;
 
-        PHI_VK_VERIFY_SUCCESS(vkAllocateCommandBuffers(mDevice, &info, linear_cmd_buffers.data()));
+        PHI_VK_VERIFY_SUCCESS(vkAllocateCommandBuffers(mDevice, &info, linear_cmd_buffers));
     }
 
     // Create synchronization primitives and assign dummy command buffers
-    new_node.backbuffers.resize(num_backbuffers);
+    new_node.backbuffers.resize(desc.num_backbuffers);
     for (auto i = 0u; i < new_node.backbuffers.size(); ++i)
     {
         auto& backbuffer = new_node.backbuffers[i];
@@ -97,13 +105,13 @@ phi::handle::swapchain phi::vk::SwapchainPool::createSwapchain(const window_hand
 
             PHI_VK_VERIFY_SUCCESS(vkCreateSemaphore(mDevice, &sem_info, nullptr, &backbuffer.sem_image_available));
             PHI_VK_VERIFY_SUCCESS(vkCreateSemaphore(mDevice, &sem_info, nullptr, &backbuffer.sem_render_finished));
-            util::set_object_name(mDevice, backbuffer.sem_image_available, "swapchain %u, sem img avail #%u", res, i);
-            util::set_object_name(mDevice, backbuffer.sem_render_finished, "swapchain %u, sem render finish #%u", res, i);
+            util::set_object_name(mDevice, backbuffer.sem_image_available, "swapchain %u, semaphore image available #%u", res, i);
+            util::set_object_name(mDevice, backbuffer.sem_render_finished, "swapchain %u, semaphore render finish #%u", res, i);
         }
     }
 
     auto res_handle = handle::swapchain{res};
-    setupSwapchain(res_handle, initial_w, initial_h);
+    setupSwapchain(res_handle, desc.initial_width, desc.initial_height, scratch);
     return res_handle;
 }
 
@@ -114,15 +122,15 @@ void phi::vk::SwapchainPool::free(phi::handle::swapchain handle)
     mPool.release(handle._value);
 }
 
-void phi::vk::SwapchainPool::onResize(phi::handle::swapchain handle, int w, int h)
+void phi::vk::SwapchainPool::onResize(phi::handle::swapchain handle, int w, int h, cc::allocator* scratch)
 {
     CC_CONTRACT(w > 0 && h > 0);
     auto& node = mPool.get(handle._value);
     teardownSwapchain(node);
-    setupSwapchain(handle, w, h);
+    setupSwapchain(handle, w, h, scratch);
 }
 
-bool phi::vk::SwapchainPool::present(phi::handle::swapchain handle)
+bool phi::vk::SwapchainPool::present(phi::handle::swapchain handle, cc::allocator* scratch)
 {
     auto& node = mPool.get(handle._value);
 
@@ -170,7 +178,7 @@ bool phi::vk::SwapchainPool::present(phi::handle::swapchain handle)
 
         if (present_res == VK_ERROR_OUT_OF_DATE_KHR || present_res == VK_SUBOPTIMAL_KHR)
         {
-            onResize(handle, 0, 0);
+            onResize(handle, 0, 0, scratch);
             return false;
         }
         else
@@ -185,7 +193,7 @@ bool phi::vk::SwapchainPool::present(phi::handle::swapchain handle)
     }
 }
 
-bool phi::vk::SwapchainPool::acquireBackbuffer(phi::handle::swapchain handle)
+bool phi::vk::SwapchainPool::acquireBackbuffer(phi::handle::swapchain handle, cc::allocator* scratch)
 {
     auto& node = mPool.get(handle._value);
     // according to NVidia, this can never block (despite having a timeout param)
@@ -195,7 +203,7 @@ bool phi::vk::SwapchainPool::acquireBackbuffer(phi::handle::swapchain handle)
 
     if (res == VK_ERROR_OUT_OF_DATE_KHR || res == VK_SUBOPTIMAL_KHR)
     {
-        onResize(handle, 0, 0);
+        onResize(handle, 0, 0, scratch);
         return false;
     }
     else
@@ -271,10 +279,12 @@ void phi::vk::SwapchainPool::initialize(VkInstance instance, const phi::vk::Devi
 void phi::vk::SwapchainPool::destroy()
 {
     unsigned num_leaks = 0;
-    mPool.iterate_allocated_nodes([&](swapchain& node) {
-        internalFree(node);
-        ++num_leaks;
-    });
+    mPool.iterate_allocated_nodes(
+        [&](swapchain& node)
+        {
+            internalFree(node);
+            ++num_leaks;
+        });
 
     if (num_leaks > 0)
     {
@@ -285,12 +295,12 @@ void phi::vk::SwapchainPool::destroy()
     vkDestroyCommandPool(mDevice, mDummyPresentCommandPool, nullptr);
 }
 
-void phi::vk::SwapchainPool::setupSwapchain(phi::handle::swapchain handle, int width_hint, int height_hint)
+void phi::vk::SwapchainPool::setupSwapchain(phi::handle::swapchain handle, int width_hint, int height_hint, cc::allocator* scratch)
 {
     auto& node = mPool.get(handle._value);
 
     auto const surface_capabilities = get_surface_capabilities(mPhysicalDevice, node.surface, mPresentQueueFamilyIndex);
-    auto const present_format_info = get_backbuffer_information(mPhysicalDevice, node.surface);
+    auto const present_format_info = get_backbuffer_information(mPhysicalDevice, node.surface, scratch);
     auto const new_extent = get_swap_extent(surface_capabilities, VkExtent2D{unsigned(width_hint), unsigned(height_hint)});
 
     node.backbuf_width = int(new_extent.width);

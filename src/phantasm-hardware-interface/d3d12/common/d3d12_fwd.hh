@@ -23,9 +23,17 @@ struct ID3D12GraphicsCommandList5;
 struct ID3D12DeviceRemovedExtendedDataSettings;
 struct ID3D12StateObjectProperties;
 
+struct ID3D11Device;
+struct ID3D11Device5;
+struct ID3D11DeviceContext;
+struct ID3D11DeviceContext4;
+struct ID3D11On12Device1;
+struct ID3D11On12Device2;
+
 struct IDXGIAdapter;
 struct IDXGIAdapter3;
 struct IDXGIFactory4;
+struct IDXGIFactory6;
 struct IDXGISwapChain3;
 struct IDXGIInfoQueue;
 

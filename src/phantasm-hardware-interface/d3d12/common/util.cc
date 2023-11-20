@@ -45,6 +45,22 @@ void phi::d3d12::util::set_object_name(ID3D12Object* object, const char* name, .
     object->SetPrivateData(WKPDID_D3DDebugObjectName, static_cast<UINT>(strlen(name_formatted)), name_formatted);
 }
 
+void phi::d3d12::util::set_object_name(IDXGIObject* object, const char* name, ...)
+{
+    CC_ASSERT(name != nullptr);
+    CC_ASSERT(object != nullptr);
+
+    char name_formatted[1024];
+    {
+        va_list args;
+        va_start(args, name);
+        ::vsprintf_s(name_formatted, 1024, name, args);
+        va_end(args);
+    }
+
+    object->SetPrivateData(WKPDID_D3DDebugObjectName, static_cast<UINT>(strlen(name_formatted)), name_formatted);
+}
+
 unsigned phi::d3d12::util::get_object_name(ID3D12Object* object, cc::span<char> out_name)
 {
     CC_ASSERT(object != nullptr);
@@ -325,6 +341,7 @@ D3D12_DEPTH_STENCIL_VIEW_DESC phi::d3d12::util::create_dsv_desc(const phi::resou
         break;
 
     case svd::texture2d_array:
+    case resource_view_dimension::texturecube:
         dsv_desc.Texture2DArray.MipSlice = sve.texture_info.mip_start;
         dsv_desc.Texture2DArray.FirstArraySlice = sve.texture_info.array_start;
         dsv_desc.Texture2DArray.ArraySize = sve.texture_info.array_size;
@@ -383,6 +400,7 @@ D3D12_RESOURCE_BARRIER phi::d3d12::util::get_barrier_desc(ID3D12Resource* res, D
     else
     {
         CC_ASSERT(array_slice != -1 && "When specifying target MIP level, array slice must also be specified");
+        CC_ASSERT(mip_size > 0 && "When specifying target MIP and slice, the mip size must be correct");
         out_barrier.Transition.Subresource = static_cast<unsigned>(mip_level) + static_cast<unsigned>(array_slice) * mip_size;
     }
 

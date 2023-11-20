@@ -9,10 +9,6 @@ void phi::vk::util::diagnostic_state::init()
 {
     // RenderDoc
     _renderdoc_handle = phi::detail::load_renderdoc();
-    if (_renderdoc_handle)
-    {
-        PHI_LOG("RenderDoc detected");
-    }
 }
 
 void phi::vk::util::diagnostic_state::free()

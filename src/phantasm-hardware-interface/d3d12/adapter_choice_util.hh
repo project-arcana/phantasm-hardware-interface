@@ -13,12 +13,14 @@ namespace phi::d3d12
 {
 [[nodiscard]] gpu_feature_info getGPUFeaturesFromDevice(ID3D12Device5* device);
 
-// Test the given adapter by creating a device with the min_feature level, returns true if the GPU is eligible
-bool testAdapterForFeatures(IDXGIAdapter* adapter, D3D_FEATURE_LEVEL& outMaxFeatures, ID3D12Device*& outDevice);
-
 // Get all available adapter candidates
-uint32_t getAdapterCandidates(IDXGIFactory4* factory,
+uint32_t getAdapterCandidates(IDXGIFactory6* factory,
                               cc::span<phi::gpu_info> outCandidateInfos,
                               cc::span<ID3D12Device*> outCandidateDevices,
                               cc::span<IDXGIAdapter*> outCandidateAdapters);
+
+phi::gpu_info getAdapterInfo(IDXGIAdapter* adapter, uint32_t index);
+
+// get the first supported adapter, faster than getAdapterCandidates
+bool getFirstAdapter(IDXGIFactory6* factory, IDXGIAdapter** outAdapter, ID3D12Device** outDevice, uint32_t* outIndex);
 } // namespace phi::d3d12

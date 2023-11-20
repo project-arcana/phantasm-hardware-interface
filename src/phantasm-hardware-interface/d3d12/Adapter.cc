@@ -3,7 +3,7 @@
 #include <clean-core/assert.hh>
 
 #ifdef PHI_HAS_OPTICK
-#include <optick/optick.h>
+#include <optick.h>
 #endif
 
 #include <phantasm-hardware-interface/common/log.hh>
@@ -15,7 +15,7 @@
 #include "common/shared_com_ptr.hh"
 #include "common/verify.hh"
 
-void phi::d3d12::Adapter::initialize(const backend_config& config, ID3D12Device*& outCreatedDevice)
+bool phi::d3d12::Adapter::initialize(const backend_config& config, ID3D12Device*& outCreatedDevice)
 {
 #ifdef PHI_HAS_OPTICK
     OPTICK_EVENT();
@@ -62,11 +62,8 @@ void phi::d3d12::Adapter::initialize(const backend_config& config, ID3D12Device*
         OPTICK_EVENT("IDXGIFactory Create");
 #endif
 
-        shared_com_ptr<IDXGIFactory> tempFactory;
-        PHI_D3D12_VERIFY(::CreateDXGIFactory(PHI_COM_WRITE(tempFactory)));
-        PHI_D3D12_VERIFY(tempFactory->QueryInterface(IID_PPV_ARGS(&mFactory)));
+        PHI_D3D12_VERIFY(::CreateDXGIFactory1(IID_PPV_ARGS(&mFactory)));
     }
-
 
     // Debug layer init
     // NOTE: This must come BEFORE D3D12Device creation!
@@ -123,44 +120,99 @@ void phi::d3d12::Adapter::initialize(const backend_config& config, ID3D12Device*
 #endif
 
         phi::gpu_info candidates[16];
-        ID3D12Device* candidateDevices[16] = {};
-        IDXGIAdapter* candidateAdapters[16] = {};
 
-        // choose the adapter
-        uint32_t const numCandidates = getAdapterCandidates(mFactory, candidates, candidateDevices, candidateAdapters);
-        CC_RUNTIME_ASSERT(numCandidates > 0 && "Found no GPU candidates");
+        phi::gpu_info const* chosenCandidate = nullptr;
+        uint32_t numCandidates = 0;
 
-        cc::span<phi::gpu_info> const candidateSpan = cc::span(candidates, numCandidates);
+        IDXGIAdapter* chosenAdapter = nullptr;
+        ID3D12Device* chosenDevice = nullptr;
 
-        // indexing into candidates[], candidateDevices[], candidateAdapters[]
-        uint32_t chosenCandidateIndex = 0;
-
-        if (config.adapter == adapter_preference::explicit_index)
+        if (config.adapter == adapter_preference::first)
         {
-            // indexing into D3Ds adapters (used in IDXGIFactory::EnumAdapters)
-            uint32_t const chosenD3DAdapterIndex = config.explicit_adapter_index;
+            // fast-path, do not create all D3D12 devices
+            uint32_t adapterIndex = 0;
+            bool success = getFirstAdapter(mFactory, &chosenAdapter, &chosenDevice, &adapterIndex);
 
-            bool hasFoundExplicitIndex = false;
-            for (auto i = 0u; i < numCandidates; ++i)
+            if (!success)
             {
-                if (candidateSpan[i].index == chosenD3DAdapterIndex)
-                {
-                    hasFoundExplicitIndex = true;
-                    chosenCandidateIndex = i;
-                    break;
-                }
+                PHI_LOG_ASSERT("Fatal: Found no GPU");
+                return false;
             }
 
-            CC_RUNTIME_ASSERT(hasFoundExplicitIndex && "Failed to find given explicit adapter index");
+            candidates[0] = getAdapterInfo(chosenAdapter, adapterIndex);
+            chosenCandidate = &candidates[0];
+            numCandidates = 1;
         }
         else
         {
-            chosenCandidateIndex = getPreferredGPU(candidateSpan, config.adapter);
-            CC_RUNTIME_ASSERT(chosenCandidateIndex < numCandidates && "Found no GPU candidates");
+            // query and create all GPUs, then choose based on preference
+
+            ID3D12Device* candidateDevices[16] = {};
+            IDXGIAdapter* candidateAdapters[16] = {};
+
+            // choose the adapter
+            numCandidates = getAdapterCandidates(mFactory, candidates, candidateDevices, candidateAdapters);
+
+            if (numCandidates == 0)
+            {
+                PHI_LOG_ASSERT("Fatal: Found no GPU candidates");
+                return false;
+            }
+
+            cc::span<phi::gpu_info> const candidateSpan = cc::span(candidates, numCandidates);
+
+            // indexing into candidates[], candidateDevices[], candidateAdapters[]
+            size_t chosenCandidateIndex = 0;
+            if (config.adapter == adapter_preference::explicit_index)
+            {
+                // indexing into D3Ds adapters (used in IDXGIFactory::EnumAdapters)
+                uint32_t const chosenD3DAdapterIndex = config.explicit_adapter_index;
+
+                bool hasFoundExplicitIndex = false;
+                for (auto i = 0u; i < numCandidates; ++i)
+                {
+                    if (candidateSpan[i].index == chosenD3DAdapterIndex)
+                    {
+                        hasFoundExplicitIndex = true;
+                        chosenCandidateIndex = i;
+                        break;
+                    }
+                }
+
+                if (!hasFoundExplicitIndex)
+                {
+                    PHI_LOG_ASSERT("Fatal: Failed to find given explicit adapter (GPU) index");
+                    return false;
+                }
+            }
+            else
+            {
+                chosenCandidateIndex = getPreferredGPU(candidateSpan, config.adapter);
+
+                if (chosenCandidateIndex >= numCandidates)
+                {
+                    PHI_LOG_ASSERT("Fatal: Found no GPU candidates");
+                    return false;
+                }
+            }
+
+            chosenCandidate = &candidateSpan[chosenCandidateIndex];
+            chosenAdapter = candidateAdapters[chosenCandidateIndex];
+            chosenDevice = candidateDevices[chosenCandidateIndex];
+
+            // release all the others
+            for (auto i = 0u; i < numCandidates; ++i)
+            {
+                if (i == chosenCandidateIndex)
+                    continue;
+
+                candidateDevices[i]->Release();
+                candidateAdapters[i]->Release();
+            }
         }
 
         // detect intel GPUs for GBV warning
-        bool const isIntelGPU = candidateSpan[chosenCandidateIndex].vendor == gpu_vendor::intel;
+        bool const isIntelGPU = chosenCandidate->vendor == gpu_vendor::intel;
         if (isIntelGPU && config.validation >= validation_level::on_extended)
         {
             PHI_LOG_WARN("GPU-based validation requested on an Intel GPU");
@@ -168,12 +220,7 @@ void phi::d3d12::Adapter::initialize(const backend_config& config, ID3D12Device*
         }
 
         // print the startup message
-        printStartupMessage(candidateSpan, chosenCandidateIndex, config, true);
-
-        mGPUInfo = candidateSpan[chosenCandidateIndex];
-
-        IDXGIAdapter* const chosenAdapter = candidateAdapters[chosenCandidateIndex];
-        ID3D12Device* const chosenDevice = candidateDevices[chosenCandidateIndex];
+        printStartupMessage(numCandidates, chosenCandidate, config, true);
 
         // QI the real adapter pointer, release the temp one
         {
@@ -184,20 +231,32 @@ void phi::d3d12::Adapter::initialize(const backend_config& config, ID3D12Device*
         // write the chosen ID3D12Device* to the out param
         outCreatedDevice = chosenDevice;
 
-        // release all the others
-        for (auto i = 0u; i < numCandidates; ++i)
-        {
-            if (i == chosenCandidateIndex)
-                continue;
-
-            candidateDevices[i]->Release();
-            candidateAdapters[i]->Release();
-        }
+        mGPUInfo = *chosenCandidate;
     }
+
+    return true;
 }
 
 void phi::d3d12::Adapter::destroy()
 {
+    // attempt to load Dxgidebug.dll to get a detailed reporting of live (meaning leaked) D3D12 objects
+    if (HMODULE mod = ::GetModuleHandleA("Dxgidebug.dll"))
+    {
+        using FPtrDXGIGetDebugInterface = HRESULT(__cdecl*)(REFIID, void**);
+        FPtrDXGIGetDebugInterface fpDXGIGetDebugInterface
+            = reinterpret_cast<FPtrDXGIGetDebugInterface>(::GetProcAddress(mod, "DXGIGetDebugInterface"));
+
+        if (fpDXGIGetDebugInterface)
+        {
+            IDXGIDebug* pDXGIDebug = nullptr;
+            if (detail::hr_succeeded(fpDXGIGetDebugInterface(IID_PPV_ARGS(&pDXGIDebug))) && pDXGIDebug)
+            {
+                pDXGIDebug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
+                pDXGIDebug->Release();
+            }
+        }
+    }
+
     PHI_D3D12_SAFE_RELEASE(mAdapter);
     PHI_D3D12_SAFE_RELEASE(mFactory);
     PHI_D3D12_SAFE_RELEASE(mInfoQueue);

@@ -10,7 +10,7 @@ namespace phi::util
 {
 /// returns the byte size of a single pixel of a texture in the given format
 /// NOTE: block-compressed formats do not have a per-pixel size, use get_block_format_4x4_size for them instead
-inline unsigned get_format_size_bytes(format fmt)
+constexpr uint32_t get_format_size_bytes(format fmt)
 {
     unsigned res = 0;
     switch (fmt)
@@ -20,12 +20,11 @@ inline unsigned get_format_size_bytes(format fmt)
         CC_UNREACHABLE("unknown format");
         break;
     }
-    CC_ASSERT(res > 0 && "compressed block formats have no per-pixel byte size, use get_block_format_4x4_size");
     return res;
 }
 
 /// returns the amount of components of a format (ie. RGBA = 4, Depth-Stencil = 2)
-inline unsigned get_format_num_components(format fmt)
+constexpr uint32_t get_format_num_components(format fmt)
 {
     switch (fmt)
     {
@@ -37,7 +36,7 @@ inline unsigned get_format_num_components(format fmt)
 }
 
 /// returns the byte size of a 4x4 pixel square of a texture in the given block-compressed format
-inline unsigned get_block_format_4x4_size(format fmt)
+constexpr uint32_t get_block_format_4x4_size(format fmt)
 {
     switch (fmt)
     {
@@ -49,21 +48,21 @@ inline unsigned get_block_format_4x4_size(format fmt)
     case format::bc2_srgb:
     case format::bc3:
     case format::bc3_srgb:
+    case format::bc5:
     case format::bc6h_16f:
     case format::bc6h_16uf:
     case format::bc7:
     case format::bc7_srgb:
-        // BC2, 3, 5, 6H and 7 cost 16 B per 4x4 pixels
+        // BC2, BC3, BC5, BC6H and BC7 cost 16 B per 4x4 pixels
         return 16;
 
     default:
-        CC_UNREACHABLE("not a block-compressed format");
         return 0;
     }
 }
 
 /// returns the format's sRGB variant if existing, or the format itself otherwise
-inline format get_format_srgb_variant(format fmt)
+constexpr format get_format_srgb_variant(format fmt)
 {
     switch (fmt)
     {
@@ -78,7 +77,7 @@ inline format get_format_srgb_variant(format fmt)
     case format::bc7:
         return format::bc7_srgb;
     default:
-        // either fmt is already sRGB or no variant exsits
+        // either fmt is already sRGB or no variant exists
         return fmt;
     }
 }
@@ -96,7 +95,7 @@ constexpr bool is_view_format(format fmt)
 }
 
 /// returns true if the format is a block-compressed format
-inline bool is_block_compressed_format(format fmt)
+constexpr bool is_block_compressed_format(format fmt)
 {
     using namespace phi::format_property_flags;
     switch (fmt)
@@ -109,7 +108,7 @@ inline bool is_block_compressed_format(format fmt)
 }
 
 /// returns true if the format is a depth OR depth stencil format
-inline bool is_depth_format(format fmt)
+constexpr bool is_depth_format(format fmt)
 {
     using namespace phi::format_property_flags;
     switch (fmt)
@@ -122,7 +121,7 @@ inline bool is_depth_format(format fmt)
 }
 
 /// returns true if the format is a depth stencil format
-inline bool is_depth_stencil_format(format fmt)
+constexpr bool is_depth_stencil_format(format fmt)
 {
     using namespace phi::format_property_flags;
     switch (fmt)
@@ -134,7 +133,7 @@ inline bool is_depth_stencil_format(format fmt)
     }
 }
 
-inline bool is_srgb_format(format fmt)
+constexpr bool is_srgb_format(format fmt)
 {
     using namespace phi::format_property_flags;
     switch (fmt)
@@ -145,4 +144,15 @@ inline bool is_srgb_format(format fmt)
         return false;
     }
 }
+
+constexpr char const* format_to_string(format fmt)
+{
+    switch (fmt)
+    {
+        PHI_FORMAT_INFO_LIST_ALL(PHI_FORMAT_INFO_X_TO_STRING)
+
+    default:
+        return "UNKNOWN";
+    }
 }
+} // namespace phi::util

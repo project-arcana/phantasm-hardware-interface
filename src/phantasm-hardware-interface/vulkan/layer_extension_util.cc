@@ -1,7 +1,8 @@
 #include "layer_extension_util.hh"
 
+#include <cstring>
+
 #include <clean-core/utility.hh>
-#include <clean-core/vector.hh>
 
 #include <phantasm-hardware-interface/common/log.hh>
 #include <phantasm-hardware-interface/config.hh>
@@ -10,69 +11,41 @@
 #include "common/verify.hh"
 #include "surface_util.hh"
 
-void phi::vk::writeInstanceExtensions(cc::vector<VkExtensionProperties>& out_extensions, const char* layername)
+cc::alloc_array<VkExtensionProperties> phi::vk::getInstanceExtensions(char const* layername, cc::allocator* alloc)
 {
-    uint32_t res_count = cc::max<uint32_t>(10, uint32_t(out_extensions.capacity()));
-    out_extensions.resize(res_count);
-
-    VkResult const res = vkEnumerateInstanceExtensionProperties(layername, &res_count, out_extensions.data());
-    PHI_VK_ASSERT_NONERROR(res);
-
-    if (res == VK_INCOMPLETE)
-    {
-        // more than the initial size was required
-        // query the number required
-        PHI_VK_VERIFY_NONERROR(vkEnumerateInstanceExtensionProperties(layername, &res_count, nullptr));
-
-        // resize the array and re-query contents
-        CC_ASSERT(res_count > 0);
-        out_extensions.resize(res_count);
-        PHI_VK_VERIFY_SUCCESS(vkEnumerateInstanceExtensionProperties(layername, &res_count, out_extensions.data()));
-    }
-
-    // shrink size to actually written elements (maintaining capacity)
-    out_extensions.resize(res_count);
+    uint32_t num_ext;
+    PHI_VK_VERIFY_NONERROR(vkEnumerateInstanceExtensionProperties(layername, &num_ext, nullptr));
+    cc::alloc_array<VkExtensionProperties> res(num_ext, alloc);
+    PHI_VK_VERIFY_NONERROR(vkEnumerateInstanceExtensionProperties(layername, &num_ext, res.data()));
+    return res;
 }
 
-void phi::vk::writeDeviceExtensions(cc::vector<VkExtensionProperties>& out_extensions, VkPhysicalDevice device, const char* layername)
+cc::alloc_array<VkExtensionProperties> phi::vk::getDeviceExtensions(VkPhysicalDevice device, char const* layername, cc::allocator* alloc)
 {
-    uint32_t res_count = cc::max<uint32_t>(10, uint32_t(out_extensions.capacity()));
-    out_extensions.resize(res_count);
-
-    VkResult res = vkEnumerateDeviceExtensionProperties(device, layername, &res_count, out_extensions.data());
-    PHI_VK_ASSERT_NONERROR(res);
-
-    if (res == VK_INCOMPLETE)
-    {
-        // more than the initial size was required
-        // query the number required
-        PHI_VK_VERIFY_NONERROR(vkEnumerateDeviceExtensionProperties(device, layername, &res_count, nullptr));
-
-        // resize the array and re-query contents
-        CC_ASSERT(res_count > 0);
-        out_extensions.resize(res_count);
-        PHI_VK_VERIFY_SUCCESS(vkEnumerateDeviceExtensionProperties(device, layername, &res_count, out_extensions.data()));
-    }
-
-    // shrink size to actually written elements (maintaining capacity)
-    out_extensions.resize(res_count);
+    uint32_t num_ext;
+    PHI_VK_VERIFY_NONERROR(vkEnumerateDeviceExtensionProperties(device, layername, &num_ext, nullptr));
+    cc::alloc_array<VkExtensionProperties> res(num_ext, alloc);
+    PHI_VK_VERIFY_NONERROR(vkEnumerateDeviceExtensionProperties(device, layername, &num_ext, res.data()));
+    return res;
 }
 
-phi::vk::LayerExtensionSet phi::vk::getAvailableInstanceExtensions()
+phi::vk::LayerExtensionSet phi::vk::getAvailableInstanceExtensions(cc::allocator* alloc)
 {
     LayerExtensionSet available_res;
+    available_res.layers.reset_reserve(alloc, 32);
+    available_res.extensions.reset_reserve(alloc, 128);
 
     // Add global instance layer's extensions
     {
-        cc::vector<VkExtensionProperties> global_extensions;
-        writeInstanceExtensions(global_extensions, nullptr);
+        auto global_extensions = getInstanceExtensions(nullptr, alloc);
         available_res.extensions.add(global_extensions);
     }
 
     // Enumerate instance layers
     {
         VkResult res;
-        cc::vector<VkLayerProperties> global_layer_properties;
+        cc::alloc_vector<VkLayerProperties> global_layer_properties;
+        global_layer_properties.reset_reserve(alloc, 32);
 
         do
         {
@@ -94,7 +67,8 @@ phi::vk::LayerExtensionSet phi::vk::getAvailableInstanceExtensions()
         {
             LayerExtensionBundle layer;
             layer.layerProperties = layer_prop;
-            writeInstanceExtensions(layer.extensionProperties, layer_prop.layerName);
+            layer.extensionProperties = getInstanceExtensions(layer_prop.layerName, alloc);
+
             available_res.extensions.add(layer.extensionProperties);
             available_res.layers.add(layer_prop.layerName);
         }
@@ -104,11 +78,12 @@ phi::vk::LayerExtensionSet phi::vk::getAvailableInstanceExtensions()
 }
 
 
-phi::vk::LayerExtensionSet phi::vk::getAvailableDeviceExtensions(VkPhysicalDevice physical)
+phi::vk::LayerExtensionSet phi::vk::getAvailableDeviceExtensions(VkPhysicalDevice physical, cc::allocator* alloc)
 {
     LayerExtensionSet available_res;
 
-    cc::vector<LayerExtensionBundle> layer_extensions;
+    cc::alloc_vector<LayerExtensionBundle> layer_extensions;
+    layer_extensions.reset_reserve(alloc, 16);
 
     // Add global device layer
     layer_extensions.emplace_back();
@@ -119,8 +94,8 @@ phi::vk::LayerExtensionSet phi::vk::getAvailableDeviceExtensions(VkPhysicalDevic
 
         PHI_VK_VERIFY_SUCCESS(vkEnumerateDeviceLayerProperties(physical, &count, nullptr));
 
-        cc::vector<VkLayerProperties> layer_properties;
-        layer_properties.resize(count);
+        cc::alloc_array<VkLayerProperties> layer_properties;
+        layer_properties.reset(alloc, count);
 
         PHI_VK_VERIFY_SUCCESS(vkEnumerateDeviceLayerProperties(physical, &count, layer_properties.data()));
 
@@ -135,12 +110,12 @@ phi::vk::LayerExtensionSet phi::vk::getAvailableDeviceExtensions(VkPhysicalDevic
         auto& layer = layer_extensions[i];
         if (i == 0)
         {
-            writeDeviceExtensions(layer.extensionProperties, physical, nullptr);
+            layer.extensionProperties = getDeviceExtensions(physical, nullptr, alloc);
         }
         else
         {
             available_res.layers.add(layer.layerProperties.layerName);
-            writeDeviceExtensions(layer.extensionProperties, physical, layer.layerProperties.layerName);
+            layer.extensionProperties = getDeviceExtensions(physical, layer.layerProperties.layerName, alloc);
         }
 
         available_res.extensions.add(layer.extensionProperties);
@@ -157,7 +132,7 @@ phi::vk::LayerExtensionArray phi::vk::getUsedInstanceExtensions(const phi::vk::L
 
     LayerExtensionArray used_res;
 
-    auto const add_layer = [&](char const* layer_name) {
+    auto const F_AddLayer = [&](char const* layer_name) -> bool {
         if (available.layers.contains(layer_name))
         {
             used_res.layers.push_back(layer_name);
@@ -166,7 +141,7 @@ phi::vk::LayerExtensionArray phi::vk::getUsedInstanceExtensions(const phi::vk::L
         return false;
     };
 
-    auto const add_ext = [&](char const* ext_name) {
+    auto const F_AddExtension = [&](char const* ext_name) -> bool {
         if (available.extensions.contains(ext_name))
         {
             used_res.extensions.push_back(ext_name);
@@ -175,11 +150,12 @@ phi::vk::LayerExtensionArray phi::vk::getUsedInstanceExtensions(const phi::vk::L
         return false;
     };
 
-    bool has_shown_sdk_help_warning = false;
-    auto f_show_sdk_help_warning = [&]() {
-        if (has_shown_sdk_help_warning)
+    bool hasShownSDKHelp = false;
+    auto F_ShowSDKHelp = [&]() {
+        if (hasShownSDKHelp)
             return;
-        has_shown_sdk_help_warning = true;
+
+        hasShownSDKHelp = true;
         PHI_LOG_WARN("  try downloaing the latest LunarG SDK for your operating system,");
         PHI_LOG_WARN("  then set these environment variables: (all paths absolute)");
         PHI_LOG_WARN("  VK_LAYER_PATH - <sdk>/x86_64/etc/vulkan/explicit_layer.d/");
@@ -190,28 +166,28 @@ phi::vk::LayerExtensionArray phi::vk::getUsedInstanceExtensions(const phi::vk::L
     // Decide upon active instance layers and extensions based on configuration and availability
     if (config.validation >= validation_level::on)
     {
-        if (!add_layer("VK_LAYER_KHRONOS_validation"))
+        if (!F_AddLayer("VK_LAYER_KHRONOS_validation"))
         {
             PHI_LOG_ERROR(R"(Validation is enabled (validation_level::on or higher), but "VK_LAYER_KHRONOS_validation" is missing on this Vulkan instance)");
-            f_show_sdk_help_warning();
+            F_ShowSDKHelp();
         }
     }
 
     if (config.validation >= validation_level::on_extended)
     {
-        if (!add_ext("VK_EXT_validation_features"))
+        if (!F_AddExtension("VK_EXT_validation_features"))
         {
             PHI_LOG_ERROR(R"(GPU based validation is enabled (validation_level::on_extended or higher), but "VK_EXT_validation_features" is missing on this Vulkan instance)");
-            f_show_sdk_help_warning();
+            F_ShowSDKHelp();
         }
     }
 
     if (config.native_features & backend_config::native_feature_vk_api_dump)
     {
-        if (!add_layer("VK_LAYER_LUNARG_api_dump"))
+        if (!F_AddLayer("VK_LAYER_LUNARG_api_dump"))
         {
             PHI_LOG_ERROR(R"(Vulkan API dump is enabled (native_feature_vk_api_dump), but "VK_LAYER_LUNARG_api_dump" is missing on this Vulkan instance)");
-            f_show_sdk_help_warning();
+            F_ShowSDKHelp();
         }
         else
         {
@@ -223,19 +199,19 @@ phi::vk::LayerExtensionArray phi::vk::getUsedInstanceExtensions(const phi::vk::L
     // for cmd::debug_marker, object debug names
     // spec: https://www.khronos.org/registry/vulkan/specs/1.2-extensions/man/html/VK_EXT_debug_utils.html
     // this is the revised version of VK_EXT_DEBUG_MARKER_EXTENSION_NAME (which is more or less deprecated)
-    if (!add_ext(VK_EXT_DEBUG_UTILS_EXTENSION_NAME))
+    if (!F_AddExtension(VK_EXT_DEBUG_UTILS_EXTENSION_NAME))
     {
         PHI_LOG_ERROR(R"(Missing debug utility extension "{}")", VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-        f_show_sdk_help_warning();
+        F_ShowSDKHelp();
     }
 
     // platform extensions
     for (char const* const required_device_ext : get_platform_instance_extensions())
     {
-        if (!add_ext(required_device_ext))
+        if (!F_AddExtension(required_device_ext))
         {
             PHI_LOG_ERROR(R"(Missing platform-specific required Vulkan extension "{}")", required_device_ext);
-            f_show_sdk_help_warning();
+            F_ShowSDKHelp();
         }
     }
 

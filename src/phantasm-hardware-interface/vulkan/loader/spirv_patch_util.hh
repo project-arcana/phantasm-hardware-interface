@@ -4,7 +4,6 @@
 #include <cstdint>
 
 #include <clean-core/alloc_vector.hh>
-#include <clean-core/string.hh>
 
 #include <phantasm-hardware-interface/arguments.hh>
 #include <phantasm-hardware-interface/limits.hh>
@@ -51,7 +50,7 @@ enum spv_constants_e : uint32_t
 namespace phi::vk::util
 {
 /// info about a descriptor - where, what, and visibility
-struct spirv_desc_info
+struct ReflectedDescriptorInfo
 {
     uint32_t set;
     uint32_t binding;
@@ -60,58 +59,47 @@ struct spirv_desc_info
     VkShaderStageFlags visible_stage;            ///< shaders it is visible to
     VkPipelineStageFlags visible_pipeline_stage; ///< pipeline stages it is visible to (only depends upon visible_stage)
 
-    bool operator==(spirv_desc_info const& rhs) const noexcept
+    bool operator==(ReflectedDescriptorInfo const& rhs) const noexcept
     {
-        static_assert(std::has_unique_object_representations_v<spirv_desc_info>, "spirv_desc_info cannot be memcmp'd");
+        static_assert(std::has_unique_object_representations_v<ReflectedDescriptorInfo>, "ReflectedDescriptorInfo cannot be memcmp'd");
         return std::memcmp(this, &rhs, sizeof(*this)) == 0;
         //        return set == rhs.set && binding == rhs.binding && binding_array_size == rhs.binding_array_size && type == rhs.type && visible_stage == rhs.visible_stage;
     }
 };
 
-struct spirv_refl_info
+// info about a shader stage: descriptor infos and whether it has push constants
+struct ReflectedShaderInfo
 {
-    cc::alloc_vector<spirv_desc_info> descriptor_infos;
+    cc::alloc_vector<ReflectedDescriptorInfo> descriptor_infos;
     bool has_push_constants = false;
 };
 
-struct patched_spirv_stage
+// Single SPIR-V shader stage bytecode patched to be compatible with PHI Vulkan conventions
+struct PatchedShaderStage
 {
     std::byte* data;
     size_t size;
     shader_stage stage;
-    cc::string entrypoint_name;
+    char entrypoint_name[256];
 };
 
-// we have to shift all CBVs up by [max num shader args] sets to make our API work in vulkan
-// unlike the register-to-binding shift with -fvk-[x]-shift, this cannot be done with DXC flags
-// instead we provide these helpers which use the spirv-reflect library to do the same
-[[nodiscard]] patched_spirv_stage create_patched_spirv(std::byte const* bytecode, size_t bytecode_size, spirv_refl_info& out_info, cc::allocator* scratch_alloc);
+// patch SPIR-V bytecode to shift CBV sets upward
+[[nodiscard]] PatchedShaderStage createPatchedShader(std::byte const* bytecode, size_t bytecode_size, ReflectedShaderInfo& out_info, cc::allocator* scratch_alloc);
 
-void free_patched_spirv(patched_spirv_stage const& val);
+// free the result of createPatchedShader
+void freePatchedShader(PatchedShaderStage const& val);
 
 // merge descriptor infos per entrypoint into a sorted, deduplicated list, with visiblity flags OR-d together per descriptor
-cc::alloc_vector<spirv_desc_info> merge_spirv_descriptors(cc::span<spirv_desc_info> desc_infos, cc::allocator* alloc);
+cc::alloc_vector<ReflectedDescriptorInfo> mergeReflectedDescriptors(cc::span<ReflectedDescriptorInfo> inOutDescriptorInfos, cc::allocator* alloc);
 
-void print_spirv_info(cc::span<spirv_desc_info const> info);
+// insert dummy descriptors into arguments where descriptors are missing in reflection
+// NOTE: do not use, this problem is completely ill defined
+size_t addDummyDescriptors(cc::span<arg::shader_arg_shape const> argShapes, cc::alloc_vector<ReflectedDescriptorInfo>& inOutDescriptors);
 
 // issues warnings if the reflection data is incosistent with argument shapes
-void warnIfReflectionIsIncosistent(cc::span<spirv_desc_info const> reflected_descriptors, arg::shader_arg_shapes arg_shapes);
+bool warnIfReflectionIsInconsistent(cc::span<ReflectedDescriptorInfo const> reflected_descriptors, arg::shader_arg_shapes arg_shapes);
 
-//
-// serialization of fully processed SPIR-V
+// logs info about the reflected descriptors (to PHI_LOG)
+void logReflectedDescriptors(cc::span<ReflectedDescriptorInfo const> info);
 
-bool write_patched_spirv(patched_spirv_stage const& spirv, cc::span<spirv_desc_info const> merged_descriptor_info, bool has_root_consts, char const* out_path);
-
-struct patched_spirv_data_nonowning
-{
-    std::byte const* binary_data;
-    size_t binary_size_bytes;
-    char const* entrypoint_name;
-    cc::span<spirv_desc_info const> descriptor_infos;
-    shader_stage stage;
-    bool has_root_constants;
-};
-
-bool parse_patched_spirv(cc::span<std::byte const> data, patched_spirv_data_nonowning& out_parsed);
-
-}
+} // namespace phi::vk::util

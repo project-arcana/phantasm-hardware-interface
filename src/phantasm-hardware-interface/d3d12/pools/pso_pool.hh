@@ -23,17 +23,10 @@ class PipelineStateObjectPool
 public:
     // frontend-facing API
 
-    [[nodiscard]] handle::pipeline_state createPipelineState(arg::vertex_format vertex_format,
-                                                             const arg::framebuffer_config& framebuffer_format,
-                                                             arg::shader_arg_shapes shader_arg_shapes,
-                                                             bool has_root_constants,
-                                                             arg::graphics_shaders shader_stages,
-                                                             phi::pipeline_config const& primitive_config,
-                                                             char const* dbg_name);
+    [[nodiscard]] handle::pipeline_state createPipelineState(phi::arg::graphics_pipeline_state_description const& desc, char const* dbg_name);
 
-    [[nodiscard]] handle::pipeline_state createComputePipelineState(arg::shader_arg_shapes shader_arg_shapes,
-                                                                    arg::shader_binary compute_shader,
-                                                                    bool has_root_constants,
+    [[nodiscard]] handle::pipeline_state createComputePipelineState(
+        arg::compute_pipeline_state_description const& desc,
                                                                     char const* dbg_name);
 
     [[nodiscard]] handle::pipeline_state createRaytracingPipelineState(cc::span<arg::raytracing_shader_library const> libraries,
@@ -86,9 +79,16 @@ public:
 
     struct pso_node
     {
-        ID3D12PipelineState* raw_pso;
-        root_signature* associated_root_sig;
-        D3D12_PRIMITIVE_TOPOLOGY primitive_topology;
+        // the pipeline state itself
+        ID3D12PipelineState* pPSO = nullptr;
+
+        // the root signature (looked up from a cache, not 1:1)
+        root_signature* pAssociatedRootSig = nullptr;
+
+        // graphics PSOs with enabled support for cmd::draw_indirect in draw ID mode require this special command signature
+        ID3D12CommandSignature* pAssociatedComSigForDrawID = nullptr;
+
+        D3D12_PRIMITIVE_TOPOLOGY primitive_topology = {};
     };
 
     struct rt_pso_node
@@ -128,6 +128,8 @@ private:
     cc::allocator* mDynamicAllocator = nullptr;
 
     RootSignatureCache mRootSigCache;
+    CommandSignatureCache mComSigCache;
+
     ID3D12RootSignature* mEmptyRaytraceRootSignature = nullptr;
     ID3D12CommandSignature* mGlobalComSigDraw = nullptr;
     ID3D12CommandSignature* mGlobalComSigDrawIndexed = nullptr;
@@ -138,4 +140,4 @@ private:
     std::mutex mMutex;
 };
 
-}
+} // namespace phi::d3d12

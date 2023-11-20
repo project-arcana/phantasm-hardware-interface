@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cstdint>
+#include <stdint.h>
 
 namespace phi::cmd::detail
 {
@@ -29,7 +29,8 @@ namespace phi::cmd::detail
     PHI_X(clear_textures)          \
     PHI_X(code_location_marker)    \
     PHI_X(begin_profile_scope)     \
-    PHI_X(end_profile_scope)
+    PHI_X(end_profile_scope)       \
+    PHI_X(set_global_profile_scope)
 
 enum class cmd_type : uint8_t
 {
@@ -49,6 +50,6 @@ struct typed_cmd : cmd_base
 {
     typed_cmd() : cmd_base(TYPE) {}
 };
-}
+} // namespace phi::cmd::detail
 
 #define PHI_DEFINE_CMD(_type_) struct _type_ final : detail::typed_cmd<detail::cmd_type::_type_>

@@ -10,7 +10,7 @@
 #include <phantasm-hardware-interface/vulkan/BackendVulkan.hh>
 #include <phantasm-hardware-interface/vulkan/common/util.hh>
 
-void phi::vk::cmd_allocator_node::initialize(
+void phi::vk::CommandAllocator::initialize(
     VkDevice device, unsigned num_cmd_lists, unsigned queue_family_index, FenceRingbuffer* fence_ring, cc::allocator* static_alloc, cc::allocator* dynamic_alloc)
 {
     _fence_ring = fence_ring;
@@ -45,13 +45,13 @@ void phi::vk::cmd_allocator_node::initialize(
     _latest_fence.store(unsigned(-1));
 }
 
-void phi::vk::cmd_allocator_node::destroy(VkDevice device)
+void phi::vk::CommandAllocator::destroy(VkDevice device)
 {
     do_reset(device);
     vkDestroyCommandPool(device, _cmd_pool, nullptr);
 }
 
-VkCommandBuffer phi::vk::cmd_allocator_node::acquire(VkDevice device)
+VkCommandBuffer phi::vk::CommandAllocator::acquire(VkDevice device)
 {
     if (is_full())
     {
@@ -72,7 +72,7 @@ VkCommandBuffer phi::vk::cmd_allocator_node::acquire(VkDevice device)
     return res;
 }
 
-void phi::vk::cmd_allocator_node::on_submit(unsigned num, unsigned fence_index)
+void phi::vk::CommandAllocator::on_submit(unsigned num, unsigned fence_index)
 {
     // first, update the latest fence
     auto const previous_fence = _latest_fence.exchange(fence_index);
@@ -83,11 +83,11 @@ void phi::vk::cmd_allocator_node::on_submit(unsigned num, unsigned fence_index)
     }
 
     // second, increment the pending execution counter, as it guards access to _latest_fence
-    // (an increment here might turn is_submit_counter_up_to_date true)
+    // (an increment here might turn isSubmitCounterUpToDate true)
     _num_pending_execution.fetch_add(num);
 }
 
-bool phi::vk::cmd_allocator_node::try_reset(VkDevice device)
+bool phi::vk::CommandAllocator::try_reset(VkDevice device)
 {
     if (can_reset())
     {
@@ -131,7 +131,7 @@ bool phi::vk::cmd_allocator_node::try_reset(VkDevice device)
     }
 }
 
-bool phi::vk::cmd_allocator_node::try_reset_blocking(VkDevice device)
+bool phi::vk::CommandAllocator::try_reset_blocking(VkDevice device)
 {
     if (can_reset())
     {
@@ -161,7 +161,7 @@ bool phi::vk::cmd_allocator_node::try_reset_blocking(VkDevice device)
     }
 }
 
-void phi::vk::cmd_allocator_node::do_reset(VkDevice device)
+void phi::vk::CommandAllocator::do_reset(VkDevice device)
 {
     PHI_VK_VERIFY_SUCCESS(vkResetCommandPool(device, _cmd_pool, VK_COMMAND_POOL_RESET_RELEASE_RESOURCES_BIT));
 
@@ -274,7 +274,7 @@ void phi::vk::CommandAllocatorBundle::initialize(VkDevice device,
     mAllocators = mAllocators.defaulted(num_allocators, static_alloc);
     mActiveAllocator = 0u;
 
-    for (cmd_allocator_node& alloc_node : mAllocators)
+    for (CommandAllocator& alloc_node : mAllocators)
     {
         alloc_node.initialize(device, num_cmdlists_per_allocator, queue_family_index, fence_ring, static_alloc, dynamic_alloc);
     }
@@ -286,7 +286,7 @@ void phi::vk::CommandAllocatorBundle::destroy(VkDevice device)
         alloc_node.destroy(device);
 }
 
-phi::vk::cmd_allocator_node* phi::vk::CommandAllocatorBundle::acquireMemory(VkDevice device, VkCommandBuffer& out_buffer)
+phi::vk::CommandAllocator* phi::vk::CommandAllocatorBundle::acquireMemory(VkDevice device, VkCommandBuffer& out_buffer)
 {
     CC_ASSERT(!mAllocators.empty() && "uninitalized command allocator bundle");
     updateActiveIndex(device);
@@ -332,7 +332,7 @@ phi::handle::command_list phi::vk::CommandListPool::create(VkCommandBuffer& out_
     unsigned const res_index = mPool.get_handle_index(res);
 
     cmd_list_node& new_node = mPool.get(res);
-    new_node.responsible_allocator = thread_allocator.get(type).acquireMemory(mDevice, new_node.raw_buffer);
+    new_node.pResponsibleAllocator = thread_allocator.get(type).acquireMemory(mDevice, new_node.raw_buffer);
     new_node.state_cache.initialize(cc::span(mFlatStateCacheEntries).subspan(res_index * mNumStateCacheEntriesPerCmdlist, mNumStateCacheEntriesPerCmdlist));
 
     out_cmdlist = new_node.raw_buffer;
@@ -344,14 +344,14 @@ void phi::vk::CommandListPool::freeOnSubmit(phi::handle::command_list cl, unsign
     cmd_list_node& freed_node = mPool.get(cl._value);
     {
         auto lg = std::lock_guard(mMutex);
-        freed_node.responsible_allocator->on_submit(1, fence_index);
+        freed_node.pResponsibleAllocator->on_submit(1, fence_index);
     }
     mPool.release(cl._value);
 }
 
 void phi::vk::CommandListPool::freeOnSubmit(cc::span<const phi::handle::command_list> cls, unsigned fence_index)
 {
-    phi::detail::capped_flat_map<cmd_allocator_node*, unsigned, 24> unique_allocators;
+    phi::detail::capped_flat_map<CommandAllocator*, unsigned, 24> unique_allocators;
 
     // free the cls in the pool and gather the unique allocators
     {
@@ -362,7 +362,7 @@ void phi::vk::CommandListPool::freeOnSubmit(cc::span<const phi::handle::command_
                 continue;
 
             cmd_list_node& freed_node = mPool.get(cl._value);
-            unique_allocators.get_value(freed_node.responsible_allocator, 0u) += 1;
+            unique_allocators.get_value(freed_node.pResponsibleAllocator, 0u) += 1;
             mPool.release(cl._value);
         }
     }
@@ -383,7 +383,7 @@ void phi::vk::CommandListPool::freeOnSubmit(cc::span<const phi::handle::command_
 
 void phi::vk::CommandListPool::freeOnSubmit(cc::span<const cc::span<const phi::handle::command_list>> cls_nested, unsigned fence_index)
 {
-    phi::detail::capped_flat_map<cmd_allocator_node*, unsigned, 24> unique_allocators;
+    phi::detail::capped_flat_map<CommandAllocator*, unsigned, 24> unique_allocators;
 
     // free the cls in the pool and gather the unique allocators
     {
@@ -395,7 +395,7 @@ void phi::vk::CommandListPool::freeOnSubmit(cc::span<const cc::span<const phi::h
                     continue;
 
                 cmd_list_node& freed_node = mPool.get(cl._value);
-                unique_allocators.get_value(freed_node.responsible_allocator, 0u) += 1;
+                unique_allocators.get_value(freed_node.pResponsibleAllocator, 0u) += 1;
                 mPool.release(cl._value);
             }
     }
@@ -422,7 +422,7 @@ void phi::vk::CommandListPool::freeAndDiscard(cc::span<const handle::command_lis
     {
         if (cl.is_valid())
         {
-            mPool.get(cl._value).responsible_allocator->on_discard();
+            mPool.get(cl._value).pResponsibleAllocator->on_discard();
             mPool.release(cl._value);
         }
     }
@@ -435,7 +435,7 @@ unsigned phi::vk::CommandListPool::discardAndFreeAll()
     auto num_freed = 0u;
     mPool.iterate_allocated_nodes([&](cmd_list_node& leaked_node) {
         ++num_freed;
-        leaked_node.responsible_allocator->on_discard();
+        leaked_node.pResponsibleAllocator->on_discard();
         mPool.unsafe_release_node(&leaked_node);
     });
 

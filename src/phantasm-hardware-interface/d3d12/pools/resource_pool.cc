@@ -3,6 +3,7 @@
 #include <clean-core/bit_cast.hh>
 #include <clean-core/utility.hh>
 
+#include <phantasm-hardware-interface/common/byte_print.hh>
 #include <phantasm-hardware-interface/common/byte_util.hh>
 #include <phantasm-hardware-interface/common/format_size.hh>
 #include <phantasm-hardware-interface/common/log.hh>
@@ -60,7 +61,7 @@ constexpr D3D12_RESOURCE_STATES d3d12_get_initial_state_by_heap(phi::resource_he
 
     return D3D12_RESOURCE_STATE_COMMON;
 }
-}
+} // namespace
 
 void phi::d3d12::ResourcePool::initialize(ID3D12Device* device, uint32_t max_num_resources, uint32_t max_num_swapchains, cc::allocator* static_alloc, cc::allocator* dynamic_alloc)
 {
@@ -87,20 +88,22 @@ void phi::d3d12::ResourcePool::destroy()
     auto num_leaks = 0;
 
     char debugname_buffer[256];
-    mPool.iterate_allocated_nodes([&](resource_node& leaked_node) {
-        if (leaked_node.allocation != nullptr)
+    mPool.iterate_allocated_nodes(
+        [&](resource_node& leaked_node)
         {
-            if (num_leaks == 0)
-                PHI_LOG("handle::resource leaks:");
+            if (leaked_node.allocation != nullptr)
+            {
+                if (num_leaks == 0)
+                    PHI_LOG("handle::resource leaks:");
 
-            ++num_leaks;
+                ++num_leaks;
 
-            auto const strlen = util::get_object_name(leaked_node.resource, debugname_buffer);
-            PHI_LOG("  leaked handle::resource - {}", cc::string_view(debugname_buffer, cc::min<UINT>(strlen, sizeof(debugname_buffer))));
+                auto const strlen = util::get_object_name(leaked_node.resource, debugname_buffer);
+                PHI_LOG("  leaked handle::resource - {}", cc::string_view(debugname_buffer, cc::min<UINT>(strlen, sizeof(debugname_buffer))));
 
-            leaked_node.allocation->Release();
-        }
-    });
+                leaked_node.allocation->Release();
+            }
+        });
 
     if (num_leaks > 0)
     {
@@ -113,7 +116,7 @@ void phi::d3d12::ResourcePool::destroy()
     mAllocator.destroy();
 }
 
-phi::handle::resource phi::d3d12::ResourcePool::injectBackbufferResource(unsigned swapchain_index, tg::isize2 size, ID3D12Resource* raw_resource, D3D12_RESOURCE_STATES state)
+phi::handle::resource phi::d3d12::ResourcePool::injectBackbufferResource(unsigned swapchain_index, tg::isize2 size, format fmt, ID3D12Resource* raw_resource, D3D12_RESOURCE_STATES state)
 {
     CC_ASSERT(swapchain_index < mNumReservedBackbuffers && "swapchain index OOB");
     auto const res_handle = mPool.unsafe_construct_handle_for_index(swapchain_index);
@@ -124,7 +127,7 @@ phi::handle::resource phi::d3d12::ResourcePool::injectBackbufferResource(unsigne
 
 
     arg::resource_description& storedDesc = mParallelResourceDescriptions[swapchain_index];
-    storedDesc = arg::resource_description::texture(format::bgra8un, size);
+    storedDesc = arg::resource_description::texture(fmt, size);
 
     return {res_handle};
 }
@@ -203,7 +206,11 @@ phi::handle::resource phi::d3d12::ResourcePool::createBuffer(arg::buffer_descrip
         desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
     auto* const alloc = mAllocator.allocate(desc, initial_state, nullptr, util::to_native(description.heap));
-    util::set_object_name(alloc->GetResource(), "buf %s (%uB, %uB stride, %s heap)", dbg_name ? dbg_name : "", uint32_t(description.size_bytes),
+
+    char formatted_bytes[128];
+    byte_print(description.size_bytes, formatted_bytes);
+
+    util::set_object_name(alloc->GetResource(), "buf %s (%s, %uB stride, %s heap)", dbg_name ? dbg_name : "", formatted_bytes,
                           description.stride_bytes, d3d12_get_heap_type_literal(description.heap));
 
     auto const res = acquireBuffer(alloc, initial_state, description);
@@ -324,6 +331,7 @@ phi::handle::resource phi::d3d12::ResourcePool::acquireImage(D3D12MA::Allocation
     arg::resource_description& storedDesc = mParallelResourceDescriptions[descriptionIndex];
     storedDesc.type = arg::resource_description::e_resource_texture;
     storedDesc.info_texture = desc;
+    // override the MIP amount with the actual amount on device
     storedDesc.info_texture.num_mips = uint32_t(realNumMipmaps);
 
     return {res};

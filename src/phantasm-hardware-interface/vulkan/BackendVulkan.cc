@@ -1,16 +1,15 @@
 #include "BackendVulkan.hh"
 
 #ifdef PHI_HAS_OPTICK
-#include <optick/optick.h>
+#include <optick.h>
 #endif
 
 #include <clean-core/allocator.hh>
-#include <clean-core/array.hh>
+#include <clean-core/allocators/linear_allocator.hh>
 #include <clean-core/defer.hh>
-#include <clean-core/native/win32_util.hh>
+#include <clean-core/native/timing.hh>
 
-#include <rich-log/logger.hh>
-
+#include <phantasm-hardware-interface/common/command_reading.hh>
 #include <phantasm-hardware-interface/common/log.hh>
 #include <phantasm-hardware-interface/config.hh>
 
@@ -27,27 +26,21 @@ namespace phi::vk
 {
 struct BackendVulkan::per_thread_component
 {
-    command_list_translator translator;
     CommandAllocatorsPerThread cmdListAllocator;
     cc::alloc_array<std::byte> threadLocalScratchAllocMemory;
     cc::linear_allocator threadLocalScratchAlloc;
 };
 } // namespace phi::vk
 
-namespace
+phi::init_status phi::vk::BackendVulkan::initialize(const backend_config& config_arg)
 {
-constexpr VkPipelineStageFlags const gc_wait_dst_masks[8]
-    = {VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-       VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-       VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT};
-}
+    // initialize vulkan loader
+    if (volkInitialize() != VK_SUCCESS)
+    {
+        PHI_LOG_ASSERT("Fatal: Failed to initialize Vulkan - vulkan-1.dll or libvulkan missing");
+        return phi::init_status::err_runtime;
+    }
 
-void phi::vk::BackendVulkan::initialize(const backend_config& config_arg)
-{
-    // enable colors as rich-log is used by this library
-    rlog::enable_win32_colors();
-
-    PHI_VK_VERIFY_SUCCESS(volkInitialize());
 
     // copy explicitly for modifications
     backend_config config = config_arg;
@@ -59,62 +52,88 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg)
         config.validation = validation_level::off;
     }
 
-    auto const active_lay_ext = getUsedInstanceExtensions(getAvailableInstanceExtensions(), config);
-
-    VkApplicationInfo app_info = {};
-    app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    app_info.pApplicationName = "Phantasm Hardware Interface Application";
-    app_info.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-    app_info.pEngineName = "Phantasm Hardware Interface";
-    app_info.engineVersion = VK_MAKE_VERSION(1, 2, 0);
-    app_info.apiVersion = VK_API_VERSION_1_2;
-
-    VkInstanceCreateInfo instance_info = {};
-    instance_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-    instance_info.pApplicationInfo = &app_info;
-    instance_info.enabledExtensionCount = uint32_t(active_lay_ext.extensions.size());
-    instance_info.ppEnabledExtensionNames = active_lay_ext.extensions.empty() ? nullptr : active_lay_ext.extensions.data();
-    instance_info.enabledLayerCount = uint32_t(active_lay_ext.layers.size());
-    instance_info.ppEnabledLayerNames = active_lay_ext.layers.empty() ? nullptr : active_lay_ext.layers.data();
-
-    cc::capped_vector<VkValidationFeatureEnableEXT, 4> extended_validation_enables;
-
-    if (config.validation >= validation_level::on_extended)
+    // initialize per-thread components and scratch allocs
     {
-        // Enable GPU based validation (GBV)
-        extended_validation_enables.push_back(VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT);
-        extended_validation_enables.push_back(VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_RESERVE_BINDING_SLOT_EXT);
-    }
+        mThreadAssociation.initialize();
 
-    if (config.native_features & backend_config::native_feature_vk_best_practices_layer)
-    {
-        if (config.validation < validation_level::on)
+        mThreadComponentAlloc = config.static_allocator;
+        mThreadComponents = config.static_allocator->new_array_sized<per_thread_component>(config.num_threads);
+        mNumThreadComponents = config.num_threads;
+
+        for (auto i = 0u; i < mNumThreadComponents; ++i)
         {
-            PHI_LOG_WARN("Vulkan best practices layer requires validation_level::on or higher (native_feature_vk_best_practices_layer)");
-        }
-        else
-        {
-            PHI_LOG("Vulkan best practices layer enabled (native_feature_vk_best_practices_layer)");
-            extended_validation_enables.push_back(VK_VALIDATION_FEATURE_ENABLE_BEST_PRACTICES_EXT);
+            auto& thread_comp = mThreadComponents[i];
+            // 5 MB scratch alloc per thread
+            thread_comp.threadLocalScratchAllocMemory.reset(config.static_allocator, 1024 * 1024 * 5);
+            thread_comp.threadLocalScratchAlloc = cc::linear_allocator(thread_comp.threadLocalScratchAllocMemory);
         }
     }
 
-    VkValidationFeaturesEXT extended_validation_features = {};
-
-    if (extended_validation_enables.size() > 0)
     {
-        extended_validation_features.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT;
-        extended_validation_features.enabledValidationFeatureCount = uint32_t(extended_validation_enables.size());
-        extended_validation_features.pEnabledValidationFeatures = extended_validation_enables.data();
+        cc::allocator* scratch = getCurrentScratchAlloc();
 
-        instance_info.pNext = &extended_validation_features;
+        auto const active_lay_ext = getUsedInstanceExtensions(getAvailableInstanceExtensions(scratch), config);
+
+        VkApplicationInfo app_info = {};
+        app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+        app_info.pApplicationName = "Phantasm Hardware Interface Application";
+        app_info.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
+        app_info.pEngineName = "Phantasm Hardware Interface";
+        app_info.engineVersion = VK_MAKE_VERSION(1, 2, 0);
+        app_info.apiVersion = VK_API_VERSION_1_2;
+
+        VkInstanceCreateInfo instance_info = {};
+        instance_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+        instance_info.pApplicationInfo = &app_info;
+        instance_info.enabledExtensionCount = uint32_t(active_lay_ext.extensions.size());
+        instance_info.ppEnabledExtensionNames = active_lay_ext.extensions.empty() ? nullptr : active_lay_ext.extensions.data();
+        instance_info.enabledLayerCount = uint32_t(active_lay_ext.layers.size());
+        instance_info.ppEnabledLayerNames = active_lay_ext.layers.empty() ? nullptr : active_lay_ext.layers.data();
+
+        cc::capped_vector<VkValidationFeatureEnableEXT, 4> extended_validation_enables;
+
+        if (config.validation >= validation_level::on_extended)
+        {
+            // Enable GPU based validation (GBV)
+            extended_validation_enables.push_back(VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT);
+            extended_validation_enables.push_back(VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_RESERVE_BINDING_SLOT_EXT);
+        }
+
+        if (config.native_features & backend_config::native_feature_vk_best_practices_layer)
+        {
+            if (config.validation < validation_level::on)
+            {
+                PHI_LOG_WARN("Vulkan best practices layer requires validation_level::on or higher (native_feature_vk_best_practices_layer)");
+            }
+            else
+            {
+                PHI_LOG("Vulkan best practices layer enabled (native_feature_vk_best_practices_layer)");
+                extended_validation_enables.push_back(VK_VALIDATION_FEATURE_ENABLE_BEST_PRACTICES_EXT);
+            }
+        }
+
+        VkValidationFeaturesEXT extended_validation_features = {};
+
+        if (extended_validation_enables.size() > 0)
+        {
+            extended_validation_features.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT;
+            extended_validation_features.enabledValidationFeatureCount = uint32_t(extended_validation_enables.size());
+            extended_validation_features.pEnabledValidationFeatures = extended_validation_enables.data();
+
+            instance_info.pNext = &extended_validation_features;
+        }
+
+        // Create the instance
+        VkResult create_res = vkCreateInstance(&instance_info, nullptr, &mInstance);
+        if (create_res != VK_SUCCESS)
+        {
+            PHI_LOG_ASSERT("Fatal: vkCreateInstance call failed");
+            return init_status::err_runtime;
+        }
+
+        // TODO: More fine-grained error handling
+        PHI_VK_ASSERT_SUCCESS(create_res);
     }
-
-    // Create the instance
-    VkResult create_res = vkCreateInstance(&instance_info, nullptr, &mInstance);
-
-    // TODO: More fine-grained error handling
-    PHI_VK_ASSERT_SUCCESS(create_res);
 
     // Load instance-based Vulkan entrypoints
     volkLoadInstanceOnly(mInstance);
@@ -127,20 +146,43 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg)
 
     // GPU choice and device init
     {
-        auto const vk_gpu_infos = get_all_vulkan_gpu_infos(mInstance);
-        auto const gpu_infos = get_available_gpus(vk_gpu_infos);
+        cc::allocator* scratch = getCurrentScratchAlloc();
+
+        auto const vk_gpu_infos = get_all_vulkan_gpu_infos(mInstance, scratch);
+        auto const gpu_infos = get_available_gpus(vk_gpu_infos, scratch);
         auto const chosen_index = getPreferredGPU(gpu_infos, config.adapter);
-        CC_RUNTIME_ASSERT(chosen_index < gpu_infos.size() && "Found no GPU candidates");
+
+        if (chosen_index >= gpu_infos.size())
+        {
+            PHI_LOG_ASSERT("Fatal: Failed to find an eligble GPU");
+            return init_status::err_no_gpu_eligible;
+        }
 
         auto const& chosen_gpu = gpu_infos[chosen_index];
         auto const& chosen_vk_gpu = vk_gpu_infos[chosen_gpu.index];
 
-        mDevice.initialize(chosen_vk_gpu, config);
+        if (!mDevice.initialize(chosen_vk_gpu, config))
+        {
+            PHI_LOG_ASSERT("Failed to intialize on GPU {}", gpu_infos[chosen_index].name);
 
-        // Load device-based Vulkan entrypoints
-        volkLoadDevice(mDevice.getDevice());
+#ifdef CC_OS_LINUX
+            if (config.enable_raytracing && chosen_gpu.vendor == gpu_vendor::nvidia)
+            {
+                // Potentially preceded by vulkan warnings
+                // "terminator_CreateDevice: Failed in ICD libGLX_nvidia.so.0 vkCreateDevicecall"
+                // and "vkCreateDevice:  Failed to create device chain."
+                //
+                // I got this issue on Nvidia drivers 470.103.01, Debian, RTX 2080, April 22
+                // Only happens when requesting the VK_NV_ray_tracing device extension - no idea about resolution though
+                PHI_LOG_ASSERT("If you got the message \"terminator_CreateDevice: Failed in ICD libGLX_nvidia.so.0 vkCreateDevicecall\":");
+                PHI_LOG_ASSERT("    Known issue - try disabling raytracing in the PHI backend config");
+            }
+#endif
 
-        printStartupMessage(gpu_infos, chosen_index, config, false);
+            return init_status::err_runtime;
+        }
+
+        printStartupMessage(gpu_infos.size(), &gpu_infos[chosen_index], config, false);
 
         if (config.print_startup_message)
         {
@@ -166,28 +208,22 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg)
 
     mPoolSwapchains.initialize(mInstance, mDevice, config);
 
-    // Per-thread components and command list pool
+    // Per-thread command list pool
     {
-        mThreadAssociation.initialize();
-
-        mThreadComponentAlloc = config.static_allocator;
-        mThreadComponents = config.static_allocator->new_array_sized<per_thread_component>(config.num_threads);
-        mNumThreadComponents = config.num_threads;
-
-        cc::alloc_array<CommandAllocatorsPerThread*> thread_allocator_ptrs(mNumThreadComponents, config.dynamic_allocator);
+        cc::allocator* scratch = getCurrentScratchAlloc();
+        cc::alloc_array<CommandAllocatorsPerThread*> thread_allocator_ptrs(mNumThreadComponents, scratch);
 
         for (auto i = 0u; i < mNumThreadComponents; ++i)
         {
             auto& thread_comp = mThreadComponents[i];
-            thread_comp.translator.initialize(mDevice.getDevice(), &mPoolShaderViews, &mPoolResources, &mPoolPipelines, &mPoolCmdLists, &mPoolQueries,
-                                              &mPoolAccelStructs, mDevice.hasRaytracing());
             thread_allocator_ptrs[i] = &thread_comp.cmdListAllocator;
-
-            // 5 MB scratch alloc per thread
-            thread_comp.threadLocalScratchAllocMemory.reset(config.static_allocator, 1024 * 1024 * 5);
-            thread_comp.threadLocalScratchAlloc = cc::linear_allocator(thread_comp.threadLocalScratchAllocMemory);
         }
 
+        // TODO: config struct
+        mPoolTranslators.initialize(mDevice.getDevice(), &mPoolShaderViews, &mPoolResources, &mPoolPipelines, &mPoolCmdLists, &mPoolQueries,
+                                    &mPoolAccelStructs, mDevice.hasRaytracing(), config.static_allocator, config.max_num_live_commandlists);
+
+        // TODO: config struct
         mPoolCmdLists.initialize(mDevice,                                                                                               //
                                  int(config.num_direct_cmdlist_allocators_per_thread), int(config.num_direct_cmdlists_per_allocator),   //
                                  int(config.num_compute_cmdlist_allocators_per_thread), int(config.num_compute_cmdlists_per_allocator), //
@@ -206,12 +242,21 @@ void phi::vk::BackendVulkan::initialize(const backend_config& config_arg)
         OPTICK_GPU_INIT_VULKAN(&dev, &physDev, &dirQueue, &dirQueueIdx, 1, nullptr);
     }
 #endif
+
+    return init_status::success;
 }
 
 void phi::vk::BackendVulkan::destroy()
 {
-    if (mInstance != nullptr)
+    if (mInstance == nullptr)
     {
+        // never initialized or immediately failed
+        return;
+    }
+
+    if (mDevice.getDevice() != nullptr)
+    {
+        // only shut these components down if the device was initialized
         flushGPU();
 
         mDiagnostics.free();
@@ -225,6 +270,7 @@ void phi::vk::BackendVulkan::destroy()
         mPoolCmdLists.destroy();
         mPoolPipelines.destroy();
         mPoolResources.destroy();
+        mPoolTranslators.destroy();
 
         for (auto i = 0u; i < mNumThreadComponents; ++i)
         {
@@ -235,22 +281,23 @@ void phi::vk::BackendVulkan::destroy()
         static_cast<cc::allocator*>(mThreadComponentAlloc)->delete_array_sized(mThreadComponents, mNumThreadComponents);
 
         mDevice.destroy();
-
-        if (mDebugMessenger != nullptr)
-            vkDestroyDebugUtilsMessengerEXT(mInstance, mDebugMessenger, nullptr);
-
-        vkDestroyInstance(mInstance, nullptr);
-        mInstance = nullptr;
-
-        mThreadAssociation.destroy();
     }
+
+    if (mDebugMessenger != nullptr)
+        vkDestroyDebugUtilsMessengerEXT(mInstance, mDebugMessenger, nullptr);
+
+    vkDestroyInstance(mInstance, nullptr);
+    mInstance = nullptr;
+
+    mThreadAssociation.destroy();
 }
 
 phi::vk::BackendVulkan::~BackendVulkan() { destroy(); }
 
-phi::handle::swapchain phi::vk::BackendVulkan::createSwapchain(const phi::window_handle& window_handle, tg::isize2 initial_size, phi::present_mode mode, uint32_t num_backbuffers)
+phi::handle::swapchain phi::vk::BackendVulkan::createSwapchain(arg::swapchain_description const& desc, char const* debug_name)
 {
-    return mPoolSwapchains.createSwapchain(window_handle, initial_size.width, initial_size.height, num_backbuffers, mode);
+    auto const res = mPoolSwapchains.createSwapchain(desc, getCurrentScratchAlloc(), debug_name);
+    return res;
 }
 
 void phi::vk::BackendVulkan::free(phi::handle::swapchain sc) { mPoolSwapchains.free(sc); }
@@ -260,7 +307,7 @@ phi::handle::resource phi::vk::BackendVulkan::acquireBackbuffer(handle::swapchai
     auto const swapchain_index = mPoolSwapchains.getSwapchainIndex(sc);
     auto const& swapchain = mPoolSwapchains.get(sc);
     auto const prev_backbuffer_index = swapchain.active_image_index;
-    bool const acquire_success = mPoolSwapchains.acquireBackbuffer(sc);
+    bool const acquire_success = mPoolSwapchains.acquireBackbuffer(sc, getCurrentScratchAlloc());
 
     if (!acquire_success)
     {
@@ -278,12 +325,12 @@ phi::handle::resource phi::vk::BackendVulkan::acquireBackbuffer(handle::swapchai
     }
 }
 
-void phi::vk::BackendVulkan::present(phi::handle::swapchain sc) { mPoolSwapchains.present(sc); }
+void phi::vk::BackendVulkan::present(phi::handle::swapchain sc) { mPoolSwapchains.present(sc, getCurrentScratchAlloc()); }
 
 void phi::vk::BackendVulkan::onResize(handle::swapchain sc, tg::isize2 size)
 {
     flushGPU();
-    mPoolSwapchains.onResize(sc, size.width, size.height);
+    mPoolSwapchains.onResize(sc, size.width, size.height, getCurrentScratchAlloc());
 }
 
 phi::format phi::vk::BackendVulkan::getBackbufferFormat(phi::handle::swapchain sc) const
@@ -315,7 +362,6 @@ phi::handle::shader_view phi::vk::BackendVulkan::createShaderView(cc::span<const
                                                                   bool usage_compute)
 {
     auto const res = mPoolShaderViews.create(srvs, uavs, samplers, usage_compute, getCurrentScratchAlloc());
-    resetCurrentScratchAlloc();
     return res;
 }
 
@@ -328,62 +374,50 @@ phi::handle::shader_view phi::vk::BackendVulkan::createEmptyShaderView(arg::shad
 void phi::vk::BackendVulkan::writeShaderViewSRVs(handle::shader_view sv, uint32_t offset, cc::span<resource_view const> srvs)
 {
     mPoolShaderViews.writeShaderViewSRVs(sv, offset, srvs, getCurrentScratchAlloc());
-    resetCurrentScratchAlloc();
 }
 
 void phi::vk::BackendVulkan::writeShaderViewUAVs(handle::shader_view sv, uint32_t offset, cc::span<resource_view const> uavs)
 {
     mPoolShaderViews.writeShaderViewUAVs(sv, offset, uavs, getCurrentScratchAlloc());
-    resetCurrentScratchAlloc();
 }
 
 void phi::vk::BackendVulkan::writeShaderViewSamplers(handle::shader_view sv, uint32_t offset, cc::span<sampler_config const> samplers)
 {
     mPoolShaderViews.writeShaderViewSamplers(sv, offset, samplers, getCurrentScratchAlloc());
-    resetCurrentScratchAlloc();
 }
+
+void phi::vk::BackendVulkan::copyShaderViewSRVs(handle::shader_view hDest, uint32_t offsetDest, handle::shader_view hSrc, uint32_t offsetSrc, uint32_t numDescriptors)
+{
+    mPoolShaderViews.copyShaderViewSRVs(hDest, offsetDest, hSrc, offsetSrc, numDescriptors);
+}
+
+void phi::vk::BackendVulkan::copyShaderViewUAVs(handle::shader_view hDest, uint32_t offsetDest, handle::shader_view hSrc, uint32_t offsetSrc, uint32_t numDescriptors)
+{
+    mPoolShaderViews.copyShaderViewUAVs(hDest, offsetDest, hSrc, offsetSrc, numDescriptors);
+}
+
+void phi::vk::BackendVulkan::copyShaderViewSamplers(handle::shader_view hDest, uint32_t offsetDest, handle::shader_view hSrc, uint32_t offsetSrc, uint32_t numDescriptors)
+{
+    mPoolShaderViews.copyShaderViewSamplers(hDest, offsetDest, hSrc, offsetSrc, numDescriptors);
+}
+
 
 void phi::vk::BackendVulkan::free(phi::handle::shader_view sv) { mPoolShaderViews.free(sv); }
 
 void phi::vk::BackendVulkan::freeRange(cc::span<const phi::handle::shader_view> svs) { mPoolShaderViews.free(svs); }
 
-phi::handle::pipeline_state phi::vk::BackendVulkan::createPipelineState(phi::arg::vertex_format vertex_format,
-                                                                        const phi::arg::framebuffer_config& framebuffer_conf,
-                                                                        phi::arg::shader_arg_shapes shader_arg_shapes,
-                                                                        bool has_root_constants,
-                                                                        phi::arg::graphics_shaders shaders,
-                                                                        const phi::pipeline_config& primitive_config,
-                                                                        char const* debug_name)
-{
-    auto const res = mPoolPipelines.createPipelineState(vertex_format, framebuffer_conf, shader_arg_shapes, has_root_constants, shaders,
-                                                        primitive_config, getCurrentScratchAlloc(), debug_name);
-    resetCurrentScratchAlloc();
-    return res;
-}
-
 phi::handle::pipeline_state phi::vk::BackendVulkan::createPipelineState(const phi::arg::graphics_pipeline_state_description& description, char const* debug_name)
 {
-    auto const res = mPoolPipelines.createPipelineState(description.vertices, description.framebuffer, description.shader_arg_shapes, description.has_root_constants,
-                                                        description.shader_binaries, description.config, getCurrentScratchAlloc(), debug_name);
-    resetCurrentScratchAlloc();
-    return res;
-}
-
-phi::handle::pipeline_state phi::vk::BackendVulkan::createComputePipelineState(phi::arg::shader_arg_shapes shader_arg_shapes,
-                                                                               phi::arg::shader_binary shader,
-                                                                               bool has_root_constants,
-                                                                               char const* debug_name)
-{
-    auto const res = mPoolPipelines.createComputePipelineState(shader_arg_shapes, shader, has_root_constants, getCurrentScratchAlloc(), debug_name);
-    resetCurrentScratchAlloc();
+    auto const res = mPoolPipelines.createPipelineState(description.vertices, description.framebuffer, description.root_signature.shader_arg_shapes,
+                                                        description.root_signature.has_root_constants, description.shader_binaries,
+                                                        description.config, getCurrentScratchAlloc(), debug_name);
     return res;
 }
 
 phi::handle::pipeline_state phi::vk::BackendVulkan::createComputePipelineState(const phi::arg::compute_pipeline_state_description& description, char const* debug_name)
 {
-    auto const res = mPoolPipelines.createComputePipelineState(description.shader_arg_shapes, description.shader, description.has_root_constants,
-                                                               getCurrentScratchAlloc(), debug_name);
-    resetCurrentScratchAlloc();
+    auto const res = mPoolPipelines.createComputePipelineState(description.root_signature.shader_arg_shapes, description.shader,
+                                                               description.root_signature.has_root_constants, getCurrentScratchAlloc(), debug_name);
     return res;
 }
 
@@ -391,15 +425,29 @@ void phi::vk::BackendVulkan::free(phi::handle::pipeline_state ps) { mPoolPipelin
 
 phi::handle::command_list phi::vk::BackendVulkan::recordCommandList(std::byte const* buffer, size_t size, queue_type queue)
 {
-    // possibly fall back to a direct queue
-    queue = mDevice.getQueueTypeOrFallback(queue);
+    command_stream_parser parser(buffer, size);
+    command_stream_parser::iterator parserIterator = parser.begin();
 
-    auto& thread_comp = getCurrentThreadComponent();
+    cmd::set_global_profile_scope const* cmdGlobalProfile = nullptr;
+    if (parserIterator.has_cmds_left() && parserIterator.get_current_cmd_type() == phi::cmd::detail::cmd_type::set_global_profile_scope)
+    {
+        // if the very first command is set_global_profile_scope, use the provided event instead of the static one
+        cmdGlobalProfile = static_cast<cmd::set_global_profile_scope const*>(parserIterator.get_current_cmd());
+        parserIterator.skip_one_cmd();
+    }
 
-    VkCommandBuffer raw_list;
-    auto const res = mPoolCmdLists.create(raw_list, thread_comp.cmdListAllocator, queue);
-    thread_comp.translator.translateCommandList(raw_list, res, mPoolCmdLists.getStateCache(res), buffer, size);
-    return res;
+    auto const liveCmdlist = openLiveCommandList(queue, cmdGlobalProfile);
+
+    auto* const pTranslator = mPoolTranslators.getTranslator(liveCmdlist);
+
+    // translate all contained commands
+    while (parserIterator.has_cmds_left())
+    {
+        cmd::detail::dynamic_dispatch(*parserIterator.get_current_cmd(), *pTranslator);
+        parserIterator.skip_one_cmd();
+    }
+
+    return closeLiveCommandList(liveCmdlist);
 }
 
 void phi::vk::BackendVulkan::discard(cc::span<const phi::handle::command_list> cls) { mPoolCmdLists.freeAndDiscard(cls); }
@@ -409,13 +457,13 @@ void phi::vk::BackendVulkan::submit(cc::span<const phi::handle::command_list> cl
                                     cc::span<const phi::fence_operation> fence_waits_before,
                                     cc::span<const phi::fence_operation> fence_signals_after)
 {
+    auto* scratch = getCurrentScratchAlloc();
+
     cc::alloc_vector<VkCommandBuffer> cmd_bufs_to_submit;
-    cmd_bufs_to_submit.reset_reserve(getCurrentScratchAlloc(), cls.size() * 2);
+    cmd_bufs_to_submit.reset_reserve(scratch, cls.size() * 2);
 
     cc::alloc_vector<handle::command_list> barrier_lists;
-    barrier_lists.reset_reserve(getCurrentScratchAlloc(), cls.size());
-
-    CC_DEFER { resetCurrentScratchAlloc(); };
+    barrier_lists.reset_reserve(scratch, cls.size());
 
     // possibly fall back to a direct queue
     queue = mDevice.getQueueTypeOrFallback(queue);
@@ -424,7 +472,6 @@ void phi::vk::BackendVulkan::submit(cc::span<const phi::handle::command_list> cl
 
     for (handle::command_list const cl : cls)
     {
-        // silently ignore invalid handles
         if (cl == handle::null_command_list)
             continue;
 
@@ -463,13 +510,13 @@ void phi::vk::BackendVulkan::submit(cc::span<const phi::handle::command_list> cl
         if (!barriers.empty())
         {
             VkCommandBuffer t_cmd_list;
-            barrier_lists.push_back(mPoolCmdLists.create(t_cmd_list, thread_comp.cmdListAllocator, queue));
+            barrier_lists.emplace_back_stable(mPoolCmdLists.create(t_cmd_list, thread_comp.cmdListAllocator, queue));
             barriers.record(t_cmd_list);
             vkEndCommandBuffer(t_cmd_list);
-            cmd_bufs_to_submit.push_back(t_cmd_list);
+            cmd_bufs_to_submit.emplace_back_stable(t_cmd_list);
         }
 
-        cmd_bufs_to_submit.push_back(mPoolCmdLists.getRawBuffer(cl));
+        cmd_bufs_to_submit.emplace_back_stable(mPoolCmdLists.getRawBuffer(cl));
     }
 
     // submission
@@ -513,7 +560,12 @@ void phi::vk::BackendVulkan::submit(cc::span<const phi::handle::command_list> cl
     // wait semaphores
     submit_info.waitSemaphoreCount = uint32_t(fence_waits_before.size());
     submit_info.pWaitSemaphores = wait_semaphores;
-    submit_info.pWaitDstStageMask = gc_wait_dst_masks;
+
+    VkPipelineStageFlags const arrWaitDestMasks[8]
+        = {VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+           VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+           VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT};
+    submit_info.pWaitDstStageMask = arrWaitDestMasks;
     // signal semaphores
     submit_info.signalSemaphoreCount = uint32_t(fence_signals_after.size());
     submit_info.pSignalSemaphores = signal_semaphores;
@@ -524,7 +576,7 @@ void phi::vk::BackendVulkan::submit(cc::span<const phi::handle::command_list> cl
     auto const submit_fence_index = mPoolCmdLists.acquireFence(submit_fence);
     PHI_VK_VERIFY_SUCCESS(vkQueueSubmit(submit_queue, 1, &submit_info, submit_fence));
 
-    cc::array<cc::span<handle::command_list const>, 2> submit_spans = {barrier_lists, cls};
+    cc::span<handle::command_list const> submit_spans[] = {barrier_lists, cls};
     mPoolCmdLists.freeOnSubmit(submit_spans, submit_fence_index);
 }
 
@@ -542,28 +594,34 @@ phi::handle::query_range phi::vk::BackendVulkan::createQueryRange(phi::query_typ
 
 void phi::vk::BackendVulkan::free(phi::handle::query_range query_range) { mPoolQueries.free(query_range); }
 
-phi::handle::pipeline_state phi::vk::BackendVulkan::createRaytracingPipelineState(const arg::raytracing_pipeline_state_description& description)
+phi::handle::pipeline_state phi::vk::BackendVulkan::createRaytracingPipelineState(const arg::raytracing_pipeline_state_description& description, char const* debug_name)
 {
     CC_ASSERT(isRaytracingEnabled() && "raytracing is not enabled");
+
+    (void)debug_name; // TODO
     auto const res = mPoolPipelines.createRaytracingPipelineState(description.libraries, description.argument_associations, description.hit_groups,
                                                                   description.max_recursion, description.max_payload_size_bytes,
                                                                   description.max_attribute_size_bytes, getCurrentScratchAlloc());
-    resetCurrentScratchAlloc();
     return res;
 }
 
-phi::handle::accel_struct phi::vk::BackendVulkan::createTopLevelAccelStruct(uint32_t num_instances, accel_struct_build_flags_t flags)
+phi::handle::accel_struct phi::vk::BackendVulkan::createTopLevelAccelStruct(uint32_t num_instances, accel_struct_build_flags_t flags, accel_struct_prebuild_info* out_prebuild_info)
 {
     CC_ASSERT(isRaytracingEnabled() && "raytracing is not enabled");
+    (void)out_prebuild_info; // TODO
+    (void)flags;             // TODO
     return mPoolAccelStructs.createTopLevelAS(num_instances);
 }
 
 phi::handle::accel_struct phi::vk::BackendVulkan::createBottomLevelAccelStruct(cc::span<const phi::arg::blas_element> elements,
                                                                                accel_struct_build_flags_t flags,
-                                                                               uint64_t* out_native_handle)
+                                                                               uint64_t* out_native_handle,
+                                                                               accel_struct_prebuild_info* out_prebuild_info)
 {
     CC_ASSERT(isRaytracingEnabled() && "raytracing is not enabled");
     auto const res = mPoolAccelStructs.createBottomLevelAS(elements, flags);
+
+    (void)out_prebuild_info; // TODO
 
     if (out_native_handle != nullptr)
         *out_native_handle = mPoolAccelStructs.getNode(res).raw_as_handle;
@@ -603,6 +661,152 @@ void phi::vk::BackendVulkan::freeRange(cc::span<const phi::handle::accel_struct>
     mPoolAccelStructs.free(as);
 }
 
+phi::handle::live_command_list phi::vk::BackendVulkan::openLiveCommandList(queue_type queue, const cmd::set_global_profile_scope* opt_global_pscope)
+{
+    // possibly fall back to a direct queue
+    queue = mDevice.getQueueTypeOrFallback(queue);
+
+    auto& thread_comp = getCurrentThreadComponent();
+
+    VkCommandBuffer raw_list;
+    auto const res = mPoolCmdLists.create(raw_list, thread_comp.cmdListAllocator, queue);
+
+    return mPoolTranslators.createLiveCmdList(res, raw_list, queue, mPoolCmdLists.getStateCache(res), opt_global_pscope);
+}
+
+phi::handle::command_list phi::vk::BackendVulkan::closeLiveCommandList(handle::live_command_list list)
+{
+    //
+    return mPoolTranslators.freeLiveCmdList(list, true);
+}
+
+void phi::vk::BackendVulkan::discardLiveCommandList(handle::live_command_list list)
+{
+    handle::command_list const backingList = mPoolTranslators.freeLiveCmdList(list, false);
+    discard(cc::span{backingList});
+}
+
+
+void phi::vk::BackendVulkan::cmdDraw(handle::live_command_list list, cmd::draw const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::vk::BackendVulkan::cmdDrawIndirect(handle::live_command_list list, cmd::draw_indirect const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::vk::BackendVulkan::cmdDispatch(handle::live_command_list list, cmd::dispatch const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::vk::BackendVulkan::cmdDispatchIndirect(handle::live_command_list list, cmd::dispatch_indirect const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::vk::BackendVulkan::cmdTransitionResources(handle::live_command_list list, cmd::transition_resources const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::vk::BackendVulkan::cmdBarrierUAV(handle::live_command_list list, cmd::barrier_uav const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::vk::BackendVulkan::cmdTransitionImageSlices(handle::live_command_list list, cmd::transition_image_slices const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::vk::BackendVulkan::cmdCopyBuffer(handle::live_command_list list, cmd::copy_buffer const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::vk::BackendVulkan::cmdCopyTexture(handle::live_command_list list, cmd::copy_texture const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::vk::BackendVulkan::cmdCopyBufferToTexture(handle::live_command_list list, cmd::copy_buffer_to_texture const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::vk::BackendVulkan::cmdCopyTextureToBuffer(handle::live_command_list list, cmd::copy_texture_to_buffer const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::vk::BackendVulkan::cmdResolveTexture(handle::live_command_list list, cmd::resolve_texture const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::vk::BackendVulkan::cmdBeginRenderPass(handle::live_command_list list, cmd::begin_render_pass const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::vk::BackendVulkan::cmdEndRenderPass(handle::live_command_list list, cmd::end_render_pass const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::vk::BackendVulkan::cmdWriteTimestamp(handle::live_command_list list, cmd::write_timestamp const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::vk::BackendVulkan::cmdResolveQueries(handle::live_command_list list, cmd::resolve_queries const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::vk::BackendVulkan::cmdBeginDebugLabel(handle::live_command_list list, cmd::begin_debug_label const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::vk::BackendVulkan::cmdEndDebugLabel(handle::live_command_list list, cmd::end_debug_label const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::vk::BackendVulkan::cmdUpdateBottomLevel(handle::live_command_list list, cmd::update_bottom_level const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::vk::BackendVulkan::cmdUpdateTopLevel(handle::live_command_list list, cmd::update_top_level const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::vk::BackendVulkan::cmdDispatchRays(handle::live_command_list list, cmd::dispatch_rays const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::vk::BackendVulkan::cmdClearTextures(handle::live_command_list list, cmd::clear_textures const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::vk::BackendVulkan::cmdBeginProfileScope(handle::live_command_list list, cmd::begin_profile_scope const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::vk::BackendVulkan::cmdEndProfileScope(handle::live_command_list list, cmd::end_profile_scope const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
 phi::arg::resource_description const& phi::vk::BackendVulkan::getResourceDescription(handle::resource res) const
 {
     return mPoolResources.getResourceDescription(res);
@@ -626,6 +830,64 @@ void phi::vk::BackendVulkan::setDebugName(phi::handle::resource res, cc::string_
 bool phi::vk::BackendVulkan::startForcedDiagnosticCapture() { return mDiagnostics.start_capture(); }
 
 bool phi::vk::BackendVulkan::endForcedDiagnosticCapture() { return mDiagnostics.end_capture(); }
+
+phi::clock_synchronization_info phi::vk::BackendVulkan::getClockSynchronizationInfo()
+{
+    // Vulkan has no builtin reference clock mechanism
+    // we have to write a dummy timestamp, flush, then resolve and measure CPU time at once
+    // (very slow operation)
+
+
+    auto const queue = queue_type::direct;
+
+    // create temp query for this operation
+    auto const hTempQuery = this->createQueryRange(query_type::timestamp, 1);
+
+    // start a (direct queue) command buffer
+    auto& thread_comp = getCurrentThreadComponent();
+    VkCommandBuffer pCmdBuf = nullptr;
+    auto const hCmdList = mPoolCmdLists.create(pCmdBuf, thread_comp.cmdListAllocator, queue);
+
+    // record the timestamp write command
+    VkQueryPool pPool = nullptr;
+    uint32_t const queryIdx = mPoolQueries.getQuery(hTempQuery, query_type::timestamp, 0, pPool);
+    vkCmdResetQueryPool(pCmdBuf, pPool, queryIdx, 1);
+    vkCmdWriteTimestamp(pCmdBuf, VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, pPool, queryIdx);
+
+    // finish recording
+    vkEndCommandBuffer(pCmdBuf);
+
+    // submit as usual
+    VkSubmitInfo submitInfo = {};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &pCmdBuf;
+
+    VkFence pSubmitFence = nullptr;
+    auto const submitFenceIdx = mPoolCmdLists.acquireFence(pSubmitFence);
+    PHI_VK_VERIFY_SUCCESS(vkQueueSubmit(mDevice.getRawQueue(queue), 1, &submitInfo, pSubmitFence));
+
+    cc::span<handle::command_list const> submit_spans[] = {cc::span{hCmdList}};
+    mPoolCmdLists.freeOnSubmit(submit_spans, submitFenceIdx);
+
+    // immediately wait for the submit fence on CPU, infinite timeout
+    vkWaitForFences(mDevice.getDevice(), 1, &pSubmitFence, VK_TRUE, uint64_t(-1));
+
+    // read the query result to CPU
+    int64_t ref_time_gpu = 0;
+    vkGetQueryPoolResults(mDevice.getDevice(), pPool, queryIdx, 1, sizeof(ref_time_gpu), &ref_time_gpu, sizeof(ref_time_gpu), VK_QUERY_RESULT_64_BIT);
+    // immediately measure the OS CPU clock afterwards
+    int64_t const ref_time_cpu = cc::get_high_precision_ticks();
+
+    this->free(hTempQuery);
+
+    clock_synchronization_info res = {};
+    res.cpu_frequency = cc::get_high_precision_frequency();
+    res.gpu_frequency = int64_t(1000000000ll / mDevice.getDeviceProperties().limits.timestampPeriod);
+    res.cpu_reference_timestamp = ref_time_cpu;
+    res.gpu_reference_timestamp = ref_time_gpu;
+    return res;
+}
 
 uint64_t phi::vk::BackendVulkan::getGPUTimestampFrequency() const
 {
@@ -656,13 +918,16 @@ void phi::vk::BackendVulkan::createDebugMessenger()
 
 phi::vk::BackendVulkan::per_thread_component& phi::vk::BackendVulkan::getCurrentThreadComponent()
 {
-    auto const current_index = mThreadAssociation.get_current_index();
-    CC_ASSERT_MSG(current_index < mNumThreadComponents,
+    auto const current_index = mThreadAssociation.getCurrentIndex();
+    CC_ASSERT_MSG(current_index < (int)mNumThreadComponents,
                   "Accessed phi Backend from more OS threads than configured in backend_config\n"
                   "recordCommandList() and submit() must only be used from at most backend_config::num_threads unique OS threads in total");
     return mThreadComponents[current_index];
 }
 
-cc::allocator* phi::vk::BackendVulkan::getCurrentScratchAlloc() { return &getCurrentThreadComponent().threadLocalScratchAlloc; }
-
-void phi::vk::BackendVulkan::resetCurrentScratchAlloc() { getCurrentThreadComponent().threadLocalScratchAlloc.reset(); }
+cc::allocator* phi::vk::BackendVulkan::getCurrentScratchAlloc()
+{
+    cc::linear_allocator* res = &getCurrentThreadComponent().threadLocalScratchAlloc;
+    res->reset();
+    return res;
+}

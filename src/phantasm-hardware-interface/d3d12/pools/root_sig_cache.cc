@@ -21,28 +21,52 @@ char const* get_root_sig_type_literal(phi::d3d12::root_signature_type type)
     return "unknown";
 }
 
-}
+} // namespace
 
 void phi::d3d12::RootSignatureCache::initialize(unsigned max_num_root_sigs, cc::allocator* alloc) { mCache.initialize(max_num_root_sigs, alloc); }
 
-void phi::d3d12::RootSignatureCache::destroy() { reset(); }
-
-phi::d3d12::root_signature* phi::d3d12::RootSignatureCache::getOrCreate(ID3D12Device& device, arg::shader_arg_shapes arg_shapes, bool has_root_constants, root_signature_type type)
+void phi::d3d12::RootSignatureCache::destroy()
 {
-    auto const readonly_key = rootsig_key_readonly{arg_shapes, has_root_constants, type};
+    mCache.iterate_elements([](root_signature& root_sig) { root_sig.raw_root_sig->Release(); });
+    mCache.reset();
+}
+
+phi::d3d12::root_signature* phi::d3d12::RootSignatureCache::getOrCreate(ID3D12Device& device, arg::root_signature_description const& desc, root_signature_type type)
+{
+    auto const readonly_key = rootsig_key_readonly{&desc, type};
+
+    // NOTE: since some d3d12 runtime version, it internally caches/reuses root signatures already
+    // we can scrap this logic eventually
 
     root_signature& val = mCache[readonly_key];
     if (val.raw_root_sig == nullptr)
     {
-        initialize_root_signature(val, device, arg_shapes, has_root_constants, type);
+        initialize_root_signature(&val, &device, desc, type);
         util::set_object_name(val.raw_root_sig, "cached %s root sig", get_root_sig_type_literal(type));
     }
 
     return &val;
 }
 
-void phi::d3d12::RootSignatureCache::reset()
+void phi::d3d12::CommandSignatureCache::initialize(uint32_t maxNumComSigs, cc::allocator* alloc)
 {
-    mCache.iterate_elements([](root_signature& root_sig) { root_sig.raw_root_sig->Release(); });
+    //
+    mCache.initialize(maxNumComSigs, alloc);
+}
+
+void phi::d3d12::CommandSignatureCache::destroy()
+{
+    mCache.iterate_elements([](ID3D12CommandSignature*& pComSig) { pComSig->Release(); });
     mCache.reset();
+}
+
+ID3D12CommandSignature* phi::d3d12::CommandSignatureCache::getOrCreateDrawIDComSig(ID3D12Device* pDevice, root_signature const* pRootSig)
+{
+    ID3D12CommandSignature*& val = mCache[pRootSig];
+    if (val == nullptr)
+    {
+        val = createCommandSignatureForDrawIndexedWithID(pDevice, pRootSig->raw_root_sig);
+    }
+
+    return val;
 }

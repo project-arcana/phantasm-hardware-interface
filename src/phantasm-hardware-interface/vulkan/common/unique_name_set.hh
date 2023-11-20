@@ -1,45 +1,78 @@
 #pragma once
 
-#include <string>
-#include <unordered_set>
+#include <cstring>
 
+#include <clean-core/alloc_vector.hh>
 #include <clean-core/span.hh>
+#include <clean-core/stringhash.hh>
 
 #include <phantasm-hardware-interface/vulkan/loader/volk.hh>
 
 namespace phi::vk
 {
-enum class vk_name_type
+// like strncpy but useful, https://linux.die.net/man/3/strlcpy
+// TODO should move this somewhere common
+inline size_t phi_strlcpy(char* __restrict dst, char const* __restrict src, size_t size)
 {
-    layer,
-    extension
+    size_t srclen = std::strlen(src);
+    if (size > 0)
+    {
+        size_t len = cc::min(srclen, size - 1);
+        std::memcpy(dst, src, len);
+        dst[len] = '\0';
+    }
+    return srclen;
+}
+
+struct FixedName
+{
+    // max length of vk ext names
+    char str[256];
 };
 
+
 /// Helper to track unique names of layers and extensions
-template <vk_name_type T>
 struct unique_name_set
 {
 public:
-    void add(std::string const& value) { _names.insert(value); }
-    void add(cc::span<std::string const> values)
+    void reset_reserve(cc::allocator* alloc, size_t num)
     {
-        for (auto const& v : values)
-            _names.insert(v);
+        _names.reset_reserve(alloc, num);
+        _name_hashes.reset_reserve(alloc, num);
+    }
+
+    void add(char const* value)
+    {
+        uint64_t const hash = cc::stringhash(value);
+        if (contains(hash))
+            return;
+
+        _name_hashes.push_back(hash);
+        FixedName& newName = _names.emplace_back();
+        phi_strlcpy(newName.str, value, sizeof(newName.str));
     }
 
     void add(cc::span<VkExtensionProperties const> ext_props)
     {
-        static_assert(T == vk_name_type::extension, "Incompatible container");
-
         for (auto const& ext_prop : ext_props)
-            _names.insert(ext_prop.extensionName);
+            add(ext_prop.extensionName);
     }
 
-    [[nodiscard]] bool contains(std::string const& name) const { return _names.find(name) != _names.end(); }
+    bool contains(char const* value) const { return contains(cc::stringhash(value)); }
+
+    bool contains(uint64_t hash) const
+    {
+        for (uint64_t v : _name_hashes)
+        {
+            if (hash == v)
+                return true;
+        }
+        return false;
+    }
 
 private:
-    // TODO: Implement this with a future cc hashmap and vector / iteration helper
-    std::unordered_set<std::string> _names;
+    cc::alloc_vector<FixedName> _names;
+    cc::alloc_vector<uint64_t> _name_hashes;
 };
 
-}
+} // namespace phi::vk

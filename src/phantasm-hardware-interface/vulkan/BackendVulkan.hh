@@ -10,6 +10,7 @@
 #include "common/diagnostic_util.hh"
 #include "pools/accel_struct_pool.hh"
 #include "pools/cmd_list_pool.hh"
+#include "pools/cmdlist_translator_pool.hh"
 #include "pools/fence_pool.hh"
 #include "pools/pipeline_pool.hh"
 #include "pools/query_pool.hh"
@@ -23,7 +24,7 @@ namespace phi::vk
 class PHI_API BackendVulkan final : public Backend
 {
 public:
-    void initialize(backend_config const& config_arg) override;
+    init_status initialize(backend_config const& config_arg) override;
     void destroy() override;
     ~BackendVulkan() override;
 
@@ -34,10 +35,7 @@ public:
     // Swapchain interface
     //
 
-    [[nodiscard]] handle::swapchain createSwapchain(window_handle const& window_handle,
-                                                    tg::isize2 initial_size,
-                                                    present_mode mode = present_mode::synced,
-                                                    uint32_t num_backbuffers = 3) override;
+    [[nodiscard]] handle::swapchain createSwapchain(arg::swapchain_description const& desc, char const* debug_name = nullptr) override;
 
     void free(handle::swapchain sc) override;
 
@@ -88,10 +86,12 @@ public:
     [[nodiscard]] handle::shader_view createEmptyShaderView(arg::shader_view_description const& desc, bool usage_compute) override;
 
     void writeShaderViewSRVs(handle::shader_view sv, uint32_t offset, cc::span<resource_view const> srvs) override;
-
     void writeShaderViewUAVs(handle::shader_view sv, uint32_t offset, cc::span<resource_view const> uavs) override;
-
     void writeShaderViewSamplers(handle::shader_view sv, uint32_t offset, cc::span<sampler_config const> samplers) override;
+
+    void copyShaderViewSRVs(handle::shader_view hDest, uint32_t offsetDest, handle::shader_view hSrc, uint32_t offsetSrc, uint32_t numDescriptors) override;
+    void copyShaderViewUAVs(handle::shader_view hDest, uint32_t offsetDest, handle::shader_view hSrc, uint32_t offsetSrc, uint32_t numDescriptors) override;
+    void copyShaderViewSamplers(handle::shader_view hDest, uint32_t offsetDest, handle::shader_view hSrc, uint32_t offsetSrc, uint32_t numDescriptors) override;
 
     void free(handle::shader_view sv) override;
 
@@ -101,20 +101,7 @@ public:
     // Pipeline state interface
     //
 
-    [[nodiscard]] handle::pipeline_state createPipelineState(arg::vertex_format vertex_format,
-                                                             arg::framebuffer_config const& framebuffer_conf,
-                                                             arg::shader_arg_shapes shader_arg_shapes,
-                                                             bool has_root_constants,
-                                                             arg::graphics_shaders shaders,
-                                                             phi::pipeline_config const& primitive_config,
-                                                             char const* debug_name = nullptr) override;
-
     [[nodiscard]] handle::pipeline_state createPipelineState(arg::graphics_pipeline_state_description const& description, char const* debug_name = nullptr) override;
-
-    [[nodiscard]] handle::pipeline_state createComputePipelineState(arg::shader_arg_shapes shader_arg_shapes,
-                                                                    arg::shader_binary shader,
-                                                                    bool has_root_constants,
-                                                                    char const* debug_name = nullptr) override;
 
     [[nodiscard]] handle::pipeline_state createComputePipelineState(arg::compute_pipeline_state_description const& description,
                                                                     char const* debug_name = nullptr) override;
@@ -161,13 +148,15 @@ public:
     // Raytracing interface
     //
 
-    [[nodiscard]] handle::pipeline_state createRaytracingPipelineState(arg::raytracing_pipeline_state_description const& description) override;
+    [[nodiscard]] handle::pipeline_state createRaytracingPipelineState(arg::raytracing_pipeline_state_description const& description,
+                                                                       char const* debug_name = nullptr) override;
 
-    handle::accel_struct createTopLevelAccelStruct(uint32_t num_instances, accel_struct_build_flags_t flags) override;
+    handle::accel_struct createTopLevelAccelStruct(uint32_t num_instances, accel_struct_build_flags_t flags, accel_struct_prebuild_info* out_prebuild_info = nullptr) override;
 
     handle::accel_struct createBottomLevelAccelStruct(cc::span<arg::blas_element const> elements,
                                                       accel_struct_build_flags_t flags,
-                                                      uint64_t* out_native_handle = nullptr) override;
+                                                      uint64_t* out_native_handle = nullptr,
+                                                      accel_struct_prebuild_info* out_prebuild_info = nullptr) override;
 
     [[nodiscard]] uint64_t getAccelStructNativeHandle(handle::accel_struct as) override;
 
@@ -181,6 +170,47 @@ public:
     void free(handle::accel_struct as) override;
 
     void freeRange(cc::span<handle::accel_struct const> as) override;
+
+    //
+    // Live command list interface
+    // Experimental API - subject to change
+    //
+
+    // start recording a commandlist directly
+    // access to the live command list is not synchronized
+    [[nodiscard]] handle::live_command_list openLiveCommandList(queue_type queue = queue_type::direct,
+                                                                cmd::set_global_profile_scope const* opt_global_pscope = nullptr) override;
+
+    // finish recording a commandlist - result can be submitted or discarded
+    [[nodiscard]] handle::command_list closeLiveCommandList(handle::live_command_list list) override;
+
+    void discardLiveCommandList(handle::live_command_list list) override;
+
+    void cmdDraw(handle::live_command_list list, cmd::draw const& command) override;
+    void cmdDrawIndirect(handle::live_command_list list, cmd::draw_indirect const& command) override;
+    void cmdDispatch(handle::live_command_list list, cmd::dispatch const& command) override;
+    void cmdDispatchIndirect(handle::live_command_list list, cmd::dispatch_indirect const& command) override;
+    void cmdTransitionResources(handle::live_command_list list, cmd::transition_resources const& command) override;
+    void cmdBarrierUAV(handle::live_command_list list, cmd::barrier_uav const& command) override;
+    void cmdTransitionImageSlices(handle::live_command_list list, cmd::transition_image_slices const& command) override;
+    void cmdCopyBuffer(handle::live_command_list list, cmd::copy_buffer const& command) override;
+    void cmdCopyTexture(handle::live_command_list list, cmd::copy_texture const& command) override;
+    void cmdCopyBufferToTexture(handle::live_command_list list, cmd::copy_buffer_to_texture const& command) override;
+    void cmdCopyTextureToBuffer(handle::live_command_list list, cmd::copy_texture_to_buffer const& command) override;
+    void cmdResolveTexture(handle::live_command_list list, cmd::resolve_texture const& command) override;
+    void cmdBeginRenderPass(handle::live_command_list list, cmd::begin_render_pass const& command) override;
+    void cmdEndRenderPass(handle::live_command_list list, cmd::end_render_pass const& command) override;
+    void cmdWriteTimestamp(handle::live_command_list list, cmd::write_timestamp const& command) override;
+    void cmdResolveQueries(handle::live_command_list list, cmd::resolve_queries const& command) override;
+    void cmdBeginDebugLabel(handle::live_command_list list, cmd::begin_debug_label const& command) override;
+    void cmdEndDebugLabel(handle::live_command_list list, cmd::end_debug_label const& command) override;
+    void cmdUpdateBottomLevel(handle::live_command_list list, cmd::update_bottom_level const& command) override;
+    void cmdUpdateTopLevel(handle::live_command_list list, cmd::update_top_level const& command) override;
+    void cmdDispatchRays(handle::live_command_list list, cmd::dispatch_rays const& command) override;
+    void cmdClearTextures(handle::live_command_list list, cmd::clear_textures const& command) override;
+    void cmdBeginProfileScope(handle::live_command_list list, cmd::begin_profile_scope const& command) override;
+    void cmdEndProfileScope(handle::live_command_list list, cmd::end_profile_scope const& command) override;
+
 
     //
     // Resource info interface
@@ -204,6 +234,8 @@ public:
     // GPU info interface
     //
 
+    clock_synchronization_info getClockSynchronizationInfo() override;
+
     uint64_t getGPUTimestampFrequency() const override;
 
     bool isRaytracingEnabled() const override;
@@ -211,6 +243,8 @@ public:
     backend_type getBackendType() const override;
 
     gpu_info const& getGPUInfo() const override { return mGPUInfo; }
+
+    VkInstance nativeGetInstance() { return mInstance; }
 
 public:
     // backend-internal
@@ -225,7 +259,6 @@ private:
     per_thread_component& getCurrentThreadComponent();
 
     cc::allocator* getCurrentScratchAlloc();
-    void resetCurrentScratchAlloc();
 
 private:
     gpu_info mGPUInfo;
@@ -242,15 +275,16 @@ private:
     QueryPool mPoolQueries;
     AccelStructPool mPoolAccelStructs;
     SwapchainPool mPoolSwapchains;
+    CmdlistTranslatorPool mPoolTranslators;
 
     // Logic
     per_thread_component* mThreadComponents;
     uint32_t mNumThreadComponents;
     void* mThreadComponentAlloc;
-    phi::thread_association mThreadAssociation;
+    phi::ThreadAssociation mThreadAssociation;
     ShaderTableConstructor mShaderTableCtor;
 
     // Misc
     util::diagnostic_state mDiagnostics;
 };
-}
+} // namespace phi::vk

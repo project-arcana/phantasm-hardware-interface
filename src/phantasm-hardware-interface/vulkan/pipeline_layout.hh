@@ -58,7 +58,7 @@ struct pipeline_layout_params
     /// merged visibilities per set
     cc::capped_vector<VkPipelineStageFlags, limits::max_shader_arguments * 2> merged_pipeline_visibilities;
 
-    void initialize_from_reflection_info(cc::span<util::spirv_desc_info const> reflection_info);
+    void initialize_from_reflection_info(cc::span<util::ReflectedDescriptorInfo const> reflection_info);
 };
 } // namespace detail
 
@@ -76,7 +76,7 @@ struct pipeline_layout
     VkPipelineLayout raw_layout = nullptr;
     VkPipelineStageFlags push_constant_stages;
 
-    void initialize(VkDevice device, cc::span<util::spirv_desc_info const> descriptor_info, bool add_push_constants);
+    void initialize(VkDevice device, cc::span<util::ReflectedDescriptorInfo const> descriptor_info, bool add_push_constants);
 
     void free(VkDevice device);
 

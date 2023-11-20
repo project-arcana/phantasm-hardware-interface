@@ -59,10 +59,31 @@ ID3D12RootSignature* phi::d3d12::create_root_signature(ID3D12Device& device,
     return res;
 }
 
-phi::d3d12::shader_argument_map phi::d3d12::detail::root_signature_params::add_shader_argument_shape(const phi::arg::shader_arg_shape& shape, bool add_fixed_root_constants)
+phi::d3d12::shader_argument_map phi::d3d12::detail::root_signature_params::add_shader_argument_shape(const phi::arg::shader_arg_shape& shape,
+                                                                                                     bool add_fixed_root_constants,
+                                                                                                     uint32_t num_overlapped_srv_ranges,
+                                                                                                     uint32_t num_overlapped_uav_ranges,
+                                                                                                     uint32_t num_overlapped_sampler_ranges)
 {
+    CC_ASSERT(num_overlapped_srv_ranges > 0 && num_overlapped_uav_ranges > 0 && "invalid amount of overlapped SRV/UAV ranges");
+
     shader_argument_map res_map;
     auto const argument_visibility = D3D12_SHADER_VISIBILITY_ALL; // NOTE: Eventually arguments could be constrained to stages
+
+    // create root constants first
+    if (add_fixed_root_constants)
+    {
+        CD3DX12_ROOT_PARAMETER& root_consts = root_params.emplace_back();
+
+        static_assert(limits::max_root_constant_bytes % sizeof(DWORD32) == 0, "root constant size not divisible by dword32 size");
+        root_consts.InitAsConstants(limits::max_root_constant_bytes / sizeof(DWORD32), 1, _space, argument_visibility);
+
+        res_map.root_const_param = uint32_t(root_params.size() - 1);
+    }
+    else
+    {
+        res_map.root_const_param = uint32_t(-1);
+    }
 
     // create root descriptor to CBV
     if (shape.has_cbv)
@@ -83,14 +104,28 @@ phi::d3d12::shader_argument_map phi::d3d12::detail::root_signature_params::add_s
 
         if (shape.num_srvs > 0)
         {
-            _desc_ranges.emplace_back();
-            _desc_ranges.back().Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, shape.num_srvs, 0, _space);
+            uint32_t baseRegisterT = 0;
+
+            for (auto i = 0u; i < num_overlapped_srv_ranges; ++i)
+            {
+                _desc_ranges.emplace_back();
+                _desc_ranges.back().Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, shape.num_srvs, baseRegisterT, _space, 0);
+
+                baseRegisterT += shape.num_srvs;
+            }
         }
 
         if (shape.num_uavs > 0)
         {
-            _desc_ranges.emplace_back();
-            _desc_ranges.back().Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, shape.num_uavs, 0, _space);
+            uint32_t baseRegisterU = 0;
+
+            for (auto i = 0u; i < num_overlapped_uav_ranges; ++i)
+            {
+                _desc_ranges.emplace_back();
+                _desc_ranges.back().Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, shape.num_uavs, baseRegisterU, _space, shape.num_srvs);
+
+                baseRegisterU += shape.num_uavs;
+            }
         }
 
         auto const desc_range_end = _desc_ranges.size();
@@ -107,8 +142,12 @@ phi::d3d12::shader_argument_map phi::d3d12::detail::root_signature_params::add_s
     if (shape.num_samplers > 0)
     {
         auto const desc_range_start = _desc_ranges.size();
-        _desc_ranges.emplace_back();
-        _desc_ranges.back().Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, shape.num_samplers, 0, _space);
+
+        for (auto i = 0u; i < num_overlapped_sampler_ranges; ++i)
+        {
+            _desc_ranges.emplace_back();
+            _desc_ranges.back().Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, shape.num_samplers, 0, _space, 0);
+        }
 
         auto const desc_range_end = _desc_ranges.size();
 
@@ -119,20 +158,6 @@ phi::d3d12::shader_argument_map phi::d3d12::detail::root_signature_params::add_s
     else
     {
         res_map.sampler_table_param = uint32_t(-1);
-    }
-
-    if (add_fixed_root_constants)
-    {
-        CD3DX12_ROOT_PARAMETER& root_consts = root_params.emplace_back();
-
-        static_assert(limits::max_root_constant_bytes % sizeof(DWORD32) == 0, "root constant size not divisible by dword32 size");
-        root_consts.InitAsConstants(limits::max_root_constant_bytes / sizeof(DWORD32), 1, _space, argument_visibility);
-
-        res_map.root_const_param = uint32_t(root_params.size() - 1);
-    }
-    else
-    {
-        res_map.root_const_param = uint32_t(-1);
     }
 
     ++_space;
@@ -158,20 +183,111 @@ void phi::d3d12::detail::root_signature_params::add_static_sampler(const sampler
     );
 }
 
-void phi::d3d12::initialize_root_signature(phi::d3d12::root_signature& root_sig,
-                                           ID3D12Device& device,
-                                           phi::arg::shader_arg_shapes payload_shape,
-                                           bool add_fixed_root_constants,
-                                           root_signature_type type)
+void phi::d3d12::initialize_root_signature(root_signature* pOutRootSignature, ID3D12Device* pDevice, arg::root_signature_description const& desc, root_signature_type type)
 {
+    CC_ASSERT(pOutRootSignature && pDevice);
+
     detail::root_signature_params parameters;
 
-    for (auto i = 0u; i < payload_shape.size(); ++i)
+    for (auto i = 0u; i < desc.shader_arg_shapes.size(); ++i)
     {
-        auto const& arg_shape = payload_shape[i];
-        auto const add_rconsts = add_fixed_root_constants && i == 0;
-        root_sig.argument_maps.push_back(parameters.add_shader_argument_shape(arg_shape, add_rconsts));
+        auto const& arg_shape = desc.shader_arg_shapes[i];
+        auto const add_rconsts = desc.has_root_constants && i == 0;
+
+        uint32_t num_overlapped_srv_ranges = i == 0 ? desc.num_overlapped_space0_srv_ranges : 1;
+        uint32_t num_overlapped_uav_ranges = i == 0 ? desc.num_overlapped_space0_uav_ranges : 1;
+        uint32_t num_overlapped_sampler_ranges = i == 0 ? desc.num_overlapped_space0_sampler_ranges : 1;
+
+        pOutRootSignature->argument_maps.push_back(parameters.add_shader_argument_shape(arg_shape, add_rconsts, num_overlapped_srv_ranges,
+                                                                                        num_overlapped_uav_ranges, num_overlapped_sampler_ranges));
     }
 
-    root_sig.raw_root_sig = create_root_signature(device, parameters.root_params, parameters.samplers, type);
+    if (desc.shader_arg_shapes.empty() && desc.has_root_constants)
+    {
+        // create single argument with only root constants
+        pOutRootSignature->argument_maps.push_back(parameters.add_shader_argument_shape({}, true, 1, 1, 1));
+    }
+
+    pOutRootSignature->raw_root_sig = create_root_signature(*pDevice, parameters.root_params, parameters.samplers, type);
+}
+
+ID3D12CommandSignature* phi::d3d12::createCommandSignatureForDraw(ID3D12Device* pDevice)
+{
+    static_assert(sizeof(D3D12_DRAW_ARGUMENTS) == sizeof(gpu_indirect_command_draw), "gpu argument type compiles to incorrect size");
+
+    D3D12_INDIRECT_ARGUMENT_DESC indirect_arg = {};
+    indirect_arg.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW;
+
+    D3D12_COMMAND_SIGNATURE_DESC desc = {};
+    desc.NumArgumentDescs = 1;
+    desc.pArgumentDescs = &indirect_arg;
+    desc.ByteStride = sizeof(gpu_indirect_command_draw);
+    desc.NodeMask = 0;
+
+    ID3D12CommandSignature* pComSig = nullptr;
+    PHI_D3D12_VERIFY(pDevice->CreateCommandSignature(&desc, nullptr, IID_PPV_ARGS(&pComSig)));
+    return pComSig;
+}
+
+
+ID3D12CommandSignature* phi::d3d12::createCommandSignatureForDrawIndexed(ID3D12Device* pDevice)
+{
+    static_assert(sizeof(D3D12_DRAW_INDEXED_ARGUMENTS) == sizeof(gpu_indirect_command_draw_indexed), "gpu argument type compiles to incorrect "
+                                                                                                     "size");
+
+    D3D12_INDIRECT_ARGUMENT_DESC indirect_arg = {};
+    indirect_arg.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW_INDEXED;
+
+    D3D12_COMMAND_SIGNATURE_DESC desc = {};
+    desc.NumArgumentDescs = 1;
+    desc.pArgumentDescs = &indirect_arg;
+    desc.ByteStride = sizeof(gpu_indirect_command_draw_indexed);
+    desc.NodeMask = 0;
+
+    ID3D12CommandSignature* pComSig = nullptr;
+    PHI_D3D12_VERIFY(pDevice->CreateCommandSignature(&desc, nullptr, IID_PPV_ARGS(&pComSig)));
+    return pComSig;
+}
+
+ID3D12CommandSignature* phi::d3d12::createCommandSignatureForDispatch(ID3D12Device* pDevice)
+{
+    static_assert(sizeof(D3D12_DISPATCH_ARGUMENTS) == sizeof(gpu_indirect_command_dispatch), "gpu argument type compiles to incorrect size");
+
+    D3D12_INDIRECT_ARGUMENT_DESC indirect_arg = {};
+    indirect_arg.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH;
+
+    D3D12_COMMAND_SIGNATURE_DESC desc = {};
+    desc.NumArgumentDescs = 1;
+    desc.pArgumentDescs = &indirect_arg;
+    desc.ByteStride = sizeof(gpu_indirect_command_dispatch);
+    desc.NodeMask = 0;
+
+    ID3D12CommandSignature* pComSig = nullptr;
+    PHI_D3D12_VERIFY(pDevice->CreateCommandSignature(&desc, nullptr, IID_PPV_ARGS(&pComSig)));
+    return pComSig;
+}
+
+ID3D12CommandSignature* phi::d3d12::createCommandSignatureForDrawIndexedWithID(ID3D12Device* pDevice, ID3D12RootSignature* pRootSig)
+{
+    static_assert(sizeof(D3D12_DRAW_INDEXED_ARGUMENTS) + 4u == sizeof(gpu_indirect_command_draw_indexed_with_id), "gpu argument type compiles to "
+                                                                                                                  "incorrect size");
+
+    D3D12_INDIRECT_ARGUMENT_DESC indirect_args[2] = {};
+
+    indirect_args[0].Type = D3D12_INDIRECT_ARGUMENT_TYPE_CONSTANT;
+    indirect_args[0].Constant.DestOffsetIn32BitValues = 0;
+    indirect_args[0].Constant.Num32BitValuesToSet = 1;
+    indirect_args[0].Constant.RootParameterIndex = 0; // root constants are always in (graphics) root signature parameter 0 (if present)
+
+    indirect_args[1].Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW_INDEXED;
+
+    D3D12_COMMAND_SIGNATURE_DESC desc = {};
+    desc.NumArgumentDescs = CC_COUNTOF(indirect_args);
+    desc.pArgumentDescs = indirect_args;
+    desc.ByteStride = sizeof(gpu_indirect_command_draw_indexed_with_id);
+    desc.NodeMask = 0;
+
+    ID3D12CommandSignature* pComSig = nullptr;
+    PHI_D3D12_VERIFY(pDevice->CreateCommandSignature(&desc, pRootSig, IID_PPV_ARGS(&pComSig)));
+    return pComSig;
 }

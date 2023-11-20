@@ -75,7 +75,7 @@ VkDescriptorSetLayout phi::vk::detail::pipeline_layout_params::descriptor_set_pa
     return res;
 }
 
-void phi::vk::pipeline_layout::initialize(VkDevice device, cc::span<const util::spirv_desc_info> descriptor_info, bool add_push_constants)
+void phi::vk::pipeline_layout::initialize(VkDevice device, cc::span<const util::ReflectedDescriptorInfo> descriptor_info, bool add_push_constants)
 {
     // partition the descriptors into their sets
     detail::pipeline_layout_params params;
@@ -132,12 +132,9 @@ void phi::vk::pipeline_layout::initialize(VkDevice device, cc::span<const util::
 
 void phi::vk::pipeline_layout::print() const
 {
-    PHI_LOG << "pipeline_layout:\n"
-               "  "
-            << descriptor_set_layouts.size() << " descriptor set layouts, " << descriptor_set_visibilities.size()
-            << " visibilities\n"
-               "  raw layout: "
-            << raw_layout << ", has push consts: " << (has_push_constants() ? "yes" : "no");
+    PHI_LOG("Pipeline layout:");
+    PHI_LOG("  {} descriptor set layouts, {} visibilities", descriptor_set_layouts.size(), descriptor_set_visibilities.size());
+    PHI_LOG("  raw layout: {}, has push consts: {}", raw_layout, (has_push_constants() ? "yes" : "no"));
 }
 
 void phi::vk::pipeline_layout::free(VkDevice device)
@@ -148,9 +145,10 @@ void phi::vk::pipeline_layout::free(VkDevice device)
     vkDestroyPipelineLayout(device, raw_layout, nullptr);
 }
 
-void phi::vk::detail::pipeline_layout_params::initialize_from_reflection_info(cc::span<const util::spirv_desc_info> reflection_info)
+void phi::vk::detail::pipeline_layout_params::initialize_from_reflection_info(cc::span<const util::ReflectedDescriptorInfo> reflection_info)
 {
-    auto f_add_set = [this]() {
+    auto f_add_set = [this]()
+    {
         descriptor_sets.emplace_back();
         merged_pipeline_visibilities.push_back(0);
     };
@@ -159,7 +157,7 @@ void phi::vk::detail::pipeline_layout_params::initialize_from_reflection_info(cc
 
     // iterate over the descriptors
     // these are sorted and deduplicated/merged
-    for (util::spirv_desc_info const& desc : reflection_info)
+    for (util::ReflectedDescriptorInfo const& desc : reflection_info)
     {
         size_t const set_delta = desc.set - (descriptor_sets.size() - 1);
 

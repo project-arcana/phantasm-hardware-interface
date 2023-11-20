@@ -65,9 +65,26 @@ inline uint64_t sse_hash(const uint32_t* begin, const uint32_t* end, uint64_t in
 }
 
 template <class T>
-uint64_t sse_hash_type(T const* value, uint32_t num_values = 1, uint64_t initial_hash = 2166136261U)
+uint64_t sse_hash_type(T const* pValue, uint32_t num_values = 1, uint64_t initial_hash = 2166136261U)
 {
-    static_assert((sizeof(T) & 3) == 0 && alignof(T) >= 4, "type is not word-aligned");
-    return sse_hash((uint32_t*)value, (uint32_t*)(value + num_values), initial_hash);
+    static_assert((sizeof(T) & 3) == 0, "PHI sse_hash_type: Type size must be a multiple of 4");
+    static_assert(alignof(T) >= 4, "PHI sse_hash_type: Type must be at least aligned to 4 bytes");
+    // CC_ASSERT(cc::is_aligned(pValue, 4u) && "Data not word-aligned"); // TODO not sure
+
+    if (num_values == 0)
+        return initial_hash;
+
+    return sse_hash((uint32_t const*)pValue, (uint32_t const*)(pValue + num_values), initial_hash);
 }
+
+inline uint64_t sse_hash_data(void const* pValue, size_t size, uint64_t initial_hash = 2166136261U)
+{
+    // CC_ASSERT(cc::is_aligned(pValue, 4u) && "Data not word-aligned"); // TODO not sure
+    CC_ASSERT((size & 3u) == 0 && "Size is not a multiple of 4");
+
+    if (size == 0)
+        return initial_hash;
+
+    return sse_hash((uint32_t const*)pValue, ((uint32_t const*)pValue) + (size / 4), initial_hash);
 }
+} // namespace phi::util

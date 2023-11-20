@@ -1,7 +1,7 @@
 #include "cmd_buf_translation.hh"
 
 #ifdef PHI_HAS_OPTICK
-#include <optick/optick.h>
+#include <optick.h>
 #endif
 
 #include <phantasm-hardware-interface/common/byte_util.hh>
@@ -23,8 +23,30 @@
 #include "pools/shader_view_pool.hh"
 #include "resources/transition_barrier.hh"
 
-void phi::vk::command_list_translator::translateCommandList(
-    VkCommandBuffer list, handle::command_list list_handle, vk_incomplete_state_cache* state_cache, std::byte const* buffer, size_t buffer_size)
+namespace
+{
+#ifdef PHI_HAS_OPTICK
+Optick::GPUQueueType phiQueueTypeToOptickVk(phi::queue_type type)
+{
+    switch (type)
+    {
+    case phi::queue_type::direct:
+    default:
+        return Optick::GPU_QUEUE_GRAPHICS;
+    case phi::queue_type::compute:
+        return Optick::GPU_QUEUE_COMPUTE;
+    case phi::queue_type::copy:
+        return Optick::GPU_QUEUE_TRANSFER;
+    }
+}
+#endif
+} // namespace
+
+void phi::vk::command_list_translator::beginTranslation(VkCommandBuffer list,
+                                                        handle::command_list list_handle,
+                                                        queue_type queue,
+                                                        vk_incomplete_state_cache* state_cache,
+                                                        const cmd::set_global_profile_scope* pOptGlobalProfileScope)
 {
     _cmd_list = list;
     _cmd_list_handle = list_handle;
@@ -34,42 +56,68 @@ void phi::vk::command_list_translator::translateCommandList(
     _state_cache->reset();
     _last_code_location.reset();
 
+
+#ifdef PHI_HAS_OPTICK
+
+    // start Optick context
+    // (open Optick::GPUContextScope manually - the RAII doesn't work here)
+    Optick::GPUContext const prevContext = Optick::SetGpuContext(Optick::GPUContext(_cmd_list, phiQueueTypeToOptickVk(queue), 0));
+    _prev_optick_gpu_context = {};
+    _prev_optick_gpu_context.cmdBuffer = prevContext.cmdBuffer;
+    _prev_optick_gpu_context.node = prevContext.node;
+    _prev_optick_gpu_context.queue = (uint32_t)prevContext.queue;
+
+    // static default optick event if none is user supplied
+    PHI_CREATE_OPTICK_EVENT(defaultOptickEvt, "PHI Command List");
+
+    // use the set_global_profile_scope event if available
+    Optick::EventDescription* globalOptickEvtDesc = defaultOptickEvt;
+    if (pOptGlobalProfileScope && pOptGlobalProfileScope->optick_event)
     {
-        // start Optick context
-#ifdef PHI_HAS_OPTICK
-        OPTICK_GPU_CONTEXT(_cmd_list);
-        _current_optick_event = nullptr;
-        OPTICK_GPU_EVENT("PHI Command List");
-#endif
-
-        // translate all contained commands
-        command_stream_parser parser(buffer, buffer_size);
-        for (auto const& cmd : parser)
-        {
-            cmd::detail::dynamic_dispatch(cmd, *this);
-        }
-
-        // close pending render pass
-        if (_bound.raw_render_pass != nullptr)
-        {
-            // end the last render pass
-            vkCmdEndRenderPass(_cmd_list);
-        }
-
-        // end last pending optick event
-#ifdef PHI_HAS_OPTICK
-        if (_current_optick_event)
-        {
-            Optick::GPUEvent::Stop(*_current_optick_event);
-            _current_optick_event = nullptr;
-        }
-#endif
+        globalOptickEvtDesc = pOptGlobalProfileScope->optick_event;
     }
 
-    // close the list
-    PHI_VK_VERIFY_SUCCESS(vkEndCommandBuffer(_cmd_list));
+    // start the optick GPU event
+    _global_optick_event = Optick::GPUEvent::Start(*globalOptickEvtDesc);
 
-    // done
+    _current_optick_event_stack.clear();
+#endif
+}
+
+void phi::vk::command_list_translator::endTranslation(bool bClose)
+{
+    // close pending render pass
+    if (_bound.raw_render_pass != nullptr)
+    {
+        // end the last render pass
+        vkCmdEndRenderPass(_cmd_list);
+    }
+
+#ifdef PHI_HAS_OPTICK
+
+    _prev_optick_gpu_context = {};
+
+    // end last pending optick events
+    while (!_current_optick_event_stack.empty())
+    {
+        Optick::GPUEvent::Stop(*_current_optick_event_stack.back());
+        _current_optick_event_stack.pop_back();
+    }
+
+    // end the global optick event
+    Optick::GPUEvent::Stop(*_global_optick_event);
+
+    // close the GPUContextScope
+    Optick::SetGpuContext(Optick::GPUContext(_prev_optick_gpu_context.cmdBuffer,                   //
+                                             (Optick::GPUQueueType)_prev_optick_gpu_context.queue, //
+                                             _prev_optick_gpu_context.node));
+#endif
+
+    if (bClose)
+    {
+        // close the list
+        PHI_VK_VERIFY_SUCCESS(vkEndCommandBuffer(_cmd_list));
+    }
 }
 
 void phi::vk::command_list_translator::execute(const phi::cmd::begin_render_pass& begin_rp)
@@ -207,9 +255,21 @@ void phi::vk::command_list_translator::execute(const phi::cmd::begin_render_pass
         viewport.maxDepth = 1.0f;
 
         VkRect2D scissor = {};
-        scissor.offset = {0, 0};
-        scissor.extent.width = unsigned(begin_rp.viewport.width + begin_rp.viewport_offset.x);
-        scissor.extent.height = unsigned(begin_rp.viewport.height + begin_rp.viewport_offset.y);
+
+        if (begin_rp.scissor.min.x != -1)
+        {
+            // explicit scissor
+            scissor.offset = VkOffset2D{begin_rp.scissor.min.x, begin_rp.scissor.min.y};
+            scissor.extent = VkExtent2D{uint32_t(begin_rp.scissor.max.x - begin_rp.scissor.min.x), //
+                                        uint32_t(begin_rp.scissor.max.y - begin_rp.scissor.min.y)};
+        }
+        else
+        {
+            // by default, set scissor exactly to viewport
+            scissor.offset = {0, 0};
+            scissor.extent.width = unsigned(begin_rp.viewport.width + begin_rp.viewport_offset.x);
+            scissor.extent.height = unsigned(begin_rp.viewport.height + begin_rp.viewport_offset.y);
+        }
 
         vkCmdSetViewport(_cmd_list, 0, 1, &viewport);
         vkCmdSetScissor(_cmd_list, 0, 1, &scissor);
@@ -298,24 +358,84 @@ void phi::vk::command_list_translator::execute(const phi::cmd::draw_indirect& dr
 
     // Indirect draw command
 
-    auto const gpu_command_size_bytes = draw_indirect.index_buffer.is_valid() ? sizeof(gpu_indirect_command_draw_indexed) : sizeof(gpu_indirect_command_draw);
-    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(draw_indirect.indirect_argument_buffer, draw_indirect.argument_buffer_offset_bytes,
-                                                              draw_indirect.num_arguments * gpu_command_size_bytes)
+    uint32_t gpuCommandSizeBytes = 0;
+    VkDeviceSize gpuArgBufferAdditionalOffset = 0;
+    bool bIsIndexed = false;
+
+    switch (draw_indirect.argument_type)
+    {
+    case indirect_command_type::draw:
+        gpuCommandSizeBytes = sizeof(gpu_indirect_command_draw);
+        bIsIndexed = false;
+        break;
+
+    case indirect_command_type::draw_indexed:
+        CC_ASSERT(draw_indirect.index_buffer.is_valid() && "Execute indirect using type draw_indexed requires valid index buffer");
+
+        gpuCommandSizeBytes = sizeof(gpu_indirect_command_draw_indexed);
+        bIsIndexed = true;
+        break;
+
+    case indirect_command_type::draw_indexed_with_id:
+        CC_ASSERT(draw_indirect.index_buffer.is_valid() && "Execute indirect using type draw_indexed_with_id requires valid index buffer");
+
+        gpuCommandSizeBytes = sizeof(gpu_indirect_command_draw_indexed_with_id);
+        bIsIndexed = true;
+        // skip the first 4 byte (rest is managed by stride)
+        gpuArgBufferAdditionalOffset = 4;
+        break;
+
+    default:
+        CC_UNREACHABLE("Invalid indirect command type");
+        break;
+    }
+
+    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(draw_indirect.indirect_argument.buffer, draw_indirect.indirect_argument.offset_bytes + gpuArgBufferAdditionalOffset,
+                                                              draw_indirect.max_num_arguments * gpuCommandSizeBytes - gpuArgBufferAdditionalOffset)
               && "indirect argument buffer accessed OOB on GPU");
 
-    auto const raw_argument_buffer = _globals.pool_resources->getRawBuffer(draw_indirect.indirect_argument_buffer);
-    if (draw_indirect.index_buffer.is_valid())
+    static_assert(sizeof(VkDrawIndexedIndirectCommand) == sizeof(gpu_indirect_command_draw_indexed), "gpu argument type compiles to incorrect "
+                                                                                                     "size");
+    static_assert(sizeof(VkDrawIndirectCommand) == sizeof(gpu_indirect_command_draw), "gpu argument type compiles to incorrect size");
+
+    VkBuffer const pArgumentBuffer = _globals.pool_resources->getRawBuffer(draw_indirect.indirect_argument);
+    VkDeviceSize const offsetArgumentBuffer = VkDeviceSize(draw_indirect.indirect_argument.offset_bytes) + gpuArgBufferAdditionalOffset;
+
+    VkBuffer const pCountBufferOrNull = _globals.pool_resources->getRawBufferOrNull(draw_indirect.count_buffer.buffer);
+
+    if (pCountBufferOrNull != nullptr)
     {
-        static_assert(sizeof(VkDrawIndexedIndirectCommand) == sizeof(gpu_indirect_command_draw_indexed), "gpu argument type compiles to incorrect "
-                                                                                                         "size");
-        vkCmdDrawIndexedIndirect(_cmd_list, raw_argument_buffer, VkDeviceSize(draw_indirect.argument_buffer_offset_bytes),
-                                 draw_indirect.num_arguments, sizeof(VkDrawIndexedIndirectCommand));
+        CC_ASSERT(vkCmdDrawIndirectCount != nullptr && "Indirect GPU-counted drawing extension not available");
+        CC_ASSERT(vkCmdDrawIndexedIndirectCount != nullptr && "Indirect GPU-counted drawing extension not available");
+
+        // using counts from GPU memory
+
+        VkDeviceSize const offsetCountBuffer = VkDeviceSize(draw_indirect.count_buffer.offset_bytes);
+        uint32_t const maxNumArguments = draw_indirect.max_num_arguments;
+
+        if (bIsIndexed)
+        {
+            vkCmdDrawIndexedIndirectCount(_cmd_list, pArgumentBuffer, offsetArgumentBuffer, pCountBufferOrNull, offsetCountBuffer, maxNumArguments, gpuCommandSizeBytes);
+        }
+        else
+        {
+            vkCmdDrawIndirectCount(_cmd_list, pArgumentBuffer, offsetArgumentBuffer, pCountBufferOrNull, offsetCountBuffer, maxNumArguments, gpuCommandSizeBytes);
+        }
     }
     else
     {
-        static_assert(sizeof(VkDrawIndirectCommand) == sizeof(gpu_indirect_command_draw), "gpu argument type compiles to incorrect size");
-        vkCmdDrawIndirect(_cmd_list, raw_argument_buffer, VkDeviceSize(draw_indirect.argument_buffer_offset_bytes), draw_indirect.num_arguments,
-                          sizeof(VkDrawIndirectCommand));
+        // using counts from CPU
+
+        uint32_t const numArguments = draw_indirect.max_num_arguments;
+
+        if (bIsIndexed)
+        {
+            vkCmdDrawIndexedIndirect(_cmd_list, pArgumentBuffer, offsetArgumentBuffer, numArguments, gpuCommandSizeBytes);
+        }
+        else
+        {
+            vkCmdDrawIndirect(_cmd_list, pArgumentBuffer, offsetArgumentBuffer, numArguments, gpuCommandSizeBytes);
+        }
     }
 }
 
@@ -491,16 +611,16 @@ void phi::vk::command_list_translator::execute(const phi::cmd::barrier_uav&)
 
 void phi::vk::command_list_translator::execute(const phi::cmd::copy_buffer& copy_buf)
 {
-    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(copy_buf.source, copy_buf.source_offset_bytes, copy_buf.size) && "copy_buffer source OOB");
-    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(copy_buf.destination, copy_buf.dest_offset_bytes, copy_buf.size) && "copy_buffer dest OOB");
+    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(copy_buf.source, copy_buf.num_bytes) && "copy_buffer source OOB");
+    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(copy_buf.destination, copy_buf.num_bytes) && "copy_buffer dest OOB");
 
     auto const src_buffer = _globals.pool_resources->getRawBuffer(copy_buf.source);
     auto const dest_buffer = _globals.pool_resources->getRawBuffer(copy_buf.destination);
 
     VkBufferCopy region = {};
-    region.size = copy_buf.size;
-    region.srcOffset = copy_buf.source_offset_bytes;
-    region.dstOffset = copy_buf.dest_offset_bytes;
+    region.size = copy_buf.num_bytes;
+    region.srcOffset = copy_buf.source.offset_bytes;
+    region.dstOffset = copy_buf.destination.offset_bytes;
     vkCmdCopyBuffer(_cmd_list, src_buffer, dest_buffer, 1, &region);
 }
 
@@ -532,7 +652,7 @@ void phi::vk::command_list_translator::execute(const phi::cmd::copy_buffer_to_te
     auto const& dest_image_info = _globals.pool_resources->getImageInfo(copy_text.destination);
 
     VkBufferImageCopy region = {};
-    region.bufferOffset = uint32_t(copy_text.source_offset_bytes);
+    region.bufferOffset = copy_text.source.offset_bytes;
     region.imageSubresource.aspectMask = util::to_native_image_aspect(dest_image_info.pixel_format);
     region.imageSubresource.baseArrayLayer = copy_text.dest_array_index;
     region.imageSubresource.layerCount = 1;
@@ -547,18 +667,21 @@ void phi::vk::command_list_translator::execute(const phi::cmd::copy_buffer_to_te
 void phi::vk::command_list_translator::execute(const phi::cmd::copy_texture_to_buffer& copy_text)
 {
     auto const src_image = _globals.pool_resources->getRawImage(copy_text.source);
-    auto const& src_image_info = _globals.pool_resources->getImageInfo(copy_text.destination);
-    auto const dest_buffer = _globals.pool_resources->getRawBuffer(copy_text.destination);
+    auto const& src_image_info = _globals.pool_resources->getImageInfo(copy_text.destination.buffer);
+    auto const dest_buffer = _globals.pool_resources->getRawBuffer(copy_text.destination.buffer);
 
     VkBufferImageCopy region = {};
-    region.bufferOffset = uint32_t(copy_text.dest_offset);
+    region.bufferOffset = copy_text.destination.offset_bytes;
     region.imageSubresource.aspectMask = util::to_native_image_aspect(src_image_info.pixel_format);
     region.imageSubresource.baseArrayLayer = copy_text.src_array_index;
     region.imageSubresource.layerCount = 1;
     region.imageSubresource.mipLevel = copy_text.src_mip_index;
+    region.imageOffset.x = copy_text.src_offset_x;
+    region.imageOffset.y = copy_text.src_offset_y;
+    region.imageOffset.z = copy_text.src_offset_z;
     region.imageExtent.width = copy_text.src_width;
     region.imageExtent.height = copy_text.src_height;
-    region.imageExtent.depth = 1;
+    region.imageExtent.depth = copy_text.src_depth;
 
     vkCmdCopyImageToBuffer(_cmd_list, src_image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dest_buffer, 1, &region);
 }
@@ -612,12 +735,13 @@ void phi::vk::command_list_translator::execute(const phi::cmd::resolve_queries& 
     VkQueryPool raw_pool;
     uint32_t const query_index_start = _globals.pool_queries->getQuery(resolve.src_query_range, resolve.query_start, raw_pool, type);
 
-    VkBuffer const raw_dest_buffer = _globals.pool_resources->getRawBuffer(resolve.dest_buffer);
+    VkBuffer const raw_dest_buffer = _globals.pool_resources->getRawBuffer(resolve.destination);
 
-    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(resolve.dest_buffer, resolve.num_queries * sizeof(uint64_t), resolve.dest_offset_bytes)
+    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(resolve.destination, resolve.num_queries * sizeof(uint64_t))
               && "resolve query destination buffer accessed OOB");
     VkQueryResultFlags flags = VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT;
-    vkCmdCopyQueryPoolResults(_cmd_list, raw_pool, query_index_start, resolve.num_queries, raw_dest_buffer, resolve.dest_offset_bytes, sizeof(uint64_t), flags);
+    vkCmdCopyQueryPoolResults(_cmd_list, raw_pool, query_index_start, resolve.num_queries, raw_dest_buffer, resolve.destination.offset_bytes,
+                              sizeof(uint64_t), flags);
 }
 
 void phi::vk::command_list_translator::execute(const phi::cmd::begin_debug_label& label)
@@ -645,15 +769,15 @@ void phi::vk::command_list_translator::execute(cmd::begin_profile_scope const& s
     (void)scope;
 
 #ifdef PHI_HAS_OPTICK
-    if (_current_optick_event)
+    if (_current_optick_event_stack.full())
     {
-        Optick::GPUEvent::Stop(*_current_optick_event);
-        _current_optick_event = nullptr;
+        PHI_LOG_WARN("Profile scopes are nested too deep, trace will be distorted");
+        return;
     }
 
     if (scope.optick_event)
     {
-        _current_optick_event = Optick::GPUEvent::Start(*scope.optick_event);
+        _current_optick_event_stack.push_back(Optick::GPUEvent::Start(*scope.optick_event));
     }
 #endif
 }
@@ -661,10 +785,10 @@ void phi::vk::command_list_translator::execute(cmd::begin_profile_scope const& s
 void phi::vk::command_list_translator::execute(cmd::end_profile_scope const&)
 {
 #ifdef PHI_HAS_OPTICK
-    if (_current_optick_event)
+    if (!_current_optick_event_stack.empty())
     {
-        Optick::GPUEvent::Stop(*_current_optick_event);
-        _current_optick_event = nullptr;
+        Optick::GPUEvent::Stop(*_current_optick_event_stack.back());
+        _current_optick_event_stack.pop_back();
     }
 #endif
 }
@@ -786,6 +910,11 @@ void phi::vk::command_list_translator::execute(cmd::code_location_marker const& 
     _last_code_location.line = marker.line;
 }
 
+void phi::vk::command_list_translator::execute(cmd::set_global_profile_scope const&)
+{
+    // do nothing
+}
+
 void phi::vk::command_list_translator::bind_vertex_buffers(handle::resource const vertex_buffers[limits::max_vertex_buffers])
 {
     uint64_t const vert_hash = phi::util::sse_hash_type<handle::resource>(vertex_buffers, limits::max_vertex_buffers);
@@ -812,13 +941,14 @@ void phi::vk::command_list_translator::bind_vertex_buffers(handle::resource cons
     }
 }
 
-void phi::vk::command_list_translator::bind_shader_arguments(phi::handle::pipeline_state pso,
+bool phi::vk::command_list_translator::bind_shader_arguments(phi::handle::pipeline_state pso,
                                                              const std::byte* root_consts,
                                                              cc::span<const phi::shader_argument> shader_args,
                                                              VkPipelineBindPoint bind_point)
 {
     auto const& pso_node = _globals.pool_pipeline_states->get(pso);
     pipeline_layout const& pipeline_layout = *pso_node.associated_pipeline_layout;
+    bool bHasRootConstants = false;
 
     if (pipeline_layout.has_push_constants())
     {
@@ -827,6 +957,7 @@ void phi::vk::command_list_translator::bind_shader_arguments(phi::handle::pipeli
 
         vkCmdPushConstants(_cmd_list, pipeline_layout.raw_layout, pipeline_layout.push_constant_stages, 0,
                            sizeof(std::byte[limits::max_root_constant_bytes]), root_consts);
+        bHasRootConstants = true;
     }
 
     for (uint8_t i = 0; i < shader_args.size(); ++i)
@@ -858,6 +989,8 @@ void phi::vk::command_list_translator::bind_shader_arguments(phi::handle::pipeli
             }
         }
     }
+
+    return bHasRootConstants;
 }
 
 VkBuffer phi::vk::command_list_translator::get_buffer_or_null(phi::handle::resource buf) const

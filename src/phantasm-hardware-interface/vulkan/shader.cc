@@ -4,8 +4,6 @@
 
 #include <clean-core/bit_cast.hh>
 
-#include <phantasm-hardware-interface/common/container/unique_buffer.hh>
-
 #include "common/native_enum.hh"
 #include "common/verify.hh"
 
@@ -37,12 +35,12 @@ void phi::vk::patched_shader_intermediates::initialize_from_libraries(VkDevice d
     shader_modules.reset_reserve(alloc, libraries.size() * 16);
     shader_create_infos.reset_reserve(alloc, libraries.size() * 16);
 
-    util::spirv_refl_info spirv_info;
+    util::ReflectedShaderInfo spirv_info;
 
     for (auto const& lib : libraries)
     {
         // patch SPIR-V
-        patched_spirv.push_back(util::create_patched_spirv(lib.binary.data, lib.binary.size, spirv_info, alloc));
+        patched_spirv.push_back(util::createPatchedShader(lib.binary.data, lib.binary.size, spirv_info, alloc));
         auto const& patched_lib = patched_spirv.back();
 
         // create a shader per export
@@ -54,7 +52,7 @@ void phi::vk::patched_shader_intermediates::initialize_from_libraries(VkDevice d
         }
     }
 
-    sorted_merged_descriptor_infos = util::merge_spirv_descriptors(spirv_info.descriptor_infos, alloc);
+    sorted_merged_descriptor_infos = util::mergeReflectedDescriptors(spirv_info.descriptor_infos, alloc);
     has_root_constants = spirv_info.has_push_constants;
 }
 
@@ -68,5 +66,5 @@ void phi::vk::patched_shader_intermediates::free(VkDevice device)
         module.free(device);
 
     for (auto const& ps : patched_spirv)
-        util::free_patched_spirv(ps);
+        util::freePatchedShader(ps);
 }

@@ -14,7 +14,7 @@
 #include "resources/transition_barrier.hh"
 #include "shader.hh"
 
-VkRenderPass phi::vk::create_render_pass(VkDevice device, arg::framebuffer_config const& framebuffer, const phi::pipeline_config& config)
+VkRenderPass phi::vk::create_render_pass(VkDevice device, arg::framebuffer_config const& framebuffer, const phi::arg::pipeline_config& config)
 {
     auto const sample_bits = util::to_native_sample_flags(static_cast<unsigned>(config.samples));
 
@@ -174,8 +174,8 @@ VkRenderPass phi::vk::create_render_pass(VkDevice device, const phi::cmd::begin_
 VkPipeline phi::vk::create_pipeline(VkDevice device,
                                     VkRenderPass render_pass,
                                     VkPipelineLayout pipeline_layout,
-                                    cc::span<const util::patched_spirv_stage> shaders,
-                                    const phi::pipeline_config& config,
+                                    cc::span<const util::PatchedShaderStage> shaders,
+                                    const phi::arg::pipeline_config& config,
                                     cc::span<const VkVertexInputAttributeDescription> vertex_attribs,
                                     uint32_t vertex_sizes[limits::max_vertex_buffers],
                                     arg::framebuffer_config const& framebuf_config)
@@ -189,7 +189,7 @@ VkPipeline phi::vk::create_pipeline(VkDevice device,
     for (auto const& shader : shaders)
     {
         auto& new_shader = shader_stages.emplace_back();
-        initialize_shader(new_shader, device, shader.data, shader.size, shader.entrypoint_name.c_str(), shader.stage);
+        initialize_shader(new_shader, device, shader.data, shader.size, shader.entrypoint_name, shader.stage);
 
         shader_stage_create_infos.push_back(get_shader_create_info(new_shader));
 
@@ -219,7 +219,7 @@ VkPipeline phi::vk::create_pipeline(VkDevice device,
 
     VkPipelineVertexInputStateCreateInfo vertex_input_info = {};
     vertex_input_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    vertex_input_info.vertexBindingDescriptionCount = vertex_bind_descs.size();
+    vertex_input_info.vertexBindingDescriptionCount = uint32_t(vertex_bind_descs.size());
     vertex_input_info.pVertexBindingDescriptions = vertex_bind_descs.empty() ? nullptr : vertex_bind_descs.data();
     vertex_input_info.vertexAttributeDescriptionCount = uint32_t(vertex_attribs.size());
     vertex_input_info.pVertexAttributeDescriptions = vertex_attribs.empty() ? nullptr : vertex_attribs.data();
@@ -259,10 +259,12 @@ VkPipeline phi::vk::create_pipeline(VkDevice device,
     rasterizer.lineWidth = 1.0f;
     rasterizer.cullMode = util::to_native(config.cull);
     rasterizer.frontFace = config.frontface_counterclockwise ? VK_FRONT_FACE_COUNTER_CLOCKWISE : VK_FRONT_FACE_CLOCKWISE;
-    rasterizer.depthBiasEnable = VK_FALSE;
-    rasterizer.depthBiasConstantFactor = 0.0f; // Optional
-    rasterizer.depthBiasClamp = 0.0f;          // Optional
-    rasterizer.depthBiasSlopeFactor = 0.0f;    // Optional
+    rasterizer.depthBiasEnable = config.depth_bias != 0 || config.slope_scaled_depth_bias != 0.f;
+    // this seems to be the correct mapping
+    // ref https://www.gamedev.net/forums/topic/693280-comparing-depth-bias-in-dx-vs-vulkan/
+    rasterizer.depthBiasConstantFactor = float(config.depth_bias);
+    rasterizer.depthBiasClamp = 0.0f;
+    rasterizer.depthBiasSlopeFactor = config.slope_scaled_depth_bias;
 
     VkPipelineRasterizationConservativeStateCreateInfoEXT conservative_raster = {};
 
@@ -309,12 +311,12 @@ VkPipeline phi::vk::create_pipeline(VkDevice device,
     colorBlending.blendConstants[2] = 0.0f; // Optional
     colorBlending.blendConstants[3] = 0.0f; // Optional
 
-    cc::array constexpr dynamicStates = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
+    VkDynamicState const dynamicStates[] = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
 
     VkPipelineDynamicStateCreateInfo dynamicState = {};
     dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-    dynamicState.dynamicStateCount = uint32_t(dynamicStates.size());
-    dynamicState.pDynamicStates = dynamicStates.data();
+    dynamicState.dynamicStateCount = CC_COUNTOF(dynamicStates);
+    dynamicState.pDynamicStates = dynamicStates;
 
     VkPipelineDepthStencilStateCreateInfo depthStencil = {};
     depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
@@ -357,10 +359,10 @@ VkPipeline phi::vk::create_pipeline(VkDevice device,
     return res;
 }
 
-VkPipeline phi::vk::create_compute_pipeline(VkDevice device, VkPipelineLayout pipeline_layout, const util::patched_spirv_stage& compute_shader)
+VkPipeline phi::vk::create_compute_pipeline(VkDevice device, VkPipelineLayout pipeline_layout, const util::PatchedShaderStage& compute_shader)
 {
     shader shader_stage;
-    initialize_shader(shader_stage, device, compute_shader.data, compute_shader.size, compute_shader.entrypoint_name.c_str(), shader_stage::compute);
+    initialize_shader(shader_stage, device, compute_shader.data, compute_shader.size, compute_shader.entrypoint_name, shader_stage::compute);
 
     VkComputePipelineCreateInfo pipeline_info = {};
     pipeline_info.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
@@ -383,7 +385,8 @@ VkPipeline phi::vk::create_raytracing_pipeline(VkDevice device,
                                                unsigned max_attribute_size_bytes,
                                                cc::allocator* scratch_alloc)
 {
-    auto f_get_shader_index_or_unused = [&](int index, shader_stage stage_verification) -> uint32_t {
+    auto f_get_shader_index_or_unused = [&](int index, shader_stage stage_verification) -> uint32_t
+    {
         if (index < 0)
             return VK_SHADER_UNUSED_NV;
 

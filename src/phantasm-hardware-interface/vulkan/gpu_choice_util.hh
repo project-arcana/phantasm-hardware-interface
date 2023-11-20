@@ -1,8 +1,8 @@
 #pragma once
 
-#include <clean-core/array.hh>
-#include <clean-core/capped_array.hh>
-#include <clean-core/vector.hh>
+#include <clean-core/alloc_array.hh>
+#include <clean-core/alloc_vector.hh>
+#include <clean-core/span.hh>
 
 #include <phantasm-hardware-interface/features/gpu_info.hh>
 #include <phantasm-hardware-interface/types.hh>
@@ -26,8 +26,8 @@ struct vulkan_gpu_info
 
 struct backbuffer_information
 {
-    cc::array<VkSurfaceFormatKHR> backbuffer_formats;
-    cc::array<VkPresentModeKHR> present_modes;
+    cc::alloc_array<VkSurfaceFormatKHR> backbuffer_formats;
+    cc::alloc_array<VkPresentModeKHR> present_modes;
 };
 
 /// correctly initialized bundle of VkPhysicalDeviceXX structs for usage during feature tests and
@@ -54,33 +54,34 @@ struct physical_device_feature_bundle
 bool set_or_test_device_features(VkPhysicalDeviceFeatures2* arg, bool enable_gbv, bool test_mode, char const* gpu_name_for_logging = nullptr);
 
 /// receive all physical devices visible to the instance
-[[nodiscard]] cc::array<VkPhysicalDevice> get_physical_devices(VkInstance instance);
+cc::alloc_array<VkPhysicalDevice> get_physical_devices(VkInstance instance, cc::allocator* alloc);
 
 /// receive full information about a GPU, relatively slow
-[[nodiscard]] vulkan_gpu_info get_vulkan_gpu_info(VkPhysicalDevice device);
+vulkan_gpu_info get_vulkan_gpu_info(VkPhysicalDevice device, cc::allocator* alloc);
 
-[[nodiscard]] cc::array<vulkan_gpu_info> get_all_vulkan_gpu_infos(VkInstance instance);
+cc::alloc_array<vulkan_gpu_info> get_all_vulkan_gpu_infos(VkInstance instance, cc::allocator* alloc);
 
-[[nodiscard]] cc::vector<gpu_info> get_available_gpus(cc::span<vulkan_gpu_info const> vk_gpu_infos);
+cc::alloc_vector<gpu_info> get_available_gpus(cc::span<vulkan_gpu_info const> vk_gpu_infos, cc::allocator* alloc);
 
 
 /// receive only backbuffer-related information
-[[nodiscard]] backbuffer_information get_backbuffer_information(VkPhysicalDevice device, VkSurfaceKHR surface);
+backbuffer_information get_backbuffer_information(VkPhysicalDevice device, VkSurfaceKHR surface, cc::allocator* alloc);
 
 /// receive surface capabilities
-[[nodiscard]] VkSurfaceCapabilitiesKHR get_surface_capabilities(VkPhysicalDevice device, VkSurfaceKHR surface, uint32_t present_queue_family_index);
+VkSurfaceCapabilitiesKHR get_surface_capabilities(VkPhysicalDevice device, VkSurfaceKHR surface, uint32_t present_queue_family_index);
 
-[[nodiscard]] VkSurfaceFormatKHR choose_backbuffer_format(cc::span<VkSurfaceFormatKHR const> available_formats);
-[[nodiscard]] VkPresentModeKHR choose_present_mode(cc::span<VkPresentModeKHR const> available_modes, present_mode mode);
+VkSurfaceFormatKHR choose_backbuffer_format(cc::span<VkSurfaceFormatKHR const> available_formats, phi::format preference);
 
-[[nodiscard]] VkExtent2D get_swap_extent(VkSurfaceCapabilitiesKHR const& capabilities, VkExtent2D extent_hint);
+VkPresentModeKHR choose_present_mode(cc::span<VkPresentModeKHR const> available_modes, present_mode mode);
 
-[[nodiscard]] inline VkSurfaceTransformFlagBitsKHR choose_identity_transform(VkSurfaceCapabilitiesKHR const& capabilities)
+VkExtent2D get_swap_extent(VkSurfaceCapabilitiesKHR const& capabilities, VkExtent2D extent_hint);
+
+inline VkSurfaceTransformFlagBitsKHR choose_identity_transform(VkSurfaceCapabilitiesKHR const& capabilities)
 {
     return (capabilities.supportedTransforms & VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR) ? VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR : capabilities.currentTransform;
 }
 
-[[nodiscard]] inline VkCompositeAlphaFlagBitsKHR choose_alpha_mode(VkSurfaceCapabilitiesKHR const& capabilities)
+inline VkCompositeAlphaFlagBitsKHR choose_alpha_mode(VkSurfaceCapabilitiesKHR const& capabilities)
 {
     for (auto flag : {VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR, VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR, VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR,
                       VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR})
@@ -110,4 +111,4 @@ inline bool memory_type_from_properties(VkPhysicalDeviceMemoryProperties const& 
     return false;
 }
 
-}
+} // namespace phi::vk

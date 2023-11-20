@@ -6,7 +6,9 @@
 #include <clean-core/alloc_array.hh>
 #include <clean-core/atomic_linked_pool.hh>
 #include <clean-core/bits.hh>
-#include <clean-core/capped_array.hh>
+
+#define CC_MPMC_QUEUE_TRACK_SIZE true
+#include <clean-core/experimental/mpmc_queue.hh>
 
 #include <phantasm-hardware-interface/arguments.hh>
 
@@ -17,132 +19,166 @@
 
 namespace phi::d3d12
 {
-/// A single command allocator that keeps track of its lists
-/// Unsynchronized - N per CommandAllocatorBundle
-struct cmd_allocator_node
+// A single command allocator that keeps track of its lists
+// Unsynchronized - N per CommandAllocatorBundle
+struct CommandAllocator
 {
 public:
-    void initialize(ID3D12Device5& device, D3D12_COMMAND_LIST_TYPE type, int max_num_cmdlists);
+    void initialize(ID3D12Device5& device, D3D12_COMMAND_LIST_TYPE type);
     void destroy();
 
-public:
-    // API for initial creation of commandlists
-
-    [[nodiscard]] int get_max_num_cmdlists() const { return _max_num_in_flight; }
-    [[nodiscard]] ID3D12CommandAllocator* get_allocator() const { return _allocator; }
+    void createCommandLists(ID3D12Device5& device, cc::span<ID3D12GraphicsCommandList5*> out_cmdlists);
 
 public:
-    // API for normal use
+    // acquire memory from this allocator for the given commandlist
+    // do not call if full (best case: blocking, worst case: crash)
+    void acquireMemory(ID3D12GraphicsCommandList5* cmd_list);
 
-    /// returns true if this node is full
-    [[nodiscard]] bool is_full() const { return _full_and_waiting; }
+    bool canReset() const
+    {
+        return mNumBackedCmdlists > 0 &&                          // 1. any command list is currently backed
+               isSubmitCounterUpToDate() &&                       // 2. all backed command lists are submitted or discarded
+               mFence.getCurrentValue() == mSubmitCounter.load(); // 3. the submit counter was GPU-reached
+    }
 
-    /// returns true if this node is full and capable of resetting
-    [[nodiscard]] bool can_reset() const { return _full_and_waiting && is_submit_counter_up_to_date(); }
+    int getNumBackedCmdlists() const { return mNumBackedCmdlists; }
 
-    /// acquire memory from this allocator for the given commandlist
-    /// do not call if full (best case: blocking, worst case: crash)
-    void acquire(ID3D12GraphicsCommandList5* cmd_list);
+    // reset the allocator without stalling if possible
+    // returns true if the reset succeeded
+    bool tryResetFast()
+    {
+        if (!canReset())
+            return false;
 
-    /// non-blocking reset attempt
-    /// returns true if the allocator is usable afterwards
-    [[nodiscard]] bool try_reset();
+        resetAllocator();
+        return true;
+    }
 
-    /// blocking reset attempt
-    /// returns true if the allocator is usable afterwards
-    [[nodiscard]] bool try_reset_blocking();
+    // reset the allocator if possible, stalling the CPU if necessary
+    // returns true if the reset succeeded
+    bool tryResetStalling(bool bWarnOnStall);
 
 public:
     // events
 
-    /// to be called when a command list backed by this allocator
-    /// is being submitted
-    /// free-threaded
-    void on_submit(ID3D12CommandQueue& queue)
+    // to be called when a command list backed by this allocator
+    // is being submitted
+    // free-threaded
+    void onListSubmit(ID3D12CommandQueue& queue)
     {
         // NOTE: Fence access requires no synchronization in d3d12
-        _fence.signalGPU(_submit_counter.fetch_add(1) + 1, queue);
+        auto const submitCountPrev = mSubmitCounter.fetch_add(1);
+        mFence.signalGPU(submitCountPrev + 1, queue);
     }
 
-    /// to be called when a command list backed by this allocator
-    /// is being discarded (will never result in a submit)
-    /// free-threaded
-    void on_discard() { _num_discarded.fetch_add(1); }
+    // to be called when a command list backed by this allocator
+    // is being discarded (will never result in a submit)
+    // free-threaded
+    void onListDiscard() { mNumDiscardedCmdlists.fetch_add(1); }
 
 private:
-    /// perform the internal reset
-    void do_reset();
+    // perform the internal reset
+    void resetAllocator();
 
-    /// returns true if all in-flight cmdlists have been either submitted or discarded
-    bool is_submit_counter_up_to_date() const;
+    // returns true if all in-flight cmdlists have been either submitted or discarded
+    bool isSubmitCounterUpToDate() const;
 
 private:
-    ID3D12CommandAllocator* _allocator;
-    SimpleFence _fence;
-    std::atomic<uint64_t> _submit_counter = 0;
-    uint64_t _submit_counter_at_last_reset = 0;
-    int _num_in_flight = 0;
-    std::atomic<int> _num_discarded = 0;
-    int _max_num_in_flight = 0;
-    bool _full_and_waiting = false;
+    ID3D12CommandAllocator* mAllocator = nullptr;
+    D3D12_COMMAND_LIST_TYPE mType;
+    SimpleFence mFence;
+
+    // +1 on each submit (never reset)
+    std::atomic<uint64_t> mSubmitCounter = 0;
+    uint64_t mSubmitCounterAtLastReset = 0;
+
+    // amount of backed command lists since reset
+    int mNumBackedCmdlists = 0;
+
+    // amount of backed discard command lists since reset
+    std::atomic<int> mNumDiscardedCmdlists = 0;
 };
 
-/// A bundle of single command allocators which automatically
-/// circles through them and soft-resets when possible
-/// Unsynchronized - 1 per thread, per queue type
-class CommandAllocatorBundle
+struct CommandAllocatorQueue
 {
-public:
-    void initialize(ID3D12Device5& device, cc::allocator* static_alloc, D3D12_COMMAND_LIST_TYPE type, int num_allocs, int num_lists_per_alloc, cc::span<ID3D12GraphicsCommandList5*> out_list);
-    void destroy();
+    cc::mpmc_queue<CommandAllocator*> queueDirect;
+    cc::mpmc_queue<CommandAllocator*> queueCompute;
+    cc::mpmc_queue<CommandAllocator*> queueCopy;
 
-    /// Resets the given command list to use memory by an appropriate allocator
-    /// Returns a pointer to the backing allocator node
-    cmd_allocator_node* acquireMemory(ID3D12GraphicsCommandList5* list);
+    // amount of lists after which allocators are fast-resetted if possible
+    uint32_t listLimitFastReset = 10;
+    // amount of lists after which allocators are resetted with stalling
+    uint32_t listLimitStallingReset = 25;
 
-    void updateActiveIndex();
-
-private:
-    void internalDestroy(cmd_allocator_node& node);
-    void internalInit(ID3D12Device5& device, cmd_allocator_node& node, D3D12_COMMAND_LIST_TYPE list_type, unsigned num_cmdlists, cc::span<ID3D12GraphicsCommandList5*> out_cmdlists);
-
-private:
-    cc::alloc_array<cmd_allocator_node> mAllocators;
-    size_t mActiveIndex = 0u;
-};
-
-struct CommandAllocatorsPerThread
-{
-    CommandAllocatorBundle bundle_direct;
-    CommandAllocatorBundle bundle_compute;
-    CommandAllocatorBundle bundle_copy;
-
-    void destroy()
+    void initialize(cc::allocator* pStaticAlloc, uint32_t numDirect, uint32_t numCompute, uint32_t numCopy)
     {
-        bundle_direct.destroy();
-        bundle_compute.destroy();
-        bundle_copy.destroy();
+        queueDirect.initialize(cc::ceil_pow2(numDirect), pStaticAlloc);
+        queueCompute.initialize(cc::ceil_pow2(numCompute), pStaticAlloc);
+        queueCopy.initialize(cc::ceil_pow2(numCopy), pStaticAlloc);
     }
 
-    CommandAllocatorBundle& get(queue_type type)
+    CommandAllocator* acquireAllocator(queue_type type)
     {
+        CommandAllocator* pRes = nullptr;
+        bool bSuccess = false;
+
         switch (type)
         {
         case queue_type::direct:
-            return bundle_direct;
+            bSuccess = queueDirect.dequeue(&pRes);
+            break;
         case queue_type::compute:
-            return bundle_compute;
+            bSuccess = queueCompute.dequeue(&pRes);
+            break;
         case queue_type::copy:
-            return bundle_copy;
+            bSuccess = queueCopy.dequeue(&pRes);
+            break;
         }
 
-        CC_UNREACHABLE("invalid queue type");
-        return bundle_direct;
+
+        CC_RUNTIME_ASSERT(bSuccess && "No command allocator available, too many live command lists at once");
+        CC_ASSERT(listLimitFastReset > 0 && listLimitFastReset <= listLimitStallingReset);
+
+        auto const numBackedCmdlists = pRes->getNumBackedCmdlists();
+
+        if (numBackedCmdlists >= listLimitStallingReset)
+        {
+            pRes->tryResetStalling(true);
+        }
+        else if (numBackedCmdlists >= listLimitFastReset)
+        {
+            pRes->tryResetFast();
+        }
+
+        return pRes;
+    }
+
+    void releaseAllocator(CommandAllocator* pAllocator, queue_type type)
+    {
+        bool bSuccess = false;
+
+        switch (type)
+        {
+        case queue_type::direct:
+            bSuccess = queueDirect.enqueue(pAllocator);
+            break;
+        case queue_type::compute:
+            bSuccess = queueCompute.enqueue(pAllocator);
+            break;
+        case queue_type::copy:
+            bSuccess = queueCopy.enqueue(pAllocator);
+            break;
+		default:
+			CC_UNREACHABLE("Invalid queue type");
+			break;
+        }
+
+        CC_ASSERT(bSuccess && "Double-released command allocator");
     }
 };
 
-/// The high-level allocator for Command Lists
-/// Synchronized - 1 per application
+// The high-level allocator for Command Lists
+// Synchronized - 1 per application
 class CommandListPool
 {
 private:
@@ -150,8 +186,9 @@ private:
     {
         // an allocated node is always in the following state:
         // - the command list is freshly reset using an appropriate allocator
-        // - the responsible_allocator must be informed on submit or discard
-        cmd_allocator_node* responsible_allocator;
+        // - the pResponsibleAllocator must be informed on submit or discard
+        bool bIsLive = false;
+        CommandAllocator* pResponsibleAllocator = nullptr;
         incomplete_state_cache state_cache;
     };
 
@@ -203,16 +240,16 @@ private:
         CC_UNREACHABLE("invalid queue_type");
     }
 
-    unsigned getFlatIndexOffset(queue_type type) const
+    uint32_t getFlatIndexOffset(queue_type type) const
     {
         switch (type)
         {
         case queue_type::direct:
             return 0;
         case queue_type::compute:
-            return mPoolDirect.max_size();
+            return uint32_t(mPoolDirect.max_size());
         case queue_type::copy:
-            return mPoolDirect.max_size() + mPoolCompute.max_size();
+            return uint32_t(mPoolDirect.max_size() + mPoolCompute.max_size());
         }
 
         CC_UNREACHABLE("invalid queue_type");
@@ -236,36 +273,39 @@ private:
 public:
     // frontend-facing API (not quite, command_list can only be compiled immediately)
 
-    [[nodiscard]] handle::command_list create(ID3D12GraphicsCommandList5*& out_cmdlist, CommandAllocatorsPerThread& thread_allocator, queue_type type);
+    [[nodiscard]] handle::command_list create(ID3D12GraphicsCommandList5*& out_cmdlist, queue_type type);
 
-    void freeOnSubmit(handle::command_list cl, ID3D12CommandQueue& queue);
+    void onClose(handle::command_list hList);
 
-    void freeOnSubmit(cc::span<handle::command_list const> cls, ID3D12CommandQueue& queue);
+    void freeOnSubmit(handle::command_list hList, ID3D12CommandQueue& queue);
 
-    void freeOnDiscard(cc::span<handle::command_list const> cls);
+    void freeOnSubmit(cc::span<handle::command_list const> spLists, ID3D12CommandQueue& queue);
+
+    void freeOnDiscard(cc::span<handle::command_list const> spLists);
 
 public:
-    ID3D12GraphicsCommandList5* getRawList(handle::command_list cl)
+    ID3D12GraphicsCommandList5* getRawList(handle::command_list hList) const
     {
-        auto const type = HandleToQueueType(cl);
-        return getList(cl, type);
+        auto const type = HandleToQueueType(hList);
+        return getList(hList, type);
     }
 
-    incomplete_state_cache* getStateCache(handle::command_list cl) { return &getNodeInternal(cl)->state_cache; }
+    incomplete_state_cache* getStateCache(handle::command_list hList) { return &getNodeInternal(hList)->state_cache; }
 
 public:
     void initialize(BackendD3D12& backend,
                     cc::allocator* static_alloc,
-                    int num_direct_allocs,
-                    int num_direct_lists_per_alloc,
-                    int num_compute_allocs,
-                    int num_compute_lists_per_alloc,
-                    int num_copy_allocs,
-                    int num_copy_lists_per_alloc,
-                    int max_num_unique_transitions_per_cmdlist,
-                    cc::span<CommandAllocatorsPerThread*> thread_allocators);
-    void destroy();
+                    uint32_t num_direct_allocs,
+                    uint32_t num_direct_lists,
+                    uint32_t num_compute_allocs,
+                    uint32_t num_compute_lists,
+                    uint32_t num_copy_allocs,
+                    uint32_t num_copy_lists,
+                    uint32_t max_num_unique_transitions_per_cmdlist);
 
+    void initialize_nth_thread(ID3D12Device5* device, uint32_t thread_idx, uint32_t num_threads);
+
+    void destroy();
 
 private:
     handle::command_list acquireNodeInternal(queue_type type, cmd_list_node*& out_node, ID3D12GraphicsCommandList5*& out_cmdlist);
@@ -292,7 +332,7 @@ private:
     cmdlist_linked_pool_t mPoolCopy;
 
     // flat memory for the state caches
-    int mNumStateCacheEntriesPerCmdlist;
+    uint32_t mNumStateCacheEntriesPerCmdlist = 0;
     cc::alloc_array<incomplete_state_cache::cache_entry> mFlatStateCacheEntries;
 
     // parallel arrays to the pools, identically indexed
@@ -300,5 +340,10 @@ private:
     cc::alloc_array<ID3D12GraphicsCommandList5*> mRawListsDirect;
     cc::alloc_array<ID3D12GraphicsCommandList5*> mRawListsCompute;
     cc::alloc_array<ID3D12GraphicsCommandList5*> mRawListsCopy;
+
+    CommandAllocatorQueue mQueue;
+    cc::alloc_array<CommandAllocator> mAllocatorsDirect;
+    cc::alloc_array<CommandAllocator> mAllocatorsCompute;
+    cc::alloc_array<CommandAllocator> mAllocatorsCopy;
 };
-}
+} // namespace phi::d3d12

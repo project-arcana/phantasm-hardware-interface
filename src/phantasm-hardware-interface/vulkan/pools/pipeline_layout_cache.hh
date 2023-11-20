@@ -23,23 +23,23 @@ public:
 
     /// receive an existing root signature matching the shape, or create a new one
     /// returns a pointer which remains stable
-    [[nodiscard]] pipeline_layout* getOrCreate(VkDevice device, cc::span<util::spirv_desc_info const> reflected_ranges, bool has_push_constants);
+    [[nodiscard]] pipeline_layout* getOrCreate(VkDevice device, cc::span<util::ReflectedDescriptorInfo const> reflected_ranges, bool has_push_constants);
 
     /// destroys all elements inside, and clears the map
     void reset(VkDevice device);
 
 private:
-    static size_t hashKey(cc::span<util::spirv_desc_info const> reflected_ranges, bool has_push_constants);
+    static size_t hashKey(cc::span<util::ReflectedDescriptorInfo const> reflected_ranges, bool has_push_constants);
 
     struct pipeline_layout_key_readonly
     {
-        cc::span<util::spirv_desc_info const> ranges;
+        cc::span<util::ReflectedDescriptorInfo const> ranges;
         bool has_push_constants;
     };
 
     struct pipeline_layout_key
     {
-        cc::vector<util::spirv_desc_info> ranges;
+        cc::vector<util::ReflectedDescriptorInfo> ranges;
         bool has_push_constants;
 
         pipeline_layout_key() = default;

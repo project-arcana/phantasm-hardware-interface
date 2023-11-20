@@ -1,18 +1,21 @@
 #pragma once
 
-#include <clean-core/hash.hh>
+#include <stdint.h>
 
-#include <phantasm-hardware-interface/arguments.hh>
+#include <phantasm-hardware-interface/common/api.hh>
+#include <phantasm-hardware-interface/fwd.hh>
 
-namespace phi::hash
+namespace phi
 {
-inline uint64_t compute(arg::shader_arg_shape const& v) { return cc::make_hash(v.num_srvs, v.num_uavs, v.num_samplers, v.has_cbv); }
+PHI_API uint64_t ComputeHash(arg::root_signature_description const& rootSignatureDesc);
 
-inline uint64_t compute(arg::shader_arg_shapes const v)
-{
-    uint64_t res = 0;
-    for (auto const& e : v)
-        res = cc::hash_combine(res, compute(e));
-    return res;
-}
-}
+PHI_API uint64_t ComputeHash(arg::graphics_pipeline_state_description const& psoDesc);
+
+PHI_API uint64_t ComputeHash(arg::compute_pipeline_state_description const& psoDesc);
+
+PHI_API uint64_t ComputeHash(arg::texture_description const& texDesc);
+
+PHI_API uint64_t ComputeHash(arg::buffer_description const& bufDesc);
+
+PHI_API uint64_t ComputeHash(arg::resource_description const& resDesc);
+} // namespace phi

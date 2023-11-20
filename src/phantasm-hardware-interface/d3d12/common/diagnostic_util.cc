@@ -22,7 +22,8 @@ void phi::d3d12::util::diagnostic_state::init()
     if (detail::hr_succeeded(::DXGIGetDebugInterface1(0, IID_PPV_ARGS(&_pix_handle))))
     {
         _pix_capture_running = false;
-        PHI_LOG << "PIX detected";
+		// This succeeds if PIX is attached, but also if Renderdoc is, possibly others
+        //PHI_LOG << "PIX detected";
     }
     else
 #endif
@@ -32,10 +33,6 @@ void phi::d3d12::util::diagnostic_state::init()
 
     // RenderDoc
     _renderdoc_handle = ::phi::detail::load_renderdoc();
-    if (_renderdoc_handle)
-    {
-        PHI_LOG << "RenderDoc detected";
-    }
 }
 
 void phi::d3d12::util::diagnostic_state::free()
@@ -62,7 +59,7 @@ bool phi::d3d12::util::diagnostic_state::start_capture()
 #ifdef PHI_HAS_PIX
     if (_pix_handle)
     {
-        PHI_LOG << "starting PIX capture";
+        PHI_LOG("starting PIX capture");
         _pix_handle->BeginCapture();
         _pix_capture_running = true;
         return true;
@@ -71,7 +68,7 @@ bool phi::d3d12::util::diagnostic_state::start_capture()
 
     if (_renderdoc_handle)
     {
-        PHI_LOG << "starting RenderDoc capture";
+        PHI_LOG("starting RenderDoc capture");
         _renderdoc_handle->StartFrameCapture(nullptr, nullptr);
         _renderdoc_capture_running = true;
         return true;
@@ -85,7 +82,7 @@ bool phi::d3d12::util::diagnostic_state::end_capture()
 #ifdef PHI_HAS_PIX
     if (_pix_handle && _pix_capture_running)
     {
-        PHI_LOG << "ending PIX capture";
+        PHI_LOG("ending PIX capture");
         _pix_handle->EndCapture();
         _pix_capture_running = false;
         return true;
@@ -94,7 +91,7 @@ bool phi::d3d12::util::diagnostic_state::end_capture()
 
     if (_renderdoc_handle && _renderdoc_capture_running)
     {
-        PHI_LOG << "ending RenderDoc capture";
+        PHI_LOG("ending RenderDoc capture");
         _renderdoc_handle->EndFrameCapture(nullptr, nullptr);
         _renderdoc_capture_running = false;
         return true;

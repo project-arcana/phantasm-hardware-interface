@@ -163,17 +163,21 @@ void print_dred_information(ID3D12Device* device)
 {
     using namespace phi::d3d12;
 
-    HRESULT removal_reason = device->GetDeviceRemovedReason();
+    {
+        HRESULT removal_reason = device->GetDeviceRemovedReason();
 
-    char removal_reason_string[1024];
-    removal_reason_string[0] = '\0';
-    get_hresult_error_message(removal_reason, removal_reason_string, sizeof(removal_reason_string));
+        char buf[1024];
+        buf[0] = '\0';
+        get_hresult_error_message(removal_reason, buf, sizeof(buf));
 
-    PHI_LOG_ASSERT("device removal reason:");
-    PHI_LOG_ASSERT(R"(  {}: "{}")", get_hresult_literal(removal_reason), static_cast<char const*>(removal_reason_string));
+        PHI_LOG_ASSERT("Device was removed for the following reason:");
+        PHI_LOG_ASSERT(R"(  {}: "{}")", get_hresult_literal(removal_reason), static_cast<char const*>(buf));
+    }
 
+    bool didAnyQueriesFail = false;
     phi::d3d12::shared_com_ptr<ID3D12DeviceRemovedExtendedData> dred;
-    if (SUCCEEDED(device->QueryInterface(PHI_COM_WRITE(dred))))
+    HRESULT hrQI = device->QueryInterface(PHI_COM_WRITE(dred));
+    if (SUCCEEDED(hrQI))
     {
         D3D12_DRED_AUTO_BREADCRUMBS_OUTPUT DredAutoBreadcrumbsOutput;
         D3D12_DRED_PAGE_FAULT_OUTPUT DredPageFaultOutput;
@@ -197,10 +201,7 @@ void print_dred_information(ID3D12Device* device)
                 if (bc_node->pCommandQueueDebugNameA != nullptr)
                     PHI_LOG_ASSERT("  on queue \"{}\"", bc_node->pCommandQueueDebugNameA);
 
-
-                auto logger = PHI_LOG_ASSERT;
-                logger.set_separator("");
-                logger << "    ";
+                cc::string logger = "    ";
 
                 unsigned const last_executed_i = *bc_node->pLastBreadcrumbValue;
                 unsigned num_logged_contiguous = 0;
@@ -208,26 +209,39 @@ void print_dred_information(ID3D12Device* device)
                 {
                     if (num_logged_contiguous == 6)
                     {
-                        logger << ",\n                                          ";
+                        logger += ",\n                                          ";
                         num_logged_contiguous = 0;
                     }
 
                     if (i == last_executed_i)
-                        logger << "[[> " << get_breadcrumb_op_literal(bc_node->pCommandHistory[i]) << " <]] ";
+                        logger += "[[> " + cc::string(get_breadcrumb_op_literal(bc_node->pCommandHistory[i])) + " <]] ";
                     else
-                        logger << "[" << get_breadcrumb_op_literal(bc_node->pCommandHistory[i]) << "] ";
+                        logger += "[" + cc::string(get_breadcrumb_op_literal(bc_node->pCommandHistory[i])) + "] ";
                     ++num_logged_contiguous;
                 }
 
                 if (last_executed_i == bc_node->BreadcrumbCount)
-                    logger << "  (fully executed)";
+                    logger += "  (fully executed)";
                 else
-                    logger << "  (execution halted at #" << last_executed_i << ")";
+                    logger += "  (execution halted at #" + cc::to_string(last_executed_i) + ")";
 
                 bc_node = bc_node->pNext;
                 ++num_breadcrumbs;
+
+                PHI_LOG_ASSERT("{}", logger.c_str());
             }
-            PHI_LOG_ASSERT << "end of breadcrumb data";
+
+            PHI_LOG_ASSERT("end of breadcrumb data");
+        }
+        else
+        {
+            didAnyQueriesFail = true;
+            PHI_LOG_ASSERT("Failed to query DRED breadcrumbs (Called ID3D12DeviceRemovedExtendedData::GetAutoBreadcrumbsOutput):");
+
+            char buf[1024];
+            buf[0] = '\0';
+            get_hresult_error_message(hr1, buf, sizeof(buf));
+            PHI_LOG_ASSERT("  {}: \"{}\"", get_hresult_literal(hr1), static_cast<char const*>(buf));
         }
 
         if (SUCCEEDED(hr2))
@@ -252,17 +266,34 @@ void print_dred_information(ID3D12Device* device)
                 allocated_node = allocated_node->pNext;
             }
 
-            PHI_LOG_ASSERT << "end of pagefault data";
+            PHI_LOG_ASSERT("end of pagefault data");
         }
-
-        if (FAILED(hr1) || FAILED(hr2))
+        else
         {
-            PHI_LOG_ASSERT("Some DRED queries failed, use validation_level::on_extended_dred for more information after device removals");
+            didAnyQueriesFail = true;
+            PHI_LOG_ASSERT("Failed to query DRED pagefault data (Called ID3D12DeviceRemovedExtendedData::GetPageFaultAllocationOutput):");
+
+            char buf[1024];
+            buf[0] = '\0';
+            get_hresult_error_message(hr2, buf, sizeof(buf));
+            PHI_LOG_ASSERT("  {}: \"{}\"", get_hresult_literal(hr2), static_cast<char const*>(buf));
         }
     }
     else
     {
-        PHI_LOG_ASSERT("Some DRED queries failed, use validation_level::on_extended_dred for more information after device removals");
+        didAnyQueriesFail = true;
+
+        char buf[1024];
+        buf[0] = '\0';
+        get_hresult_error_message(hrQI, buf, sizeof(buf));
+
+        PHI_LOG_ASSERT("Failed to QI ID3D12DeviceRemovedExtendedData from ID3D12Device");
+        PHI_LOG_ASSERT("  error: {}: \"{}\"", get_hresult_literal(hrQI), static_cast<char const*>(buf));
+    }
+
+    if (didAnyQueriesFail)
+    {
+        PHI_LOG_ASSERT("DRED queries failed, verify if validation_level::on_extended_dred is enabled for more information after device removals");
     }
 }
 
@@ -278,7 +309,7 @@ void show_error_alert_box(char const* /*expression*/, char const* error, char co
     }
 #endif // CC_OS_WINDOWS && _DEBUG
 }
-} // anon namespace
+} // namespace
 
 
 void phi::d3d12::detail::verify_failure_handler(HRESULT hr, const char* expression, const char* filename, int line, ID3D12Device* device)

@@ -71,7 +71,7 @@ private:
 
 /// A single command allocator that keeps track of its lists
 /// Unsynchronized - N per CommandAllocatorBundle
-struct cmd_allocator_node
+struct CommandAllocator
 {
 public:
     void initialize(VkDevice device, unsigned num_cmd_lists, unsigned queue_family_index, FenceRingbuffer* fence_ring, cc::allocator* static_alloc, cc::allocator* dynamic_alloc);
@@ -171,13 +171,13 @@ public:
 
     /// Resets the given command list to use memory by an appropriate allocator
     /// Returns a pointer to the backing allocator node
-    cmd_allocator_node* acquireMemory(VkDevice device, VkCommandBuffer& out_buffer);
+    CommandAllocator* acquireMemory(VkDevice device, VkCommandBuffer& out_buffer);
 
 private:
     void updateActiveIndex(VkDevice device);
 
 private:
-    cc::alloc_array<cmd_allocator_node> mAllocators;
+    cc::alloc_array<CommandAllocator> mAllocators;
     size_t mActiveAllocator = 0u;
 };
 
@@ -247,8 +247,8 @@ public:
     {
         // an allocated node is always in the following state:
         // - the command list is freshly reset using an appropriate allocator
-        // - the responsible_allocator must be informed on submit or discard
-        cmd_allocator_node* responsible_allocator;
+        // - the pResponsibleAllocator must be informed on submit or discard
+        CommandAllocator* pResponsibleAllocator;
         vk_incomplete_state_cache state_cache;
         VkCommandBuffer raw_buffer;
     };
@@ -267,7 +267,7 @@ public:
 
     void addAssociatedFramebuffer(handle::command_list cl, VkFramebuffer fb, cc::span<VkImageView const> imgviews)
     {
-        getCommandListNode(cl).responsible_allocator->add_associated_framebuffer(fb, imgviews);
+        getCommandListNode(cl).pResponsibleAllocator->add_associated_framebuffer(fb, imgviews);
     }
 
 public:

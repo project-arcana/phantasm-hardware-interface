@@ -15,33 +15,35 @@ namespace phi::d3d12
 class QueryPageAllocator
 {
 public:
-    using handle_t = int;
-    constexpr static int sc_page_size = 2;
+    enum
+    {
+        PA_PageSize = 2
+    };
 
 public:
     void initialize(ID3D12Device* device, D3D12_QUERY_HEAP_TYPE type, unsigned max_num_queries, cc::allocator* static_alloc);
 
     void destroy();
 
-    [[nodiscard]] handle_t allocate(int num_queries)
+    [[nodiscard]] uint64_t allocate(uint64_t num_queries)
     {
-        if (num_queries <= 0)
-            return -1;
+        if (num_queries == 0)
+            return uint64_t(-1);
 
         auto const res_page = mPageAllocator.allocate(num_queries);
-        CC_RUNTIME_ASSERT(res_page != -1 && "QueryPageAllocator overcommited");
+        CC_RUNTIME_ASSERT(res_page != uint64_t(-1) && "QueryPageAllocator overcommited");
         return res_page;
     }
 
-    void free(handle_t handle) { mPageAllocator.free(handle); }
+    void free(uint64_t handle) { mPageAllocator.free(handle); }
 
-    [[nodiscard]] UINT getPoolwideIndex(handle_t handle, unsigned offset) const
+    [[nodiscard]] uint64_t getPoolwideIndex(uint64_t handle, uint64_t offset) const
     {
-        CC_ASSERT(int(offset) < mPageAllocator.get_allocation_size_in_elements(handle) && "query_range access out of bounds");
-        return handle * sc_page_size + offset;
+        CC_ASSERT(offset < mPageAllocator.get_allocation_size_in_elements(handle) && "query_range access out of bounds");
+        return handle * PA_PageSize + offset;
     }
 
-    [[nodiscard]] int getNumPages() const { return mPageAllocator.get_num_pages(); }
+    [[nodiscard]] uint64_t getNumPages() const { return mPageAllocator.get_num_pages(); }
     ID3D12QueryHeap* getHeap() const { return mHeap; }
     D3D12_QUERY_HEAP_TYPE getNativeType() const { return mType; }
 
@@ -59,34 +61,37 @@ public:
     void free(handle::query_range qr);
 
 public:
-    static constexpr int mcIndexOffsetStep = 1'000'000;
-    static constexpr int mcIndexOffsetTimestamp = mcIndexOffsetStep * 0;
-    static constexpr int mcIndexOffsetOcclusion = mcIndexOffsetStep * 1;
-    static constexpr int mcIndexOffsetPipelineStats = mcIndexOffsetStep * 2;
+    enum
+    {
+        QP_IndexOffsetStep = 1'000'000,
+        QP_IndexOffsetTimestamp = QP_IndexOffsetStep * 0,
+        QP_IndexOffsetOcclusion = QP_IndexOffsetStep * 1,
+        QP_IndexOffsetPipelineStats = QP_IndexOffsetStep * 2,
+    };
 
     static constexpr query_type HandleToQueryType(handle::query_range qr)
     {
-        if (qr._value >= mcIndexOffsetPipelineStats)
+        if (qr._value >= QP_IndexOffsetPipelineStats)
             return query_type::pipeline_stats;
-        else if (qr._value >= mcIndexOffsetOcclusion)
+        else if (qr._value >= QP_IndexOffsetOcclusion)
             return query_type::occlusion;
         else
             return query_type::timestamp;
     }
 
-    static constexpr handle::query_range IndexToHandle(int index, query_type type)
+    static constexpr handle::query_range IndexToHandle(uint64_t index, query_type type)
     {
         // we rely on underlying values here
         static_assert(int(query_type::timestamp) == 0, "unexpected enum ordering");
         static_assert(int(query_type::occlusion) == 1, "unexpected enum ordering");
         static_assert(int(query_type::pipeline_stats) == 2, "unexpected enum ordering");
-        return {unsigned(index + mcIndexOffsetStep * int(type))};
+        return {uint32_t(index + QP_IndexOffsetStep * int(type))};
     }
 
-    static constexpr int HandleToIndex(handle::query_range qr, query_type type)
+    static constexpr uint64_t HandleToIndex(handle::query_range qr, query_type type)
     {
         //
-        return qr._value - mcIndexOffsetStep * int(type);
+        return qr._value - QP_IndexOffsetStep * uint64_t(type);
     }
 
     QueryPageAllocator& getHeap(query_type type)
@@ -152,4 +157,4 @@ private:
     QueryPageAllocator mHeapOcclusion;
     QueryPageAllocator mHeapPipelineStats;
 };
-}
+} // namespace phi::d3d12
