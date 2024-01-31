@@ -28,22 +28,14 @@ struct translator_thread_local_memory
 
 struct translator_global_memory
 {
-    void initialize(ID3D12Device* device, ShaderViewPool* sv_pool, ResourcePool* resource_pool, PipelineStateObjectPool* pso_pool, AccelStructPool* as_pool, QueryPool* query_pool)
-    {
-        this->device = device;
-        this->pool_shader_views = sv_pool;
-        this->pool_resources = resource_pool;
-        this->pool_pipeline_states = pso_pool;
-        this->pool_accel_structs = as_pool;
-        this->pool_queries = query_pool;
-    }
+    void initialize(ID3D12Device* device, ShaderViewPool* sv_pool, ResourcePool* resource_pool, PipelineStateObjectPool* pso_pool, AccelStructPool* as_pool, QueryPool* query_pool);
 
-    ID3D12Device* device;
-    ShaderViewPool* pool_shader_views;
-    ResourcePool* pool_resources;
-    PipelineStateObjectPool* pool_pipeline_states;
-    AccelStructPool* pool_accel_structs;
-    QueryPool* pool_queries;
+    ID3D12Device* device = nullptr;
+    ShaderViewPool* pool_shader_views = nullptr;
+    ResourcePool* pool_resources = nullptr;
+    PipelineStateObjectPool* pool_pipeline_states = nullptr;
+    AccelStructPool* pool_accel_structs = nullptr;
+    QueryPool* pool_queries = nullptr;
 };
 
 /// responsible for filling command lists, 1 per thread
@@ -115,10 +107,10 @@ private:
     friend class CmdlistTranslatorPool;
 
     // non-owning constant (global)
-    translator_global_memory _globals;
+    translator_global_memory _globals = {};
 
     // owning constant (thread local)
-    translator_thread_local_memory _thread_local;
+    translator_thread_local_memory _thread_local = {};
 
     // non-owning dynamic
     incomplete_state_cache* _state_cache = nullptr;
@@ -212,7 +204,7 @@ private:
             return false;
         }
 
-    } _bound;
+    } _bound = {};
 
     // debug state - cmd::code_location_marker
     struct
@@ -228,7 +220,7 @@ private:
             line = 0;
         }
 
-    } _last_code_location;
+    } _last_code_location = {};
 
 // debug state - current Optick GPU Event
 #ifdef PHI_HAS_OPTICK
