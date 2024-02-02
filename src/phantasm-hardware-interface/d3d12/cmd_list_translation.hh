@@ -17,7 +17,7 @@ struct GPUContext;
 
 namespace phi::d3d12
 {
-struct translator_thread_local_memory
+struct TranslatorLocals
 {
     void initialize(ID3D12Device& device);
     void destroy();
@@ -26,7 +26,7 @@ struct translator_thread_local_memory
     CPUDescriptorLinearAllocator lin_alloc_dsvs;
 };
 
-struct translator_global_memory
+struct TranslatorContext
 {
     void initialize(ID3D12Device* device, ShaderViewPool* sv_pool, ResourcePool* resource_pool, PipelineStateObjectPool* pso_pool, AccelStructPool* as_pool, QueryPool* query_pool);
 
@@ -38,11 +38,10 @@ struct translator_global_memory
     QueryPool* pool_queries = nullptr;
 };
 
-/// responsible for filling command lists, 1 per thread
-struct command_list_translator
+/// responsible for filling command lists
+struct CommandListTranslator
 {
-    void initialize(ID3D12Device* device, ShaderViewPool* sv_pool, ResourcePool* resource_pool, PipelineStateObjectPool* pso_pool, AccelStructPool* as_pool, QueryPool* query_pool);
-    void destroy();
+    void initialize(TranslatorContext const* pContext, TranslatorLocals* pLocals);
 
     void beginTranslation(ID3D12GraphicsCommandList5* list, queue_type type, incomplete_state_cache* state_cache, cmd::set_global_profile_scope const* pOptGlobalProfile = nullptr);
 
@@ -106,11 +105,11 @@ private:
 private:
     friend class CmdlistTranslatorPool;
 
-    // non-owning constant (global)
-    translator_global_memory _globals = {};
+    // global context
+    TranslatorContext const* _context = nullptr;
 
-    // owning constant (thread local)
-    translator_thread_local_memory _thread_local = {};
+    // locals to this translator instance
+    TranslatorLocals* _thread_local = nullptr;
 
     // non-owning dynamic
     incomplete_state_cache* _state_cache = nullptr;

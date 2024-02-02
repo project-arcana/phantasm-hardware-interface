@@ -35,19 +35,19 @@ public:
 
     handle::command_list freeLiveCmdList(handle::live_command_list list, bool bDoClose);
 
-    command_list_translator* getTranslator(handle::live_command_list list) const { return mPool.get(list._value).pTranslator; }
+    CommandListTranslator* getTranslator(handle::live_command_list list) const { return mPool.get(list._value).pTranslator; }
 
     handle::command_list getBackingList(handle::live_command_list list) const { return mPool.get(list._value).hBackingList; }
 
 private:
     struct Node
     {
-        command_list_translator* pTranslator = nullptr;
+        CommandListTranslator* pTranslator = nullptr;
         handle::command_list hBackingList = {};
     };
 
     cc::atomic_linked_pool<Node> mPool;
-    cc::alloc_array<command_list_translator*> mTranslators;
+    cc::alloc_array<CommandListTranslator*> mTranslators;
     cc::allocator* mBackingAlloc = nullptr;
 };
 } // namespace phi::vk

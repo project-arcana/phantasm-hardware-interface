@@ -5,6 +5,7 @@
 
 #include <phantasm-hardware-interface/handles.hh>
 
+#include <phantasm-hardware-interface/d3d12/cmd_list_translation.hh>
 #include <phantasm-hardware-interface/d3d12/fwd.hh>
 
 namespace phi::d3d12
@@ -32,12 +33,12 @@ public:
 
     handle::command_list freeLiveCmdList(handle::live_command_list list, bool bDoClose);
 
-    command_list_translator* getTranslator(handle::live_command_list list) const
+    CommandListTranslator* getTranslator(handle::live_command_list list)
     {
         CC_ASSERT(list.is_valid());
-        auto const& node = mPool.get(list._value);
-        CC_ASSERT(node.pTranslator && "Accessed uninitialized command list translator");
-        return node.pTranslator;
+        auto& node = mPool.get(list._value);
+        CC_ASSERT(node.Translator._context->device != nullptr && "command list translator has invalid globals");
+        return &node.Translator;
     }
 
     handle::command_list getBackingList(handle::live_command_list list) const { return mPool.get(list._value).hBackingList; }
@@ -45,12 +46,13 @@ public:
 private:
     struct Node
     {
-        command_list_translator* pTranslator = nullptr;
+        CommandListTranslator Translator;
         handle::command_list hBackingList = {};
     };
 
+    TranslatorContext mTranslatorContext;
+    cc::alloc_array<TranslatorLocals> mTranslatorLocals;
+
     cc::atomic_linked_pool<Node> mPool;
-    cc::alloc_array<command_list_translator*> mTranslators;
-    cc::allocator* mBackingAlloc = nullptr;
 };
 } // namespace phi::d3d12

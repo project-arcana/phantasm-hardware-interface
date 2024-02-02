@@ -47,7 +47,7 @@ Optick::GPUQueueType phiQueueTypeToOptickD3D12(phi::queue_type type)
 #endif
 } // namespace
 
-void phi::d3d12::translator_global_memory::initialize(
+void phi::d3d12::TranslatorContext::initialize(
     ID3D12Device* device, ShaderViewPool* sv_pool, ResourcePool* resource_pool, PipelineStateObjectPool* pso_pool, AccelStructPool* as_pool, QueryPool* query_pool)
 {
     CC_ASSERT(device && sv_pool && resource_pool && pso_pool && as_pool && query_pool);
@@ -59,21 +59,18 @@ void phi::d3d12::translator_global_memory::initialize(
     this->pool_queries = query_pool;
 }
 
-void phi::d3d12::command_list_translator::initialize(
-    ID3D12Device* device, ShaderViewPool* sv_pool, ResourcePool* resource_pool, PipelineStateObjectPool* pso_pool, AccelStructPool* as_pool, QueryPool* query_pool)
+void phi::d3d12::CommandListTranslator::initialize(TranslatorContext const* pContext, TranslatorLocals* pLocals)
 {
-    _globals.initialize(device, sv_pool, resource_pool, pso_pool, as_pool, query_pool);
-    _thread_local.initialize(*_globals.device);
+    _context = pContext;
+    _thread_local = pLocals;
 }
 
-void phi::d3d12::command_list_translator::destroy() { _thread_local.destroy(); }
-
-void phi::d3d12::command_list_translator::beginTranslation(ID3D12GraphicsCommandList5* list,
-                                                           queue_type type,
-                                                           incomplete_state_cache* state_cache,
-                                                           cmd::set_global_profile_scope const* pOptGlobalProfile)
+void phi::d3d12::CommandListTranslator::beginTranslation(ID3D12GraphicsCommandList5* list,
+                                                         queue_type type,
+                                                         incomplete_state_cache* state_cache,
+                                                         cmd::set_global_profile_scope const* pOptGlobalProfile)
 {
-    CC_ASSERT(_globals.device && _globals.pool_shader_views && _globals.pool_resources && "Globals not present");
+    CC_ASSERT(_context && _context->device && _context->pool_shader_views && _context->pool_resources && "Globals not present");
 
     _cmd_list = list;
     _current_queue_type = type;
@@ -113,12 +110,12 @@ void phi::d3d12::command_list_translator::beginTranslation(ID3D12GraphicsCommand
     // bind the global descriptor heaps
     if (type != queue_type::copy)
     {
-        auto const gpu_heaps = _globals.pool_shader_views->getGPURelevantHeaps();
+        auto const gpu_heaps = _context->pool_shader_views->getGPURelevantHeaps();
         _cmd_list->SetDescriptorHeaps(UINT(gpu_heaps.size()), gpu_heaps.data());
     }
 }
 
-void phi::d3d12::command_list_translator::endTranslation(bool bDoClose)
+void phi::d3d12::CommandListTranslator::endTranslation(bool bDoClose)
 {
 #ifdef PHI_HAS_OPTICK
 
@@ -157,7 +154,7 @@ void phi::d3d12::command_list_translator::endTranslation(bool bDoClose)
     }
 }
 
-void phi::d3d12::command_list_translator::execute(const phi::cmd::begin_render_pass& begin_rp)
+void phi::d3d12::CommandListTranslator::execute(const phi::cmd::begin_render_pass& begin_rp)
 {
     CC_ASSERT(_current_queue_type == queue_type::direct && "graphics commands are only valid on queue_type::direct");
     CC_ASSERT(begin_rp.viewport.width + begin_rp.viewport.height != 0 && "recording begin_render_pass with empty viewport");
@@ -187,26 +184,26 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::begin_render_p
     _cmd_list->RSSetViewports(1, &viewport);
     _cmd_list->RSSetScissorRects(1, &scissor_rect);
 
-    resource_view_cpu_only const dynamic_rtvs = _thread_local.lin_alloc_rtvs.allocate(begin_rp.render_targets.size());
+    resource_view_cpu_only const dynamic_rtvs = _thread_local->lin_alloc_rtvs.allocate(begin_rp.render_targets.size());
 
     for (uint8_t i = 0; i < begin_rp.render_targets.size(); ++i)
     {
         auto const& rt = begin_rp.render_targets[i];
 
-        auto* const resource = _globals.pool_resources->getRawResource(rt.rv.resource);
+        auto* const resource = _context->pool_resources->getRawResource(rt.rv.resource);
         auto const rtv = dynamic_rtvs.get_index(i);
 
         // create the default RTV on the fly
-        if (_globals.pool_resources->isBackbuffer(rt.rv.resource))
+        if (_context->pool_resources->isBackbuffer(rt.rv.resource))
         {
             // Create a default RTV for the backbuffer
-            _globals.device->CreateRenderTargetView(resource, nullptr, rtv);
+            _context->device->CreateRenderTargetView(resource, nullptr, rtv);
         }
         else
         {
             // Create an RTV based on the supplied info
             auto const rtv_desc = util::create_rtv_desc(rt.rv);
-            _globals.device->CreateRenderTargetView(resource, &rtv_desc, rtv);
+            _context->device->CreateRenderTargetView(resource, &rtv_desc, rtv);
         }
 
         if (rt.clear_type == rt_clear_type::clear)
@@ -218,12 +215,12 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::begin_render_p
     resource_view_cpu_only dynamic_dsv;
     if (begin_rp.depth_target.rv.resource.is_valid())
     {
-        dynamic_dsv = _thread_local.lin_alloc_dsvs.allocate(1u);
-        auto* const resource = _globals.pool_resources->getRawResource(begin_rp.depth_target.rv.resource);
+        dynamic_dsv = _thread_local->lin_alloc_dsvs.allocate(1u);
+        auto* const resource = _context->pool_resources->getRawResource(begin_rp.depth_target.rv.resource);
 
         // Create an DSV based on the supplied info
         auto const dsv_desc = util::create_dsv_desc(begin_rp.depth_target.rv);
-        _globals.device->CreateDepthStencilView(resource, &dsv_desc, dynamic_dsv.get_start());
+        _context->device->CreateDepthStencilView(resource, &dsv_desc, dynamic_dsv.get_start());
 
         if (begin_rp.depth_target.clear_type == rt_clear_type::clear)
         {
@@ -237,16 +234,16 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::begin_render_p
                                   dynamic_dsv.is_valid() ? &dynamic_dsv.get_start() : nullptr);
 
     // reset the linear allocators
-    _thread_local.lin_alloc_rtvs.reset();
-    _thread_local.lin_alloc_dsvs.reset();
+    _thread_local->lin_alloc_rtvs.reset();
+    _thread_local->lin_alloc_dsvs.reset();
 }
 
-void phi::d3d12::command_list_translator::execute(const phi::cmd::draw& draw)
+void phi::d3d12::CommandListTranslator::execute(const phi::cmd::draw& draw)
 {
     CC_ASSERT(_current_queue_type == queue_type::direct && "graphics commands are only valid on queue_type::direct");
     CC_ASSERT(draw.pipeline_state.is_valid() && "invalid PSO handle");
 
-    auto const& pso_node = _globals.pool_pipeline_states->get(draw.pipeline_state);
+    auto const& pso_node = _context->pool_pipeline_states->get(draw.pipeline_state);
 
     // PSO
     if (_bound.update_pso(draw.pipeline_state))
@@ -267,7 +264,7 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::draw& draw)
         _bound.index_buffer = draw.index_buffer;
         if (draw.index_buffer.is_valid())
         {
-            auto const ibv = _globals.pool_resources->getIndexBufferView(draw.index_buffer);
+            auto const ibv = _context->pool_resources->getIndexBufferView(draw.index_buffer);
             _cmd_list->IASetIndexBuffer(&ibv);
         }
     }
@@ -301,9 +298,9 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::draw& draw)
                 // Set the CBV / offset if it has changed
                 if (bound_arg.update_cbv(arg.constant_buffer, arg.constant_buffer_offset) && arg.constant_buffer.is_valid())
                 {
-                    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(arg.constant_buffer, arg.constant_buffer_offset, 1) && "CBV offset OOB");
+                    CC_ASSERT(_context->pool_resources->isBufferAccessInBounds(arg.constant_buffer, arg.constant_buffer_offset, 1) && "CBV offset OOB");
 
-                    auto const cbv_va = _globals.pool_resources->getBufferInfo(arg.constant_buffer).gpu_va;
+                    auto const cbv_va = _context->pool_resources->getBufferInfo(arg.constant_buffer).gpu_va;
                     _cmd_list->SetGraphicsRootConstantBufferView(map.cbv_param, cbv_va + arg.constant_buffer_offset);
                 }
             }
@@ -313,15 +310,15 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::draw& draw)
             {
                 if (map.srv_uav_table_param != uint32_t(-1))
                 {
-                    CC_ASSERT(_globals.pool_shader_views->hasSRVsUAVs(arg.shader_view) && "shader_view is missing SRVs/UAVs");
-                    auto const sv_desc_table = _globals.pool_shader_views->getSRVUAVGPUHandle(arg.shader_view);
+                    CC_ASSERT(_context->pool_shader_views->hasSRVsUAVs(arg.shader_view) && "shader_view is missing SRVs/UAVs");
+                    auto const sv_desc_table = _context->pool_shader_views->getSRVUAVGPUHandle(arg.shader_view);
                     _cmd_list->SetGraphicsRootDescriptorTable(map.srv_uav_table_param, sv_desc_table);
                 }
 
                 if (map.sampler_table_param != uint32_t(-1))
                 {
-                    CC_ASSERT(_globals.pool_shader_views->hasSamplers(arg.shader_view) && "shader_view is missing Samplers");
-                    auto const sampler_desc_table = _globals.pool_shader_views->getSamplerGPUHandle(arg.shader_view);
+                    CC_ASSERT(_context->pool_shader_views->hasSamplers(arg.shader_view) && "shader_view is missing Samplers");
+                    auto const sampler_desc_table = _context->pool_shader_views->getSamplerGPUHandle(arg.shader_view);
                     _cmd_list->SetGraphicsRootDescriptorTable(map.sampler_table_param, sampler_desc_table);
                 }
             }
@@ -345,10 +342,10 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::draw& draw)
     }
 }
 
-void phi::d3d12::command_list_translator::execute(const phi::cmd::draw_indirect& draw_indirect)
+void phi::d3d12::CommandListTranslator::execute(const phi::cmd::draw_indirect& draw_indirect)
 {
     CC_ASSERT(_current_queue_type == queue_type::direct && "graphics commands are only valid on queue_type::direct");
-    auto const& pso_node = _globals.pool_pipeline_states->get(draw_indirect.pipeline_state);
+    auto const& pso_node = _context->pool_pipeline_states->get(draw_indirect.pipeline_state);
 
     // PSO
     if (_bound.update_pso(draw_indirect.pipeline_state))
@@ -369,7 +366,7 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::draw_indirect&
         _bound.index_buffer = draw_indirect.index_buffer;
         if (draw_indirect.index_buffer.is_valid())
         {
-            auto const ibv = _globals.pool_resources->getIndexBufferView(draw_indirect.index_buffer);
+            auto const ibv = _context->pool_resources->getIndexBufferView(draw_indirect.index_buffer);
             _cmd_list->IASetIndexBuffer(&ibv);
         }
     }
@@ -402,9 +399,9 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::draw_indirect&
                 // Set the CBV / offset if it has changed
                 if (bound_arg.update_cbv(arg.constant_buffer, arg.constant_buffer_offset))
                 {
-                    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(arg.constant_buffer, arg.constant_buffer_offset, 1) && "CBV offset OOB");
+                    CC_ASSERT(_context->pool_resources->isBufferAccessInBounds(arg.constant_buffer, arg.constant_buffer_offset, 1) && "CBV offset OOB");
 
-                    auto const cbv_va = _globals.pool_resources->getBufferInfo(arg.constant_buffer).gpu_va;
+                    auto const cbv_va = _context->pool_resources->getBufferInfo(arg.constant_buffer).gpu_va;
                     _cmd_list->SetGraphicsRootConstantBufferView(map.cbv_param, cbv_va + arg.constant_buffer_offset);
                 }
             }
@@ -414,13 +411,13 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::draw_indirect&
             {
                 if (map.srv_uav_table_param != uint32_t(-1))
                 {
-                    auto const sv_desc_table = _globals.pool_shader_views->getSRVUAVGPUHandle(arg.shader_view);
+                    auto const sv_desc_table = _context->pool_shader_views->getSRVUAVGPUHandle(arg.shader_view);
                     _cmd_list->SetGraphicsRootDescriptorTable(map.srv_uav_table_param, sv_desc_table);
                 }
 
                 if (map.sampler_table_param != uint32_t(-1))
                 {
-                    auto const sampler_desc_table = _globals.pool_shader_views->getSamplerGPUHandle(arg.shader_view);
+                    auto const sampler_desc_table = _context->pool_shader_views->getSamplerGPUHandle(arg.shader_view);
                     _cmd_list->SetGraphicsRootDescriptorTable(map.sampler_table_param, sampler_desc_table);
                 }
             }
@@ -435,14 +432,14 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::draw_indirect&
     {
     case indirect_command_type::draw:
         gpuCommandSizeBytes = sizeof(gpu_indirect_command_draw);
-        pComSig = _globals.pool_pipeline_states->getGlobalComSigDraw();
+        pComSig = _context->pool_pipeline_states->getGlobalComSigDraw();
         break;
 
     case indirect_command_type::draw_indexed:
         CC_ASSERT(draw_indirect.index_buffer.is_valid() && "Indirect drawing using type draw_indexed requires valid index buffer");
 
         gpuCommandSizeBytes = sizeof(gpu_indirect_command_draw_indexed);
-        pComSig = _globals.pool_pipeline_states->getGlobalComSigDrawIndexed();
+        pComSig = _context->pool_pipeline_states->getGlobalComSigDrawIndexed();
         break;
 
     case indirect_command_type::draw_indexed_with_id:
@@ -460,7 +457,7 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::draw_indirect&
         break;
     }
 
-    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(draw_indirect.indirect_argument, draw_indirect.max_num_arguments * gpuCommandSizeBytes)
+    CC_ASSERT(_context->pool_resources->isBufferAccessInBounds(draw_indirect.indirect_argument, draw_indirect.max_num_arguments * gpuCommandSizeBytes)
               && "indirect argument buffer accessed OOB on GPU");
 
     static_assert(sizeof(D3D12_DRAW_ARGUMENTS) == sizeof(gpu_indirect_command_draw), "gpu argument compiles to incorrect size");
@@ -468,9 +465,9 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::draw_indirect&
     static_assert(sizeof(D3D12_DRAW_INDEXED_ARGUMENTS) + sizeof(DWORD) == sizeof(gpu_indirect_command_draw_indexed_with_id), "gpu argument compiles "
                                                                                                                              "to incorrect size");
 
-    ID3D12Resource* const pArgumentBuffer = _globals.pool_resources->getRawResource(draw_indirect.indirect_argument);
+    ID3D12Resource* const pArgumentBuffer = _context->pool_resources->getRawResource(draw_indirect.indirect_argument);
 
-    ID3D12Resource* const pCountBufferOrNull = _globals.pool_resources->getRawResourceOrNull(draw_indirect.count_buffer);
+    ID3D12Resource* const pCountBufferOrNull = _context->pool_resources->getRawResourceOrNull(draw_indirect.count_buffer);
 
     _cmd_list->ExecuteIndirect(pComSig, draw_indirect.max_num_arguments,                      //
                                pArgumentBuffer, draw_indirect.indirect_argument.offset_bytes, //
@@ -478,9 +475,9 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::draw_indirect&
     );
 }
 
-void phi::d3d12::command_list_translator::execute(const phi::cmd::dispatch& dispatch)
+void phi::d3d12::CommandListTranslator::execute(const phi::cmd::dispatch& dispatch)
 {
-    auto const& pso_node = _globals.pool_pipeline_states->get(dispatch.pipeline_state);
+    auto const& pso_node = _context->pool_pipeline_states->get(dispatch.pipeline_state);
 
     // PSO
     if (_bound.update_pso(dispatch.pipeline_state))
@@ -518,9 +515,9 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::dispatch& disp
                 // Set the CBV / offset if it has changed
                 if (bound_arg.update_cbv(arg.constant_buffer, arg.constant_buffer_offset) && arg.constant_buffer.is_valid())
                 {
-                    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(arg.constant_buffer, arg.constant_buffer_offset, 1) && "CBV offset OOB");
+                    CC_ASSERT(_context->pool_resources->isBufferAccessInBounds(arg.constant_buffer, arg.constant_buffer_offset, 1) && "CBV offset OOB");
 
-                    auto const cbv_va = _globals.pool_resources->getBufferInfo(arg.constant_buffer).gpu_va;
+                    auto const cbv_va = _context->pool_resources->getBufferInfo(arg.constant_buffer).gpu_va;
                     _cmd_list->SetComputeRootConstantBufferView(map.cbv_param, cbv_va + arg.constant_buffer_offset);
                 }
             }
@@ -530,7 +527,7 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::dispatch& disp
             {
                 if (map.srv_uav_table_param != uint32_t(-1))
                 {
-                    D3D12_GPU_DESCRIPTOR_HANDLE const sv_desc_table = _globals.pool_shader_views->getSRVUAVGPUHandle(arg.shader_view);
+                    D3D12_GPU_DESCRIPTOR_HANDLE const sv_desc_table = _context->pool_shader_views->getSRVUAVGPUHandle(arg.shader_view);
                     CC_ASSERT(sv_desc_table.ptr != 0 && "Bound shader_view is missing SRVs/UAVs but the PSO expects them");
 
                     _cmd_list->SetComputeRootDescriptorTable(map.srv_uav_table_param, sv_desc_table);
@@ -538,7 +535,7 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::dispatch& disp
 
                 if (map.sampler_table_param != uint32_t(-1))
                 {
-                    D3D12_GPU_DESCRIPTOR_HANDLE const sampler_desc_table = _globals.pool_shader_views->getSamplerGPUHandle(arg.shader_view);
+                    D3D12_GPU_DESCRIPTOR_HANDLE const sampler_desc_table = _context->pool_shader_views->getSamplerGPUHandle(arg.shader_view);
                     CC_ASSERT(sampler_desc_table.ptr != 0 && "Bound shader_view is missing samplers but the PSO expects them");
 
                     _cmd_list->SetComputeRootDescriptorTable(map.sampler_table_param, sampler_desc_table);
@@ -551,9 +548,9 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::dispatch& disp
     _cmd_list->Dispatch(dispatch.dispatch_x, dispatch.dispatch_y, dispatch.dispatch_z);
 }
 
-void phi::d3d12::command_list_translator::execute(cmd::dispatch_indirect const& dispatch_indirect)
+void phi::d3d12::CommandListTranslator::execute(cmd::dispatch_indirect const& dispatch_indirect)
 {
-    auto const& pso_node = _globals.pool_pipeline_states->get(dispatch_indirect.pipeline_state);
+    auto const& pso_node = _context->pool_pipeline_states->get(dispatch_indirect.pipeline_state);
 
     // PSO
     if (_bound.update_pso(dispatch_indirect.pipeline_state))
@@ -593,9 +590,9 @@ void phi::d3d12::command_list_translator::execute(cmd::dispatch_indirect const& 
                 // Set the CBV / offset if it has changed
                 if (bound_arg.update_cbv(arg.constant_buffer, arg.constant_buffer_offset) && arg.constant_buffer.is_valid())
                 {
-                    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(arg.constant_buffer, arg.constant_buffer_offset, 1) && "CBV offset OOB");
+                    CC_ASSERT(_context->pool_resources->isBufferAccessInBounds(arg.constant_buffer, arg.constant_buffer_offset, 1) && "CBV offset OOB");
 
-                    auto const cbv_va = _globals.pool_resources->getBufferInfo(arg.constant_buffer).gpu_va;
+                    auto const cbv_va = _context->pool_resources->getBufferInfo(arg.constant_buffer).gpu_va;
                     _cmd_list->SetComputeRootConstantBufferView(map.cbv_param, cbv_va + arg.constant_buffer_offset);
                 }
             }
@@ -605,13 +602,13 @@ void phi::d3d12::command_list_translator::execute(cmd::dispatch_indirect const& 
             {
                 if (map.srv_uav_table_param != uint32_t(-1))
                 {
-                    auto const sv_desc_table = _globals.pool_shader_views->getSRVUAVGPUHandle(arg.shader_view);
+                    auto const sv_desc_table = _context->pool_shader_views->getSRVUAVGPUHandle(arg.shader_view);
                     _cmd_list->SetComputeRootDescriptorTable(map.srv_uav_table_param, sv_desc_table);
                 }
 
                 if (map.sampler_table_param != uint32_t(-1))
                 {
-                    auto const sampler_desc_table = _globals.pool_shader_views->getSamplerGPUHandle(arg.shader_view);
+                    auto const sampler_desc_table = _context->pool_shader_views->getSamplerGPUHandle(arg.shader_view);
                     _cmd_list->SetComputeRootDescriptorTable(map.sampler_table_param, sampler_desc_table);
                 }
             }
@@ -619,11 +616,11 @@ void phi::d3d12::command_list_translator::execute(cmd::dispatch_indirect const& 
     }
     auto const gpu_command_size_bytes = uint32_t(sizeof(gpu_indirect_command_dispatch));
 
-    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(dispatch_indirect.argument_buffer_addr, dispatch_indirect.num_arguments * gpu_command_size_bytes)
+    CC_ASSERT(_context->pool_resources->isBufferAccessInBounds(dispatch_indirect.argument_buffer_addr, dispatch_indirect.num_arguments * gpu_command_size_bytes)
               && "indirect argument buffer accessed OOB on GPU");
 
-    ID3D12Resource* const raw_arg_buffer = _globals.pool_resources->getRawResource(dispatch_indirect.argument_buffer_addr);
-    ID3D12CommandSignature* const comsig = _globals.pool_pipeline_states->getGlobalComSigDispatch();
+    ID3D12Resource* const raw_arg_buffer = _context->pool_resources->getRawResource(dispatch_indirect.argument_buffer_addr);
+    ID3D12CommandSignature* const comsig = _context->pool_pipeline_states->getGlobalComSigDispatch();
 
     // NOTE: We use no count buffer, which makes the second argument determine the actual amount of args, not the max
     // NOTE: A global command sig is used, containing 256 dispatch arguments
@@ -633,24 +630,24 @@ void phi::d3d12::command_list_translator::execute(cmd::dispatch_indirect const& 
     _cmd_list->ExecuteIndirect(comsig, dispatch_indirect.num_arguments, raw_arg_buffer, dispatch_indirect.argument_buffer_addr.offset_bytes, nullptr, 0);
 }
 
-void phi::d3d12::command_list_translator::execute(const phi::cmd::end_render_pass&)
+void phi::d3d12::CommandListTranslator::execute(const phi::cmd::end_render_pass&)
 {
     CC_ASSERT(_current_queue_type == queue_type::direct && "graphics commands are only valid on queue_type::direct");
     // do nothing
 }
 
-void phi::d3d12::command_list_translator::execute(const phi::cmd::transition_resources& transition_res)
+void phi::d3d12::CommandListTranslator::execute(const phi::cmd::transition_resources& transition_res)
 {
     cc::capped_vector<D3D12_RESOURCE_BARRIER, limits::max_resource_transitions> barriers;
 
     for (auto const& transition : transition_res.transitions)
     {
 #ifdef CC_ENABLE_ASSERTIONS
-        if CC_CONDITION_UNLIKELY (_globals.pool_resources->isBuffer(transition.resource)
-                                  && _globals.pool_resources->getBufferDescription(transition.resource).heap != resource_heap::gpu)
+        if CC_CONDITION_UNLIKELY (_context->pool_resources->isBuffer(transition.resource)
+                                  && _context->pool_resources->getBufferDescription(transition.resource).heap != resource_heap::gpu)
         {
             char buf[512] = {};
-            util::get_object_name(_globals.pool_resources->getRawResource(transition.resource), buf);
+            util::get_object_name(_context->pool_resources->getRawResource(transition.resource), buf);
             CC_ASSERTF(false, "Cannot transition buffer \"{}\" on non-GPU heap to {}", buf, enum_to_string(transition.target_state));
         }
 #endif
@@ -671,7 +668,7 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::transition_res
         if (before_known && before != after)
         {
             // The transition is neither the implicit initial one, nor redundant
-            barriers.push_back(util::get_barrier_desc(_globals.pool_resources->getRawResource(transition.resource), before, after, -1, -1, 0));
+            barriers.push_back(util::get_barrier_desc(_context->pool_resources->getRawResource(transition.resource), before, after, -1, -1, 0));
         }
     }
 
@@ -681,7 +678,7 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::transition_res
     }
 }
 
-void phi::d3d12::command_list_translator::execute(const phi::cmd::transition_image_slices& transition_images)
+void phi::d3d12::CommandListTranslator::execute(const phi::cmd::transition_image_slices& transition_images)
 {
     // Image slice transitions are entirely explicit, and require the user to synchronize before/after resource states
     // NOTE: we do not update the master state as it does not encompass subresource states
@@ -689,9 +686,9 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::transition_ima
     cc::capped_vector<D3D12_RESOURCE_BARRIER, limits::max_resource_transitions> barriers;
     for (auto const& transition : transition_images.transitions)
     {
-        CC_ASSERT(_globals.pool_resources->isImage(transition.resource));
-        auto const& img_info = _globals.pool_resources->getImageInfo(transition.resource);
-        barriers.push_back(util::get_barrier_desc(_globals.pool_resources->getRawResource(transition.resource), util::to_native(transition.source_state),
+        CC_ASSERT(_context->pool_resources->isImage(transition.resource));
+        auto const& img_info = _context->pool_resources->getImageInfo(transition.resource);
+        barriers.push_back(util::get_barrier_desc(_context->pool_resources->getRawResource(transition.resource), util::to_native(transition.source_state),
                                                   util::to_native(transition.target_state), transition.mip_level, transition.array_slice, img_info.num_mips));
     }
 
@@ -710,13 +707,13 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::transition_ima
     }
 }
 
-void phi::d3d12::command_list_translator::execute(const phi::cmd::barrier_uav& barrier)
+void phi::d3d12::CommandListTranslator::execute(const phi::cmd::barrier_uav& barrier)
 {
     cc::capped_vector<D3D12_RESOURCE_BARRIER, limits::max_uav_barriers> barriers;
 
     for (auto const res : barrier.resources)
     {
-        auto const raw_res = _globals.pool_resources->getRawResource(res);
+        auto const raw_res = _context->pool_resources->getRawResource(res);
 
         D3D12_RESOURCE_BARRIER& desc = barriers.emplace_back();
         desc.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
@@ -736,34 +733,34 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::barrier_uav& b
     _cmd_list->ResourceBarrier(UINT(barriers.size()), barriers.data());
 }
 
-void phi::d3d12::command_list_translator::execute(const phi::cmd::copy_buffer& copy_buf)
+void phi::d3d12::CommandListTranslator::execute(const phi::cmd::copy_buffer& copy_buf)
 {
-    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(copy_buf.source, copy_buf.num_bytes) && "copy_buffer source OOB");
-    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(copy_buf.destination, copy_buf.num_bytes) && "copy_buffer dest OOB");
+    CC_ASSERT(_context->pool_resources->isBufferAccessInBounds(copy_buf.source, copy_buf.num_bytes) && "copy_buffer source OOB");
+    CC_ASSERT(_context->pool_resources->isBufferAccessInBounds(copy_buf.destination, copy_buf.num_bytes) && "copy_buffer dest OOB");
 
-    _cmd_list->CopyBufferRegion(_globals.pool_resources->getRawResource(copy_buf.destination), copy_buf.destination.offset_bytes,
-                                _globals.pool_resources->getRawResource(copy_buf.source), copy_buf.source.offset_bytes, copy_buf.num_bytes);
+    _cmd_list->CopyBufferRegion(_context->pool_resources->getRawResource(copy_buf.destination), copy_buf.destination.offset_bytes,
+                                _context->pool_resources->getRawResource(copy_buf.source), copy_buf.source.offset_bytes, copy_buf.num_bytes);
 }
 
-void phi::d3d12::command_list_translator::execute(const phi::cmd::copy_texture& copy_text)
+void phi::d3d12::CommandListTranslator::execute(const phi::cmd::copy_texture& copy_text)
 {
-    auto const& src_info = _globals.pool_resources->getImageInfo(copy_text.source);
-    auto const& dest_info = _globals.pool_resources->getImageInfo(copy_text.destination);
+    auto const& src_info = _context->pool_resources->getImageInfo(copy_text.source);
+    auto const& dest_info = _context->pool_resources->getImageInfo(copy_text.destination);
 
     for (auto array_offset = 0u; array_offset < copy_text.num_array_slices; ++array_offset)
     {
         auto const src_subres_index = copy_text.src_mip_index + (copy_text.src_array_index + array_offset) * src_info.num_mips;
         auto const dest_subres_index = copy_text.dest_mip_index + (copy_text.dest_array_index + array_offset) * dest_info.num_mips;
 
-        CD3DX12_TEXTURE_COPY_LOCATION const source(_globals.pool_resources->getRawResource(copy_text.source), src_subres_index);
-        CD3DX12_TEXTURE_COPY_LOCATION const dest(_globals.pool_resources->getRawResource(copy_text.destination), dest_subres_index);
+        CD3DX12_TEXTURE_COPY_LOCATION const source(_context->pool_resources->getRawResource(copy_text.source), src_subres_index);
+        CD3DX12_TEXTURE_COPY_LOCATION const dest(_context->pool_resources->getRawResource(copy_text.destination), dest_subres_index);
         _cmd_list->CopyTextureRegion(&dest, 0, 0, 0, &source, nullptr);
     }
 }
 
-void phi::d3d12::command_list_translator::execute(const phi::cmd::copy_buffer_to_texture& copy_text)
+void phi::d3d12::CommandListTranslator::execute(const phi::cmd::copy_buffer_to_texture& copy_text)
 {
-    auto const& dest_info = _globals.pool_resources->getImageInfo(copy_text.destination);
+    auto const& dest_info = _context->pool_resources->getImageInfo(copy_text.destination);
     auto const format_dxgi = util::to_dxgi_format(dest_info.pixel_format);
 
     D3D12_SUBRESOURCE_FOOTPRINT footprint;
@@ -795,14 +792,14 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::copy_buffer_to
 
     auto const subres_index = copy_text.dest_mip_index + copy_text.dest_array_index * dest_info.num_mips;
 
-    CD3DX12_TEXTURE_COPY_LOCATION const source(_globals.pool_resources->getRawResource(copy_text.source), placed_footprint);
-    CD3DX12_TEXTURE_COPY_LOCATION const dest(_globals.pool_resources->getRawResource(copy_text.destination), subres_index);
+    CD3DX12_TEXTURE_COPY_LOCATION const source(_context->pool_resources->getRawResource(copy_text.source), placed_footprint);
+    CD3DX12_TEXTURE_COPY_LOCATION const dest(_context->pool_resources->getRawResource(copy_text.destination), subres_index);
     _cmd_list->CopyTextureRegion(&dest, 0, 0, 0, &source, nullptr);
 }
 
-void phi::d3d12::command_list_translator::execute(const phi::cmd::copy_texture_to_buffer& copy_text)
+void phi::d3d12::CommandListTranslator::execute(const phi::cmd::copy_texture_to_buffer& copy_text)
 {
-    auto const& src_info = _globals.pool_resources->getImageInfo(copy_text.source);
+    auto const& src_info = _context->pool_resources->getImageInfo(copy_text.source);
 
     D3D12_SUBRESOURCE_FOOTPRINT footprint;
     footprint.Format = util::to_dxgi_format(src_info.pixel_format);
@@ -818,8 +815,8 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::copy_texture_t
 
     auto const source_subres_index = copy_text.src_mip_index + copy_text.src_array_index * src_info.num_mips;
 
-    CD3DX12_TEXTURE_COPY_LOCATION const source(_globals.pool_resources->getRawResource(copy_text.source), source_subres_index);
-    CD3DX12_TEXTURE_COPY_LOCATION const dest(_globals.pool_resources->getRawResource(copy_text.destination), dest_placed_footprint);
+    CD3DX12_TEXTURE_COPY_LOCATION const source(_context->pool_resources->getRawResource(copy_text.source), source_subres_index);
+    CD3DX12_TEXTURE_COPY_LOCATION const dest(_context->pool_resources->getRawResource(copy_text.destination), dest_placed_footprint);
 
     D3D12_BOX sourceBox;
     sourceBox.left = copy_text.src_offset_x;
@@ -830,7 +827,7 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::copy_texture_t
     sourceBox.back = sourceBox.front + copy_text.src_depth;
 
 #ifdef CC_ENABLE_ASSERTIONS
-    auto const& srcDescFull = _globals.pool_resources->getTextureDescription(copy_text.source);
+    auto const& srcDescFull = _context->pool_resources->getTextureDescription(copy_text.source);
     CC_ASSERT((int)sourceBox.right <= srcDescFull.width && (int)sourceBox.bottom <= srcDescFull.height
               && (int)sourceBox.back <= srcDescFull.depth_or_array_size && "Source box out of bounds");
 #endif
@@ -838,52 +835,52 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::copy_texture_t
     _cmd_list->CopyTextureRegion(&dest, 0, 0, 0, &source, &sourceBox);
 }
 
-void phi::d3d12::command_list_translator::execute(const phi::cmd::resolve_texture& resolve)
+void phi::d3d12::CommandListTranslator::execute(const phi::cmd::resolve_texture& resolve)
 {
-    auto const src_raw = _globals.pool_resources->getRawResource(resolve.source);
-    auto const dest_raw = _globals.pool_resources->getRawResource(resolve.destination);
+    auto const src_raw = _context->pool_resources->getRawResource(resolve.source);
+    auto const dest_raw = _context->pool_resources->getRawResource(resolve.destination);
 
-    auto const& src_info = _globals.pool_resources->getImageInfo(resolve.source);
-    auto const& dest_info = _globals.pool_resources->getImageInfo(resolve.destination);
+    auto const& src_info = _context->pool_resources->getImageInfo(resolve.source);
+    auto const& dest_info = _context->pool_resources->getImageInfo(resolve.destination);
     auto const src_subres_index = resolve.src_mip_index + resolve.src_array_index * src_info.num_mips;
     auto const dest_subres_index = resolve.dest_mip_index + resolve.dest_array_index * dest_info.num_mips;
 
     _cmd_list->ResolveSubresource(dest_raw, dest_subres_index, src_raw, src_subres_index, util::to_dxgi_format(dest_info.pixel_format));
 }
 
-void phi::d3d12::command_list_translator::execute(const phi::cmd::write_timestamp& timestamp)
+void phi::d3d12::CommandListTranslator::execute(const phi::cmd::write_timestamp& timestamp)
 {
     ID3D12QueryHeap* heap;
-    UINT const query_index = _globals.pool_queries->getQuery(timestamp.query_range, query_type::timestamp, timestamp.index, heap);
+    UINT const query_index = _context->pool_queries->getQuery(timestamp.query_range, query_type::timestamp, timestamp.index, heap);
 
     _cmd_list->EndQuery(heap, D3D12_QUERY_TYPE_TIMESTAMP, query_index);
 }
 
-void phi::d3d12::command_list_translator::execute(const phi::cmd::resolve_queries& resolve)
+void phi::d3d12::CommandListTranslator::execute(const phi::cmd::resolve_queries& resolve)
 {
     query_type type;
     ID3D12QueryHeap* heap;
-    UINT const query_index_start = _globals.pool_queries->getQuery(resolve.src_query_range, resolve.query_start, heap, type);
+    UINT const query_index_start = _context->pool_queries->getQuery(resolve.src_query_range, resolve.query_start, heap, type);
 
-    CC_ASSERT(_globals.pool_resources->isBufferAccessInBounds(resolve.destination, resolve.num_queries * sizeof(UINT64))
+    CC_ASSERT(_context->pool_resources->isBufferAccessInBounds(resolve.destination, resolve.num_queries * sizeof(UINT64))
               && "resolve query destination buffer accessed OOB");
-    ID3D12Resource* const raw_dest_buffer = _globals.pool_resources->getRawResource(resolve.destination);
+    ID3D12Resource* const raw_dest_buffer = _context->pool_resources->getRawResource(resolve.destination);
     _cmd_list->ResolveQueryData(heap, util::to_query_type(type), query_index_start, resolve.num_queries, raw_dest_buffer, resolve.destination.offset_bytes);
 }
 
-void phi::d3d12::command_list_translator::execute(const phi::cmd::begin_debug_label& label)
+void phi::d3d12::CommandListTranslator::execute(const phi::cmd::begin_debug_label& label)
 {
     //
     util::begin_pix_marker(_cmd_list, 0, label.string);
 }
 
-void phi::d3d12::command_list_translator::execute(const phi::cmd::end_debug_label&)
+void phi::d3d12::CommandListTranslator::execute(const phi::cmd::end_debug_label&)
 {
     //
     util::end_pix_marker(_cmd_list);
 }
 
-void phi::d3d12::command_list_translator::execute(cmd::begin_profile_scope const& scope)
+void phi::d3d12::CommandListTranslator::execute(cmd::begin_profile_scope const& scope)
 {
 #ifdef PHI_HAS_OPTICK
 
@@ -904,7 +901,7 @@ void phi::d3d12::command_list_translator::execute(cmd::begin_profile_scope const
 #endif
 }
 
-void phi::d3d12::command_list_translator::execute(cmd::end_profile_scope const&)
+void phi::d3d12::CommandListTranslator::execute(cmd::end_profile_scope const&)
 {
 #ifdef PHI_HAS_OPTICK
     if (_num_optick_event_overflow > 0)
@@ -923,12 +920,12 @@ void phi::d3d12::command_list_translator::execute(cmd::end_profile_scope const&)
 #endif
 }
 
-void phi::d3d12::command_list_translator::execute(const phi::cmd::update_bottom_level& blas_update)
+void phi::d3d12::CommandListTranslator::execute(const phi::cmd::update_bottom_level& blas_update)
 {
-    auto& dest_node = _globals.pool_accel_structs->getNode(blas_update.dest);
+    auto& dest_node = _context->pool_accel_structs->getNode(blas_update.dest);
 
-    auto const& dest_buffer = _globals.pool_resources->getBufferInfo(dest_node.buffer_as);
-    ID3D12Resource* const dest_as_buffer = _globals.pool_resources->getRawResource(dest_node.buffer_as);
+    auto const& dest_buffer = _context->pool_resources->getBufferInfo(dest_node.buffer_as);
+    ID3D12Resource* const dest_as_buffer = _context->pool_resources->getRawResource(dest_node.buffer_as);
 
     // NOTE: this command is a strange CPU/GPU timeline hybrid - dest_node.geometries is required for both creation and this command,
     // we have to keep the data alive up until this point. DXR spec has this to say:
@@ -952,12 +949,12 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::update_bottom_
 
     if (blas_update.scratch.is_valid())
     {
-        as_create_info.ScratchAccelerationStructureData = _globals.pool_resources->getBufferInfo(blas_update.scratch).gpu_va;
+        as_create_info.ScratchAccelerationStructureData = _context->pool_resources->getBufferInfo(blas_update.scratch).gpu_va;
     }
     else
     {
         CC_ASSERT(dest_node.buffer_scratch.is_valid() && "updates to acceleration structures created with no_internal_scratch_buffer require the scratch buffer field");
-        as_create_info.ScratchAccelerationStructureData = _globals.pool_resources->getBufferInfo(dest_node.buffer_scratch).gpu_va;
+        as_create_info.ScratchAccelerationStructureData = _context->pool_resources->getBufferInfo(dest_node.buffer_scratch).gpu_va;
     }
 
     if (blas_update.source.is_valid())
@@ -966,8 +963,8 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::update_bottom_
         // note that src == dest is a valid case
         as_create_info.Inputs.Flags |= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PERFORM_UPDATE;
 
-        auto& src_node = _globals.pool_accel_structs->getNode(blas_update.source);
-        auto const src_va = _globals.pool_resources->getBufferInfo(src_node.buffer_as).gpu_va;
+        auto& src_node = _context->pool_accel_structs->getNode(blas_update.source);
+        auto const src_va = _context->pool_resources->getBufferInfo(src_node.buffer_as).gpu_va;
         as_create_info.SourceAccelerationStructureData = src_va;
     }
 
@@ -977,10 +974,10 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::update_bottom_
     _cmd_list->ResourceBarrier(1, &uav_barrier);
 }
 
-void phi::d3d12::command_list_translator::execute(const phi::cmd::update_top_level& tlas_update)
+void phi::d3d12::CommandListTranslator::execute(const phi::cmd::update_top_level& tlas_update)
 {
-    auto& dest_node = _globals.pool_accel_structs->getNode(tlas_update.dest_accel_struct);
-    // ID3D12Resource* const dest_as_buffer = _globals.pool_resources->getRawResource(dest_node.buffer_as);
+    auto& dest_node = _context->pool_accel_structs->getNode(tlas_update.dest_accel_struct);
+    // ID3D12Resource* const dest_as_buffer = _context->pool_resources->getRawResource(dest_node.buffer_as);
 
     D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC as_create_info = {};
     as_create_info.Inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
@@ -989,18 +986,18 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::update_top_lev
 
     as_create_info.Inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
     as_create_info.Inputs.InstanceDescs
-        = _globals.pool_resources->getBufferInfo(tlas_update.source_instances_addr.buffer).gpu_va + tlas_update.source_instances_addr.offset_bytes;
+        = _context->pool_resources->getBufferInfo(tlas_update.source_instances_addr.buffer).gpu_va + tlas_update.source_instances_addr.offset_bytes;
 
     as_create_info.DestAccelerationStructureData = dest_node.buffer_as_va;
 
     if (tlas_update.scratch.is_valid())
     {
-        as_create_info.ScratchAccelerationStructureData = _globals.pool_resources->getBufferInfo(tlas_update.scratch).gpu_va;
+        as_create_info.ScratchAccelerationStructureData = _context->pool_resources->getBufferInfo(tlas_update.scratch).gpu_va;
     }
     else
     {
         CC_ASSERT(dest_node.buffer_scratch.is_valid() && "updates to acceleration structures created with no_internal_scratch_buffer require the scratch buffer field");
-        as_create_info.ScratchAccelerationStructureData = _globals.pool_resources->getBufferInfo(dest_node.buffer_scratch).gpu_va;
+        as_create_info.ScratchAccelerationStructureData = _context->pool_resources->getBufferInfo(dest_node.buffer_scratch).gpu_va;
     }
 
     _cmd_list->BuildRaytracingAccelerationStructure(&as_create_info, 0, nullptr);
@@ -1009,18 +1006,18 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::update_top_lev
     //    _cmd_list->ResourceBarrier(1, &uav_barrier);
 }
 
-void phi::d3d12::command_list_translator::execute(const cmd::dispatch_rays& dispatch_rays)
+void phi::d3d12::CommandListTranslator::execute(const cmd::dispatch_rays& dispatch_rays)
 {
     if (_bound.update_pso(dispatch_rays.pso))
     {
-        _cmd_list->SetPipelineState1(_globals.pool_pipeline_states->getRaytrace(dispatch_rays.pso).raw_state_object);
+        _cmd_list->SetPipelineState1(_context->pool_pipeline_states->getRaytrace(dispatch_rays.pso).raw_state_object);
     }
 
 
     D3D12_DISPATCH_RAYS_DESC desc = {};
 
     {
-        auto const table_va = _globals.pool_resources->getBufferInfo(dispatch_rays.table_ray_generation.buffer).gpu_va;
+        auto const table_va = _context->pool_resources->getBufferInfo(dispatch_rays.table_ray_generation.buffer).gpu_va;
 
         desc.RayGenerationShaderRecord.StartAddress = table_va + dispatch_rays.table_ray_generation.offset_bytes;
         desc.RayGenerationShaderRecord.SizeInBytes = dispatch_rays.table_ray_generation.size_bytes;
@@ -1034,7 +1031,7 @@ void phi::d3d12::command_list_translator::execute(const cmd::dispatch_rays& disp
         if (!in_range.buffer.is_valid())
             return;
 
-        auto const buffer_va = _globals.pool_resources->getBufferInfo(in_range.buffer).gpu_va;
+        auto const buffer_va = _context->pool_resources->getBufferInfo(in_range.buffer).gpu_va;
 
         out_range.StartAddress = buffer_va + in_range.offset_bytes;
         out_range.SizeInBytes = in_range.size_bytes;
@@ -1056,15 +1053,15 @@ void phi::d3d12::command_list_translator::execute(const cmd::dispatch_rays& disp
     _cmd_list->DispatchRays(&desc);
 }
 
-void phi::d3d12::command_list_translator::execute(const phi::cmd::clear_textures& clear_tex)
+void phi::d3d12::CommandListTranslator::execute(const phi::cmd::clear_textures& clear_tex)
 {
-    resource_view_cpu_only const dynamic_rtvs = _thread_local.lin_alloc_rtvs.allocate(clear_tex.clear_ops.size());
-    resource_view_cpu_only const dynamic_dsvs = _thread_local.lin_alloc_dsvs.allocate(clear_tex.clear_ops.size());
+    resource_view_cpu_only const dynamic_rtvs = _thread_local->lin_alloc_rtvs.allocate(clear_tex.clear_ops.size());
+    resource_view_cpu_only const dynamic_dsvs = _thread_local->lin_alloc_dsvs.allocate(clear_tex.clear_ops.size());
 
     for (uint8_t i = 0u; i < clear_tex.clear_ops.size(); ++i)
     {
         auto const& op = clear_tex.clear_ops[i];
-        auto* const resource = _globals.pool_resources->getRawResource(op.rv.resource);
+        auto* const resource = _context->pool_resources->getRawResource(op.rv.resource);
 
         if (phi::util::is_depth_format(op.rv.texture_info.pixel_format))
         {
@@ -1072,7 +1069,7 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::clear_textures
 
             // create the DSV on the fly
             auto const dsv_desc = util::create_dsv_desc(op.rv);
-            _globals.device->CreateDepthStencilView(resource, &dsv_desc, dsv);
+            _context->device->CreateDepthStencilView(resource, &dsv_desc, dsv);
 
             _cmd_list->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, op.value.red_or_depth / 255.f,
                                              op.value.green_or_stencil, 0, nullptr);
@@ -1082,16 +1079,16 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::clear_textures
             auto const rtv = dynamic_rtvs.get_index(i);
 
             // create the RTV on the fly
-            if (_globals.pool_resources->isBackbuffer(op.rv.resource))
+            if (_context->pool_resources->isBackbuffer(op.rv.resource))
             {
                 // Create a default RTV for the backbuffer
-                _globals.device->CreateRenderTargetView(resource, nullptr, rtv);
+                _context->device->CreateRenderTargetView(resource, nullptr, rtv);
             }
             else
             {
                 // Create an RTV based on the supplied info
                 auto const rtv_desc = util::create_rtv_desc(op.rv);
-                _globals.device->CreateRenderTargetView(resource, &rtv_desc, rtv);
+                _context->device->CreateRenderTargetView(resource, &rtv_desc, rtv);
             }
 
             float color_value[4] = {op.value.red_or_depth / 255.f, op.value.green_or_stencil / 255.f, op.value.blue / 255.f, op.value.alpha / 255.f};
@@ -1099,23 +1096,23 @@ void phi::d3d12::command_list_translator::execute(const phi::cmd::clear_textures
         }
     }
 
-    _thread_local.lin_alloc_rtvs.reset();
-    _thread_local.lin_alloc_dsvs.reset();
+    _thread_local->lin_alloc_rtvs.reset();
+    _thread_local->lin_alloc_dsvs.reset();
 }
 
-void phi::d3d12::command_list_translator::execute(cmd::code_location_marker const& marker)
+void phi::d3d12::CommandListTranslator::execute(cmd::code_location_marker const& marker)
 {
     _last_code_location.file = marker.file;
     _last_code_location.function = marker.function;
     _last_code_location.line = marker.line;
 }
 
-void phi::d3d12::command_list_translator::execute(cmd::set_global_profile_scope const&)
+void phi::d3d12::CommandListTranslator::execute(cmd::set_global_profile_scope const&)
 {
     // do nothing
 }
 
-void phi::d3d12::command_list_translator::bind_vertex_buffers(handle::resource const vertex_buffers[limits::max_vertex_buffers])
+void phi::d3d12::CommandListTranslator::bind_vertex_buffers(handle::resource const vertex_buffers[limits::max_vertex_buffers])
 {
     uint64_t const vert_hash = phi::util::sse_hash_type<handle::resource>(vertex_buffers, limits::max_vertex_buffers);
     if (vert_hash != _bound.vertex_buffer_hash)
@@ -1131,7 +1128,7 @@ void phi::d3d12::command_list_translator::bind_vertex_buffers(handle::resource c
                 if (!vertex_buffers[i].is_valid())
                     break;
 
-                vbvs[i] = _globals.pool_resources->getVertexBufferView(vertex_buffers[i]);
+                vbvs[i] = _context->pool_resources->getVertexBufferView(vertex_buffers[i]);
                 ++numVertexBuffers;
             }
 
@@ -1140,13 +1137,13 @@ void phi::d3d12::command_list_translator::bind_vertex_buffers(handle::resource c
     }
 }
 
-void phi::d3d12::translator_thread_local_memory::initialize(ID3D12Device& device)
+void phi::d3d12::TranslatorLocals::initialize(ID3D12Device& device)
 {
     lin_alloc_rtvs.initialize(device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, limits::max_render_targets);
     lin_alloc_dsvs.initialize(device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, limits::max_render_targets);
 }
 
-void phi::d3d12::translator_thread_local_memory::destroy()
+void phi::d3d12::TranslatorLocals::destroy()
 {
     lin_alloc_rtvs.destroy();
     lin_alloc_dsvs.destroy();

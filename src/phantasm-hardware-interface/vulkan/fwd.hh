@@ -18,6 +18,6 @@ class CommandListPool;
 class AccelStructPool;
 class QueryPool;
 
-struct command_list_translator;
+struct CommandListTranslator;
 struct vk_incomplete_state_cache;
 }

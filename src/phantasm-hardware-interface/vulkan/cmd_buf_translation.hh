@@ -24,7 +24,7 @@ class CommandListPool;
 class AccelStructPool;
 class QueryPool;
 
-struct translator_global_memory
+struct TranslatorContext
 {
     void initialize(VkDevice device,
                     ShaderViewPool* sv_pool,
@@ -54,11 +54,11 @@ struct translator_global_memory
     AccelStructPool* pool_accel_structs = nullptr;
     bool has_raytracing = false;
 
-    translator_global_memory() = default;
+    TranslatorContext() = default;
 };
 
 /// responsible for filling command lists, 1 per thread
-struct command_list_translator
+struct CommandListTranslator
 {
     void initialize(VkDevice device,
                     ShaderViewPool* sv_pool,
@@ -69,7 +69,7 @@ struct command_list_translator
                     AccelStructPool* as_pool,
                     bool has_rt)
     {
-        _globals.initialize(device, sv_pool, resource_pool, pso_pool, cmd_pool, query_pool, as_pool, has_rt);
+        _context.initialize(device, sv_pool, resource_pool, pso_pool, cmd_pool, query_pool, as_pool, has_rt);
     }
 
     void destroy() {}
@@ -144,7 +144,7 @@ private:
 
 private:
     // non-owning constant (global)
-    translator_global_memory _globals;
+    TranslatorContext _context;
 
     // non-owning dynamic
     vk_incomplete_state_cache* _state_cache = nullptr;
