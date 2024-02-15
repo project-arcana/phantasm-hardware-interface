@@ -19,22 +19,21 @@
 
 namespace phi::d3d12
 {
-/// A page allocator for variable-sized, GPU-visible descriptors
-/// Currently unused, but planned to be the main descriptor allocator used throughout the application
-///
-/// Descriptors are only used for shader arguments, and play two roles there:
-///     - Single CBV root descriptor
-///         This one should ideally come from a different, freelist allocator since by nature its always of size 1
-///     - Shader view
-///          n contiguous SRVs and m contiguous UAVs
-///         This allocator is intended for this scenario
-///         We likely do not want to keep additional descriptors around,
-///         Just allocate here once and directly device.make... the descriptors in-place
-///         As both are the same type, we just need a single of these allocators
-///
-/// We might have to add defragmentation at some point, which would probably require an additional indirection
-/// Lookup and free is O(1), allocate is O(#pages), but still fast and skipping blocks
-/// Unsynchronized
+// A page allocator for variable-sized descriptors
+//
+// Descriptors are used for shader arguments, and play two roles there:
+//     - Single CBV root descriptor
+//         This one should ideally come from a different, freelist allocator since by nature its always of size 1
+//     - Shader view
+//          n contiguous SRVs and m contiguous UAVs
+//         This allocator is intended for this scenario
+//         We likely do not want to keep additional descriptors around,
+//         Just allocate here once and directly device.make... the descriptors in-place
+//         As both are the same type, we just need a single of these allocators
+//
+// We might have to add defragmentation at some point, which would probably require an additional indirection
+// Lookup and free is O(1), allocate is O(#pages), but still fast and skipping blocks
+// Unsynchronized
 class DescriptorPageAllocator
 {
 public:
@@ -71,6 +70,7 @@ public:
     D3D12_GPU_DESCRIPTOR_HANDLE getGPUStart(handle_t handle) const
     {
         CC_ASSERT(handle != -1);
+        CC_ASSERT(mHeapStartGPU.ptr != 0 && "Attempted to GPU access a heap which is not GPU-visible");
 
         // index = page index * page size
         auto const index = handle * mPageAllocator.get_page_size();
