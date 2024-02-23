@@ -63,7 +63,7 @@ phi::util::texture_subresource_sizes phi::util::get_texture_subresource_sizes(ph
 
     uint32_t const rowLength = cc::max(1u, uint32_t(width) >> mip_idx);
 
-    texture_subresource_sizes res;
+    texture_subresource_sizes res = {};
     res.num_depths = cc::max(1u, uint32_t(depth) >> mip_idx);
     res.num_rows = cc::max(1u, uint32_t(height) >> mip_idx);
 
