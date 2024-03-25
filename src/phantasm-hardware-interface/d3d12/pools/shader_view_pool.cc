@@ -269,6 +269,29 @@ void phi::d3d12::ShaderViewPool::free(cc::span<const phi::handle::shader_view> s
     }
 }
 
+phi::allocated_descriptor_info phi::d3d12::ShaderViewPool::queryAllocatedNumDescriptors()
+{
+    allocated_descriptor_info res = {};
+
+    {
+        auto lg = std::lock_guard(mMutex);
+
+        res.num_srvs_uavs_allocated = mSRVUAVAllocator.getNumLiveDescriptors();
+        res.num_srvs_uavs_total = mSRVUAVAllocator.getMaxNumDescriptors();
+
+        res.num_samplers_allocated = mSamplerAllocator.getNumLiveDescriptors();
+        res.num_samplers_total = mSamplerAllocator.getMaxNumDescriptors();
+
+        res.num_staging_srvs_uavs_allocated = mStagingSRVUAVAllocator.getNumLiveDescriptors();
+        res.num_staging_srvs_uavs_total = mStagingSRVUAVAllocator.getMaxNumDescriptors();
+
+        res.num_staging_samplers_allocated = mStagingSamplerAllocator.getNumLiveDescriptors();
+        res.num_staging_samplers_total = mStagingSamplerAllocator.getMaxNumDescriptors();
+    }
+
+    return res;
+}
+
 void phi::d3d12::ShaderViewPool::initialize(ID3D12Device* device,
                                             phi::d3d12::ResourcePool* res_pool,
                                             phi::d3d12::AccelStructPool* as_pool,
@@ -282,11 +305,12 @@ void phi::d3d12::ShaderViewPool::initialize(ID3D12Device* device,
     mResourcePool = res_pool;
     mAccelStructPool = as_pool;
 
-    mSRVUAVAllocator.initialize(*device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, num_srvs_uavs, 8, static_alloc, true);
-    mSamplerAllocator.initialize(*device, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, num_samplers, 8, static_alloc, true);
+    // lower page sizes decreases fragmentation / waste in allocations at more CPU memory and alloc costs
+    mSRVUAVAllocator.initialize(*device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, num_srvs_uavs, 4, static_alloc, true);
+    mSamplerAllocator.initialize(*device, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, num_samplers, 2, static_alloc, true);
 
-    mStagingSRVUAVAllocator.initialize(*device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, num_srvs_uavs, 8, static_alloc, false);
-    mStagingSamplerAllocator.initialize(*device, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, num_samplers, 8, static_alloc, false);
+    mStagingSRVUAVAllocator.initialize(*device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, num_srvs_uavs, 4, static_alloc, false);
+    mStagingSamplerAllocator.initialize(*device, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, num_samplers, 2, static_alloc, false);
 
     mPool.initialize(num_shader_views, static_alloc);
 }

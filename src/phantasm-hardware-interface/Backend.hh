@@ -332,6 +332,8 @@ public:
 
     virtual gpu_info const& getGPUInfo() const = 0;
 
+    virtual allocated_descriptor_info getAllocatedDescriptorInfo() { return {}; }
+
     //
     // Non-virtual utility
     //

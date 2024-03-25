@@ -252,6 +252,8 @@ public:
 
     gpu_info const& getGPUInfo() const override { return mAdapter.getGPUInfo(); }
 
+    allocated_descriptor_info getAllocatedDescriptorInfo() override { return mPoolShaderViews.queryAllocatedNumDescriptors(); }
+
 public:
     // non virtual - d3d12 specific
 
