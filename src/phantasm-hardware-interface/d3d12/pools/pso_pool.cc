@@ -379,12 +379,12 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracin
         // 1 per shader library
         // 2 per argument association: local rootsig and subobject association
         // always: shader config + association, pipeline config, global empty rootsig
-        subobjects.reserve(library_descs.size() + arg_assocs.size() * 2 + hit_group_descs.size() + 4);
+        subobjects.reserve(library_descs.size() + cc::max<size_t>(1, arg_assocs.size() * 2) + hit_group_descs.size() + 4);
 
         for (auto i = 0u; i < library_descs.size(); ++i)
         {
             // subobject for library
-            auto& subobj = subobjects.emplace_back();
+            auto& subobj = subobjects.emplace_back_stable();
             subobj.Type = D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY;
             subobj.pDesc = &library_descs[i];
         }
@@ -392,7 +392,7 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracin
         for (auto i = 0u; i < arg_assocs.size(); ++i)
         {
             // subobject for local root signature
-            auto& subobj_rootsig = subobjects.emplace_back();
+            auto& subobj_rootsig = subobjects.emplace_back_stable();
             subobj_rootsig.Type = D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE;
             subobj_rootsig.pDesc = &new_node.associated_root_signatures[i]->raw_root_sig;
 
@@ -402,7 +402,7 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracin
                 rootsig_associations[i].pSubobjectToAssociate = &subobj_rootsig;
 
                 // subobject for association
-                auto& subobj_rootsig_assoc = subobjects.emplace_back();
+                auto& subobj_rootsig_assoc = subobjects.emplace_back_stable();
                 subobj_rootsig_assoc.Type = D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION;
                 subobj_rootsig_assoc.pDesc = &rootsig_associations[i];
             }
@@ -413,45 +413,47 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracin
             // we need at least one according to spec
             // ref: https://developer.nvidia.com/rtx/raytracing/dxr/dx12-raytracing-tutorial/dxr_tutorial_helpers
             //      (6., last paragraph)
-            auto& subobj_rootsig = subobjects.emplace_back();
+            auto& subobj_rootsig = subobjects.emplace_back_stable();
             subobj_rootsig.Type = D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE;
             subobj_rootsig.pDesc = &mEmptyLocalRaytraceRootSignature;
         }
 
         for (auto const& hit_desc : hit_group_descs)
         {
-            auto& subobj = subobjects.emplace_back();
+            auto& subobj = subobjects.emplace_back_stable();
             subobj.Type = D3D12_STATE_SUBOBJECT_TYPE_HIT_GROUP;
             subobj.pDesc = &hit_desc;
         }
 
         // shader config and association
         {
-            auto& subobj = subobjects.emplace_back();
+            auto& subobj = subobjects.emplace_back_stable();
             subobj.Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_SHADER_CONFIG;
             subobj.pDesc = &shader_config;
 
             shader_config_association.pSubobjectToAssociate = &subobj;
 
-            auto& subobj_association = subobjects.emplace_back();
+            auto& subobj_association = subobjects.emplace_back_stable();
             subobj_association.Type = D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION;
             subobj_association.pDesc = &shader_config_association;
         }
 
         // pipeline config
         {
-            auto& subobj = subobjects.emplace_back();
+            auto& subobj = subobjects.emplace_back_stable();
             subobj.Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG;
             subobj.pDesc = &pipeline_config;
         }
 
         // empty global rootsig
         {
-            auto& subobj = subobjects.emplace_back();
+            auto& subobj = subobjects.emplace_back_stable();
             subobj.Type = D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE;
             subobj.pDesc = &global_root_sig;
         }
     }
+
+    CC_ASSERT(rootsig_associations.size() == arg_assocs.size() && "unexpected");
 
     D3D12_STATE_OBJECT_DESC state_obj = {};
     state_obj.Type = D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE;
