@@ -658,6 +658,9 @@ void phi::vk::BackendVulkan::free(phi::handle::accel_struct as)
 
 void phi::vk::BackendVulkan::freeRange(cc::span<const phi::handle::accel_struct> as)
 {
+    if (as.empty())
+        return;
+
     CC_ASSERT(isRaytracingEnabled() && "raytracing is not enabled");
     mPoolAccelStructs.free(as);
 }

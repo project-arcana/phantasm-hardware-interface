@@ -641,6 +641,9 @@ void phi::d3d12::BackendD3D12::free(phi::handle::accel_struct as)
 
 void phi::d3d12::BackendD3D12::freeRange(cc::span<const phi::handle::accel_struct> as)
 {
+    if (as.empty())
+        return;
+
     CC_ASSERT(isRaytracingEnabled() && "raytracing is not enabled");
     mPoolAccelStructs.free(as);
 }
