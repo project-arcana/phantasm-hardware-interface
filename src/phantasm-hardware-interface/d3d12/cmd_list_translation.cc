@@ -47,6 +47,18 @@ Optick::GPUQueueType phiQueueTypeToOptickD3D12(phi::queue_type type)
 #endif
 } // namespace
 
+void phi::d3d12::translator_global_memory::initialize(
+    ID3D12Device* device, ShaderViewPool* sv_pool, ResourcePool* resource_pool, PipelineStateObjectPool* pso_pool, AccelStructPool* as_pool, QueryPool* query_pool)
+{
+    CC_ASSERT(device && sv_pool && resource_pool && pso_pool && as_pool && query_pool);
+    this->device = device;
+    this->pool_shader_views = sv_pool;
+    this->pool_resources = resource_pool;
+    this->pool_pipeline_states = pso_pool;
+    this->pool_accel_structs = as_pool;
+    this->pool_queries = query_pool;
+}
+
 void phi::d3d12::command_list_translator::initialize(
     ID3D12Device* device, ShaderViewPool* sv_pool, ResourcePool* resource_pool, PipelineStateObjectPool* pso_pool, AccelStructPool* as_pool, QueryPool* query_pool)
 {
