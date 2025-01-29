@@ -168,7 +168,7 @@ enum class resource_heap : uint8_t
 };
 
 // pixel format of a texture, or texture view (DXGI_FORMAT / VkFormat)
-// [f]loat, [i]nt, [u]int, [un]orm, [uf]loat, [t]ypeless
+// [f]loat, [i]nt, [u]int, [un]orm, [sn]orm, [uf]loat, [t]ypeless
 enum class format : uint8_t
 {
     none = 0,
@@ -205,6 +205,10 @@ enum class format : uint8_t
     rg16un,
     r16un,
 
+    rgba16sn,
+    rg16sn,
+    r16sn,
+
     rgba8i,
     rg8i,
     r8i,
@@ -216,6 +220,10 @@ enum class format : uint8_t
     rgba8un,
     rg8un,
     r8un,
+
+    rgba8sn,
+    rg8sn,
+    r8sn,
 
     // sRGB versions of regular formats
     rgba8un_srgb,

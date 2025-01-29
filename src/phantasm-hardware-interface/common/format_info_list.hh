@@ -42,6 +42,9 @@ enum format_property_flags_e
     X(rgba16un, 4, 8, efp_none, DXGI_FORMAT_R16G16B16A16_UNORM, VK_FORMAT_R16G16B16A16_UNORM, 0x00)                          \
     X(rg16un, 2, 4, efp_none, DXGI_FORMAT_R16G16_UNORM, VK_FORMAT_R16G16_UNORM, 0x00)                                        \
     X(r16un, 1, 2, efp_none, DXGI_FORMAT_R16_UNORM, VK_FORMAT_R16_UNORM, 0x00)                                               \
+    X(rgba16sn, 4, 8, efp_none, DXGI_FORMAT_R16G16B16A16_SNORM, VK_FORMAT_R16G16B16A16_SNORM, 0x00)                          \
+    X(rg16sn, 2, 4, efp_none, DXGI_FORMAT_R16G16_SNORM, VK_FORMAT_R16G16_SNORM, 0x00)                                        \
+    X(r16sn, 1, 2, efp_none, DXGI_FORMAT_R16_SNORM, VK_FORMAT_R16_SNORM, 0x00)                                               \
     X(rgba8i, 4, 4, efp_is_int, DXGI_FORMAT_R8G8B8A8_SINT, VK_FORMAT_R8G8B8A8_SINT, 0x00)                                      \
     X(rg8i, 2, 2, efp_is_int, DXGI_FORMAT_R8G8_SINT, VK_FORMAT_R8G8_SINT, 0x00)                                                \
     X(r8i, 1, 1, efp_is_int, DXGI_FORMAT_R8_SINT, VK_FORMAT_R8_SINT, 0x00)                                                     \
@@ -51,6 +54,9 @@ enum format_property_flags_e
     X(rgba8un, 4, 4, efp_none, DXGI_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_R8G8B8A8_UNORM, 0x00)                                   \
     X(rg8un, 2, 2, efp_none, DXGI_FORMAT_R8G8_UNORM, VK_FORMAT_R8G8_UNORM, 0x00)                                             \
     X(r8un, 1, 1, efp_none, DXGI_FORMAT_R8_UNORM, VK_FORMAT_R8_UNORM, 0x00)                                                  \
+    X(rgba8sn, 4, 4, efp_none, DXGI_FORMAT_R8G8B8A8_SNORM, VK_FORMAT_R8G8B8A8_SNORM, 0x00)                                   \
+    X(rg8sn, 2, 2, efp_none, DXGI_FORMAT_R8G8_SNORM, VK_FORMAT_R8G8_SNORM, 0x00)                                             \
+    X(r8sn, 1, 1, efp_none, DXGI_FORMAT_R8_SNORM, VK_FORMAT_R8_SNORM, 0x00)                                                  \
     X(rgba8un_srgb, 4, 4, efp_is_srgb, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, VK_FORMAT_R8G8B8A8_SRGB, 0x00)                       \
     X(bgra8un, 4, 4, efp_none, DXGI_FORMAT_B8G8R8A8_UNORM, VK_FORMAT_B8G8R8A8_UNORM, 0x00)                                   \
     X(bgra4un, 4, 2, efp_none, DXGI_FORMAT_B4G4R4A4_UNORM, VK_FORMAT_B4G4R4A4_UNORM_PACK16, 0x00)                            \
