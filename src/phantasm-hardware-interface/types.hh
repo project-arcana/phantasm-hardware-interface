@@ -781,7 +781,7 @@ struct resource_usage_flags
 
 struct accel_struct_prebuild_info
 {
-    // the size in bytes of the backing buffers
+    // the size in bytes of the backing buffer
     uint32_t buffer_size_bytes = 0;
 
     // the required scratch buffer size for the initial build

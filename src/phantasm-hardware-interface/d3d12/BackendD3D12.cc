@@ -624,7 +624,15 @@ phi::handle::accel_struct phi::d3d12::BackendD3D12::createBottomLevelAccelStruct
     return res;
 }
 
+phi::accel_struct_prebuild_info phi::d3d12::BackendD3D12::computeBottomLevelAccelStructInfo(cc::span<arg::blas_element const> elements, accel_struct_build_flags_t flags)
+{
+    CC_ASSERT(isRaytracingEnabled() && "raytracing is not enabled");
+    return mPoolAccelStructs.computeBottomLevelASPrebuildInfo(elements, flags, getCurrentScratchAlloc());
+}
+
 uint64_t phi::d3d12::BackendD3D12::getAccelStructNativeHandle(phi::handle::accel_struct as) { return mPoolAccelStructs.getNode(as).buffer_as_va; }
+
+uint64_t phi::d3d12::BackendD3D12::getAccelStructNativeHandleForBuffer(buffer_address addr) { return mPoolResources.getBufferAddrVA(addr); }
 
 phi::shader_table_strides phi::d3d12::BackendD3D12::calculateShaderTableStrides(arg::shader_table_record const& ray_gen_record,
                                                                                 arg::shader_table_records miss_records,
@@ -767,6 +775,11 @@ void phi::d3d12::BackendD3D12::cmdEndDebugLabel(handle::live_command_list list, 
 }
 
 void phi::d3d12::BackendD3D12::cmdUpdateBottomLevel(handle::live_command_list list, cmd::update_bottom_level const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::d3d12::BackendD3D12::cmdUpdateBottomLevelInBuffer(handle::live_command_list list, cmd::update_bottom_level_in_buffer const& command)
 {
     mPoolTranslators.getTranslator(list)->execute(command);
 }

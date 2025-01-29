@@ -21,52 +21,9 @@ phi::handle::accel_struct phi::d3d12::AccelStructPool::createBottomLevelAS(cc::s
     accel_struct_node& new_node = acquireAccelStruct(res_handle);
     new_node.reset(mDynamicAllocator, unsigned(elements.size()));
     new_node.flags = flags;
+    new_node.geometries.resize(elements.size());
 
-    // build the D3D12_RAYTRACING_GEOMETRY_DESCs from the vertex/index buffer pairs
-    for (auto const& elem : elements)
-    {
-        auto const& vert_info = mResourcePool->getBufferInfo(elem.vertex_addr.buffer);
-
-        D3D12_RAYTRACING_GEOMETRY_DESC& egeom = new_node.geometries.emplace_back();
-        egeom = {};
-        egeom.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
-        egeom.Triangles.Transform3x4 = 0;
-        egeom.Triangles.VertexBuffer.StartAddress = mResourcePool->getBufferAddrVA(elem.vertex_addr);
-        egeom.Triangles.VertexBuffer.StrideInBytes = elem.vertex_stride_bytes > 0 ? elem.vertex_stride_bytes : vert_info.stride;
-        CC_ASSERT(egeom.Triangles.VertexBuffer.StrideInBytes != 0 && "Vertex stride must either be specified or sourced from the buffer stride");
-        egeom.Triangles.VertexCount = elem.num_vertices;
-        egeom.Triangles.VertexFormat = util::to_dxgi_format(elem.vertex_pos_format);
-
-
-        if (elem.index_addr.buffer.is_valid())
-        {
-            egeom.Triangles.IndexBuffer = mResourcePool->getBufferAddrVA(elem.index_addr);
-            egeom.Triangles.IndexCount = elem.num_indices;
-            egeom.Triangles.IndexFormat = util::to_dxgi_format(elem.index_format);
-        }
-        else
-        {
-            egeom.Triangles.IndexBuffer = 0;
-            egeom.Triangles.IndexCount = 0;
-            egeom.Triangles.IndexFormat = DXGI_FORMAT_UNKNOWN;
-        }
-
-        if (elem.transform_addr.buffer.is_valid())
-        {
-            CC_ASSERT(mResourcePool->isBufferAccessInBounds(elem.transform_addr, sizeof(float[3 * 4])) && "BLAS element transform address OOB");
-
-            egeom.Triangles.Transform3x4 = mResourcePool->getBufferAddrVA(elem.transform_addr);
-
-            CC_ASSERT(phi::util::is_aligned(egeom.Triangles.Transform3x4, D3D12_RAYTRACING_TRANSFORM3X4_BYTE_ALIGNMENT)
-                      && "BLAS elem transform address must be aligned to 16B");
-        }
-        else
-        {
-            egeom.Triangles.Transform3x4 = 0;
-        }
-
-        egeom.Flags = elem.is_opaque ? D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE : D3D12_RAYTRACING_GEOMETRY_FLAG_NONE;
-    }
+    translateBLASGeometries(new_node.geometries, elements);
 
     // Assemble the bottom level AS object
     D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS as_input_info = {};
@@ -158,6 +115,86 @@ phi::handle::accel_struct phi::d3d12::AccelStructPool::createTopLevelAS(unsigned
     }
 
     return res_handle;
+}
+
+void phi::d3d12::AccelStructPool::translateBLASGeometries(cc::span<D3D12_RAYTRACING_GEOMETRY_DESC> spDest, cc::span<arg::blas_element const> spSource) const
+{
+    CC_ASSERT(spDest.size() == spSource.size());
+
+    // build the D3D12_RAYTRACING_GEOMETRY_DESCs from the vertex/index buffer pairs
+    for (uint32_t i = 0; i < spDest.size(); ++i)
+    {
+        arg::blas_element const& elem = spSource[i];
+        D3D12_RAYTRACING_GEOMETRY_DESC& egeom = spDest[i];
+
+        auto const& vert_info = mResourcePool->getBufferInfo(elem.vertex_addr.buffer);
+
+        egeom = {};
+        egeom.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
+        egeom.Triangles.Transform3x4 = 0;
+        egeom.Triangles.VertexBuffer.StartAddress = mResourcePool->getBufferAddrVA(elem.vertex_addr);
+        egeom.Triangles.VertexBuffer.StrideInBytes = elem.vertex_stride_bytes > 0 ? elem.vertex_stride_bytes : vert_info.stride;
+        CC_ASSERT(egeom.Triangles.VertexBuffer.StrideInBytes != 0 && "Vertex stride must either be specified or sourced from the buffer stride");
+        egeom.Triangles.VertexCount = elem.num_vertices;
+        egeom.Triangles.VertexFormat = util::to_dxgi_format(elem.vertex_pos_format);
+
+
+        if (elem.index_addr.buffer.is_valid())
+        {
+            egeom.Triangles.IndexBuffer = mResourcePool->getBufferAddrVA(elem.index_addr);
+            egeom.Triangles.IndexCount = elem.num_indices;
+            egeom.Triangles.IndexFormat = util::to_dxgi_format(elem.index_format);
+        }
+        else
+        {
+            egeom.Triangles.IndexBuffer = 0;
+            egeom.Triangles.IndexCount = 0;
+            egeom.Triangles.IndexFormat = DXGI_FORMAT_UNKNOWN;
+        }
+
+        if (elem.transform_addr.buffer.is_valid())
+        {
+            CC_ASSERT(mResourcePool->isBufferAccessInBounds(elem.transform_addr, sizeof(float[3 * 4])) && "BLAS element transform address OOB");
+
+            egeom.Triangles.Transform3x4 = mResourcePool->getBufferAddrVA(elem.transform_addr);
+
+            CC_ASSERT(phi::util::is_aligned(egeom.Triangles.Transform3x4, D3D12_RAYTRACING_TRANSFORM3X4_BYTE_ALIGNMENT)
+                      && "BLAS elem transform address must be aligned to 16B");
+        }
+        else
+        {
+            egeom.Triangles.Transform3x4 = 0;
+        }
+
+        egeom.Flags = elem.is_opaque ? D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE : D3D12_RAYTRACING_GEOMETRY_FLAG_NONE;
+    }
+}
+
+phi::accel_struct_prebuild_info phi::d3d12::AccelStructPool::computeBottomLevelASPrebuildInfo(cc::span<arg::blas_element const> spElements,
+                                                                                              accel_struct_build_flags_t flags,
+                                                                                              cc::allocator* pScratch) const
+{
+    auto NativeGeometries = cc::alloc_array<D3D12_RAYTRACING_GEOMETRY_DESC>(spElements.size(), pScratch);
+    translateBLASGeometries(NativeGeometries, spElements);
+
+    // Assemble the bottom level AS object
+    D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS as_input_info = {};
+    as_input_info.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
+    as_input_info.Flags = util::to_native_accel_struct_build_flags(flags);
+    as_input_info.NumDescs = UINT(NativeGeometries.size());
+    as_input_info.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+    as_input_info.pGeometryDescs = NativeGeometries.data();
+
+    // Query sizes for scratch and result buffers
+    D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuild_info = {};
+    mDevice->GetRaytracingAccelerationStructurePrebuildInfo(&as_input_info, &prebuild_info);
+    CC_ASSERT(prebuild_info.ResultDataMaxSizeInBytes > 0);
+
+    accel_struct_prebuild_info Res = {};
+    Res.buffer_size_bytes = (uint32_t)prebuild_info.ResultDataMaxSizeInBytes;
+    Res.required_build_scratch_size_bytes = (uint32_t)prebuild_info.ScratchDataSizeInBytes;
+    Res.required_update_scratch_size_bytes = (uint32_t)prebuild_info.UpdateScratchDataSizeInBytes;
+    return Res;
 }
 
 void phi::d3d12::AccelStructPool::free(phi::handle::accel_struct as)

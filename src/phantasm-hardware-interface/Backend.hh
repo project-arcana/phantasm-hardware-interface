@@ -228,6 +228,12 @@ public:
                                                                             accel_struct_prebuild_info* out_prebuild_info = nullptr)
         = 0;
 
+    /// compute requirements for the buffer for a bottom level acceleration (BLAS) holding geometry elements
+    /// this is an advanced alternative to the simpler createBottomLevelAccelStruct.
+    /// See also: getAccelStructNativeHandleForBuffer and cmd::update_bottom_level_in_buffer
+    [[nodiscard]] virtual accel_struct_prebuild_info computeBottomLevelAccelStructInfo(cc::span<arg::blas_element const> elements, accel_struct_build_flags_t flags)
+        = 0;
+
     /// create a top level acceleration structure (TLAS) holding BLAS instances
     [[nodiscard]] virtual handle::accel_struct createTopLevelAccelStruct(uint32_t num_instances,
                                                                          accel_struct_build_flags_t flags,
@@ -236,6 +242,10 @@ public:
 
     /// receive the native acceleration struct handle to be written to accel_struct_instance::native_bottom_level_as_handle
     [[nodiscard]] virtual uint64_t getAccelStructNativeHandle(handle::accel_struct as) = 0;
+
+    /// receive the native acceleration struct handle to be written to accel_struct_instance::native_bottom_level_as_handle
+    /// for a BLAS embedded in a user-managed buffer (see computeBottomLevelAccelStructInfo)
+    [[nodiscard]] virtual uint64_t getAccelStructNativeHandleForBuffer(buffer_address addr) = 0;
 
     /// calculate the buffer sizes and strides to accomodate the given shader table records
     [[nodiscard]] virtual shader_table_strides calculateShaderTableStrides(arg::shader_table_record const& ray_gen_record,
@@ -288,6 +298,7 @@ public:
     virtual void cmdBeginDebugLabel(handle::live_command_list list, cmd::begin_debug_label const& command) = 0;
     virtual void cmdEndDebugLabel(handle::live_command_list list, cmd::end_debug_label const& command) = 0;
     virtual void cmdUpdateBottomLevel(handle::live_command_list list, cmd::update_bottom_level const& command) = 0;
+    virtual void cmdUpdateBottomLevelInBuffer(handle::live_command_list list, cmd::update_bottom_level_in_buffer const& command) = 0;
     virtual void cmdUpdateTopLevel(handle::live_command_list list, cmd::update_top_level const& command) = 0;
     virtual void cmdDispatchRays(handle::live_command_list list, cmd::dispatch_rays const& command) = 0;
     virtual void cmdClearTextures(handle::live_command_list list, cmd::clear_textures const& command) = 0;

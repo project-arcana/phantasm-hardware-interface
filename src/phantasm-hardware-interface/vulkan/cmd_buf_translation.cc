@@ -43,10 +43,10 @@ Optick::GPUQueueType phiQueueTypeToOptickVk(phi::queue_type type)
 } // namespace
 
 void phi::vk::CommandListTranslator::beginTranslation(VkCommandBuffer list,
-                                                        handle::command_list list_handle,
-                                                        queue_type queue,
-                                                        vk_incomplete_state_cache* state_cache,
-                                                        const cmd::set_global_profile_scope* pOptGlobalProfileScope)
+                                                      handle::command_list list_handle,
+                                                      queue_type queue,
+                                                      vk_incomplete_state_cache* state_cache,
+                                                      const cmd::set_global_profile_scope* pOptGlobalProfileScope)
 {
     _cmd_list = list;
     _cmd_list_handle = list_handle;
@@ -819,6 +819,37 @@ void phi::vk::CommandListTranslator::execute(const phi::cmd::update_bottom_level
                          1, &mem_barrier, 0, nullptr, 0, nullptr);
 }
 
+
+void phi::vk::CommandListTranslator::execute(cmd::update_bottom_level_in_buffer const& blas_update)
+{
+#if 0
+    auto& dest_node = _context.pool_accel_structs->getNode(blas_update.dest);
+    auto const src = blas_update.source.is_valid() ? _context.pool_accel_structs->getNode(blas_update.source).raw_as : nullptr;
+    auto const dest_scratch = _context.pool_resources->getRawBuffer(dest_node.buffer_scratch);
+
+    VkAccelerationStructureInfoNV build_info = {};
+    build_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_INFO_NV;
+    build_info.pNext = nullptr;
+    build_info.flags = util::to_native_accel_struct_build_flags(blas_update.build_flags);
+    build_info.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_NV;
+    build_info.geometryCount = uint32_t(blas_update.geometry_elements.size());
+    build_info.pGeometries = blas_update.geometry_elements.empty() ? nullptr : blas_update.geometry_elements.data();
+    build_info.instanceCount = 0;
+
+    vkCmdBuildAccelerationStructureNV(_cmd_list, &build_info, nullptr, 0, (src == nullptr) ? VK_FALSE : VK_TRUE, dest_node.raw_as, src, dest_scratch, 0);
+
+    VkMemoryBarrier mem_barrier = {};
+    mem_barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+    mem_barrier.srcAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_NV | VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_NV;
+    mem_barrier.dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_NV | VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_NV;
+
+    vkCmdPipelineBarrier(_cmd_list, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_NV, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_NV, 0,
+                         1, &mem_barrier, 0, nullptr, 0, nullptr);
+#else
+    CC_ASSERT(false && "cmd::update_bottom_level_in_buffer unimplemented");
+#endif
+}
+
 void phi::vk::CommandListTranslator::execute(const phi::cmd::update_top_level& tlas_update)
 {
     auto& dest_node = _context.pool_accel_structs->getNode(tlas_update.dest_accel_struct);
@@ -942,9 +973,9 @@ void phi::vk::CommandListTranslator::bind_vertex_buffers(handle::resource const 
 }
 
 bool phi::vk::CommandListTranslator::bind_shader_arguments(phi::handle::pipeline_state pso,
-                                                             const std::byte* root_consts,
-                                                             cc::span<const phi::shader_argument> shader_args,
-                                                             VkPipelineBindPoint bind_point)
+                                                           const std::byte* root_consts,
+                                                           cc::span<const phi::shader_argument> shader_args,
+                                                           VkPipelineBindPoint bind_point)
 {
     auto const& pso_node = _context.pool_pipeline_states->get(pso);
     pipeline_layout const& pipeline_layout = *pso_node.associated_pipeline_layout;

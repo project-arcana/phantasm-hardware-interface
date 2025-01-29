@@ -7,6 +7,7 @@
 
 #include <phantasm-hardware-interface/common/command_base.hh>
 #include <phantasm-hardware-interface/common/container/flat_vector.hh>
+#include <phantasm-hardware-interface/fwd.hh>
 #include <phantasm-hardware-interface/limits.hh>
 #include <phantasm-hardware-interface/types.hh>
 
@@ -610,6 +611,34 @@ PHI_DEFINE_CMD(update_bottom_level)
     // a scratch buffer, required if dest was created with the no_internal_scratch_buffer flag
     // must be in UAV state and have sufficient size (see optional outs of createBottomLevelAccelStruct)
     handle::resource scratch = handle::null_resource;
+};
+
+PHI_DEFINE_CMD(update_bottom_level_in_buffer)
+{
+    // Update or build a bottom level raytracing acceleration structure (BLAS) in an arbitrary buffer
+
+    // the bottom level accel struct to build
+    // must have sufficient size for the given geometry elements (see computeBottomLevelAccelStructInfo)
+    // must have been created with is_bottom_level_accel_struct (see buffer_description)
+    buffer_address dest_buffer = {};
+
+    // the geometry elements to build the BLAS from
+    // these must stay alive until the command is executed on CPU - prefer live command lists
+    cc::span<arg::blas_element const> geometry_elements = {};
+
+    // flags of the build
+    // these must be identical for all subsequent updates or rebuilds of the destination BLAS
+    // Note: no_internal_scratch_buffer is ignored for this command
+    accel_struct_build_flags_t build_flags = {};
+
+    // the bottom level accel struct to update from (optional)
+    // if specified, dest_buffer must have been built with accel_struct_build_flags::allow_update
+    // can be the same as dest for an in-place update
+    buffer_address source_buffer = {};
+
+    // a scratch buffer, required
+    // must be in UAV state and have sufficient size (see computeBottomLevelAccelStructInfo)
+    buffer_address scratch = {};
 };
 
 PHI_DEFINE_CMD(update_top_level)

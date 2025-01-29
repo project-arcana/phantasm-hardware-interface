@@ -198,7 +198,14 @@ phi::handle::resource phi::d3d12::ResourcePool::createTexture(arg::texture_descr
 phi::handle::resource phi::d3d12::ResourcePool::createBuffer(arg::buffer_description const& description, const char* dbg_name)
 {
     CC_CONTRACT(description.size_bytes > 0);
-    D3D12_RESOURCE_STATES const initial_state = d3d12_get_initial_state_by_heap(description.heap);
+    D3D12_RESOURCE_STATES initial_state = d3d12_get_initial_state_by_heap(description.heap);
+    if (description.is_bottom_level_accel_struct)
+    {
+        CC_ASSERT(description.stride_bytes == 0 && "buffers created to hold BLAS must have stride zero");
+        CC_ASSERT(description.allow_uav && "buffers created to hold BLAS must allow UAV access");
+        CC_ASSERT(description.heap == resource_heap::gpu && "buffers created to hold BLAS must be on the GPU heap");
+        initial_state = D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE;
+    }
 
     auto desc = CD3DX12_RESOURCE_DESC::Buffer(description.size_bytes);
 

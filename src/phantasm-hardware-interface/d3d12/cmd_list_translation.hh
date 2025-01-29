@@ -90,6 +90,8 @@ struct CommandListTranslator
 
     void execute(cmd::update_bottom_level const& blas_update);
 
+    void execute(cmd::update_bottom_level_in_buffer const& blas_update);
+
     void execute(cmd::update_top_level const& tlas_update);
 
     void execute(cmd::dispatch_rays const& dispatch_rays);

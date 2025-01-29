@@ -268,12 +268,18 @@ public:
 
 struct buffer_description
 {
+    // size of the entire buffer in bytes
     uint32_t size_bytes = 0;
+    // stride of individual buffer elements in bytes, optional
     uint32_t stride_bytes = 0;
+    // whether to allow usage as a UAV
     bool allow_uav = false;
+    // the heap where this buffer is created
     resource_heap heap = resource_heap::none;
+    // whether this buffer is used (exclusively) to back one or multiple bottom level acceleration structures (BLAS)
+    // requires allow_uav, GPU heap, and zero stride
+    bool is_bottom_level_accel_struct = false;
     uint8_t _pad0 = 0;
-    uint8_t _pad1 = 0;
 
 public:
     static buffer_description create(uint32_t size_bytes, uint32_t stride_bytes, phi::resource_heap heap = phi::resource_heap::gpu, bool allow_uav = false)

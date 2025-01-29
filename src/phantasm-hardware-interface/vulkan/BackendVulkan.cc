@@ -640,7 +640,20 @@ phi::handle::accel_struct phi::vk::BackendVulkan::createBottomLevelAccelStruct(c
     return res;
 }
 
+phi::accel_struct_prebuild_info phi::vk::BackendVulkan::computeBottomLevelAccelStructInfo(cc::span<arg::blas_element const> elements, accel_struct_build_flags_t flags)
+{
+    CC_ASSERT(isRaytracingEnabled() && "raytracing is not enabled");
+    CC_ASSERT(false && "computeBottomLevelAccelStructInfo unimplemented");
+    return {};
+}
+
 uint64_t phi::vk::BackendVulkan::getAccelStructNativeHandle(phi::handle::accel_struct as)
+{
+    CC_ASSERT(false && "getAccelStructNativeHandle unimplemented");
+    return 0;
+}
+
+uint64_t phi::vk::BackendVulkan::getAccelStructNativeHandleForBuffer(buffer_address addr)
 {
     CC_ASSERT(false && "getAccelStructNativeHandle unimplemented");
     return 0;
@@ -792,6 +805,11 @@ void phi::vk::BackendVulkan::cmdEndDebugLabel(handle::live_command_list list, cm
 }
 
 void phi::vk::BackendVulkan::cmdUpdateBottomLevel(handle::live_command_list list, cmd::update_bottom_level const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::vk::BackendVulkan::cmdUpdateBottomLevelInBuffer(handle::live_command_list list, cmd::update_bottom_level_in_buffer const& command)
 {
     mPoolTranslators.getTranslator(list)->execute(command);
 }

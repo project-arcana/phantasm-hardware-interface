@@ -136,16 +136,26 @@ phi::handle::resource phi::vk::ResourcePool::createBuffer(arg::buffer_descriptio
     buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     buffer_info.size = desc.size_bytes;
 
-    // right now we'll just take all usages this thing might have in API semantics
-    // it might be required down the line to restrict this (as in, make it part of API)
-    buffer_info.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
-                        | VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT
-                        | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_RAY_TRACING_BIT_NV;
+    if (desc.is_bottom_level_accel_struct)
+    {
+        CC_ASSERT(desc.stride_bytes == 0 && "buffers created to hold BLAS must have stride zero");
+        CC_ASSERT(desc.allow_uav && "buffers created to hold BLAS must allow UAV access");
+        CC_ASSERT(desc.heap == resource_heap::gpu && "buffers created to hold BLAS must be on the GPU heap");
+        buffer_info.usage = VK_BUFFER_USAGE_RAY_TRACING_BIT_NV;
+    }
+    else
+    {
+        // right now we'll just take all usages this thing might have in API semantics
+        // it might be required down the line to restrict this (as in, make it part of API)
+        buffer_info.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
+                            | VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT
+                            | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_RAY_TRACING_BIT_NV;
 
-    // NOTE: we currently do not make use of allow_uav or the heap type to restrict usage flags at all
-    // allow_uav might have been a poor API decision, we might need something more finegrained instead, and have the default be allowing everything
-    // problem is, in d3d12 ALLOW_UNORDERED_ACCESS is exclusive with ALLOW_DEPTH_STENCIL, so defaulting right away is not possible
-    // if (allow_uav || heap == resource_heap::upload) { ... }
+        // NOTE: we currently do not make use of allow_uav or the heap type to restrict usage flags at all
+        // allow_uav might have been a poor API decision, we might need something more finegrained instead, and have the default be allowing everything
+        // problem is, in d3d12 ALLOW_UNORDERED_ACCESS is exclusive with ALLOW_DEPTH_STENCIL, so defaulting right away is not possible
+        // if (allow_uav || heap == resource_heap::upload) { ... }
+    }
 
     VmaAllocationCreateInfo alloc_info = {};
     alloc_info.usage = vk_heap_to_vma(desc.heap);

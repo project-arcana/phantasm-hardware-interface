@@ -888,6 +888,50 @@ void phi::d3d12::CommandListTranslator::execute(const phi::cmd::update_bottom_le
     _cmd_list->ResourceBarrier(1, &uav_barrier);
 }
 
+void phi::d3d12::CommandListTranslator::execute(cmd::update_bottom_level_in_buffer const& blas_update)
+{
+    D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC as_create_info = {};
+    as_create_info.Inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
+    as_create_info.Inputs.Flags = util::to_native_accel_struct_build_flags(blas_update.build_flags);
+    as_create_info.Inputs.NumDescs = UINT(blas_update.geometry_elements.size());
+
+    as_create_info.Inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+
+    D3D12_RAYTRACING_GEOMETRY_DESC* pNativeGeometryDescs = nullptr;
+    as_create_info.Inputs.pGeometryDescs = nullptr;
+
+    if (blas_update.geometry_elements.size() > 0)
+    {
+        // translate
+        pNativeGeometryDescs = (D3D12_RAYTRACING_GEOMETRY_DESC*)_malloca(blas_update.geometry_elements.size() * sizeof(D3D12_RAYTRACING_GEOMETRY_DESC));
+        CC_ASSERT(pNativeGeometryDescs);
+        as_create_info.Inputs.pGeometryDescs = pNativeGeometryDescs;
+
+        _context->pool_accel_structs->translateBLASGeometries({pNativeGeometryDescs, blas_update.geometry_elements.size()}, blas_update.geometry_elements);
+    }
+
+    as_create_info.DestAccelerationStructureData = _context->pool_resources->getBufferAddrVA(blas_update.dest_buffer);
+    as_create_info.ScratchAccelerationStructureData = _context->pool_resources->getBufferAddrVA(blas_update.scratch);
+
+    if (blas_update.source_buffer.buffer.is_valid())
+    {
+        // there is a source - perform an update
+        // note that src == dest is a valid case
+        as_create_info.Inputs.Flags |= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PERFORM_UPDATE;
+        as_create_info.SourceAccelerationStructureData = _context->pool_resources->getBufferAddrVA(blas_update.source_buffer);
+    }
+
+    _cmd_list->BuildRaytracingAccelerationStructure(&as_create_info, 0, nullptr);
+
+    auto const uav_barrier = CD3DX12_RESOURCE_BARRIER::UAV(_context->pool_resources->getRawResource(blas_update.dest_buffer));
+    _cmd_list->ResourceBarrier(1, &uav_barrier);
+
+    if (pNativeGeometryDescs)
+    {
+        _freea(pNativeGeometryDescs);
+    }
+}
+
 void phi::d3d12::CommandListTranslator::execute(const phi::cmd::update_top_level& tlas_update)
 {
     auto& dest_node = _context->pool_accel_structs->getNode(tlas_update.dest_accel_struct);

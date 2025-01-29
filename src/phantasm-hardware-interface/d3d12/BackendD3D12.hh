@@ -170,7 +170,11 @@ public:
                                                                     uint64_t* out_native_handle = nullptr,
                                                                     accel_struct_prebuild_info* out_prebuild_info = nullptr) override;
 
+    [[nodiscard]] accel_struct_prebuild_info computeBottomLevelAccelStructInfo(cc::span<arg::blas_element const> elements, accel_struct_build_flags_t flags) override;
+
     [[nodiscard]] uint64_t getAccelStructNativeHandle(handle::accel_struct as) override;
+
+    [[nodiscard]] uint64_t getAccelStructNativeHandleForBuffer(buffer_address addr) override;
 
     [[nodiscard]] shader_table_strides calculateShaderTableStrides(arg::shader_table_record const& ray_gen_record,
                                                                    arg::shader_table_records miss_records,
@@ -218,6 +222,7 @@ public:
     void cmdBeginDebugLabel(handle::live_command_list list, cmd::begin_debug_label const& command) override;
     void cmdEndDebugLabel(handle::live_command_list list, cmd::end_debug_label const& command) override;
     void cmdUpdateBottomLevel(handle::live_command_list list, cmd::update_bottom_level const& command) override;
+    void cmdUpdateBottomLevelInBuffer(handle::live_command_list list, cmd::update_bottom_level_in_buffer const& command) override;
     void cmdUpdateTopLevel(handle::live_command_list list, cmd::update_top_level const& command) override;
     void cmdDispatchRays(handle::live_command_list list, cmd::dispatch_rays const& command) override;
     void cmdClearTextures(handle::live_command_list list, cmd::clear_textures const& command) override;
