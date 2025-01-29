@@ -1,6 +1,7 @@
 #pragma once
 
 #include <clean-core/capped_vector.hh>
+#include <clean-core/span.hh>
 
 #include <phantasm-hardware-interface/commands.hh>
 
@@ -100,6 +101,8 @@ struct CommandListTranslator
     void execute(cmd::set_global_profile_scope const&);
 
 private:
+    void bind_compute_shader_args(root_signature const& root_sig, cc::span<shader_argument const> sp_arguments, void const* p_root_consts, size_t num_bytes_root_consts);
+
     void bind_vertex_buffers(handle::resource const vertex_buffers[limits::max_vertex_buffers]);
 
 private:

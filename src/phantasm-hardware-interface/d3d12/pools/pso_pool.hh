@@ -25,16 +25,15 @@ public:
 
     [[nodiscard]] handle::pipeline_state createPipelineState(phi::arg::graphics_pipeline_state_description const& desc, char const* dbg_name);
 
-    [[nodiscard]] handle::pipeline_state createComputePipelineState(
-        arg::compute_pipeline_state_description const& desc,
-                                                                    char const* dbg_name);
+    [[nodiscard]] handle::pipeline_state createComputePipelineState(arg::compute_pipeline_state_description const& desc, char const* dbg_name);
 
     [[nodiscard]] handle::pipeline_state createRaytracingPipelineState(cc::span<arg::raytracing_shader_library const> libraries,
                                                                        cc::span<arg::raytracing_argument_association const> arg_assocs,
                                                                        cc::span<arg::raytracing_hit_group const> hit_groups,
-                                                                       unsigned max_recursion,
-                                                                       unsigned max_payload_size_bytes,
-                                                                       unsigned max_attribute_size_bytes,
+                                                                       arg::root_signature_description const* p_opt_global_rootsig,
+                                                                       uint32_t max_recursion,
+                                                                       uint32_t max_payload_size_bytes,
+                                                                       uint32_t max_attribute_size_bytes,
                                                                        cc::allocator* scratch_alloc,
                                                                        char const* dbg_name);
 
@@ -97,6 +96,10 @@ public:
         ID3D12StateObjectProperties* raw_state_object_props; // currently unused after creation, could be removed
         cc::capped_vector<root_signature*, limits::max_raytracing_argument_assocs> associated_root_signatures;
 
+        // the global root signature (looked up from a cache, not 1:1)
+        // optional - if this is null, use getGlobalEmptyRaytraceRootSignature()
+        root_signature* pGlobalRootSig = nullptr;
+
         struct export_info
         {
             std::byte shader_identifier[D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES];
@@ -123,6 +126,8 @@ public:
     ID3D12CommandSignature* getGlobalComSigDrawIndexed() const { return mGlobalComSigDrawIndexed; }
     ID3D12CommandSignature* getGlobalComSigDispatch() const { return mGlobalComSigDispatch; }
 
+    ID3D12RootSignature* getGlobalEmptyRaytraceRootSignature() const { return mEmptyGlobalRaytraceRootSignature; }
+
 private:
     ID3D12Device5* mDevice = nullptr;
     cc::allocator* mDynamicAllocator = nullptr;
@@ -130,7 +135,8 @@ private:
     RootSignatureCache mRootSigCache;
     CommandSignatureCache mComSigCache;
 
-    ID3D12RootSignature* mEmptyRaytraceRootSignature = nullptr;
+    ID3D12RootSignature* mEmptyGlobalRaytraceRootSignature = nullptr;
+    ID3D12RootSignature* mEmptyLocalRaytraceRootSignature = nullptr;
     ID3D12CommandSignature* mGlobalComSigDraw = nullptr;
     ID3D12CommandSignature* mGlobalComSigDrawIndexed = nullptr;
     ID3D12CommandSignature* mGlobalComSigDispatch = nullptr;

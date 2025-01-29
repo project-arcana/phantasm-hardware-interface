@@ -598,7 +598,8 @@ phi::handle::pipeline_state phi::vk::BackendVulkan::createRaytracingPipelineStat
 {
     CC_ASSERT(isRaytracingEnabled() && "raytracing is not enabled");
 
-    (void)debug_name; // TODO
+    (void)debug_name;                                                                                               // TODO
+    CC_ASSERT(description.opt_global_root_sig == nullptr && "global RT root signatures not implemented on vulkan"); // TODO
     auto const res = mPoolPipelines.createRaytracingPipelineState(description.libraries, description.argument_associations, description.hit_groups,
                                                                   description.max_recursion, description.max_payload_size_bytes,
                                                                   description.max_attribute_size_bytes, getCurrentScratchAlloc());

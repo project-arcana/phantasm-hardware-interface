@@ -638,10 +638,15 @@ PHI_DEFINE_CMD(dispatch_rays)
 
     handle::pipeline_state pso = handle::null_pipeline_state;
 
+    // shader tables
     buffer_range table_ray_generation;
     buffer_range_and_stride table_miss;
     buffer_range_and_stride table_hit_groups;
     buffer_range_and_stride table_callable; ///< optional
+
+    // global root signature arguments
+    std::byte root_constants[limits::max_root_constant_bytes];
+    flat_vector<shader_argument, limits::max_shader_arguments> shader_arguments;
 
     uint32_t dispatch_x = 1;
     uint32_t dispatch_y = 1;

@@ -546,12 +546,24 @@ struct raytracing_hit_group
 
 struct raytracing_pipeline_state_description
 {
+    // specify the libraries ( = shaders) composing this RT PSO
     cc::span<raytracing_shader_library const> libraries;
+
+    // associate (N) hitgroups or identifiable shaders with a local root signature
     cc::span<raytracing_argument_association const> argument_associations;
+
+    // specify the hitgroups (having no hitgroups is a valid case)
     cc::span<raytracing_hit_group const> hit_groups;
 
+    // optionally specify a global root signature
+    // global and local root signatures (via argument_associations) can coexist, but most not overlap registers
+    root_signature_description const* opt_global_root_sig = nullptr; ///< optional
+
+    // the maximum amount of ray recursion
     uint32_t max_recursion = 0;
+    // byte size of the biggest ray payload used by shaders of this PSO
     uint32_t max_payload_size_bytes = 0;
+    // byte size of the biggest attribute used by shaders of this PSO
     uint32_t max_attribute_size_bytes = 0;
 };
 

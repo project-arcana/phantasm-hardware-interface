@@ -19,4 +19,5 @@ class CPUDescriptorLinearAllocator;
 
 struct CommandListTranslator;
 struct incomplete_state_cache;
+struct root_signature;
 }

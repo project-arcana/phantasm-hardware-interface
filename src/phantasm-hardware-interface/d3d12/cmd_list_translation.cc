@@ -495,53 +495,8 @@ void phi::d3d12::CommandListTranslator::execute(const phi::cmd::dispatch& dispat
     {
         auto const& root_sig = *pso_node.pAssociatedRootSig;
 
-        // root constants
-        auto const root_constant_param = root_sig.argument_maps[0].root_const_param;
-        if (root_constant_param != unsigned(-1))
-        {
-            static_assert(sizeof(dispatch.root_constants) % sizeof(DWORD32) == 0, "root constant size not divisible by dword32 size");
-            _cmd_list->SetComputeRoot32BitConstants(root_constant_param, sizeof(dispatch.root_constants) / sizeof(DWORD32), dispatch.root_constants, 0);
-        }
-
-        // regular shader arguments
-        for (uint8_t i = 0; i < dispatch.shader_arguments.size(); ++i)
-        {
-            auto& bound_arg = _bound.shader_args[i];
-            auto const& arg = dispatch.shader_arguments[i];
-            auto const& map = root_sig.argument_maps[i];
-
-            if (map.cbv_param != uint32_t(-1))
-            {
-                // Set the CBV / offset if it has changed
-                if (bound_arg.update_cbv(arg.constant_buffer, arg.constant_buffer_offset) && arg.constant_buffer.is_valid())
-                {
-                    CC_ASSERT(_context->pool_resources->isBufferAccessInBounds(arg.constant_buffer, arg.constant_buffer_offset, 1) && "CBV offset OOB");
-
-                    auto const cbv_va = _context->pool_resources->getBufferInfo(arg.constant_buffer).gpu_va;
-                    _cmd_list->SetComputeRootConstantBufferView(map.cbv_param, cbv_va + arg.constant_buffer_offset);
-                }
-            }
-
-            // Set the shader view if it has changed
-            if (bound_arg.update_shader_view(arg.shader_view))
-            {
-                if (map.srv_uav_table_param != uint32_t(-1))
-                {
-                    D3D12_GPU_DESCRIPTOR_HANDLE const sv_desc_table = _context->pool_shader_views->getSRVUAVGPUHandle(arg.shader_view);
-                    CC_ASSERT(sv_desc_table.ptr != 0 && "Bound shader_view is missing SRVs/UAVs but the PSO expects them");
-
-                    _cmd_list->SetComputeRootDescriptorTable(map.srv_uav_table_param, sv_desc_table);
-                }
-
-                if (map.sampler_table_param != uint32_t(-1))
-                {
-                    D3D12_GPU_DESCRIPTOR_HANDLE const sampler_desc_table = _context->pool_shader_views->getSamplerGPUHandle(arg.shader_view);
-                    CC_ASSERT(sampler_desc_table.ptr != 0 && "Bound shader_view is missing samplers but the PSO expects them");
-
-                    _cmd_list->SetComputeRootDescriptorTable(map.sampler_table_param, sampler_desc_table);
-                }
-            }
-        }
+        static_assert(sizeof(dispatch.root_constants) % sizeof(DWORD32) == 0, "root constant size not divisible by dword32 size");
+        bind_compute_shader_args(root_sig, dispatch.shader_arguments, dispatch.root_constants, sizeof(dispatch.root_constants) / sizeof(DWORD32));
     }
 
     // Dispatch command
@@ -568,52 +523,11 @@ void phi::d3d12::CommandListTranslator::execute(cmd::dispatch_indirect const& di
     {
         auto const& root_sig = *pso_node.pAssociatedRootSig;
 
-        // root constants
-        auto const root_constant_param = root_sig.argument_maps[0].root_const_param;
-        if (root_constant_param != unsigned(-1))
-        {
-            static_assert(sizeof(dispatch_indirect.root_constants) % sizeof(DWORD32) == 0, "root constant size not divisible by dword32 size");
-            _cmd_list->SetComputeRoot32BitConstants(root_constant_param, sizeof(dispatch_indirect.root_constants) / sizeof(DWORD32),
-                                                    dispatch_indirect.root_constants, 0);
-        }
-
-        // regular shader arguments
-        for (uint8_t i = 0; i < dispatch_indirect.shader_arguments.size(); ++i)
-        {
-            auto& bound_arg = _bound.shader_args[i];
-            auto const& arg = dispatch_indirect.shader_arguments[i];
-            auto const& map = root_sig.argument_maps[i];
-
-
-            if (map.cbv_param != uint32_t(-1))
-            {
-                // Set the CBV / offset if it has changed
-                if (bound_arg.update_cbv(arg.constant_buffer, arg.constant_buffer_offset) && arg.constant_buffer.is_valid())
-                {
-                    CC_ASSERT(_context->pool_resources->isBufferAccessInBounds(arg.constant_buffer, arg.constant_buffer_offset, 1) && "CBV offset OOB");
-
-                    auto const cbv_va = _context->pool_resources->getBufferInfo(arg.constant_buffer).gpu_va;
-                    _cmd_list->SetComputeRootConstantBufferView(map.cbv_param, cbv_va + arg.constant_buffer_offset);
-                }
-            }
-
-            // Set the shader view if it has changed
-            if (bound_arg.update_shader_view(arg.shader_view))
-            {
-                if (map.srv_uav_table_param != uint32_t(-1))
-                {
-                    auto const sv_desc_table = _context->pool_shader_views->getSRVUAVGPUHandle(arg.shader_view);
-                    _cmd_list->SetComputeRootDescriptorTable(map.srv_uav_table_param, sv_desc_table);
-                }
-
-                if (map.sampler_table_param != uint32_t(-1))
-                {
-                    auto const sampler_desc_table = _context->pool_shader_views->getSamplerGPUHandle(arg.shader_view);
-                    _cmd_list->SetComputeRootDescriptorTable(map.sampler_table_param, sampler_desc_table);
-                }
-            }
-        }
+        static_assert(sizeof(dispatch_indirect.root_constants) % sizeof(DWORD32) == 0, "root constant size not divisible by dword32 size");
+        bind_compute_shader_args(root_sig, dispatch_indirect.shader_arguments, dispatch_indirect.root_constants,
+                                 sizeof(dispatch_indirect.root_constants) / sizeof(DWORD32));
     }
+
     auto const gpu_command_size_bytes = uint32_t(sizeof(gpu_indirect_command_dispatch));
 
     CC_ASSERT(_context->pool_resources->isBufferAccessInBounds(dispatch_indirect.argument_buffer_addr, dispatch_indirect.num_arguments * gpu_command_size_bytes)
@@ -1008,9 +922,32 @@ void phi::d3d12::CommandListTranslator::execute(const phi::cmd::update_top_level
 
 void phi::d3d12::CommandListTranslator::execute(const cmd::dispatch_rays& dispatch_rays)
 {
+    PipelineStateObjectPool::rt_pso_node const& pso_node = _context->pool_pipeline_states->getRaytrace(dispatch_rays.pso);
+
     if (_bound.update_pso(dispatch_rays.pso))
     {
-        _cmd_list->SetPipelineState1(_context->pool_pipeline_states->getRaytrace(dispatch_rays.pso).raw_state_object);
+        _cmd_list->SetPipelineState1(pso_node.raw_state_object);
+    }
+
+    // Global Root signature
+    ID3D12RootSignature* const pGlobalRootSig
+        = pso_node.pGlobalRootSig ? pso_node.pGlobalRootSig->raw_root_sig : _context->pool_pipeline_states->getGlobalEmptyRaytraceRootSignature();
+    if (_bound.update_root_sig(pGlobalRootSig))
+    {
+        _cmd_list->SetComputeRootSignature(pGlobalRootSig);
+    }
+
+    // Global shader arguments
+    if (pso_node.pGlobalRootSig)
+    {
+        root_signature const& root_sig = *pso_node.pGlobalRootSig;
+
+        static_assert(sizeof(dispatch_rays.root_constants) % sizeof(DWORD32) == 0, "root constant size not divisible by dword32 size");
+        bind_compute_shader_args(root_sig, dispatch_rays.shader_arguments, dispatch_rays.root_constants, sizeof(dispatch_rays.root_constants) / sizeof(DWORD32));
+    }
+    else
+    {
+        CC_ASSERT(dispatch_rays.shader_arguments.empty() && "cmd::dispatch_rays has shader arguments but PSO has no global root signature");
     }
 
 
@@ -1110,6 +1047,59 @@ void phi::d3d12::CommandListTranslator::execute(cmd::code_location_marker const&
 void phi::d3d12::CommandListTranslator::execute(cmd::set_global_profile_scope const&)
 {
     // do nothing
+}
+
+void phi::d3d12::CommandListTranslator::bind_compute_shader_args(root_signature const& root_sig,
+                                                                 cc::span<shader_argument const> sp_arguments,
+                                                                 void const* p_root_consts,
+                                                                 size_t num_dwords_root_consts)
+{
+    // root constants
+    auto const root_constant_param = root_sig.argument_maps[0].root_const_param;
+    if (root_constant_param != unsigned(-1))
+    {
+        _cmd_list->SetComputeRoot32BitConstants(root_constant_param, num_dwords_root_consts, p_root_consts, 0);
+    }
+
+    // regular shader arguments
+    for (uint8_t i = 0; i < sp_arguments.size(); ++i)
+    {
+        auto& bound_arg = _bound.shader_args[i];
+        auto const& arg = sp_arguments[i];
+        auto const& map = root_sig.argument_maps[i];
+
+        if (map.cbv_param != uint32_t(-1))
+        {
+            // Set the CBV / offset if it has changed
+            if (bound_arg.update_cbv(arg.constant_buffer, arg.constant_buffer_offset) && arg.constant_buffer.is_valid())
+            {
+                CC_ASSERT(_context->pool_resources->isBufferAccessInBounds(arg.constant_buffer, arg.constant_buffer_offset, 1) && "CBV offset OOB");
+
+                auto const cbv_va = _context->pool_resources->getBufferInfo(arg.constant_buffer).gpu_va;
+                _cmd_list->SetComputeRootConstantBufferView(map.cbv_param, cbv_va + arg.constant_buffer_offset);
+            }
+        }
+
+        // Set the shader view if it has changed
+        if (bound_arg.update_shader_view(arg.shader_view))
+        {
+            if (map.srv_uav_table_param != uint32_t(-1))
+            {
+                D3D12_GPU_DESCRIPTOR_HANDLE const sv_desc_table = _context->pool_shader_views->getSRVUAVGPUHandle(arg.shader_view);
+                CC_ASSERT(sv_desc_table.ptr != 0 && "Bound shader_view is missing SRVs/UAVs but the PSO expects them");
+
+                _cmd_list->SetComputeRootDescriptorTable(map.srv_uav_table_param, sv_desc_table);
+            }
+
+            if (map.sampler_table_param != uint32_t(-1))
+            {
+                D3D12_GPU_DESCRIPTOR_HANDLE const sampler_desc_table = _context->pool_shader_views->getSamplerGPUHandle(arg.shader_view);
+                CC_ASSERT(sampler_desc_table.ptr != 0 && "Bound shader_view is missing samplers but the PSO expects them");
+
+                _cmd_list->SetComputeRootDescriptorTable(map.sampler_table_param, sampler_desc_table);
+            }
+        }
+    }
 }
 
 void phi::d3d12::CommandListTranslator::bind_vertex_buffers(handle::resource const vertex_buffers[limits::max_vertex_buffers])

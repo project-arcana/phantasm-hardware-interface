@@ -148,9 +148,10 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createComputePi
 phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracingPipelineState(cc::span<const arg::raytracing_shader_library> libraries,
                                                                                                cc::span<const arg::raytracing_argument_association> arg_assocs,
                                                                                                cc::span<const arg::raytracing_hit_group> hit_groups,
-                                                                                               unsigned max_recursion,
-                                                                                               unsigned max_payload_size_bytes,
-                                                                                               unsigned max_attribute_size_bytes,
+                                                                                               arg::root_signature_description const* p_opt_global_rootsig,
+                                                                                               uint32_t max_recursion,
+                                                                                               uint32_t max_payload_size_bytes,
+                                                                                               uint32_t max_attribute_size_bytes,
                                                                                                cc::allocator* scratch_alloc,
                                                                                                char const* dbg_name)
 {
@@ -160,6 +161,7 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracin
     unsigned const pool_index = mPoolRaytracing.acquire();
     rt_pso_node& new_node = mPoolRaytracing.get(pool_index);
     new_node.associated_root_signatures.clear();
+    new_node.pGlobalRootSig = nullptr;
 
     // Do things requiring synchronization first
     {
@@ -174,6 +176,11 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracin
             CC_ASSERT(pLocalRootSig != nullptr && "Failed to create local root siganture for raytracing PSO");
 
             new_node.associated_root_signatures.push_back(pLocalRootSig);
+        }
+
+        if (p_opt_global_rootsig)
+        {
+            new_node.pGlobalRootSig = mRootSigCache.getOrCreate(*mDevice, *p_opt_global_rootsig, root_signature_type::raytrace_global);
         }
     }
 
@@ -363,7 +370,7 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracin
 
     // global empty root sig
     D3D12_GLOBAL_ROOT_SIGNATURE global_root_sig = {};
-    global_root_sig.pGlobalRootSignature = mEmptyRaytraceRootSignature;
+    global_root_sig.pGlobalRootSignature = new_node.pGlobalRootSig ? new_node.pGlobalRootSig->raw_root_sig : mEmptyGlobalRaytraceRootSignature;
 
     cc::alloc_vector<D3D12_STATE_SUBOBJECT> subobjects(scratch_alloc);
     {
@@ -399,6 +406,16 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracin
                 subobj_rootsig_assoc.Type = D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION;
                 subobj_rootsig_assoc.pDesc = &rootsig_associations[i];
             }
+        }
+        if (arg_assocs.empty())
+        {
+            // add an empty dummy local root signature, and do not associate it
+            // we need at least one according to spec
+            // ref: https://developer.nvidia.com/rtx/raytracing/dxr/dx12-raytracing-tutorial/dxr_tutorial_helpers
+            //      (6., last paragraph)
+            auto& subobj_rootsig = subobjects.emplace_back();
+            subobj_rootsig.Type = D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE;
+            subobj_rootsig.pDesc = &mEmptyLocalRaytraceRootSignature;
         }
 
         for (auto const& hit_desc : hit_group_descs)
@@ -565,7 +582,8 @@ void phi::d3d12::PipelineStateObjectPool::initialize(
 
     // Create empty raytracing rootsig
     arg::root_signature_description emptyRootSig = {};
-    mEmptyRaytraceRootSignature = mRootSigCache.getOrCreate(*mDevice, emptyRootSig, root_signature_type::raytrace_global)->raw_root_sig;
+    mEmptyGlobalRaytraceRootSignature = mRootSigCache.getOrCreate(*mDevice, emptyRootSig, root_signature_type::raytrace_global)->raw_root_sig;
+    mEmptyLocalRaytraceRootSignature = mRootSigCache.getOrCreate(*mDevice, emptyRootSig, root_signature_type::raytrace_local)->raw_root_sig;
 
     // Create global (indirect drawing) command signatures
     mGlobalComSigDraw = createCommandSignatureForDraw(mDevice);

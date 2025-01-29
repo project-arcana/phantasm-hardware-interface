@@ -592,8 +592,9 @@ void phi::d3d12::BackendD3D12::free(phi::handle::query_range query_range) { mPoo
 phi::handle::pipeline_state phi::d3d12::BackendD3D12::createRaytracingPipelineState(const arg::raytracing_pipeline_state_description& description, char const* debug_name)
 {
     CC_ASSERT(isRaytracingEnabled() && "raytracing is not enabled");
-    return mPoolPSOs.createRaytracingPipelineState(description.libraries, description.argument_associations, description.hit_groups, description.max_recursion,
-                                                   description.max_payload_size_bytes, description.max_attribute_size_bytes, mDynamicAllocator, debug_name);
+    return mPoolPSOs.createRaytracingPipelineState(description.libraries, description.argument_associations, description.hit_groups,
+                                                   description.opt_global_root_sig, description.max_recursion, description.max_payload_size_bytes,
+                                                   description.max_attribute_size_bytes, mDynamicAllocator, debug_name);
 }
 
 phi::handle::accel_struct phi::d3d12::BackendD3D12::createTopLevelAccelStruct(uint32_t num_instances, accel_struct_build_flags_t flags, accel_struct_prebuild_info* out_prebuild_info)
