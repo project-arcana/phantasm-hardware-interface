@@ -18,7 +18,9 @@ enum class adapter_preference : uint32_t
     integrated,
 
     // use the n-th GPU, n given by the explicit_adapter_index field
-    explicit_index
+    explicit_index,
+
+    warp
 };
 
 enum class validation_level : uint32_t

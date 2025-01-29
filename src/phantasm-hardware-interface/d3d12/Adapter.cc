@@ -64,7 +64,6 @@ bool phi::d3d12::Adapter::initialize(const backend_config& config, ID3D12Device*
 
         PHI_D3D12_VERIFY(::CreateDXGIFactory1(IID_PPV_ARGS(&mFactory)));
     }
-
     // Debug layer init
     // NOTE: This must come BEFORE D3D12Device creation!
     // if not, there is a silent device removal afterwards
@@ -113,6 +112,7 @@ bool phi::d3d12::Adapter::initialize(const backend_config& config, ID3D12Device*
         }
     }
 
+
     // Adapter init
     {
 #ifdef PHI_HAS_OPTICK
@@ -127,7 +127,25 @@ bool phi::d3d12::Adapter::initialize(const backend_config& config, ID3D12Device*
         IDXGIAdapter* chosenAdapter = nullptr;
         ID3D12Device* chosenDevice = nullptr;
 
-        if (config.adapter == adapter_preference::first)
+        if (config.adapter == adapter_preference::warp)
+        {
+            if (!SUCCEEDED(mFactory->EnumWarpAdapter(IID_PPV_ARGS(&chosenAdapter))))
+            {
+                PHI_LOG_ERROR("Fatal: WARP not available");
+                return false;
+            }
+
+            if (!testDeviceOnAdapter(chosenAdapter, &chosenDevice))
+            {
+                PHI_LOG_ERROR("Fatal: Failed to create ID3D12Deevice on WARP");
+                return false;
+            }
+
+            candidates[0] = getAdapterInfo(chosenAdapter, 0);
+            chosenCandidate = &candidates[0];
+            numCandidates = 1;
+        }
+        else if (config.adapter == adapter_preference::first)
         {
             // fast-path, do not create all D3D12 devices
             uint32_t adapterIndex = 0;

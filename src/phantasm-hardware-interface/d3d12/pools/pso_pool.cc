@@ -571,21 +571,27 @@ void phi::d3d12::PipelineStateObjectPool::free(phi::handle::pipeline_state ps)
 }
 
 void phi::d3d12::PipelineStateObjectPool::initialize(
-    ID3D12Device5* device_rt, unsigned max_num_psos, unsigned max_num_psos_raytracing, cc::allocator* static_alloc, cc::allocator* dynamic_alloc)
+    ID3D12Device5* device_rt, unsigned max_num_psos, unsigned max_num_psos_raytracing, cc::allocator* static_alloc, cc::allocator* dynamic_alloc, bool bHasRT)
 {
     // Component init
     mDevice = device_rt;
     mDynamicAllocator = dynamic_alloc;
     mPool.initialize(max_num_psos, static_alloc);
-    mPoolRaytracing.initialize(max_num_psos_raytracing, static_alloc);
+    if (bHasRT)
+    {
+        mPoolRaytracing.initialize(max_num_psos_raytracing, static_alloc);
+    }
 
     mRootSigCache.initialize((max_num_psos / 2) + max_num_psos_raytracing, static_alloc); // almost arbitrary, revisit if this blows up
     mComSigCache.initialize((max_num_psos / 2), static_alloc);
 
-    // Create empty raytracing rootsig
-    arg::root_signature_description emptyRootSig = {};
-    mEmptyGlobalRaytraceRootSignature = mRootSigCache.getOrCreate(*mDevice, emptyRootSig, root_signature_type::raytrace_global)->raw_root_sig;
-    mEmptyLocalRaytraceRootSignature = mRootSigCache.getOrCreate(*mDevice, emptyRootSig, root_signature_type::raytrace_local)->raw_root_sig;
+    if (bHasRT)
+    {
+        // Create empty raytracing rootsig
+        arg::root_signature_description emptyRootSig = {};
+        mEmptyGlobalRaytraceRootSignature = mRootSigCache.getOrCreate(*mDevice, emptyRootSig, root_signature_type::raytrace_global)->raw_root_sig;
+        mEmptyLocalRaytraceRootSignature = mRootSigCache.getOrCreate(*mDevice, emptyRootSig, root_signature_type::raytrace_local)->raw_root_sig;
+    }
 
     // Create global (indirect drawing) command signatures
     mGlobalComSigDraw = createCommandSignatureForDraw(mDevice);

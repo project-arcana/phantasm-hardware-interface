@@ -11,6 +11,9 @@
 
 namespace phi::d3d12
 {
+bool testDeviceOnAdapter(IDXGIAdapter* pAdapter, ID3D12Device** ppOptOutDevice);
+
+
 [[nodiscard]] gpu_feature_info getGPUFeaturesFromDevice(ID3D12Device5* device);
 
 // Get all available adapter candidates

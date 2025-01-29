@@ -113,7 +113,7 @@ public:
 public:
     // internal API
 
-    void initialize(ID3D12Device5* device_rt, unsigned max_num_psos, unsigned max_num_psos_raytracing, cc::allocator* static_alloc, cc::allocator* dynamic_alloc);
+    void initialize(ID3D12Device5* device_rt, unsigned max_num_psos, unsigned max_num_psos_raytracing, cc::allocator* static_alloc, cc::allocator* dynamic_alloc, bool bHasRT);
     void destroy();
 
     [[nodiscard]] pso_node const& get(handle::pipeline_state ps) const { return mPool.get(ps._value); }

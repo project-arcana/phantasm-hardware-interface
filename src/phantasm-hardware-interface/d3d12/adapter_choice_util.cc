@@ -15,9 +15,7 @@
 #include "common/shared_com_ptr.hh"
 #include "common/verify.hh"
 
-namespace
-{
-bool testDeviceOnAdapter(IDXGIAdapter* pAdapter, ID3D12Device** ppOptOutDevice)
+bool phi::d3d12::testDeviceOnAdapter(IDXGIAdapter* pAdapter, ID3D12Device** ppOptOutDevice)
 {
 #ifdef PHI_HAS_OPTICK
     OPTICK_EVENT("Test/Create ID3D12Device");
@@ -41,7 +39,6 @@ bool testDeviceOnAdapter(IDXGIAdapter* pAdapter, ID3D12Device** ppOptOutDevice)
 
     return isEligible;
 }
-} // namespace
 
 uint32_t phi::d3d12::getAdapterCandidates(IDXGIFactory6* factory,
                                           cc::span<phi::gpu_info> outCandidateInfos,
