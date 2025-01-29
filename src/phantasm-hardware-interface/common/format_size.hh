@@ -145,6 +145,18 @@ constexpr bool is_srgb_format(format fmt)
     }
 }
 
+constexpr bool is_integer_format(format fmt)
+{
+    using namespace phi::format_property_flags;
+    switch (fmt)
+    {
+        PHI_FORMAT_INFO_LIST_ALL(PHI_FORMAT_INFO_X_IS_INT)
+
+    default:
+        return false;
+    }
+}
+
 constexpr char const* format_to_string(format fmt)
 {
     switch (fmt)
