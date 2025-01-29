@@ -29,6 +29,8 @@ struct gpu_feature_info
         hlsl_sm6_4, ///< shader model >= 6.4
         hlsl_sm6_5, ///< shader model >= 6.5
         hlsl_sm6_6, ///< shader model >= 6.6
+        hlsl_sm6_7, ///< shader model >= 6.7
+        hlsl_sm6_8, ///< shader model >= 6.8
     };
 
     enum e_raytracing_tier : uint8_t

@@ -176,20 +176,25 @@ phi::d3d12::gpu_feature_info phi::d3d12::getGPUFeaturesFromDevice(ID3D12Device5*
 
     // SM 6.0
     {
+        static_assert(PHI_D3D12_HAS_20H1_FEATURES, "PHI requires at least WinSDK 20H1");
+
+#define PHI_HAS_SM_6_8 (D3D12_SDK_VERSION >= 614)
+
         D3D12_FEATURE_DATA_SHADER_MODEL feat_data = {
-#if PHI_D3D12_HAS_20H1_FEATURES
-            D3D_SHADER_MODEL_6_6
+#if PHI_HAS_SM_6_8
+            D3D_SHADER_MODEL_6_8
 #else
-            D3D_SHADER_MODEL_6_5
+            D3D_SHADER_MODEL_6_6
 #endif
         };
         auto const success = SUCCEEDED(device->CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL, &feat_data, sizeof(feat_data)));
         // NOTE: CheckFeatureSupport writes the max of the current value and the highest supported SM version to feat_data
         // - it is not purely an out parameter
 
+
         if (success)
         {
-            // even with a future SM6.7, this will never return a higher value than SM6.6 as per the behavior above
+            // even with a future SM6.X, this will never return a higher value than the value of feat_data above
             switch (feat_data.HighestShaderModel)
             {
             case D3D_SHADER_MODEL_6_0:
@@ -210,9 +215,15 @@ phi::d3d12::gpu_feature_info phi::d3d12::getGPUFeaturesFromDevice(ID3D12Device5*
             case D3D_SHADER_MODEL_6_5:
                 res.sm_version = gpu_feature_info::hlsl_sm6_5;
                 break;
-#if PHI_D3D12_HAS_20H1_FEATURES
             case D3D_SHADER_MODEL_6_6:
                 res.sm_version = gpu_feature_info::hlsl_sm6_6;
+                break;
+#if PHI_HAS_SM_6_8
+            case D3D_SHADER_MODEL_6_7:
+                res.sm_version = gpu_feature_info::hlsl_sm6_7;
+                break;
+            case D3D_SHADER_MODEL_6_8:
+                res.sm_version = gpu_feature_info::hlsl_sm6_8;
                 break;
 #endif
 
@@ -249,12 +260,10 @@ phi::d3d12::gpu_feature_info phi::d3d12::getGPUFeaturesFromDevice(ID3D12Device5*
                 {
                     res.raytracing = gpu_feature_info::raytracing_t1_0;
                 }
-#if PHI_D3D12_HAS_20H1_FEATURES
                 else if (feat_data.RaytracingTier >= D3D12_RAYTRACING_TIER_1_1)
                 {
                     res.raytracing = gpu_feature_info::raytracing_t1_1;
                 }
-#endif
             }
         }
 
@@ -276,7 +285,6 @@ phi::d3d12::gpu_feature_info phi::d3d12::getGPUFeaturesFromDevice(ID3D12Device5*
             }
         }
 
-#if PHI_D3D12_HAS_20H1_FEATURES
         // Mesh/Amplification shaders
         {
             D3D12_FEATURE_DATA_D3D12_OPTIONS7 feat_data = {};
@@ -287,7 +295,6 @@ phi::d3d12::gpu_feature_info phi::d3d12::getGPUFeaturesFromDevice(ID3D12Device5*
                 res.features |= gpu_feature::mesh_shaders;
             }
         }
-#endif
     }
 
 
