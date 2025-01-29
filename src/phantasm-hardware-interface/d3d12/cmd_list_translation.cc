@@ -1028,7 +1028,7 @@ void phi::d3d12::CommandListTranslator::execute(const cmd::dispatch_rays& dispat
 
     auto const f_fill_out_buffer_range = [&](buffer_range_and_stride const& in_range, D3D12_GPU_VIRTUAL_ADDRESS_RANGE_AND_STRIDE& out_range)
     {
-        if (!in_range.buffer.is_valid())
+        if (!in_range.buffer.is_valid() || in_range.size_bytes == 0)
             return;
 
         auto const buffer_va = _context->pool_resources->getBufferInfo(in_range.buffer).gpu_va;

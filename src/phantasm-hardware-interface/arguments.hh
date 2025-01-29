@@ -589,5 +589,10 @@ struct shader_table_record
     {
         shader_arguments.push_back(shader_argument{cbv, sv, cbv_off});
     }
+
+    void add_shader_arg(buffer_address cbv, handle::shader_view sv = handle::null_shader_view)
+    {
+        shader_arguments.push_back(shader_argument{cbv.buffer, sv, cbv.offset_bytes});
+    }
 };
 } // namespace phi::arg
