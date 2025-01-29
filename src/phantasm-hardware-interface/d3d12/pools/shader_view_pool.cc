@@ -24,7 +24,14 @@ void phi::d3d12::DescriptorPageAllocator::initialize(
     util::set_object_name(mHeap, "%sdesc page allocator, type %d, size %d", bShaderVisible ? "" : "staging ", int(type), int(num_descriptors));
 
     mHeapStartCPU = mHeap->GetCPUDescriptorHandleForHeapStart();
-    mHeapStartGPU = mHeap->GetGPUDescriptorHandleForHeapStart();
+    if (bShaderVisible)
+    {
+        mHeapStartGPU = mHeap->GetGPUDescriptorHandleForHeapStart();
+    }
+    else
+    {
+        mHeapStartGPU = {};
+    }
 }
 
 void phi::d3d12::DescriptorPageAllocator::destroy()
