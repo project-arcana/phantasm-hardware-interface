@@ -20,7 +20,7 @@
 namespace phi::d3d12
 {
 // A single command allocator that keeps track of its lists
-// Unsynchronized - N per CommandAllocatorBundle
+// Unsynchronized
 struct CommandAllocator
 {
 public:
