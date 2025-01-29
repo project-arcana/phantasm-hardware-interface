@@ -255,7 +255,7 @@ struct buffer_description
     uint32_t size_bytes = 0;
     uint32_t stride_bytes = 0;
     bool allow_uav = false;
-    phi::resource_heap heap = phi::resource_heap::none;
+    resource_heap heap = resource_heap::none;
     uint8_t _pad0 = 0;
     uint8_t _pad1 = 0;
 
@@ -290,6 +290,10 @@ struct resource_description
 
     constexpr bool is_buffer() const { return type == e_resource_buffer; }
     constexpr bool is_texture() const { return type == e_resource_texture; }
+    constexpr bool allows_uav() const
+    {
+        return is_buffer() ? info_buffer.allow_uav : is_texture() && (info_texture.usage & resource_usage_flags::allow_uav) != 0;
+    }
 
     bool operator==(resource_description const& rhs) const noexcept
     {
