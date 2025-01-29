@@ -11,31 +11,25 @@ void phi::d3d12::CmdlistTranslatorPool::initialize(ID3D12Device* device,
                                                    cc::allocator* pStaticAlloc,
                                                    uint32_t maxNumTranslators)
 {
-    mPool.initialize(maxNumTranslators, pStaticAlloc);
+    CC_ASSERT(maxNumTranslators > 0);
 
-    mTranslators.reset(pStaticAlloc, maxNumTranslators);
-
+    mTranslatorContext.initialize(device, sv_pool, resource_pool, pso_pool, as_pool, query_pool);
+    mTranslatorLocals.reset(pStaticAlloc, maxNumTranslators);
     for (auto i = 0u; i < maxNumTranslators; ++i)
     {
-        auto* const pNewTranslator = pStaticAlloc->new_t<command_list_translator>();
-        pNewTranslator->initialize(device, sv_pool, resource_pool, pso_pool, as_pool, query_pool);
-        mTranslators[i] = pNewTranslator;
-
-        CC_ASSERT(pNewTranslator->_globals.device != nullptr && "Translator has invalid ID3D12Device*");
+        mTranslatorLocals[i].initialize(*device);
     }
 
-    mBackingAlloc = pStaticAlloc;
+    mPool.initialize(maxNumTranslators, pStaticAlloc);
 }
 
 void phi::d3d12::CmdlistTranslatorPool::destroy()
 {
-    mPool.iterate_allocated_nodes([](Node& node) { node.pTranslator->endTranslation(true); });
+    mPool.iterate_allocated_nodes([](Node& node) { node.Translator.endTranslation(true); });
 
-    for (auto* const pTranslator : mTranslators)
+    for (TranslatorLocals& locals : mTranslatorLocals)
     {
-        CC_ASSERT(pTranslator->_globals.device != nullptr && "Translator has invalid ID3D12Device*");
-        pTranslator->destroy();
-        mBackingAlloc->delete_t(pTranslator);
+        locals.destroy();
     }
 }
 
@@ -48,24 +42,27 @@ phi::handle::live_command_list phi::d3d12::CmdlistTranslatorPool::createLiveCmdL
     CC_ASSERT(!mPool.is_full() && "Maximum amount of live commandlists reached - increase max_num_live_commandlists in config");
 
     auto res = mPool.acquire();
+    uint32_t const TranslatorIndex = mPool.get_handle_index(res);
+    CC_ASSERT(TranslatorIndex < mTranslatorLocals.size() && "Translator index OOB");
 
     Node& node = mPool.get(res);
     node.hBackingList = backing;
-    node.pTranslator = mTranslators[mPool.get_handle_index(res)];
-    CC_ASSERT(node.pTranslator->_globals.device != nullptr && "Translator has invalid ID3D12Device*");
+    node.Translator.initialize(&mTranslatorContext, &mTranslatorLocals[TranslatorIndex]);
+    CC_ASSERT(node.Translator._context->device != nullptr && "Translator has invalid ID3D12Device*");
 
-    node.pTranslator->beginTranslation(pRawList, queue, pStateCache, pOptGlobalProfileScope);
+    node.Translator.beginTranslation(pRawList, queue, pStateCache, pOptGlobalProfileScope);
 
     return {res};
 }
 
 phi::handle::command_list phi::d3d12::CmdlistTranslatorPool::freeLiveCmdList(handle::live_command_list hLiveList, bool bDoClose)
 {
-    command_list_translator* const pTranslator = getTranslator(hLiveList);
-    CC_ASSERT(pTranslator->_globals.device != nullptr && "Translator has invalid ID3D12Device*");
+    CommandListTranslator* const pTranslator = getTranslator(hLiveList);
+    CC_ASSERT(pTranslator->_context->device != nullptr && "Translator has invalid ID3D12Device*");
     pTranslator->endTranslation(bDoClose);
 
     auto const hBackingList = getBackingList(hLiveList);
+
     mPool.release(hLiveList._value);
 
     return hBackingList;

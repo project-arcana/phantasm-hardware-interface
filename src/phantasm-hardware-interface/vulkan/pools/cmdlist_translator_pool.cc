@@ -19,7 +19,7 @@ void phi::vk::CmdlistTranslatorPool::initialize(VkDevice device,
 
     for (auto i = 0u; i < maxNumTranslators; ++i)
     {
-        auto* const pNewTranslator = pStaticAlloc->new_t<command_list_translator>();
+        auto* const pNewTranslator = pStaticAlloc->new_t<CommandListTranslator>();
         pNewTranslator->initialize(device, sv_pool, resource_pool, pso_pool, cmd_pool, query_pool, as_pool, has_rt);
         mTranslators[i] = pNewTranslator;
     }
