@@ -479,11 +479,16 @@ struct blas_element
     /// the vertex position format
     /// positions must come first in the vertex struct
     format vertex_pos_format = format::rgb32f;
+    /// the vertex stride in bytes
+    /// if zero, falls back to the stride of the vertex buffer
+    uint32_t vertex_stride_bytes = 0;
 
     /// the index buffer to use, optional
     buffer_address index_addr;
     /// amount of indices to read
     uint32_t num_indices = 0;
+    /// the index format
+    format index_format = format::r32u;
 
     /// location in a buffer containing a 3x4 affine transform matrix (row major), optional
     buffer_address transform_addr;

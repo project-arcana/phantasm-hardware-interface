@@ -26,26 +26,23 @@ phi::handle::accel_struct phi::d3d12::AccelStructPool::createBottomLevelAS(cc::s
     for (auto const& elem : elements)
     {
         auto const& vert_info = mResourcePool->getBufferInfo(elem.vertex_addr.buffer);
-        CC_ASSERT(vert_info.stride > 0 && "vertex buffers used in bottom level accel struct elements must have been created with a specified stride");
 
         D3D12_RAYTRACING_GEOMETRY_DESC& egeom = new_node.geometries.emplace_back();
         egeom = {};
         egeom.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
         egeom.Triangles.Transform3x4 = 0;
         egeom.Triangles.VertexBuffer.StartAddress = mResourcePool->getBufferAddrVA(elem.vertex_addr);
-        egeom.Triangles.VertexBuffer.StrideInBytes = vert_info.stride;
+        egeom.Triangles.VertexBuffer.StrideInBytes = elem.vertex_stride_bytes > 0 ? elem.vertex_stride_bytes : vert_info.stride;
+        CC_ASSERT(egeom.Triangles.VertexBuffer.StrideInBytes != 0 && "Vertex stride must either be specified or sourced from the buffer stride");
         egeom.Triangles.VertexCount = elem.num_vertices;
         egeom.Triangles.VertexFormat = util::to_dxgi_format(elem.vertex_pos_format);
 
 
         if (elem.index_addr.buffer.is_valid())
         {
-            auto const index_stride = mResourcePool->getBufferInfo(elem.index_addr.buffer).stride;
-            CC_ASSERT(index_stride > 0 && "index buffers used in bottom level accel struct elements must have been created with a specified stride");
-
             egeom.Triangles.IndexBuffer = mResourcePool->getBufferAddrVA(elem.index_addr);
             egeom.Triangles.IndexCount = elem.num_indices;
-            egeom.Triangles.IndexFormat = index_stride == sizeof(uint16_t) ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT;
+            egeom.Triangles.IndexFormat = util::to_dxgi_format(elem.index_format);
         }
         else
         {

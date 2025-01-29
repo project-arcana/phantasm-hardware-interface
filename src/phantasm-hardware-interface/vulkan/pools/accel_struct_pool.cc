@@ -64,8 +64,9 @@ phi::handle::accel_struct phi::vk::AccelStructPool::createBottomLevelAS(cc::span
         egeom.geometry.triangles.vertexData = vert_info.raw_buffer;
         egeom.geometry.triangles.vertexOffset = elem.vertex_addr.offset_bytes;
         egeom.geometry.triangles.vertexCount = elem.num_vertices;
-        egeom.geometry.triangles.vertexStride = vert_info.stride;
-        egeom.geometry.triangles.vertexFormat = VK_FORMAT_R32G32B32_SFLOAT;
+        egeom.geometry.triangles.vertexStride = elem.vertex_stride_bytes > 0 ? elem.vertex_stride_bytes : vert_info.stride;
+        CC_ASSERT(egeom.geometry.triangles.vertexStride != 0 && "Vertex stride must either be specified or sourced from the buffer stride");
+        egeom.geometry.triangles.vertexFormat = util::to_vk_format(elem.vertex_pos_format);
 
         if (elem.index_addr.buffer.is_valid())
         {
@@ -74,7 +75,21 @@ phi::handle::accel_struct phi::vk::AccelStructPool::createBottomLevelAS(cc::span
             egeom.geometry.triangles.indexData = mResourcePool->getRawBuffer(elem.index_addr.buffer);
             egeom.geometry.triangles.indexCount = elem.num_indices;
             egeom.geometry.triangles.indexOffset = elem.index_addr.offset_bytes;
-            egeom.geometry.triangles.indexType = index_stride == sizeof(uint16_t) ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32;
+            switch (elem.index_format)
+            {
+            case format::r32u:
+                egeom.geometry.triangles.indexType = VK_INDEX_TYPE_UINT32;
+                break;
+            case format::r16u:
+                egeom.geometry.triangles.indexType = VK_INDEX_TYPE_UINT16;
+                break;
+            case format::r8u:
+                egeom.geometry.triangles.indexType = VK_INDEX_TYPE_UINT8_EXT;
+                break;
+            default: 
+                CC_UNREACHABLE("Invalid index format");
+                break;
+            }
         }
         else
         {
