@@ -52,10 +52,17 @@ public:
         auto const res_page = mPageAllocator.allocate((uint64_t)num_descriptors);
         CC_RUNTIME_ASSERTF(res_page != uint64_t(-1), "DescriptorPageAllocator overcommitted! Reached limit of {} {}\nIncrease the corresponding maximum in the PHI backend config",
                            mPageAllocator.get_num_elements(), mDescriptorType == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV ? "SRVs/UAVs/CBVs" : "Samplers");
+
+        mNumLiveDescriptors += mPageAllocator.get_allocation_size_in_elements(res_page);
+
         return (int32_t)res_page;
     }
 
-    void free(handle_t handle) { mPageAllocator.free((uint64_t)handle); }
+    void free(handle_t handle)
+    {
+        mNumLiveDescriptors -= mPageAllocator.get_allocation_size_in_elements((uint64_t)handle);
+        mPageAllocator.free((uint64_t)handle);
+    }
 
 public:
     D3D12_CPU_DESCRIPTOR_HANDLE getCPUStart(handle_t handle) const
@@ -84,6 +91,12 @@ public:
         return uint32_t(mPageAllocator.get_allocation_size_in_elements(handle));
     }
 
+    int32_t getNumLiveDescriptors() const { return mNumLiveDescriptors; }
+
+    int32_t getMaxNumDescriptors() const { return (int32_t)mPageAllocator.get_num_elements(); }
+
+    float getAllocatedLiveDescriptorRatio() const { return mNumLiveDescriptors / (float)mPageAllocator.get_num_elements(); }
+
     [[nodiscard]] D3D12_CPU_DESCRIPTOR_HANDLE incrementToIndex(D3D12_CPU_DESCRIPTOR_HANDLE desc, uint32_t i) const
     {
         desc.ptr += i * SIZE_T(mDescriptorSize);
@@ -105,6 +118,8 @@ private:
     D3D12_CPU_DESCRIPTOR_HANDLE mHeapStartCPU;
     D3D12_GPU_DESCRIPTOR_HANDLE mHeapStartGPU;
     phi::page_allocator mPageAllocator;
+    int32_t mNumLiveDescriptors = 0;
+
 public:
     uint32_t mDescriptorSize = 0;
     D3D12_DESCRIPTOR_HEAP_TYPE mDescriptorType;
@@ -137,6 +152,8 @@ public:
 
     void free(handle::shader_view sv);
     void free(cc::span<handle::shader_view const> svs);
+
+    allocated_descriptor_info queryAllocatedNumDescriptors();
 
 public:
     // internal API

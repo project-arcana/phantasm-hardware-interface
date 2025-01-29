@@ -928,6 +928,27 @@ struct clock_synchronization_info
     }
 };
 
+// info about allocated and available descriptors
+struct allocated_descriptor_info
+{
+    int32_t num_srvs_uavs_allocated = 0;
+    int32_t num_srvs_uavs_total = 0;
+
+    int32_t num_samplers_allocated = 0;
+    int32_t num_samplers_total = 0;
+
+    int32_t num_staging_srvs_uavs_allocated = 0;
+    int32_t num_staging_srvs_uavs_total = 0;
+
+    int32_t num_staging_samplers_allocated = 0;
+    int32_t num_staging_samplers_total = 0;
+
+    float get_srv_uav_ratio() const { return num_srvs_uavs_allocated / (float)num_srvs_uavs_total; }
+    float get_sampler_ratio() const { return num_samplers_allocated / (float)num_samplers_total; }
+    float get_staging_srv_uav_ratio() const { return num_staging_srvs_uavs_allocated / (float)num_staging_srvs_uavs_total; }
+    float get_staging_sampler_ratio() const { return num_staging_samplers_allocated / (float)num_staging_samplers_total; }
+};
+
 // end of memhash structs
 #ifdef CC_COMPILER_MSVC
 #pragma warning(pop)

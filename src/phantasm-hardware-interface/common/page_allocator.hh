@@ -74,7 +74,14 @@ public:
     uint64_t get_num_elements() const { return get_page_size() * get_num_pages(); }
 
     // returns the size of the given allocation in elements
-    uint64_t get_allocation_size_in_elements(uint64_t page) const { return _pages[page] * _page_size; }
+    uint64_t get_allocation_size_in_elements(uint64_t page) const
+    {
+        if (page == uint64_t(-1))
+        {
+            return 0;
+        }
+        return _pages[page] * _page_size;
+    }
 
     // returns the offset of the given allocation to the start in elements
     uint64_t get_allocation_start_in_elements(uint64_t page) const { return page * _page_size; }
