@@ -324,7 +324,7 @@ phi::handle::resource phi::d3d12::ResourcePool::acquireImage(D3D12MA::Allocation
     new_node.type = resource_node::resource_type::image;
     new_node.heap = resource_heap::gpu;
     new_node.master_state = initial_state;
-    new_node.image.num_mips = desc.num_mips;
+    new_node.image.num_mips = realNumMipmaps;
     new_node.image.pixel_format = desc.fmt;
 
     uint32_t descriptionIndex = mPool.get_handle_index(res);
