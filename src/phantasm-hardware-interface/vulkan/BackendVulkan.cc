@@ -371,6 +371,14 @@ phi::handle::shader_view phi::vk::BackendVulkan::createEmptyShaderView(arg::shad
     return res;
 }
 
+bool phi::vk::BackendVulkan::getShaderViewGPUIndices(handle::shader_view sv, uint32_t* p_out_index_srvs_uavs, uint32_t* p_out_index_samplers)
+{
+    PHI_LOG_ERROR("getShaderViewGPUIndices() unimplemented on Vulkan");
+    *p_out_index_srvs_uavs = uint32_t(-1);
+    *p_out_index_samplers = uint32_t(-1);
+    return false;
+}
+
 void phi::vk::BackendVulkan::writeShaderViewSRVs(handle::shader_view sv, uint32_t offset, cc::span<resource_view const> srvs)
 {
     mPoolShaderViews.writeShaderViewSRVs(sv, offset, srvs, getCurrentScratchAlloc());
@@ -408,6 +416,7 @@ void phi::vk::BackendVulkan::freeRange(cc::span<const phi::handle::shader_view> 
 
 phi::handle::pipeline_state phi::vk::BackendVulkan::createPipelineState(const phi::arg::graphics_pipeline_state_description& description, char const* debug_name)
 {
+    CC_ASSERT(!description.root_signature.has_resource_descriptor_heap() && !description.root_signature.has_sampler_descriptor_heap() && "not supported on vulkan");
     auto const res = mPoolPipelines.createPipelineState(description.vertices, description.framebuffer, description.root_signature.shader_arg_shapes,
                                                         description.root_signature.has_root_constants, description.shader_binaries,
                                                         description.config, getCurrentScratchAlloc(), debug_name);
@@ -416,6 +425,7 @@ phi::handle::pipeline_state phi::vk::BackendVulkan::createPipelineState(const ph
 
 phi::handle::pipeline_state phi::vk::BackendVulkan::createComputePipelineState(const phi::arg::compute_pipeline_state_description& description, char const* debug_name)
 {
+    CC_ASSERT(!description.root_signature.has_resource_descriptor_heap() && !description.root_signature.has_sampler_descriptor_heap() && "not supported on vulkan");
     auto const res = mPoolPipelines.createComputePipelineState(description.root_signature.shader_arg_shapes, description.shader,
                                                                description.root_signature.has_root_constants, getCurrentScratchAlloc(), debug_name);
     return res;

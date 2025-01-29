@@ -53,7 +53,9 @@ private:
 [[nodiscard]] ID3D12RootSignature* create_root_signature(ID3D12Device& device,
                                                          cc::span<CD3DX12_ROOT_PARAMETER const> root_params,
                                                          cc::span<CD3DX12_STATIC_SAMPLER_DESC const> samplers,
-                                                         root_signature_type type);
+                                                         root_signature_type type,
+                                                         bool bEnableResourceHeap,
+                                                         bool bEnableSamplerHeap);
 
 struct root_signature
 {

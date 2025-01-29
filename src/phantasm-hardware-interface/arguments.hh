@@ -168,6 +168,16 @@ public:
 
 struct root_signature_description
 {
+    using e_root_signature_flags_t = uint32_t;
+    enum e_root_signature_flags : e_root_signature_flags_t
+    {
+        e_rsf_none = 0,
+        // Enable support for SM6.6 ResourceDescriptorHeap
+        e_rsf_allow_resource_descriptor_heap = 1 << 0,
+        // Enable support for SM6.6 SamplerDescriptorHeap
+        e_rsf_allow_sampler_descriptor_heap = 1 << 1,
+    };
+
     flat_vector<shader_arg_shape, limits::max_shader_arguments> shader_arg_shapes;
     bool32_t has_root_constants = false;
 
@@ -182,10 +192,16 @@ struct root_signature_description
     uint32_t num_overlapped_space0_uav_ranges = 1;
     uint32_t num_overlapped_space0_sampler_ranges = 1;
 
+    // additional flags
+    e_root_signature_flags_t flags = e_rsf_none;
+
     void add_shader_arg(uint32_t num_srvs, uint32_t num_uavs, uint32_t num_samplers, bool has_cbvs)
     {
         shader_arg_shapes.push_back(shader_arg_shape{num_srvs, num_uavs, num_samplers, has_cbvs});
     }
+
+    bool has_resource_descriptor_heap() const { return !!(flags & e_rsf_allow_resource_descriptor_heap); }
+    bool has_sampler_descriptor_heap() const { return !!(flags & e_rsf_allow_sampler_descriptor_heap); }
 };
 
 // resource creation info
@@ -423,12 +439,12 @@ struct shader_view_description
 {
     /// total amount of SRVs in the shader view
     uint32_t num_srvs = 0;
-    /// properties of the SRV descriptors (in order) [optional in D3D12]
+    /// properties of the SRV descriptors (in order) [unused in D3D12]
     cc::span<descriptor_entry const> srv_entries = {};
 
     /// total amount of UAVs in the shader view
     uint32_t num_uavs = 0;
-    /// properties of the UAV descriptors (in order) [optional in D3D12]
+    /// properties of the UAV descriptors (in order) [unused in D3D12]
     cc::span<descriptor_entry const> uav_entries = {};
 
     /// total amount of samplers in the shader view

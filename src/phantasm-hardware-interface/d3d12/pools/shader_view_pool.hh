@@ -74,6 +74,14 @@ public:
         return D3D12_CPU_DESCRIPTOR_HANDLE{mHeapStartCPU.ptr + SIZE_T(index) * SIZE_T(mDescriptorSize)};
     }
 
+    uint32_t getFirstIndex(handle_t handle) const
+    {
+        CC_ASSERT(handle >= 0);
+
+        // index = page index * page size
+        return uint32_t(handle) * uint32_t(mPageAllocator.get_page_size());
+    }
+
     D3D12_GPU_DESCRIPTOR_HANDLE getGPUStart(handle_t handle) const
     {
         CC_ASSERT(handle != -1);
@@ -149,6 +157,8 @@ public:
     void copyShaderViewUAVs(handle::shader_view hDest, uint32_t offsetDest, handle::shader_view hSrc, uint32_t offsetSrc, uint32_t numDescriptors);
 
     void copyShaderViewSamplers(handle::shader_view hDest, uint32_t offsetDest, handle::shader_view hSrc, uint32_t offsetSrc, uint32_t numDescriptors);
+
+    void getShaderViewGPUIndices(handle::shader_view hSV, uint32_t* pOutSRVUAVIndex, uint32_t* pOutSamplerIdx);
 
     void free(handle::shader_view sv);
     void free(cc::span<handle::shader_view const> svs);

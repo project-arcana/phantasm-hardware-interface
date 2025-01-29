@@ -130,6 +130,11 @@ public:
     /// create an empty shader view without specific resources written to it
     [[nodiscard]] virtual handle::shader_view createEmptyShaderView(arg::shader_view_description const& desc, bool usage_compute = false) = 0;
 
+    /// retrieve the first GPU indices into the resource- and sampler descriptor heaps of a shader view
+    /// SRVs and UAVs are allocated directly in-line
+    /// This is required for HLSL SM6.6 ResourceDescriptorHeap / SamplerDescriptorHeap usage
+    virtual bool getShaderViewGPUIndices(handle::shader_view sv, uint32_t* p_out_index_srvs_uavs, uint32_t* p_out_index_samplers) = 0;
+
     /// write resources as contiguous SRVs/UAVs to a shader view at a specified offset
     /// SRVs and UAVs are indexed flat, meaning descriptor arrays are treated as sequential regular descriptors
     virtual void writeShaderViewSRVs(handle::shader_view sv, uint32_t offset, cc::span<resource_view const> srvs) = 0;

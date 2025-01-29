@@ -9,7 +9,9 @@
 ID3D12RootSignature* phi::d3d12::create_root_signature(ID3D12Device& device,
                                                        cc::span<const CD3DX12_ROOT_PARAMETER> root_params,
                                                        cc::span<const CD3DX12_STATIC_SAMPLER_DESC> samplers,
-                                                       root_signature_type type)
+                                                       root_signature_type type,
+                                                       bool bEnableResourceHeap,
+                                                       bool bEnableSamplerHeap)
 {
     CD3DX12_ROOT_SIGNATURE_DESC desc = {};
     desc.pParameters = root_params.empty() ? nullptr : root_params.data();
@@ -42,6 +44,17 @@ ID3D12RootSignature* phi::d3d12::create_root_signature(ID3D12Device& device,
         desc.Flags = D3D12_ROOT_SIGNATURE_FLAG_NONE;
         CC_ASSERT(false && "invalid root signature type");
     }
+
+#if D3D12_SDK_VERSION >= 614
+    if (bEnableResourceHeap)
+    {
+        desc.Flags |= D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED;
+    }
+    if (bEnableSamplerHeap)
+    {
+        desc.Flags |= D3D12_ROOT_SIGNATURE_FLAG_SAMPLER_HEAP_DIRECTLY_INDEXED;
+    }
+#endif
 
     shared_com_ptr<ID3DBlob> serialized_root_sig;
     shared_com_ptr<ID3DBlob> error_blob;
@@ -208,7 +221,8 @@ void phi::d3d12::initialize_root_signature(root_signature* pOutRootSignature, ID
         pOutRootSignature->argument_maps.push_back(parameters.add_shader_argument_shape({}, true, 1, 1, 1));
     }
 
-    pOutRootSignature->raw_root_sig = create_root_signature(*pDevice, parameters.root_params, parameters.samplers, type);
+    pOutRootSignature->raw_root_sig = create_root_signature(*pDevice, parameters.root_params, parameters.samplers, type,
+                                                            desc.has_resource_descriptor_heap(), desc.has_sampler_descriptor_heap());
 }
 
 ID3D12CommandSignature* phi::d3d12::createCommandSignatureForDraw(ID3D12Device* pDevice)

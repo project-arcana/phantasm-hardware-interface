@@ -85,6 +85,8 @@ public:
 
     [[nodiscard]] handle::shader_view createEmptyShaderView(arg::shader_view_description const& desc, bool usage_compute) override;
 
+    bool getShaderViewGPUIndices(handle::shader_view sv, uint32_t* p_out_index_srvs_uavs, uint32_t* p_out_index_samplers) override;
+
     void writeShaderViewSRVs(handle::shader_view sv, uint32_t offset, cc::span<resource_view const> srvs) override;
     void writeShaderViewUAVs(handle::shader_view sv, uint32_t offset, cc::span<resource_view const> uavs) override;
     void writeShaderViewSamplers(handle::shader_view sv, uint32_t offset, cc::span<sampler_config const> samplers) override;

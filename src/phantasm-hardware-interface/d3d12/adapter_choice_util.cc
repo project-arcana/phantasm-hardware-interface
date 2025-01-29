@@ -157,17 +157,17 @@ phi::d3d12::gpu_feature_info phi::d3d12::getGPUFeaturesFromDevice(ID3D12Device5*
 
     // Capability checks
 
+    D3D12_FEATURE_DATA_D3D12_OPTIONS FeatDataZero = {};
     {
-        D3D12_FEATURE_DATA_D3D12_OPTIONS feat_data = {};
-        auto const success = SUCCEEDED(device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &feat_data, sizeof(feat_data)));
+        auto const success = SUCCEEDED(device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &FeatDataZero, sizeof(FeatDataZero)));
 
         if (success)
         {
-            if (feat_data.ConservativeRasterizationTier != D3D12_CONSERVATIVE_RASTERIZATION_TIER_NOT_SUPPORTED)
+            if (FeatDataZero.ConservativeRasterizationTier != D3D12_CONSERVATIVE_RASTERIZATION_TIER_NOT_SUPPORTED)
             {
                 res.features |= gpu_feature::conservative_raster;
             }
-            if (feat_data.ROVsSupported)
+            if (FeatDataZero.ROVsSupported)
             {
                 res.features |= gpu_feature::rasterizer_ordered_views;
             }
@@ -234,6 +234,11 @@ phi::d3d12::gpu_feature_info phi::d3d12::getGPUFeaturesFromDevice(ID3D12Device5*
                 break;
             }
         }
+    }
+
+    if (res.sm_version >= gpu_feature_info::hlsl_sm6_6 && FeatDataZero.ResourceBindingTier >= D3D12_RESOURCE_BINDING_TIER_3)
+    {
+        res.features |= gpu_feature::hlsl_dynamic_resources;
     }
 
     // SM 6.0 wave intrinsics

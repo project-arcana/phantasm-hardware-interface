@@ -411,6 +411,12 @@ phi::handle::shader_view phi::d3d12::BackendD3D12::createEmptyShaderView(arg::sh
     return mPoolShaderViews.createEmpty(desc.num_srvs, desc.num_uavs, desc.num_samplers, desc.is_staging);
 }
 
+bool phi::d3d12::BackendD3D12::getShaderViewGPUIndices(handle::shader_view sv, uint32_t* p_out_index_srvs_uavs, uint32_t* p_out_index_samplers)
+{
+    mPoolShaderViews.getShaderViewGPUIndices(sv, p_out_index_srvs_uavs, p_out_index_samplers);
+    return true;
+}
+
 void phi::d3d12::BackendD3D12::writeShaderViewSRVs(handle::shader_view sv, uint32_t offset, cc::span<resource_view const> srvs)
 {
     mPoolShaderViews.writeShaderViewSRVs(sv, offset, srvs);

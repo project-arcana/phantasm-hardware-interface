@@ -239,6 +239,16 @@ void phi::d3d12::ShaderViewPool::copyShaderViewSamplers(handle::shader_view hDes
     mDevice->CopyDescriptorsSimple(numDescriptors, handleDest, handleSrc, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
 }
 
+void phi::d3d12::ShaderViewPool::getShaderViewGPUIndices(handle::shader_view hSV, uint32_t* pOutSRVUAVIndex, uint32_t* pOutSamplerIdx) 
+{
+    auto const& node = internalGet(hSV);
+    DescriptorPageAllocator* const pAllocSRVUAV = node.bIsStaging ? &mStagingSRVUAVAllocator : &mSRVUAVAllocator;
+    DescriptorPageAllocator* const pAllocSamplers = node.bIsStaging ? &mStagingSamplerAllocator : &mSamplerAllocator;
+
+    *pOutSRVUAVIndex = node.srv_uav_alloc_handle != -1 ? pAllocSRVUAV->getFirstIndex(node.srv_uav_alloc_handle) : uint32_t(-1);
+    *pOutSamplerIdx = node.sampler_alloc_handle != -1 ? pAllocSamplers->getFirstIndex(node.sampler_alloc_handle) : uint32_t(-1);
+}
+
 void phi::d3d12::ShaderViewPool::free(phi::handle::shader_view sv)
 {
     auto& node = mPool.get(uint32_t(sv._value));
