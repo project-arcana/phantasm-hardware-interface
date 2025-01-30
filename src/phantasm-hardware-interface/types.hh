@@ -133,6 +133,8 @@ enum class resource_state : uint32_t
     present,
 
     raytrace_accel_struct,
+
+    shader_resource_nonpixel_or_index, // used as an index buffer or as a non-pixel SRV, useful for hybrid renderers
 };
 
 // a single signal- or wait operation on a fence

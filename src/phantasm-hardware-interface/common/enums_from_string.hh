@@ -17,10 +17,12 @@ namespace phi
 #define PHI_LIST_CULL_MODE(X) X(none) X(back) X(front)
 #define PHI_LIST_PRESENT_MODE(X) X(none) X(synced) X(synced_2nd_vblank) X(unsynced) X(unsynced_allow_tearing)
 
-#define PHI_LIST_RESOURCE_STATE(X)                                                                                                                       \
-    X(unknown)                                                                                                                                           \
-    X(undefined) X(vertex_buffer) X(index_buffer) X(constant_buffer) X(shader_resource) X(shader_resource_nonpixel) X(unordered_access) X(render_target) \
-        X(depth_read) X(depth_write) X(indirect_argument) X(copy_src) X(copy_dest) X(resolve_src) X(resolve_dest) X(present) X(raytrace_accel_struct)
+#define PHI_LIST_RESOURCE_STATE(X)                                                                                                          \
+    X(unknown)                                                                                                                              \
+    X(undefined)                                                                                                                            \
+    X(vertex_buffer) X(index_buffer) X(constant_buffer) X(shader_resource) X(shader_resource_nonpixel) X(unordered_access) X(render_target) \
+        X(depth_read) X(depth_write) X(indirect_argument) X(copy_src) X(copy_dest) X(resolve_src) X(resolve_dest) X(present)                \
+            X(raytrace_accel_struct) X(shader_resource_nonpixel_or_index)
 
 
 #define PHI_X_TOSTRING_CASE(Val, ...) \

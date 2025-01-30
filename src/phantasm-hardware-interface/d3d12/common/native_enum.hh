@@ -56,6 +56,9 @@ namespace phi::d3d12::util
 
     case rs::raytrace_accel_struct:
         return D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE;
+
+    case rs::shader_resource_nonpixel_or_index:
+        return D3D12_RESOURCE_STATE_INDEX_BUFFER | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
     }
 
 

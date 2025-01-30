@@ -56,6 +56,9 @@ constexpr VkAccessFlags to_access_flags(resource_state state)
     case rs::raytrace_accel_struct:
         return VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_NV | VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_NV;
 
+    case rs::shader_resource_nonpixel_or_index:
+        return VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_INDEX_READ_BIT;
+
     case rs::unknown:
         CC_ASSERT(false && "unknown state access masks queried");
         return {};
@@ -105,6 +108,7 @@ constexpr VkImageLayout to_image_layout(resource_state state)
     case rs::constant_buffer:
     case rs::indirect_argument:
     case rs::raytrace_accel_struct:
+    case rs::shader_resource_nonpixel_or_index:
         CC_ASSERT(false && "invalid image layout queried");
         return VK_IMAGE_LAYOUT_UNDEFINED;
     }
@@ -218,6 +222,9 @@ constexpr VkPipelineStageFlags to_pipeline_stage_dependency(resource_state state
 
     case rs::raytrace_accel_struct:
         return VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV | VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_NV;
+
+    case rs::shader_resource_nonpixel_or_index:
+        return shader_flags | VK_PIPELINE_STAGE_VERTEX_INPUT_BIT;
 
     case rs::unknown:
         CC_ASSERT(false && "unknown state queried");
