@@ -45,7 +45,7 @@ struct root_signature_params
 
 private:
     unsigned _space = 0;
-    cc::capped_vector<CD3DX12_DESCRIPTOR_RANGE, 16> _desc_ranges;
+    cc::capped_vector<CD3DX12_DESCRIPTOR_RANGE, 24> _desc_ranges;
 };
 } // namespace detail
 
