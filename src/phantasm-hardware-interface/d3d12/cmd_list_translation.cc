@@ -284,8 +284,8 @@ void phi::d3d12::CommandListTranslator::execute(const phi::cmd::draw& draw)
                                                      draw.root_constants, 0);
         }
 
-        CC_ASSERT(root_sig.argument_maps.size() == draw.shader_arguments.size() && "given amount of shader arguments deviates from pipeline state configuration");
-        for (uint8_t i = 0; i < root_sig.argument_maps.size(); ++i)
+        CC_ASSERT(root_sig.argument_maps.size() >= draw.shader_arguments.size() && "given amount of shader arguments exceeds pipeline state configuration");
+        for (uint8_t i = 0; i < draw.shader_arguments.size(); ++i)
         {
             auto& bound_arg = _bound.shader_args[i];
             auto const& arg = draw.shader_arguments[i];
