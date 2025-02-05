@@ -13,7 +13,8 @@ enum class gpu_feature : uint8_t
     mesh_shaders,             ///< task/mesh shading pipeline (>= tier 1)
     rasterizer_ordered_views, ///< rasterizer ordered views (ROVs)
     hlsl_wave_ops,            ///< HLSL SM6 wave ops
-    hlsl_dynamic_resources    ///< HLSL SM6.6 ResourceDescriptorHeap/SamplerDescriptorHeap
+    hlsl_dynamic_resources,   ///< HLSL SM6.6 ResourceDescriptorHeap/SamplerDescriptorHeap
+    rgb9e5_rt_uav,            ///< RGB9E5 as UAV and render target format
 };
 
 using gpu_feature_flags = cc::flags<gpu_feature, 32>;

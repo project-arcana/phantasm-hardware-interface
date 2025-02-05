@@ -300,6 +300,21 @@ phi::d3d12::gpu_feature_info phi::d3d12::getGPUFeaturesFromDevice(ID3D12Device5*
                 res.features |= gpu_feature::mesh_shaders;
             }
         }
+
+#ifdef PHI_HAS_D3D12_AGILITY
+        // RGB9E5 UAVs and RTs
+        // see: https://devblogs.microsoft.com/directx/agility-sdk-1-614-0/
+        {
+            D3D12_FEATURE_DATA_FORMAT_SUPPORT feat_data = {};
+            feat_data.Format = DXGI_FORMAT_R9G9B9E5_SHAREDEXP;
+            auto const success = SUCCEEDED(device->CheckFeatureSupport(D3D12_FEATURE_FORMAT_SUPPORT, &feat_data, sizeof(feat_data)));
+
+            if (success && (feat_data.Support1 & D3D12_FORMAT_SUPPORT1_RENDER_TARGET))
+            {
+                res.features |= gpu_feature::rgb9e5_rt_uav;
+            }
+        }
+#endif
     }
 
 
