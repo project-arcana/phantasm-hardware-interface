@@ -176,6 +176,8 @@ enum class format : uint8_t
     none = 0,
 
     // regular formats
+
+    // 32f: 1 bit sign + 8 bit exponent + 23 bit mantissa
     rgba32f,
     rgb32f,
     rg32f,
@@ -199,14 +201,21 @@ enum class format : uint8_t
     rg16u,
     r16u,
 
+    // 16f: 1 bit sign + 5 bit exponent + 10 bit mantissa
+    // max: 65504.f, min: -65504.f, +inf: 0x7C00, -inf: 0xFC00
+    // conversion rules: https://microsoft.github.io/DirectX-Specs/d3d/archive/D3D11_3_FunctionalSpec.htm#3.2.2%20Floating%20Point%20Conversion
     rgba16f,
     rg16f,
     r16f,
 
+    // unorm: n-bit uint, converted in shader to [0, 1]
+    // 0b0000 = 0.0, 0b1111 = 1.0
     rgba16un,
     rg16un,
     r16un,
 
+    // snorm: n-bit int, converted in shader to [-1, 1]
+    // 0b0000 = 0.0, 0b0111 = 1.0, 0b1000 = -1.0
     rgba16sn,
     rg16sn,
     r16sn,
@@ -233,7 +242,7 @@ enum class format : uint8_t
     // swizzled and irregular formats
     bgra8un,
     bgra4un,
-    b10g11r11uf,
+    b10g11r11uf, // 10uf and 11uf: 5 bits exponent + 6 (11uf) or 5 (10uf) bits mantissa - no sign bit
     r10g10b10a2u,
     r10g10b10a2un,
     b5g6r5un,
