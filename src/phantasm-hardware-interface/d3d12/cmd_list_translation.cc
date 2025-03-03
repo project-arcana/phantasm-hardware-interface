@@ -291,6 +291,12 @@ void phi::d3d12::CommandListTranslator::execute(const phi::cmd::draw& draw)
             auto const& arg = draw.shader_arguments[i];
             auto const& map = root_sig.argument_maps[i];
 
+            // this arg either needs to have a valid sv, or this map must not expect SRVs/UAVs/Samplers
+            CC_ASSERT((map.srv_uav_table_param == uint32_t(-1) && map.sampler_table_param == uint32_t(-1))
+                      || arg.shader_view.is_valid() && "PSO expects SRVs/UAVs/Samplers but no shader_view was provided");
+            // this arg either needs to have a valid cbv, or this map must not expect one
+            CC_ASSERT(map.cbv_param == uint32_t(-1) || arg.constant_buffer.is_valid() && "PSO expects CBV but none was provided");
+
             if (map.cbv_param != uint32_t(-1))
             {
                 CC_ASSERT(arg.constant_buffer.is_valid() && "argument CBV is missing");
@@ -310,15 +316,17 @@ void phi::d3d12::CommandListTranslator::execute(const phi::cmd::draw& draw)
             {
                 if (map.srv_uav_table_param != uint32_t(-1))
                 {
-                    CC_ASSERT(_context->pool_shader_views->hasSRVsUAVs(arg.shader_view) && "shader_view is missing SRVs/UAVs");
                     auto const sv_desc_table = _context->pool_shader_views->getSRVUAVGPUHandle(arg.shader_view);
+                    CC_ASSERT(sv_desc_table.ptr != 0 && "Bound shader_view is missing SRVs/UAVs but the PSO expects them");
+
                     _cmd_list->SetGraphicsRootDescriptorTable(map.srv_uav_table_param, sv_desc_table);
                 }
 
                 if (map.sampler_table_param != uint32_t(-1))
                 {
-                    CC_ASSERT(_context->pool_shader_views->hasSamplers(arg.shader_view) && "shader_view is missing Samplers");
                     auto const sampler_desc_table = _context->pool_shader_views->getSamplerGPUHandle(arg.shader_view);
+                    CC_ASSERT(sampler_desc_table.ptr != 0 && "Bound shader_view is missing samplers but the PSO expects them");
+
                     _cmd_list->SetGraphicsRootDescriptorTable(map.sampler_table_param, sampler_desc_table);
                 }
             }
@@ -394,6 +402,12 @@ void phi::d3d12::CommandListTranslator::execute(const phi::cmd::draw_indirect& d
             auto const& arg = draw_indirect.shader_arguments[i];
             auto const& map = root_sig.argument_maps[i];
 
+            // this arg either needs to have a valid sv, or this map must not expect SRVs/UAVs/Samplers
+            CC_ASSERT((map.srv_uav_table_param == uint32_t(-1) && map.sampler_table_param == uint32_t(-1))
+                      || arg.shader_view.is_valid() && "PSO expects SRVs/UAVs/Samplers but no shader_view was provided");
+            // this arg either needs to have a valid cbv, or this map must not expect one
+            CC_ASSERT(map.cbv_param == uint32_t(-1) || arg.constant_buffer.is_valid() && "PSO expects CBV but none was provided");
+
             if (map.cbv_param != uint32_t(-1))
             {
                 // Set the CBV / offset if it has changed
@@ -412,12 +426,16 @@ void phi::d3d12::CommandListTranslator::execute(const phi::cmd::draw_indirect& d
                 if (map.srv_uav_table_param != uint32_t(-1))
                 {
                     auto const sv_desc_table = _context->pool_shader_views->getSRVUAVGPUHandle(arg.shader_view);
+                    CC_ASSERT(sv_desc_table.ptr != 0 && "Bound shader_view is missing SRVs/UAVs but the PSO expects them");
+
                     _cmd_list->SetGraphicsRootDescriptorTable(map.srv_uav_table_param, sv_desc_table);
                 }
 
                 if (map.sampler_table_param != uint32_t(-1))
                 {
                     auto const sampler_desc_table = _context->pool_shader_views->getSamplerGPUHandle(arg.shader_view);
+                    CC_ASSERT(sampler_desc_table.ptr != 0 && "Bound shader_view is missing samplers but the PSO expects them");
+
                     _cmd_list->SetGraphicsRootDescriptorTable(map.sampler_table_param, sampler_desc_table);
                 }
             }
@@ -1111,6 +1129,12 @@ void phi::d3d12::CommandListTranslator::bind_compute_shader_args(root_signature 
         auto& bound_arg = _bound.shader_args[i];
         auto const& arg = sp_arguments[i];
         auto const& map = root_sig.argument_maps[i];
+
+        // this arg either needs to have a valid sv, or this map must not expect SRVs/UAVs/Samplers
+        CC_ASSERT((map.srv_uav_table_param == uint32_t(-1) && map.sampler_table_param == uint32_t(-1))
+                  || arg.shader_view.is_valid() && "PSO expects SRVs/UAVs/Samplers but no shader_view was provided");
+        // this arg either needs to have a valid cbv, or this map must not expect one
+        CC_ASSERT(map.cbv_param == uint32_t(-1) || arg.constant_buffer.is_valid() && "PSO expects CBV but none was provided");
 
         if (map.cbv_param != uint32_t(-1))
         {
