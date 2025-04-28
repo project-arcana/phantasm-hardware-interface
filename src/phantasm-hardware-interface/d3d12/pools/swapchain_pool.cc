@@ -64,8 +64,9 @@ void phi::d3d12::SwapchainPool::initialize(IDXGIFactory6* factory, ID3D12Device*
     }
 }
 
-void phi::d3d12::SwapchainPool::destroy()
+bool phi::d3d12::SwapchainPool::destroy()
 {
+    bool bAllGood = true;
     if (mParentFactory != nullptr)
     {
         unsigned num_leaks = 0;
@@ -78,12 +79,14 @@ void phi::d3d12::SwapchainPool::destroy()
 
         if (num_leaks > 0)
         {
+            bAllGood = false;
             PHI_LOG("leaked {} handle::swapchain object{}", num_leaks, (num_leaks == 1 ? "" : "s"));
         }
 
         mPool.destroy();
         mRTVHeap->Release();
     }
+    return bAllGood;
 }
 
 phi::handle::swapchain phi::d3d12::SwapchainPool::createSwapchain(HWND window_handle, arg::swapchain_description const& desc, char const* pDebugName)

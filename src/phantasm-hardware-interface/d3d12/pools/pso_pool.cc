@@ -599,7 +599,7 @@ void phi::d3d12::PipelineStateObjectPool::initialize(
     mGlobalComSigDispatch = createCommandSignatureForDispatch(mDevice);
 }
 
-void phi::d3d12::PipelineStateObjectPool::destroy()
+bool phi::d3d12::PipelineStateObjectPool::destroy()
 {
     char debugname_buffer[256];
     auto num_leaks = 0;
@@ -644,6 +644,8 @@ void phi::d3d12::PipelineStateObjectPool::destroy()
     mGlobalComSigDraw->Release();
     mGlobalComSigDrawIndexed->Release();
     mGlobalComSigDispatch->Release();
+
+    return num_leaks == 0;
 }
 
 const phi::d3d12::PipelineStateObjectPool::rt_pso_node& phi::d3d12::PipelineStateObjectPool::getRaytrace(phi::handle::pipeline_state ps) const

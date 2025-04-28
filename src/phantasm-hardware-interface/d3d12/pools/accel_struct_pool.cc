@@ -225,8 +225,9 @@ void phi::d3d12::AccelStructPool::initialize(
     mPool.initialize(max_num_accel_structs, static_alloc);
 }
 
-void phi::d3d12::AccelStructPool::destroy()
+bool phi::d3d12::AccelStructPool::destroy()
 {
+    bool bAllGood = true;
     if (mDevice != nullptr)
     {
         auto num_leaks = 0;
@@ -239,9 +240,11 @@ void phi::d3d12::AccelStructPool::destroy()
 
         if (num_leaks > 0)
         {
+            bAllGood = false;
             PHI_LOG("leaked {} handle::accel_struct object{}", num_leaks, num_leaks == 1 ? "" : "s");
         }
     }
+    return bAllGood;
 }
 
 phi::d3d12::AccelStructPool::accel_struct_node& phi::d3d12::AccelStructPool::getNode(phi::handle::accel_struct as)

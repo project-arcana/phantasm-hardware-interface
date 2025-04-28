@@ -246,14 +246,15 @@ phi::init_status phi::vk::BackendVulkan::initialize(const backend_config& config
     return init_status::success;
 }
 
-void phi::vk::BackendVulkan::destroy()
+bool phi::vk::BackendVulkan::destroy()
 {
     if (mInstance == nullptr)
     {
         // never initialized or immediately failed
-        return;
+        return true;
     }
 
+    bool bAllGood = true; // TODO: set to false on leaks
     if (mDevice.getDevice() != nullptr)
     {
         // only shut these components down if the device was initialized
@@ -290,6 +291,7 @@ void phi::vk::BackendVulkan::destroy()
     mInstance = nullptr;
 
     mThreadAssociation.destroy();
+    return true;
 }
 
 phi::vk::BackendVulkan::~BackendVulkan() { destroy(); }

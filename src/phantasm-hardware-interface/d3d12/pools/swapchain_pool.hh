@@ -67,7 +67,7 @@ public:
 
 public:
     void initialize(IDXGIFactory6* factory, ID3D12Device* device, ID3D12CommandQueue* queue, unsigned max_num_swapchains, cc::allocator* static_alloc);
-    void destroy();
+    bool destroy();
 
 
 private:

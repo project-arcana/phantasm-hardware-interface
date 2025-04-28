@@ -251,61 +251,64 @@ phi::init_status phi::d3d12::BackendD3D12::initializeQueues(backend_config const
     return init_status::success;
 }
 
-void phi::d3d12::BackendD3D12::destroy()
+bool phi::d3d12::BackendD3D12::destroy()
 {
-    if (mAdapter.isValid())
+    if (!mAdapter.isValid())
+        return true;
+
+    flushGPU();
+
+    // D3D11On12
+    if (mD11Device)
     {
-        flushGPU();
-
-        // D3D11On12
-        if (mD11Device)
-        {
-            mD11Device->Release();
-        }
-        if (mD11Context)
-        {
-            mD11Context->Release();
-        }
-        if (mD11On12)
-        {
-            mD11On12->Release();
-        }
-
-        mDiagnostics.free();
-
-        //        mSwapchain.setFullscreen(false);
-        mPoolSwapchains.destroy();
-
-        mPoolCmdLists.destroy();
-        mPoolAccelStructs.destroy();
-
-        mPoolFences.destroy();
-        mPoolPSOs.destroy();
-        mPoolShaderViews.destroy();
-        mPoolResources.destroy();
-        mPoolQueries.destroy();
-        mPoolTranslators.destroy();
-
-        for (auto i = 0u; i < mNumThreadComponents; ++i)
-        {
-            auto& thread_comp = mThreadComponents[i];
-            thread_comp.threadLocalScratchAllocMemory = {};
-        }
-
-
-        mStaticAlloc->delete_array_sized(mThreadComponents, mNumThreadComponents);
-
-        mDirectQueue.destroy();
-        mCopyQueue.destroy();
-        mComputeQueue.destroy();
-
-        mDevice.destroy();
-        mAdapter.destroy();
-
-        ::CloseHandle(mFlushEvent);
-
-        mThreadAssociation.destroy();
+        mD11Device->Release();
     }
+    if (mD11Context)
+    {
+        mD11Context->Release();
+    }
+    if (mD11On12)
+    {
+        mD11On12->Release();
+    }
+
+    bool bAllGood = true;
+
+    mDiagnostics.free();
+
+    bAllGood &= mPoolSwapchains.destroy();
+
+    mPoolCmdLists.destroy();
+    bAllGood &= mPoolAccelStructs.destroy();
+
+    bAllGood &= mPoolFences.destroy();
+    bAllGood &= mPoolPSOs.destroy();
+    mPoolShaderViews.destroy();
+    bAllGood &= mPoolResources.destroy();
+    mPoolQueries.destroy();
+    mPoolTranslators.destroy();
+
+    for (auto i = 0u; i < mNumThreadComponents; ++i)
+    {
+        auto& thread_comp = mThreadComponents[i];
+        thread_comp.threadLocalScratchAllocMemory = {};
+    }
+
+
+    mStaticAlloc->delete_array_sized(mThreadComponents, mNumThreadComponents);
+
+    mDirectQueue.destroy();
+    mCopyQueue.destroy();
+    mComputeQueue.destroy();
+
+    mDevice.destroy();
+    mAdapter.destroy();
+
+    ::CloseHandle(mFlushEvent);
+
+    mThreadAssociation.destroy();
+
+    return true;
 }
 
 phi::d3d12::BackendD3D12::~BackendD3D12() { destroy(); }

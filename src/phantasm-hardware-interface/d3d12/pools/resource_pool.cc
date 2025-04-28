@@ -78,7 +78,7 @@ void phi::d3d12::ResourcePool::initialize(ID3D12Device* device, uint32_t max_num
     }
 }
 
-void phi::d3d12::ResourcePool::destroy()
+bool phi::d3d12::ResourcePool::destroy()
 {
     for (auto i = 0u; i < mNumReservedBackbuffers; ++i)
     {
@@ -114,6 +114,8 @@ void phi::d3d12::ResourcePool::destroy()
     mParallelResourceDescriptions = {};
 
     mAllocator.destroy();
+
+    return num_leaks == 0;
 }
 
 phi::handle::resource phi::d3d12::ResourcePool::injectBackbufferResource(unsigned swapchain_index, tg::isize2 size, format fmt, ID3D12Resource* raw_resource, D3D12_RESOURCE_STATES state)

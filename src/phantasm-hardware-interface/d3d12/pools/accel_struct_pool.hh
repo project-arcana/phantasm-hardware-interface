@@ -27,7 +27,7 @@ public:
 
 public:
     void initialize(ID3D12Device5* device, ResourcePool* res_pool, unsigned max_num_accel_structs, cc::allocator* static_alloc, cc::allocator* dynamic_alloc);
-    void destroy();
+    bool destroy();
 
 
 public:

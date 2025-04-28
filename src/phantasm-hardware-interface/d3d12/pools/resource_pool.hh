@@ -77,7 +77,7 @@ public:
     // internal API
 
     void initialize(ID3D12Device* device, uint32_t max_num_resources, uint32_t max_num_swapchains, cc::allocator* static_alloc, cc::allocator* dynamic_alloc);
-    void destroy();
+    bool destroy();
 
     //
     // Raw ID3D12Resource access

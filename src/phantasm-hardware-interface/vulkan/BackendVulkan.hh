@@ -25,7 +25,7 @@ class PHI_API BackendVulkan final : public Backend
 {
 public:
     init_status initialize(backend_config const& config_arg) override;
-    void destroy() override;
+    bool destroy() override;
     ~BackendVulkan() override;
 
 public:

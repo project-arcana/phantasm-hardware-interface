@@ -31,7 +31,7 @@ public:
     init_status initialize(backend_config const& config) override;
     init_status initializeParallel(backend_config const& config, uint32_t idx) override;
     init_status initializeQueues(backend_config const& config) override;
-    void destroy() override;
+    bool destroy() override;
     ~BackendD3D12() override;
 
 public:
