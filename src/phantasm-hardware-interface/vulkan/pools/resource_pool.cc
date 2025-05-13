@@ -3,7 +3,7 @@
 #include <clean-core/bit_cast.hh>
 #include <clean-core/utility.hh>
 
-#include <typed-geometry/tg.hh>
+#include <typed-geometry/types/size.hh>
 
 #include <phantasm-hardware-interface/common/format_size.hh>
 #include <phantasm-hardware-interface/common/log.hh>
