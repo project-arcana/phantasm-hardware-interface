@@ -20,6 +20,7 @@ struct ID3D12RootSignature;
 struct ID3D12PipelineState;
 struct ID3D12GraphicsCommandList;
 struct ID3D12GraphicsCommandList5;
+struct ID3D12GraphicsCommandList6;
 struct ID3D12DeviceRemovedExtendedDataSettings;
 struct ID3D12StateObjectProperties;
 
@@ -45,3 +46,8 @@ struct D3D12_INPUT_ELEMENT_DESC;
 struct D3D12_RAYTRACING_GEOMETRY_DESC;
 
 enum D3D12_RESOURCE_STATES;
+
+// The command list version in primary use
+// 6 is required for mesh shading, but it's availability is purely runtime-dependent
+// if this is ever a problem, downgrade to 5 and make 6 optional in the translator
+using ID3D12GraphicsCommandList_Spec = ID3D12GraphicsCommandList6;

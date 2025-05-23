@@ -399,7 +399,7 @@ struct graphics_shader
 /// A graphics shader bundle consists of up to 1 shader per graphics stage
 using graphics_shaders = cc::span<graphics_shader const>;
 
-
+// Description to create a classical graphics pipeline state
 struct graphics_pipeline_state_description
 {
     pipeline_config config;
@@ -407,9 +407,23 @@ struct graphics_pipeline_state_description
     root_signature_description root_signature;
     vertex_format vertices;
 
+    // up to one shader per stage (vertex, hull, domain, geometry, pixel)
     flat_vector<graphics_shader, limits::num_graphics_shader_stages> shader_binaries;
 };
 
+// Description to create a mesh shading pipeline state
+struct mesh_pipeline_state_description
+{
+    // NOTE: pipeline_config::topology is ignored
+    pipeline_config config;
+    framebuffer_config framebuffer;
+    root_signature_description root_signature;
+
+    // up to one shader per stage (amplification, mesh, pixel)
+    flat_vector<graphics_shader, 3> shader_binaries;
+};
+
+// Description to create a compute pipeline state
 struct compute_pipeline_state_description
 {
     root_signature_description root_signature;

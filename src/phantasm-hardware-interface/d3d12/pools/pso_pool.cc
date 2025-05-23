@@ -108,6 +108,53 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createPipelineS
     return {res};
 }
 
+phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createMeshPipelineState(phi::arg::mesh_pipeline_state_description const& desc, char const* dbg_name)
+{
+    root_signature* pRootSig = nullptr;
+
+    if (desc.config.allow_draw_indirect_with_id)
+    {
+        PHI_LOG_ERROR("Indirect Draw ID mode not supported for mesh pipeline states. Aborting compilation of PSO with debug name: {}",
+                      dbg_name ? dbg_name : "unnamed (nullptr)");
+        return handle::null_pipeline_state;
+    }
+
+    // Do things requiring synchronization first
+    {
+        auto lg = std::lock_guard(mMutex);
+
+        pRootSig = mRootSigCache.getOrCreate(*mDevice, desc.root_signature, root_signature_type::mesh);
+    }
+
+    if (!pRootSig)
+    {
+        PHI_LOG_ERROR("Failed to create root signature when compiling mesh PSO, debug name: {}", dbg_name ? dbg_name : "unnamed (nullptr)");
+        return phi::handle::null_pipeline_state;
+    }
+
+    ID3D12PipelineState* const pPipelineState
+        = create_mesh_pipeline_state(*mDevice, pRootSig->raw_root_sig, desc.framebuffer, desc.shader_binaries, desc.config);
+
+    if (!pPipelineState)
+    {
+        PHI_LOG_ERROR("Failed to compile mesh PSO, debug name: {}", dbg_name ? dbg_name : "unnamed (nullptr)");
+        return phi::handle::null_pipeline_state;
+    }
+
+    util::set_object_name(pPipelineState, "%s", dbg_name ? dbg_name : "Unnamed Mesh PSO");
+
+    uint32_t const res = mPool.acquire();
+
+    // Populate new node
+    pso_node& new_node = mPool.get(res);
+    new_node.pPSO = pPipelineState;
+    new_node.pAssociatedRootSig = pRootSig;
+    new_node.pAssociatedComSigForDrawID = nullptr;
+    new_node.primitive_topology = D3D_PRIMITIVE_TOPOLOGY_UNDEFINED;
+
+    return {res};
+}
+
 phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createComputePipelineState(arg::compute_pipeline_state_description const& desc, char const* dbg_name)
 {
     root_signature* pRootSig = nullptr;
@@ -123,7 +170,7 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createComputePi
         return phi::handle::null_pipeline_state;
     }
 
-    ID3D12PipelineState* const pPipelineState = create_compute_pipeline_state(*mDevice, pRootSig->raw_root_sig, desc.shader.data, desc.shader.size);
+    ID3D12PipelineState* const pPipelineState = create_compute_pipeline_state(*mDevice, pRootSig->raw_root_sig, desc.shader);
 
     if (!pPipelineState)
     {
@@ -571,7 +618,7 @@ void phi::d3d12::PipelineStateObjectPool::free(phi::handle::pipeline_state ps)
 }
 
 void phi::d3d12::PipelineStateObjectPool::initialize(
-    ID3D12Device5* device_rt, unsigned max_num_psos, unsigned max_num_psos_raytracing, cc::allocator* static_alloc, cc::allocator* dynamic_alloc, bool bHasRT)
+    ID3D12Device5* device_rt, unsigned max_num_psos, unsigned max_num_psos_raytracing, cc::allocator* static_alloc, cc::allocator* dynamic_alloc, bool bHasRT, bool bHasMeshShading)
 {
     // Component init
     mDevice = device_rt;
@@ -597,6 +644,11 @@ void phi::d3d12::PipelineStateObjectPool::initialize(
     mGlobalComSigDraw = createCommandSignatureForDraw(mDevice);
     mGlobalComSigDrawIndexed = createCommandSignatureForDrawIndexed(mDevice);
     mGlobalComSigDispatch = createCommandSignatureForDispatch(mDevice);
+
+    if (bHasMeshShading)
+    {
+        mGlobalComSigDispatchMesh = createCommandSignatureForDispatchMesh(mDevice);
+    }
 }
 
 bool phi::d3d12::PipelineStateObjectPool::destroy()
@@ -644,6 +696,11 @@ bool phi::d3d12::PipelineStateObjectPool::destroy()
     mGlobalComSigDraw->Release();
     mGlobalComSigDrawIndexed->Release();
     mGlobalComSigDispatch->Release();
+
+    if (mGlobalComSigDispatchMesh)
+    {
+        mGlobalComSigDispatchMesh->Release();
+    }
 
     return num_leaks == 0;
 }

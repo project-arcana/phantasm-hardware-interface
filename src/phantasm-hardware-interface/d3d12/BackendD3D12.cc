@@ -82,7 +82,7 @@ phi::init_status phi::d3d12::BackendD3D12::initialize(const phi::backend_config&
         mPoolShaderViews.initialize(device, &mPoolResources, &mPoolAccelStructs, config.max_num_shader_views,
                                     config.max_num_srvs + config.max_num_uavs, config.max_num_samplers, config.static_allocator);
         mPoolPSOs.initialize(device, config.max_num_pipeline_states, config.max_num_raytrace_pipeline_states, config.static_allocator,
-                             config.dynamic_allocator, mDevice.hasRaytracing());
+                             config.dynamic_allocator, mDevice.hasRaytracing(), mDevice.hasMeshShading());
         mPoolFences.initialize(device, config.max_num_fences, config.static_allocator);
         mPoolQueries.initialize(device, config.num_timestamp_queries, config.num_occlusion_queries, config.num_pipeline_stat_queries, config.static_allocator);
 
@@ -459,6 +459,11 @@ phi::handle::pipeline_state phi::d3d12::BackendD3D12::createPipelineState(const 
     return mPoolPSOs.createPipelineState(description, debug_name);
 }
 
+phi::handle::pipeline_state phi::d3d12::BackendD3D12::createMeshPipelineState(arg::mesh_pipeline_state_description const& description, char const* debug_name)
+{
+    return mPoolPSOs.createMeshPipelineState(description, debug_name);
+}
+
 phi::handle::pipeline_state phi::d3d12::BackendD3D12::createComputePipelineState(const phi::arg::compute_pipeline_state_description& description, char const* debug_name)
 {
     return mPoolPSOs.createComputePipelineState(description, debug_name);
@@ -540,7 +545,7 @@ void phi::d3d12::BackendD3D12::submit(cc::span<const phi::handle::command_list> 
 
         if (barriers.size() > 0)
         {
-            ID3D12GraphicsCommandList5* pBarrierCmdlist = nullptr;
+            ID3D12GraphicsCommandList_Spec* pBarrierCmdlist = nullptr;
             auto const hBarrierList = mPoolCmdLists.create(pBarrierCmdlist, queue);
 
             pBarrierCmdlist->ResourceBarrier(barriers.size(), barriers.data());
@@ -667,7 +672,7 @@ void phi::d3d12::BackendD3D12::freeRange(cc::span<const phi::handle::accel_struc
 
 phi::handle::live_command_list phi::d3d12::BackendD3D12::openLiveCommandList(queue_type queue, cmd::set_global_profile_scope const* pOptGlobalScope)
 {
-    ID3D12GraphicsCommandList5* pCmdList = nullptr;
+    ID3D12GraphicsCommandList_Spec* pCmdList = nullptr;
     auto const hList = mPoolCmdLists.create(pCmdList, queue);
 
     return mPoolTranslators.createLiveCmdList(hList, pCmdList, queue, mPoolCmdLists.getStateCache(hList), pOptGlobalScope);
@@ -772,6 +777,16 @@ void phi::d3d12::BackendD3D12::cmdBeginDebugLabel(handle::live_command_list list
     mPoolTranslators.getTranslator(list)->execute(command);
 }
 
+void phi::d3d12::BackendD3D12::cmdDispatchMesh(handle::live_command_list list, cmd::dispatch_mesh const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::d3d12::BackendD3D12::cmdDispatchMeshIndirect(handle::live_command_list list, cmd::dispatch_mesh_indirect const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
 void phi::d3d12::BackendD3D12::cmdEndDebugLabel(handle::live_command_list list, cmd::end_debug_label const& command)
 {
     mPoolTranslators.getTranslator(list)->execute(command);
@@ -863,6 +878,8 @@ uint64_t phi::d3d12::BackendD3D12::getGPUTimestampFrequency() const
 }
 
 bool phi::d3d12::BackendD3D12::isRaytracingEnabled() const { return mDevice.hasRaytracing(); }
+
+bool phi::d3d12::BackendD3D12::isMeshShadingEnabled() const { return mDevice.hasMeshShading(); }
 
 phi::vram_state_info phi::d3d12::BackendD3D12::nativeGetVRAMStateInfo()
 {

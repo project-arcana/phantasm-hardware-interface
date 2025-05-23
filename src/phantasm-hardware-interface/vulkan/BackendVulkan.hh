@@ -105,6 +105,8 @@ public:
 
     [[nodiscard]] handle::pipeline_state createPipelineState(arg::graphics_pipeline_state_description const& description, char const* debug_name = nullptr) override;
 
+    [[nodiscard]] handle::pipeline_state createMeshPipelineState(arg::mesh_pipeline_state_description const& description, char const* debug_name = nullptr) override;
+
     [[nodiscard]] handle::pipeline_state createComputePipelineState(arg::compute_pipeline_state_description const& description,
                                                                     char const* debug_name = nullptr) override;
 
@@ -210,6 +212,8 @@ public:
     void cmdResolveQueries(handle::live_command_list list, cmd::resolve_queries const& command) override;
     void cmdBeginDebugLabel(handle::live_command_list list, cmd::begin_debug_label const& command) override;
     void cmdEndDebugLabel(handle::live_command_list list, cmd::end_debug_label const& command) override;
+    void cmdDispatchMesh(handle::live_command_list list, cmd::dispatch_mesh const& command) override;
+    void cmdDispatchMeshIndirect(handle::live_command_list list, cmd::dispatch_mesh_indirect const& command) override;
     void cmdUpdateBottomLevel(handle::live_command_list list, cmd::update_bottom_level const& command) override;
     void cmdUpdateBottomLevelInBuffer(handle::live_command_list list, cmd::update_bottom_level_in_buffer const& command) override;
     void cmdUpdateTopLevel(handle::live_command_list list, cmd::update_top_level const& command) override;
@@ -246,6 +250,7 @@ public:
     uint64_t getGPUTimestampFrequency() const override;
 
     bool isRaytracingEnabled() const override;
+    bool isMeshShadingEnabled() const override { return false; /* TODO */ }
 
     backend_type getBackendType() const override;
 

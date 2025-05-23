@@ -142,6 +142,11 @@ constexpr VkPipelineStageFlags to_pipeline_stage_flags(phi::shader_stage stage)
     case phi::shader_stage::ray_callable:
         return VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV;
 
+    case phi::shader_stage::amplification:
+        return VK_PIPELINE_STAGE_TASK_SHADER_BIT_NV;
+    case phi::shader_stage::mesh:
+        return VK_PIPELINE_STAGE_MESH_SHADER_BIT_NV;
+
     case phi::shader_stage::none:
     case phi::shader_stage::MAX_SHADER_STAGE_RANGE:
         CC_ASSERT(false && "invalid shader stage given");
@@ -329,6 +334,11 @@ constexpr VkShaderStageFlagBits to_shader_stage_flags(phi::shader_stage stage)
         return VK_SHADER_STAGE_ANY_HIT_BIT_NV;
     case phi::shader_stage::ray_callable:
         return VK_SHADER_STAGE_CALLABLE_BIT_NV;
+
+    case phi::shader_stage::amplification:
+        return VK_SHADER_STAGE_TASK_BIT_NV;
+    case phi::shader_stage::mesh:
+        return VK_SHADER_STAGE_MESH_BIT_NV;
 
     case phi::shader_stage::none:
     case phi::shader_stage::MAX_SHADER_STAGE_RANGE:

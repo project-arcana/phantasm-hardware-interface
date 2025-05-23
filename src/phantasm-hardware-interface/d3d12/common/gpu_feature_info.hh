@@ -6,6 +6,41 @@
 
 namespace phi::d3d12
 {
+// TODO(25-05-23): Port a version of this to the global phi namespace and make it available via Backend + Add support in VK
+// Expose flags like these (with explanations on what consequences the features have in phi API terms, or where to find them)
+// Supersede 'isMeshShadingEnabled' and 'isRaytracingEnabled' with that new feature
+#if 0
+using gpu_feature_flags_t = uint32_t;
+struct gpu_feature_flags
+{
+    enum : gpu_feature_flags_t
+    {
+        none = 0,
+
+        // Hardware Raytracing, including the entire related API is available
+        raytracing = 1 << 0,
+
+        // Mesh shading is available (Mesh pipeline_state, cmd::dispatch_mesh, cmd::dispatch_mesh_indirect)
+        mesh_shaders = 1 << 1,
+
+        // Conservative rasterization is available (arg::pipeline_config::conservative_raster)
+        conservative_raster = 1 << 2,
+
+        // Rasterizer Ordered Views (ROVs) are available
+        rasterizer_ordered_views = 1 << 3,
+
+        // HLSL SM6 Wave Ops are available in shaders
+        hlsl_wave_ops = 1 << 4,
+
+        // HLSL SM6.6 ResourceDescriptorHeap/SamplerDescriptorHeap is usable
+        hlsl_dynamic_resources = 1 << 5,
+        
+        // format::r9g9b9e5_sharedexp_uf can be used for UAVs and render targets
+        rgb9e5_rt_uav = 1 << 6,
+    };
+};
+#endif
+
 // explicit GPU features
 enum class gpu_feature : uint8_t
 {

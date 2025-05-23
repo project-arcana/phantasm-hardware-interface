@@ -21,15 +21,15 @@ ID3D12RootSignature* phi::d3d12::create_root_signature(ID3D12Device& device,
 
     if (type == root_signature_type::graphics)
     {
-        desc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-        //            | D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS
-        //                 | D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS | D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
+        desc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT | D3D12_ROOT_SIGNATURE_FLAG_DENY_AMPLIFICATION_SHADER_ROOT_ACCESS
+                     | D3D12_ROOT_SIGNATURE_FLAG_DENY_MESH_SHADER_ROOT_ACCESS;
     }
     else if (type == root_signature_type::compute)
     {
         desc.Flags = D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS | D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS
                      | D3D12_ROOT_SIGNATURE_FLAG_DENY_VERTEX_SHADER_ROOT_ACCESS | D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS
-                     | D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
+                     | D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS | D3D12_ROOT_SIGNATURE_FLAG_DENY_AMPLIFICATION_SHADER_ROOT_ACCESS
+                     | D3D12_ROOT_SIGNATURE_FLAG_DENY_MESH_SHADER_ROOT_ACCESS;
     }
     else if (type == root_signature_type::raytrace_local)
     {
@@ -38,6 +38,11 @@ ID3D12RootSignature* phi::d3d12::create_root_signature(ID3D12Device& device,
     else if (type == root_signature_type::raytrace_global)
     {
         desc.Flags = D3D12_ROOT_SIGNATURE_FLAG_NONE;
+    }
+    else if (type == root_signature_type::mesh)
+    {
+        desc.Flags = D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS | D3D12_ROOT_SIGNATURE_FLAG_DENY_VERTEX_SHADER_ROOT_ACCESS
+                     | D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS | D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
     }
     else
     {
@@ -269,6 +274,24 @@ ID3D12CommandSignature* phi::d3d12::createCommandSignatureForDispatch(ID3D12Devi
 
     D3D12_INDIRECT_ARGUMENT_DESC indirect_arg = {};
     indirect_arg.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH;
+
+    D3D12_COMMAND_SIGNATURE_DESC desc = {};
+    desc.NumArgumentDescs = 1;
+    desc.pArgumentDescs = &indirect_arg;
+    desc.ByteStride = sizeof(gpu_indirect_command_dispatch);
+    desc.NodeMask = 0;
+
+    ID3D12CommandSignature* pComSig = nullptr;
+    PHI_D3D12_VERIFY(pDevice->CreateCommandSignature(&desc, nullptr, IID_PPV_ARGS(&pComSig)));
+    return pComSig;
+}
+
+ID3D12CommandSignature* phi::d3d12::createCommandSignatureForDispatchMesh(ID3D12Device* pDevice)
+{
+    static_assert(sizeof(D3D12_DISPATCH_MESH_ARGUMENTS) == sizeof(gpu_indirect_command_dispatch), "gpu argument type compiles to incorrect size");
+
+    D3D12_INDIRECT_ARGUMENT_DESC indirect_arg = {};
+    indirect_arg.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH_MESH;
 
     D3D12_COMMAND_SIGNATURE_DESC desc = {};
     desc.NumArgumentDescs = 1;

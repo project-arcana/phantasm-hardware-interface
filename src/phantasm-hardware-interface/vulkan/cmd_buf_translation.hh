@@ -92,6 +92,10 @@ struct CommandListTranslator
 
     void execute(cmd::dispatch_indirect const& dispatch_indirect);
 
+    void execute(cmd::dispatch_mesh const& dispatch) { CC_ASSERT(false && "unimplemented"); }
+
+    void execute(cmd::dispatch_mesh_indirect const& dispatch) { CC_ASSERT(false && "unimplemented"); }
+
     void execute(cmd::end_render_pass const& end_rp);
 
     void execute(cmd::transition_resources const& transition_res);

@@ -105,6 +105,7 @@ struct pipeline_config;
 struct render_target_config;
 struct root_signature_description;
 struct graphics_pipeline_state_description;
+struct mesh_pipeline_state_description;
 struct compute_pipeline_state_description;
 struct shader_view_description;
 struct swapchain_description;

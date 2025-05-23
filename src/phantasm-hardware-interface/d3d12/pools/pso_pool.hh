@@ -25,6 +25,8 @@ public:
 
     [[nodiscard]] handle::pipeline_state createPipelineState(phi::arg::graphics_pipeline_state_description const& desc, char const* dbg_name);
 
+    [[nodiscard]] handle::pipeline_state createMeshPipelineState(phi::arg::mesh_pipeline_state_description const& desc, char const* dbg_name);
+
     [[nodiscard]] handle::pipeline_state createComputePipelineState(arg::compute_pipeline_state_description const& desc, char const* dbg_name);
 
     [[nodiscard]] handle::pipeline_state createRaytracingPipelineState(cc::span<arg::raytracing_shader_library const> libraries,
@@ -113,7 +115,7 @@ public:
 public:
     // internal API
 
-    void initialize(ID3D12Device5* device_rt, unsigned max_num_psos, unsigned max_num_psos_raytracing, cc::allocator* static_alloc, cc::allocator* dynamic_alloc, bool bHasRT);
+    void initialize(ID3D12Device5* device_rt, unsigned max_num_psos, unsigned max_num_psos_raytracing, cc::allocator* static_alloc, cc::allocator* dynamic_alloc, bool bHasRT, bool bHasMeshShading);
     bool destroy();
 
     [[nodiscard]] pso_node const& get(handle::pipeline_state ps) const { return mPool.get(ps._value); }
@@ -125,6 +127,7 @@ public:
     ID3D12CommandSignature* getGlobalComSigDraw() const { return mGlobalComSigDraw; }
     ID3D12CommandSignature* getGlobalComSigDrawIndexed() const { return mGlobalComSigDrawIndexed; }
     ID3D12CommandSignature* getGlobalComSigDispatch() const { return mGlobalComSigDispatch; }
+    ID3D12CommandSignature* getGlobalComSigDispatchMesh() const { return mGlobalComSigDispatchMesh; }
 
     ID3D12RootSignature* getGlobalEmptyRaytraceRootSignature() const { return mEmptyGlobalRaytraceRootSignature; }
 
@@ -140,6 +143,7 @@ private:
     ID3D12CommandSignature* mGlobalComSigDraw = nullptr;
     ID3D12CommandSignature* mGlobalComSigDrawIndexed = nullptr;
     ID3D12CommandSignature* mGlobalComSigDispatch = nullptr;
+    ID3D12CommandSignature* mGlobalComSigDispatchMesh = nullptr;
 
     cc::atomic_linked_pool<pso_node> mPool;
     cc::atomic_linked_pool<rt_pso_node> mPoolRaytracing;

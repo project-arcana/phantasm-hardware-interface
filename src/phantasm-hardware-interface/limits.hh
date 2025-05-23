@@ -36,7 +36,7 @@ enum limits_e : unsigned
     /// configurable
     max_raytracing_hit_groups = 16u,
 
-    /// amount of shader stages in the graphics pipeline
+    /// amount of shader stages in the classical graphics pipeline (not compute, raytracing, or mesh shading)
     num_graphics_shader_stages = 5u,
 };
 }

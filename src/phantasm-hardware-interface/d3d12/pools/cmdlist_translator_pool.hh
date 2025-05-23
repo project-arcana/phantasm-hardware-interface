@@ -26,7 +26,7 @@ public:
 
 public:
     handle::live_command_list createLiveCmdList(handle::command_list backing,
-                                                ID3D12GraphicsCommandList5* pRawList,
+                                                ID3D12GraphicsCommandList_Spec* pRawList,
                                                 queue_type queue,
                                                 incomplete_state_cache* pStateCache,
                                                 cmd::set_global_profile_scope const* pOptGlobalProfileScope = nullptr);

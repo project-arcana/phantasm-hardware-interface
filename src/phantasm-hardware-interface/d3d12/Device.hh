@@ -15,6 +15,7 @@ public:
 
     bool hasSM6WaveIntrinsics() const { return mFeatures.features.has(gpu_feature::hlsl_wave_ops); }
     bool hasRaytracing() const { return mIsRaytracingEnabled; }
+    bool hasMeshShading() const { return mFeatures.features.has(gpu_feature::mesh_shaders); }
     bool hasVariableRateShading() const { return mFeatures.variable_rate_shading >= gpu_feature_info::variable_rate_shading_t1_0; }
 
     ID3D12Device5* getDevice() const { return mDevice; }

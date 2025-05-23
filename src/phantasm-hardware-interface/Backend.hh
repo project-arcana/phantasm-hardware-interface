@@ -161,6 +161,9 @@ public:
     [[nodiscard]] virtual handle::pipeline_state createPipelineState(arg::graphics_pipeline_state_description const& description, char const* debug_name = nullptr)
         = 0;
 
+    [[nodiscard]] virtual handle::pipeline_state createMeshPipelineState(arg::mesh_pipeline_state_description const& description, char const* debug_name = nullptr)
+        = 0;
+
     /// create a compute pipeline state
     [[nodiscard]] virtual handle::pipeline_state createComputePipelineState(arg::compute_pipeline_state_description const& description, char const* debug_name = nullptr)
         = 0;
@@ -297,6 +300,8 @@ public:
     virtual void cmdResolveQueries(handle::live_command_list list, cmd::resolve_queries const& command) = 0;
     virtual void cmdBeginDebugLabel(handle::live_command_list list, cmd::begin_debug_label const& command) = 0;
     virtual void cmdEndDebugLabel(handle::live_command_list list, cmd::end_debug_label const& command) = 0;
+    virtual void cmdDispatchMesh(handle::live_command_list list, cmd::dispatch_mesh const& command) = 0;
+    virtual void cmdDispatchMeshIndirect(handle::live_command_list list, cmd::dispatch_mesh_indirect const& command) = 0;
     virtual void cmdUpdateBottomLevel(handle::live_command_list list, cmd::update_bottom_level const& command) = 0;
     virtual void cmdUpdateBottomLevelInBuffer(handle::live_command_list list, cmd::update_bottom_level_in_buffer const& command) = 0;
     virtual void cmdUpdateTopLevel(handle::live_command_list list, cmd::update_top_level const& command) = 0;
@@ -343,6 +348,7 @@ public:
     virtual uint64_t getGPUTimestampFrequency() const = 0;
 
     virtual bool isRaytracingEnabled() const = 0;
+    virtual bool isMeshShadingEnabled() const = 0;
 
     virtual backend_type getBackendType() const = 0;
 

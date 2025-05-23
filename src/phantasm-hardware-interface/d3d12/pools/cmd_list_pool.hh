@@ -27,12 +27,12 @@ public:
     void initialize(ID3D12Device5& device, D3D12_COMMAND_LIST_TYPE type);
     void destroy();
 
-    void createCommandLists(ID3D12Device5& device, cc::span<ID3D12GraphicsCommandList5*> out_cmdlists);
+    void createCommandLists(ID3D12Device5& device, cc::span<ID3D12GraphicsCommandList_Spec*> out_cmdlists);
 
 public:
     // acquire memory from this allocator for the given commandlist
     // do not call if full (best case: blocking, worst case: crash)
-    void acquireMemory(ID3D12GraphicsCommandList5* cmd_list);
+    void acquireMemory(ID3D12GraphicsCommandList_Spec* cmd_list);
 
     bool canReset() const
     {
@@ -255,7 +255,7 @@ private:
         CC_UNREACHABLE("invalid queue_type");
     }
 
-    ID3D12GraphicsCommandList5* getList(handle::command_list cl, queue_type type) const
+    ID3D12GraphicsCommandList_Spec* getList(handle::command_list cl, queue_type type) const
     {
         switch (type)
         {
@@ -273,7 +273,7 @@ private:
 public:
     // frontend-facing API (not quite, command_list can only be compiled immediately)
 
-    [[nodiscard]] handle::command_list create(ID3D12GraphicsCommandList5*& out_cmdlist, queue_type type);
+    [[nodiscard]] handle::command_list create(ID3D12GraphicsCommandList_Spec*& out_cmdlist, queue_type type);
 
     void onClose(handle::command_list hList);
 
@@ -284,7 +284,7 @@ public:
     void freeOnDiscard(cc::span<handle::command_list const> spLists);
 
 public:
-    ID3D12GraphicsCommandList5* getRawList(handle::command_list hList) const
+    ID3D12GraphicsCommandList_Spec* getRawList(handle::command_list hList) const
     {
         auto const type = HandleToQueueType(hList);
         return getList(hList, type);
@@ -308,7 +308,7 @@ public:
     void destroy();
 
 private:
-    handle::command_list acquireNodeInternal(queue_type type, cmd_list_node*& out_node, ID3D12GraphicsCommandList5*& out_cmdlist);
+    handle::command_list acquireNodeInternal(queue_type type, cmd_list_node*& out_node, ID3D12GraphicsCommandList_Spec*& out_cmdlist);
 
     [[nodiscard]] cmd_list_node* getNodeInternal(handle::command_list cl)
     {
@@ -316,7 +316,7 @@ private:
         return &getPool(type).get(cl._value);
     }
 
-    cmd_list_node* getNodeInternal(handle::command_list cl, cmdlist_linked_pool_t*& out_pool, ID3D12GraphicsCommandList5*& out_cmdlist)
+    cmd_list_node* getNodeInternal(handle::command_list cl, cmdlist_linked_pool_t*& out_pool, ID3D12GraphicsCommandList_Spec*& out_cmdlist)
     {
         queue_type const type = HandleToQueueType(cl);
         out_pool = &getPool(type);
@@ -337,9 +337,9 @@ private:
 
     // parallel arrays to the pools, identically indexed
     // the cmdlists must stay alive even while "unallocated"
-    cc::alloc_array<ID3D12GraphicsCommandList5*> mRawListsDirect;
-    cc::alloc_array<ID3D12GraphicsCommandList5*> mRawListsCompute;
-    cc::alloc_array<ID3D12GraphicsCommandList5*> mRawListsCopy;
+    cc::alloc_array<ID3D12GraphicsCommandList_Spec*> mRawListsDirect;
+    cc::alloc_array<ID3D12GraphicsCommandList_Spec*> mRawListsCompute;
+    cc::alloc_array<ID3D12GraphicsCommandList_Spec*> mRawListsCopy;
 
     CommandAllocatorQueue mQueue;
     cc::alloc_array<CommandAllocator> mAllocatorsDirect;

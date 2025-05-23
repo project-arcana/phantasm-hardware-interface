@@ -40,6 +40,10 @@ enum class shader_stage : uint8_t
     ray_any_hit,
     ray_callable,
 
+    // mesh shaders
+    amplification,
+    mesh,
+
     MAX_SHADER_STAGE_RANGE,
     NUM_SHADER_STAGES = MAX_SHADER_STAGE_RANGE - 1
 };
@@ -69,7 +73,10 @@ struct shader_stage_flags
         ray_any_hit = 1 << 10,
         ray_callable = 1 << 11,
 
-        MASK_all_graphics = vertex | hull | domain | geometry | pixel,
+        amplification = 1 << 12,
+        mesh = 1 << 13,
+
+        MASK_all_graphics = vertex | hull | domain | geometry | pixel | amplification | mesh,
         MASK_ray_identifiable = ray_gen | ray_miss | ray_callable,
         MASK_ray_hitgroup = ray_closest_hit | ray_any_hit | ray_intersect,
         MASK_all_ray = MASK_ray_identifiable | MASK_ray_hitgroup,
@@ -768,7 +775,7 @@ struct gpu_indirect_command_draw_indexed_with_id
     uint32_t first_instance = 0;
 };
 
-// indirect compute dispatch command, as it is laid out in a GPU buffer
+// indirect compute dispatch or mesh dispatch command, as it is laid out in a GPU buffer
 struct gpu_indirect_command_dispatch
 {
     uint32_t dispatch_x = 0;

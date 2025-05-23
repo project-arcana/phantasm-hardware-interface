@@ -41,6 +41,7 @@ PHI_DEFINE_CMD(begin_render_pass)
     // Start a render pass into the given render targets
 
     // draw calls are only possibly inside a render pass
+    //      draw calls include: cmd::draw, cmd::draw_indirect, cmd::dispatch_mesh, cmd::dispatch_mesh_indirect
     // ends with cmd::end_render_pass
 
     struct render_target_info
@@ -326,13 +327,80 @@ public:
 
 PHI_DEFINE_CMD(dispatch_indirect)
 {
-    // Execute a compute dispatch
+    // Execute a compute dispatch indirectly (using arguments from a GPU buffer)
 
     std::byte root_constants[limits::max_root_constant_bytes];
     flat_vector<shader_argument, limits::max_shader_arguments> shader_arguments;
     handle::pipeline_state pipeline_state = handle::null_pipeline_state;
 
     /// the buffer location to read arguments from, must be in resource_state::indirect_argument
+    /// must contain an array of gpu_indirect_command_dispatch
+    buffer_address argument_buffer_addr;
+    /// the amount of arguments to read from the buffer
+    uint32_t num_arguments = 0;
+
+public:
+    void add_shader_arg(handle::resource cbv, uint32_t cbv_off = 0, handle::shader_view sv = handle::null_shader_view)
+    {
+        shader_arguments.push_back(shader_argument{cbv, sv, cbv_off});
+    }
+
+    template <class T>
+    void write_root_constants(T const& data)
+    {
+        static_assert(sizeof(T) <= sizeof(root_constants), "data too large");
+        static_assert(std::is_trivially_copyable_v<T>, "data not memcpyable");
+        static_assert(!std::is_pointer_v<T>, "provide direct reference to data");
+        std::memcpy(root_constants, &data, sizeof(T));
+    }
+};
+
+PHI_DEFINE_CMD(dispatch_mesh)
+{
+    // Execute a mesh shading dispatch
+
+    std::byte root_constants[limits::max_root_constant_bytes];
+    flat_vector<shader_argument, limits::max_shader_arguments> shader_arguments;
+    handle::pipeline_state pipeline_state = handle::null_pipeline_state;
+
+    uint32_t dispatch_x = 0;
+    uint32_t dispatch_y = 0;
+    uint32_t dispatch_z = 0;
+
+public:
+    void init(handle::pipeline_state pso, uint32_t x, uint32_t y = 1, uint32_t z = 1)
+    {
+        pipeline_state = pso;
+        dispatch_x = x;
+        dispatch_y = y;
+        dispatch_z = z;
+    }
+
+    void add_shader_arg(handle::resource cbv, uint32_t cbv_off = 0, handle::shader_view sv = handle::null_shader_view)
+    {
+        shader_arguments.push_back(shader_argument{cbv, sv, cbv_off});
+    }
+
+    template <class T>
+    void write_root_constants(T const& data)
+    {
+        static_assert(sizeof(T) <= sizeof(root_constants), "root constant data too large");
+        static_assert(std::is_trivially_copyable_v<T>, "root constant data not memcpyable");
+        static_assert(!std::is_pointer_v<T>, "provide direct reference to data");
+        std::memcpy(root_constants, &data, sizeof(T));
+    }
+};
+
+PHI_DEFINE_CMD(dispatch_mesh_indirect)
+{
+    // Execute a mesh shading dispatch indirectly (using arguments from a GPU buffer)
+
+    std::byte root_constants[limits::max_root_constant_bytes];
+    flat_vector<shader_argument, limits::max_shader_arguments> shader_arguments;
+    handle::pipeline_state pipeline_state = handle::null_pipeline_state;
+
+    /// the buffer location to read arguments from, must be in resource_state::indirect_argument
+    /// must contain an array of gpu_indirect_command_dispatch
     buffer_address argument_buffer_addr;
     /// the amount of arguments to read from the buffer
     uint32_t num_arguments = 0;

@@ -8,12 +8,23 @@
 
 namespace phi::d3d12
 {
-[[nodiscard]] ID3D12PipelineState* create_pipeline_state(ID3D12Device& device,
+// creates a (classical) graphics pipeline state
+[[nodiscard]] ID3D12PipelineState* create_pipeline_state(ID3D12Device5& device,
                                                          ID3D12RootSignature* root_sig,
                                                          cc::span<D3D12_INPUT_ELEMENT_DESC const> vertex_input_layout,
                                                          const arg::framebuffer_config& framebuffer_format,
                                                          arg::graphics_shaders shader_stages,
                                                          arg::pipeline_config const& config);
 
-[[nodiscard]] ID3D12PipelineState* create_compute_pipeline_state(ID3D12Device& device, ID3D12RootSignature* root_sig, const std::byte* binary_data, size_t binary_size);
+// creates a mesh shading pipeline state
+// shader stages must contain at least a mesh shader, and optionally an amplification and a pixel shader
+// NOTE: pipeline_config::topology is ignored
+[[nodiscard]] ID3D12PipelineState* create_mesh_pipeline_state(ID3D12Device5& device,
+                                                              ID3D12RootSignature* root_sig,
+                                                              const arg::framebuffer_config& framebuffer_format,
+                                                              arg::graphics_shaders shader_stages,
+                                                              arg::pipeline_config const& config);
+
+// creates a compute pipeline state
+[[nodiscard]] ID3D12PipelineState* create_compute_pipeline_state(ID3D12Device5& device, ID3D12RootSignature* root_sig, arg::shader_binary const& shader);
 } // namespace phi::d3d12

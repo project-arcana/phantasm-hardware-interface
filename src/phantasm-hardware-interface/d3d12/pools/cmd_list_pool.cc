@@ -33,7 +33,7 @@ void phi::d3d12::CommandAllocator::destroy()
     mFence.destroy();
 }
 
-void phi::d3d12::CommandAllocator::createCommandLists(ID3D12Device5& device, cc::span<ID3D12GraphicsCommandList5*> out_cmdlists)
+void phi::d3d12::CommandAllocator::createCommandLists(ID3D12Device5& device, cc::span<ID3D12GraphicsCommandList_Spec*> out_cmdlists)
 {
 #ifdef PHI_HAS_OPTICK
     OPTICK_EVENT();
@@ -52,7 +52,7 @@ void phi::d3d12::CommandAllocator::createCommandLists(ID3D12Device5& device, cc:
     }
 }
 
-void phi::d3d12::CommandAllocator::acquireMemory(ID3D12GraphicsCommandList5* cmd_list)
+void phi::d3d12::CommandAllocator::acquireMemory(ID3D12GraphicsCommandList_Spec* cmd_list)
 {
     PHI_D3D12_VERIFY(cmd_list->Reset(mAllocator, nullptr));
     ++mNumBackedCmdlists;
@@ -115,7 +115,7 @@ bool phi::d3d12::CommandAllocator::isSubmitCounterUpToDate() const
     return (numSubmitsSinceReset == maxNumSubmitsRemaining);
 }
 
-phi::handle::command_list phi::d3d12::CommandListPool::create(ID3D12GraphicsCommandList5*& out_cmdlist, queue_type type)
+phi::handle::command_list phi::d3d12::CommandListPool::create(ID3D12GraphicsCommandList_Spec*& out_cmdlist, queue_type type)
 {
     handle::command_list hRes;
     cmd_list_node* pNewNode;
@@ -133,7 +133,7 @@ phi::handle::command_list phi::d3d12::CommandListPool::create(ID3D12GraphicsComm
 void phi::d3d12::CommandListPool::onClose(handle::command_list hList)
 {
     cmdlist_linked_pool_t* pPool;
-    ID3D12GraphicsCommandList5* pList;
+    ID3D12GraphicsCommandList_Spec* pList;
     cmd_list_node* const pNode = getNodeInternal(hList, pPool, pList);
 
     CC_ASSERT(pNode->bIsLive && "Node is expected to be live when closing");
@@ -145,7 +145,7 @@ void phi::d3d12::CommandListPool::onClose(handle::command_list hList)
 void phi::d3d12::CommandListPool::freeOnSubmit(phi::handle::command_list hList, ID3D12CommandQueue& queue)
 {
     cmdlist_linked_pool_t* pPool;
-    ID3D12GraphicsCommandList5* pList;
+    ID3D12GraphicsCommandList_Spec* pList;
     cmd_list_node* const pNode = getNodeInternal(hList, pPool, pList);
 
     if (pNode->bIsLive)
@@ -177,7 +177,7 @@ void phi::d3d12::CommandListPool::freeOnDiscard(cc::span<const phi::handle::comm
             continue;
 
         cmdlist_linked_pool_t* pool;
-        ID3D12GraphicsCommandList5* list;
+        ID3D12GraphicsCommandList_Spec* list;
         cmd_list_node* const pNode = getNodeInternal(hList, pool, list);
 
         if (pNode->bIsLive)
@@ -279,7 +279,7 @@ void phi::d3d12::CommandListPool::destroy()
 
 phi::handle::command_list phi::d3d12::CommandListPool::acquireNodeInternal(phi::queue_type type,
                                                                            phi::d3d12::CommandListPool::cmd_list_node*& out_node,
-                                                                           ID3D12GraphicsCommandList5*& out_cmdlist)
+                                                                           ID3D12GraphicsCommandList_Spec*& out_cmdlist)
 {
     auto& pool = getPool(type);
     unsigned const res = pool.acquire();

@@ -23,7 +23,8 @@ enum class root_signature_type : uint8_t
     graphics,
     compute,
     raytrace_local,
-    raytrace_global
+    raytrace_global,
+    mesh
 };
 
 namespace detail
@@ -71,6 +72,8 @@ ID3D12CommandSignature* createCommandSignatureForDraw(ID3D12Device* pDevice);
 ID3D12CommandSignature* createCommandSignatureForDrawIndexed(ID3D12Device* pDevice);
 
 ID3D12CommandSignature* createCommandSignatureForDispatch(ID3D12Device* pDevice);
+
+ID3D12CommandSignature* createCommandSignatureForDispatchMesh(ID3D12Device* pDevice);
 
 ID3D12CommandSignature* createCommandSignatureForDrawIndexedWithID(ID3D12Device* pDevice, ID3D12RootSignature* pRootSig);
 } // namespace phi::d3d12

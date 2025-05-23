@@ -44,7 +44,7 @@ struct CommandListTranslator
 {
     void initialize(TranslatorContext const* pContext, TranslatorLocals* pLocals);
 
-    void beginTranslation(ID3D12GraphicsCommandList5* list, queue_type type, incomplete_state_cache* state_cache, cmd::set_global_profile_scope const* pOptGlobalProfile = nullptr);
+    void beginTranslation(ID3D12GraphicsCommandList_Spec* list, queue_type type, incomplete_state_cache* state_cache, cmd::set_global_profile_scope const* pOptGlobalProfile = nullptr);
 
     void endTranslation(bool bDoClose);
 
@@ -57,6 +57,10 @@ struct CommandListTranslator
     void execute(cmd::dispatch const& dispatch);
 
     void execute(cmd::dispatch_indirect const& dispatch_indirect);
+
+    void execute(cmd::dispatch_mesh const& dispatch);
+
+    void execute(cmd::dispatch_mesh_indirect const& dispatch);
 
     void execute(cmd::end_render_pass const& end_rp);
 
@@ -103,7 +107,12 @@ struct CommandListTranslator
     void execute(cmd::set_global_profile_scope const&);
 
 private:
-    void bind_compute_shader_args(root_signature const& root_sig, cc::span<shader_argument const> sp_arguments, void const* p_root_consts, size_t num_bytes_root_consts);
+    // binds shader arguments to "Graphics"
+    // returns true if the root signature has root constants
+    bool bind_graphics_shader_args(root_signature const& root_sig, cc::span<shader_argument const> sp_arguments, void const* p_root_consts, size_t num_dwords_root_consts);
+
+    // binds shader arguments to "Compute"
+    void bind_compute_shader_args(root_signature const& root_sig, cc::span<shader_argument const> sp_arguments, void const* p_root_consts, size_t num_dwords_root_consts);
 
     void bind_vertex_buffers(handle::resource const vertex_buffers[limits::max_vertex_buffers]);
 
@@ -118,7 +127,7 @@ private:
 
     // non-owning dynamic
     incomplete_state_cache* _state_cache = nullptr;
-    ID3D12GraphicsCommandList5* _cmd_list = nullptr;
+    ID3D12GraphicsCommandList_Spec* _cmd_list = nullptr;
     queue_type _current_queue_type = queue_type::direct;
 
     // dynamic state

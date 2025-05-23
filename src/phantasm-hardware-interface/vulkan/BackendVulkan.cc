@@ -425,6 +425,12 @@ phi::handle::pipeline_state phi::vk::BackendVulkan::createPipelineState(const ph
     return res;
 }
 
+phi::handle::pipeline_state phi::vk::BackendVulkan::createMeshPipelineState(arg::mesh_pipeline_state_description const& description, char const* debug_name)
+{
+    CC_ASSERT(false && "not yet supported on vulkan");
+    return {};
+}
+
 phi::handle::pipeline_state phi::vk::BackendVulkan::createComputePipelineState(const phi::arg::compute_pipeline_state_description& description, char const* debug_name)
 {
     CC_ASSERT(!description.root_signature.has_resource_descriptor_heap() && !description.root_signature.has_sampler_descriptor_heap() && "not supported on vulkan");
@@ -802,6 +808,16 @@ void phi::vk::BackendVulkan::cmdBeginDebugLabel(handle::live_command_list list, 
 }
 
 void phi::vk::BackendVulkan::cmdEndDebugLabel(handle::live_command_list list, cmd::end_debug_label const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::vk::BackendVulkan::cmdDispatchMesh(handle::live_command_list list, cmd::dispatch_mesh const& command)
+{
+    mPoolTranslators.getTranslator(list)->execute(command);
+}
+
+void phi::vk::BackendVulkan::cmdDispatchMeshIndirect(handle::live_command_list list, cmd::dispatch_mesh_indirect const& command)
 {
     mPoolTranslators.getTranslator(list)->execute(command);
 }
