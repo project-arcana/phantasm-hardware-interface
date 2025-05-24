@@ -454,10 +454,8 @@ void phi::d3d12::CommandListTranslator::execute(cmd::dispatch_indirect const& di
     ID3D12CommandSignature* const comsig = _context->pool_pipeline_states->getGlobalComSigDispatch();
 
     // NOTE: We use no count buffer, which makes the second argument determine the actual amount of args, not the max
-    // NOTE: A global command sig is used, containing 256 dispatch arguments
+    // NOTE: A global command sig is used - it doesn't seem to specify any limit in the amount of indirect arguments
     // the global comsig require no association with a rootsig making things a lot simpler
-    // the amount of arguments configured in the rootsig is more or less arbitrary, could be increased possibly by a lot without cost
-    CC_ASSERT(dispatch_indirect.num_arguments <= 256 && "Too many indirect arguments, contact maintainers");
     _cmd_list->ExecuteIndirect(comsig, dispatch_indirect.num_arguments, raw_arg_buffer, dispatch_indirect.argument_buffer_addr.offset_bytes, nullptr, 0);
 }
 
@@ -525,10 +523,8 @@ void phi::d3d12::CommandListTranslator::execute(cmd::dispatch_mesh_indirect cons
     CC_ASSERT(comsig != nullptr && "Using mesh shading on GPU which doesn't support it");
 
     // NOTE: We use no count buffer, which makes the second argument determine the actual amount of args, not the max
-    // NOTE: A global command sig is used, containing 256 dispatch arguments
+    // NOTE: A global command sig is used
     // the global comsig require no association with a rootsig making things a lot simpler
-    // the amount of arguments configured in the rootsig is more or less arbitrary, could be increased possibly by a lot without cost
-    CC_ASSERT(dispatch_indirect.num_arguments <= 256 && "Too many indirect arguments, contact maintainers");
     _cmd_list->ExecuteIndirect(comsig, dispatch_indirect.num_arguments, raw_arg_buffer, dispatch_indirect.argument_buffer_addr.offset_bytes, nullptr, 0);
 }
 
