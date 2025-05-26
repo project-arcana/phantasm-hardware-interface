@@ -402,8 +402,14 @@ PHI_DEFINE_CMD(dispatch_mesh_indirect)
     /// the buffer location to read arguments from, must be in resource_state::indirect_argument
     /// must contain an array of gpu_indirect_command_dispatch
     buffer_address argument_buffer_addr;
-    /// the amount of arguments to read from the buffer
-    uint32_t num_arguments = 0;
+
+    // maximum amount of arguments to read from indirect_argument
+    // if count_buffer is not set, this is the exact amount of arguments to read
+    uint32_t max_num_arguments = 0;
+
+    // the buffer from which to read the amount of drawcalls to read from argument_buffer_addr (optional)
+    // if this buffer is not set, max_num_arguments are read instead
+    buffer_address count_buffer = {};
 
 public:
     void add_shader_arg(handle::resource cbv, uint32_t cbv_off = 0, handle::shader_view sv = handle::null_shader_view)

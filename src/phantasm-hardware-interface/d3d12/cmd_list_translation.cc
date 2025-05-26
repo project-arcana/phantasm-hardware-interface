@@ -386,6 +386,11 @@ void phi::d3d12::CommandListTranslator::execute(const phi::cmd::draw_indirect& d
 
     ID3D12Resource* const pCountBufferOrNull = _context->pool_resources->getRawResourceOrNull(draw_indirect.count_buffer);
 
+    if (pCountBufferOrNull)
+    {
+        CC_ASSERT(_context->pool_resources->isBufferAccessInBounds(draw_indirect.count_buffer, sizeof(uint32_t)) && "count buffer accessed OOB on GPU");
+    }
+
     _cmd_list->ExecuteIndirect(pComSig, draw_indirect.max_num_arguments,                      //
                                pArgumentBuffer, draw_indirect.indirect_argument.offset_bytes, //
                                pCountBufferOrNull, draw_indirect.count_buffer.offset_bytes    //
@@ -515,17 +520,24 @@ void phi::d3d12::CommandListTranslator::execute(cmd::dispatch_mesh_indirect cons
 
     auto const gpu_command_size_bytes = uint32_t(sizeof(gpu_indirect_command_dispatch));
 
-    CC_ASSERT(_context->pool_resources->isBufferAccessInBounds(dispatch_indirect.argument_buffer_addr, dispatch_indirect.num_arguments * gpu_command_size_bytes)
+    CC_ASSERT(_context->pool_resources->isBufferAccessInBounds(dispatch_indirect.argument_buffer_addr, dispatch_indirect.max_num_arguments * gpu_command_size_bytes)
               && "indirect argument buffer accessed OOB on GPU");
 
-    ID3D12Resource* const raw_arg_buffer = _context->pool_resources->getRawResource(dispatch_indirect.argument_buffer_addr);
+    // NOTE: A global command sig is used
+    // the global comsig require no association with a rootsig making things a lot simpler
     ID3D12CommandSignature* const comsig = _context->pool_pipeline_states->getGlobalComSigDispatchMesh();
     CC_ASSERT(comsig != nullptr && "Using mesh shading on GPU which doesn't support it");
 
-    // NOTE: We use no count buffer, which makes the second argument determine the actual amount of args, not the max
-    // NOTE: A global command sig is used
-    // the global comsig require no association with a rootsig making things a lot simpler
-    _cmd_list->ExecuteIndirect(comsig, dispatch_indirect.num_arguments, raw_arg_buffer, dispatch_indirect.argument_buffer_addr.offset_bytes, nullptr, 0);
+    ID3D12Resource* const pArgumentBuffer = _context->pool_resources->getRawResource(dispatch_indirect.argument_buffer_addr);
+    ID3D12Resource* const pCountBufferOrNull = _context->pool_resources->getRawResourceOrNull(dispatch_indirect.count_buffer);
+
+    if (pCountBufferOrNull)
+    {
+        CC_ASSERT(_context->pool_resources->isBufferAccessInBounds(dispatch_indirect.count_buffer, sizeof(uint32_t)) && "count buffer accessed OOB on GPU");
+    }
+
+    _cmd_list->ExecuteIndirect(comsig, dispatch_indirect.max_num_arguments, pArgumentBuffer, dispatch_indirect.argument_buffer_addr.offset_bytes,
+                               pCountBufferOrNull, dispatch_indirect.count_buffer.offset_bytes);
 }
 
 void phi::d3d12::CommandListTranslator::execute(const phi::cmd::end_render_pass&)
