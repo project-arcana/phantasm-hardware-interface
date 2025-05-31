@@ -362,11 +362,11 @@ void phi::d3d12::CommandListTranslator::execute(const phi::cmd::draw_indirect& d
     case indirect_command_type::draw_indexed_with_id:
         CC_ASSERT(draw_indirect.index_buffer.is_valid() && "Indirect drawing using type draw_indexed_with_id requires valid index buffer");
         CC_ASSERT(bPSOHasRootConsts && "Indirect drawing using type draw_indexed_with_id requires enabled root constants on the PSO");
-        CC_ASSERT(pso_node.pAssociatedComSigForDrawID != nullptr
+        CC_ASSERT(pso_node.pAssociatedComSigForIndirectID != nullptr
                   && "Indirect drawing using type draw_indexed_with_id requires PSOs with enabled flag 'allow_draw_indirect_with_id' on creation");
 
         gpuCommandSizeBytes = sizeof(gpu_indirect_command_draw_indexed_with_id);
-        pComSig = pso_node.pAssociatedComSigForDrawID;
+        pComSig = pso_node.pAssociatedComSigForIndirectID;
         break;
 
     default:
@@ -511,22 +511,41 @@ void phi::d3d12::CommandListTranslator::execute(cmd::dispatch_mesh_indirect cons
     }
 
     // Shader arguments
+    bool bPSOHasRootConsts = false;
     {
         auto const& root_sig = *pso_node.pAssociatedRootSig;
         static_assert(sizeof(dispatch_indirect.root_constants) % sizeof(DWORD32) == 0, "root constant size not divisible by dword32 size");
-        bind_graphics_shader_args(root_sig, dispatch_indirect.shader_arguments, dispatch_indirect.root_constants,
-                                  sizeof(dispatch_indirect.root_constants) / sizeof(DWORD32));
+        bPSOHasRootConsts = bind_graphics_shader_args(root_sig, dispatch_indirect.shader_arguments, dispatch_indirect.root_constants,
+                                                      sizeof(dispatch_indirect.root_constants) / sizeof(DWORD32));
     }
 
-    auto const gpu_command_size_bytes = uint32_t(sizeof(gpu_indirect_command_dispatch));
+    uint32_t gpuCommandSizeBytes = 0;
+    ID3D12CommandSignature* pComSig = nullptr;
 
-    CC_ASSERT(_context->pool_resources->isBufferAccessInBounds(dispatch_indirect.argument_buffer_addr, dispatch_indirect.max_num_arguments * gpu_command_size_bytes)
+    switch (dispatch_indirect.argument_type)
+    {
+    case indirect_command_type::dispatch:
+        gpuCommandSizeBytes = sizeof(gpu_indirect_command_dispatch);
+        pComSig = _context->pool_pipeline_states->getGlobalComSigDispatchMesh();
+        break;
+
+    case indirect_command_type::dispatch_with_id:
+        CC_ASSERT(bPSOHasRootConsts && "Indirect dispatch using type dispatch_with_id requires enabled root constants on the PSO");
+        CC_ASSERT(pso_node.pAssociatedComSigForIndirectID != nullptr
+                  && "Indirect dispatch using type dispatch_with_id requires PSOs with enabled flag 'allow_dispatch_indirect_with_id' on creation");
+
+        gpuCommandSizeBytes = sizeof(gpu_indirect_command_dispatch_with_id);
+        pComSig = pso_node.pAssociatedComSigForIndirectID;
+        break;
+
+    default:
+        CC_UNREACHABLE("Invalid indirect command type");
+        break;
+    }
+
+    CC_ASSERT(pComSig && "Using mesh shading on GPU which doesn't support it");
+    CC_ASSERT(_context->pool_resources->isBufferAccessInBounds(dispatch_indirect.argument_buffer_addr, dispatch_indirect.max_num_arguments * gpuCommandSizeBytes)
               && "indirect argument buffer accessed OOB on GPU");
-
-    // NOTE: A global command sig is used
-    // the global comsig require no association with a rootsig making things a lot simpler
-    ID3D12CommandSignature* const comsig = _context->pool_pipeline_states->getGlobalComSigDispatchMesh();
-    CC_ASSERT(comsig != nullptr && "Using mesh shading on GPU which doesn't support it");
 
     ID3D12Resource* const pArgumentBuffer = _context->pool_resources->getRawResource(dispatch_indirect.argument_buffer_addr);
     ID3D12Resource* const pCountBufferOrNull = _context->pool_resources->getRawResourceOrNull(dispatch_indirect.count_buffer);
@@ -536,7 +555,7 @@ void phi::d3d12::CommandListTranslator::execute(cmd::dispatch_mesh_indirect cons
         CC_ASSERT(_context->pool_resources->isBufferAccessInBounds(dispatch_indirect.count_buffer, sizeof(uint32_t)) && "count buffer accessed OOB on GPU");
     }
 
-    _cmd_list->ExecuteIndirect(comsig, dispatch_indirect.max_num_arguments, pArgumentBuffer, dispatch_indirect.argument_buffer_addr.offset_bytes,
+    _cmd_list->ExecuteIndirect(pComSig, dispatch_indirect.max_num_arguments, pArgumentBuffer, dispatch_indirect.argument_buffer_addr.offset_bytes,
                                pCountBufferOrNull, dispatch_indirect.count_buffer.offset_bytes);
 }
 

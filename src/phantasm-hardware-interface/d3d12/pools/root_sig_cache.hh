@@ -64,7 +64,10 @@ public:
 
     ID3D12CommandSignature* getOrCreateDrawIDComSig(ID3D12Device* pDevice, root_signature const* pRootSig);
 
+    ID3D12CommandSignature* getOrCreateDispatchMeshIDComSig(ID3D12Device* pDevice, root_signature const* pRootSig);
+
 private:
-    phi::detail::stable_map<root_signature const*, ID3D12CommandSignature*> mCache;
+    phi::detail::stable_map<root_signature const*, ID3D12CommandSignature*> mCacheDrawID;
+    phi::detail::stable_map<root_signature const*, ID3D12CommandSignature*> mCacheDispatchMeshID;
 };
 } // namespace phi::d3d12

@@ -416,10 +416,12 @@ struct graphics_pipeline_state_description
 // Description to create a mesh shading pipeline state
 struct mesh_pipeline_state_description
 {
-    // NOTE: pipeline_config::topology is ignored
     pipeline_config config;
     framebuffer_config framebuffer;
     root_signature_description root_signature;
+
+    // whether to create a special command signature required for cmd::dispatch_mesh_indirect using dispatch_indirect_with_id
+    bool allow_dispatch_indirect_with_id = false;
 
     // up to one shader per stage (amplification, mesh, pixel)
     flat_vector<graphics_shader, 3> shader_binaries;

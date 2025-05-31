@@ -55,7 +55,7 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createPipelineS
 
     if (bEnableDrawID && !desc.root_signature.has_root_constants)
     {
-        PHI_LOG_ERROR("Indirect Draw ID mode requires enabled root constants. Aborting compilation of PSO with debug name: {}",
+        PHI_LOG_ERROR("allow_draw_indirect_with_id requires enabled root constants. Aborting compilation of PSO, debug name: {}",
                       dbg_name ? dbg_name : "unnamed (nullptr)");
         return handle::null_pipeline_state;
     }
@@ -102,7 +102,7 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createPipelineS
     pso_node& new_node = mPool.get(res);
     new_node.pPSO = pPipelineState;
     new_node.pAssociatedRootSig = pRootSig;
-    new_node.pAssociatedComSigForDrawID = pDrawIDComSig;
+    new_node.pAssociatedComSigForIndirectID = pDrawIDComSig;
     new_node.primitive_topology = util::to_native_topology(desc.vertices.topology);
 
     return {res};
@@ -111,17 +111,38 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createPipelineS
 phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createMeshPipelineState(phi::arg::mesh_pipeline_state_description const& desc, char const* dbg_name)
 {
     root_signature* pRootSig = nullptr;
+    ID3D12CommandSignature* pIndirectIDComSig = nullptr;
+
+    bool const bEnableIndirectID = desc.allow_dispatch_indirect_with_id;
+
+    if (bEnableIndirectID && !desc.root_signature.has_root_constants)
+    {
+        PHI_LOG_ERROR("allow_dispatch_indirect_with_id requires enabled root constants. Aborting compilation of PSO, debug name: {}",
+                      dbg_name ? dbg_name : "unnamed (nullptr)");
+        return handle::null_pipeline_state;
+    }
 
     // Do things requiring synchronization first
     {
         auto lg = std::lock_guard(mMutex);
 
         pRootSig = mRootSigCache.getOrCreate(*mDevice, desc.root_signature, root_signature_type::mesh);
+
+        if (bEnableIndirectID)
+        {
+            pIndirectIDComSig = mComSigCache.getOrCreateDispatchMeshIDComSig(mDevice, pRootSig);
+        }
     }
 
     if (!pRootSig)
     {
         PHI_LOG_ERROR("Failed to create root signature when compiling mesh PSO, debug name: {}", dbg_name ? dbg_name : "unnamed (nullptr)");
+        return phi::handle::null_pipeline_state;
+    }
+
+    if (bEnableIndirectID && !pIndirectIDComSig)
+    {
+        PHI_LOG_ERROR("Failed to create indirect ID command signature when compiling PSO, debug name: {}", dbg_name ? dbg_name : "unnamed (nullptr)");
         return phi::handle::null_pipeline_state;
     }
 
@@ -142,7 +163,7 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createMeshPipel
     pso_node& new_node = mPool.get(res);
     new_node.pPSO = pPipelineState;
     new_node.pAssociatedRootSig = pRootSig;
-    new_node.pAssociatedComSigForDrawID = nullptr;
+    new_node.pAssociatedComSigForIndirectID = pIndirectIDComSig;
     new_node.primitive_topology = D3D_PRIMITIVE_TOPOLOGY_UNDEFINED;
 
     return {res};
@@ -179,7 +200,7 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createComputePi
     pso_node& new_node = mPool.get(res);
     new_node.pPSO = pPipelineState;
     new_node.pAssociatedRootSig = pRootSig;
-    new_node.pAssociatedComSigForDrawID = nullptr;
+    new_node.pAssociatedComSigForIndirectID = nullptr;
     new_node.primitive_topology = D3D_PRIMITIVE_TOPOLOGY_UNDEFINED;
 
     return {res};

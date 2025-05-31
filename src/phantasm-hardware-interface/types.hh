@@ -754,6 +754,12 @@ enum class indirect_command_type : uint8_t
 
     // array of gpu_indirect_command_draw_indexed_with_id structs
     draw_indexed_with_id,
+
+    // array of gpu_indirect_command_dispatch structs
+    dispatch,
+
+    // array of gpu_indirect_command_dispatch_with_id structs
+    dispatch_with_id,
 };
 
 // indirect draw command, as it is laid out in a GPU buffer
@@ -791,6 +797,16 @@ struct gpu_indirect_command_draw_indexed_with_id
 // indirect compute dispatch or mesh dispatch command, as it is laid out in a GPU buffer
 struct gpu_indirect_command_dispatch
 {
+    uint32_t dispatch_x = 0;
+    uint32_t dispatch_y = 0;
+    uint32_t dispatch_z = 0;
+};
+
+// indirect compute dispatch or mesh dispatch command command with frontloaded custom root constant value, as it is laid out in a GPU buffer
+// NOTE: dispatch_id overrides the first 4 bytes of root constants in order to provide a unique ID per dispatch.
+struct gpu_indirect_command_dispatch_with_id
+{
+    uint32_t dispatch_id = 0;
     uint32_t dispatch_x = 0;
     uint32_t dispatch_y = 0;
     uint32_t dispatch_z = 0;

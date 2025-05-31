@@ -399,6 +399,9 @@ PHI_DEFINE_CMD(dispatch_mesh_indirect)
     flat_vector<shader_argument, limits::max_shader_arguments> shader_arguments;
     handle::pipeline_state pipeline_state = handle::null_pipeline_state;
 
+    // the type of structs found at argument_buffer_addr
+    indirect_command_type argument_type = indirect_command_type::dispatch;
+
     /// the buffer location to read arguments from, must be in resource_state::indirect_argument
     /// must contain an array of gpu_indirect_command_dispatch
     buffer_address argument_buffer_addr;

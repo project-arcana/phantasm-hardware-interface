@@ -328,3 +328,28 @@ ID3D12CommandSignature* phi::d3d12::createCommandSignatureForDrawIndexedWithID(I
     PHI_D3D12_VERIFY(pDevice->CreateCommandSignature(&desc, pRootSig, IID_PPV_ARGS(&pComSig)));
     return pComSig;
 }
+
+ID3D12CommandSignature* phi::d3d12::createCommandSignatureForDispatchMeshWithID(ID3D12Device* pDevice, ID3D12RootSignature* pRootSig)
+{
+    static_assert(sizeof(D3D12_DISPATCH_MESH_ARGUMENTS) + 4u == sizeof(gpu_indirect_command_dispatch_with_id), "gpu argument type compiles to "
+                                                                                                               "incorrect size");
+
+    D3D12_INDIRECT_ARGUMENT_DESC indirect_args[2] = {};
+
+    indirect_args[0].Type = D3D12_INDIRECT_ARGUMENT_TYPE_CONSTANT;
+    indirect_args[0].Constant.DestOffsetIn32BitValues = 0;
+    indirect_args[0].Constant.Num32BitValuesToSet = 1;
+    indirect_args[0].Constant.RootParameterIndex = 0; // root constants are always in (graphics) root signature parameter 0 (if present)
+
+    indirect_args[1].Type = D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH_MESH;
+
+    D3D12_COMMAND_SIGNATURE_DESC desc = {};
+    desc.NumArgumentDescs = CC_COUNTOF(indirect_args);
+    desc.pArgumentDescs = indirect_args;
+    desc.ByteStride = sizeof(gpu_indirect_command_dispatch_with_id);
+    desc.NodeMask = 0;
+
+    ID3D12CommandSignature* pComSig = nullptr;
+    PHI_D3D12_VERIFY(pDevice->CreateCommandSignature(&desc, pRootSig, IID_PPV_ARGS(&pComSig)));
+    return pComSig;
+}

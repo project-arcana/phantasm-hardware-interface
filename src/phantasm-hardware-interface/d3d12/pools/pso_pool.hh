@@ -86,8 +86,10 @@ public:
         // the root signature (looked up from a cache, not 1:1)
         root_signature* pAssociatedRootSig = nullptr;
 
-        // graphics PSOs with enabled support for cmd::draw_indirect in draw ID mode require this special command signature
-        ID3D12CommandSignature* pAssociatedComSigForDrawID = nullptr;
+        // special command signature for _indirect commands that prepend a ID into the root constants
+        // graphics PSOs with enabled support for cmd::draw_indirect with draw ID mode require this
+        // mesh PSOs with enabled support for cmd::dispatch_mesh_indirect with dispatch ID require this
+        ID3D12CommandSignature* pAssociatedComSigForIndirectID = nullptr;
 
         D3D12_PRIMITIVE_TOPOLOGY primitive_topology = {};
     };

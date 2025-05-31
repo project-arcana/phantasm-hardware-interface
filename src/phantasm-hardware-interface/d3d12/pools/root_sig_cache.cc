@@ -51,21 +51,35 @@ phi::d3d12::root_signature* phi::d3d12::RootSignatureCache::getOrCreate(ID3D12De
 void phi::d3d12::CommandSignatureCache::initialize(uint32_t maxNumComSigs, cc::allocator* alloc)
 {
     //
-    mCache.initialize(maxNumComSigs, alloc);
+    mCacheDrawID.initialize(maxNumComSigs, alloc);
+    mCacheDispatchMeshID.initialize(maxNumComSigs, alloc);
 }
 
 void phi::d3d12::CommandSignatureCache::destroy()
 {
-    mCache.iterate_elements([](ID3D12CommandSignature*& pComSig) { pComSig->Release(); });
-    mCache.reset();
+    mCacheDrawID.iterate_elements([](ID3D12CommandSignature*& pComSig) { pComSig->Release(); });
+    mCacheDispatchMeshID.iterate_elements([](ID3D12CommandSignature*& pComSig) { pComSig->Release(); });
+    mCacheDrawID.reset();
+    mCacheDispatchMeshID.reset();
 }
 
 ID3D12CommandSignature* phi::d3d12::CommandSignatureCache::getOrCreateDrawIDComSig(ID3D12Device* pDevice, root_signature const* pRootSig)
 {
-    ID3D12CommandSignature*& val = mCache[pRootSig];
+    ID3D12CommandSignature*& val = mCacheDrawID[pRootSig];
     if (val == nullptr)
     {
         val = createCommandSignatureForDrawIndexedWithID(pDevice, pRootSig->raw_root_sig);
+    }
+
+    return val;
+}
+
+ID3D12CommandSignature* phi::d3d12::CommandSignatureCache::getOrCreateDispatchMeshIDComSig(ID3D12Device* pDevice, root_signature const* pRootSig)
+{
+    ID3D12CommandSignature*& val = mCacheDispatchMeshID[pRootSig];
+    if (val == nullptr)
+    {
+        val = createCommandSignatureForDispatchMeshWithID(pDevice, pRootSig->raw_root_sig);
     }
 
     return val;

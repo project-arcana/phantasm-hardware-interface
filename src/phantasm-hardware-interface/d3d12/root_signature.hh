@@ -76,4 +76,6 @@ ID3D12CommandSignature* createCommandSignatureForDispatch(ID3D12Device* pDevice)
 ID3D12CommandSignature* createCommandSignatureForDispatchMesh(ID3D12Device* pDevice);
 
 ID3D12CommandSignature* createCommandSignatureForDrawIndexedWithID(ID3D12Device* pDevice, ID3D12RootSignature* pRootSig);
+
+ID3D12CommandSignature* createCommandSignatureForDispatchMeshWithID(ID3D12Device* pDevice, ID3D12RootSignature* pRootSig);
 } // namespace phi::d3d12
