@@ -23,12 +23,7 @@ class PipelinePool
 public:
     // frontend-facing API
 
-    [[nodiscard]] handle::pipeline_state createPipelineState(arg::vertex_format vertex_format,
-                                                             const arg::framebuffer_config& framebuffer_config,
-                                                             arg::shader_arg_shapes shader_arg_shapes,
-                                                             bool should_have_push_constants,
-                                                             arg::graphics_shaders shader_stages,
-                                                             phi::arg::pipeline_config const& primitive_config,
+    [[nodiscard]] handle::pipeline_state createPipelineState(arg::graphics_pipeline_state_description const& description,
                                                              cc::allocator* scratch_alloc,
                                                              char const* dbg_name);
 

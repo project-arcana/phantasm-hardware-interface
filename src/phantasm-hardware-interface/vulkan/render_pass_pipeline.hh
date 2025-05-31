@@ -25,10 +25,8 @@ struct patched_shader_intermediates;
                                          VkRenderPass render_pass,
                                          VkPipelineLayout pipeline_layout,
                                          cc::span<util::PatchedShaderStage const> shaders,
-                                         phi::arg::pipeline_config const& config,
-                                         cc::span<VkVertexInputAttributeDescription const> vertex_attribs,
-                                         uint32_t vertex_sizes[limits::max_vertex_buffers],
-                                         const arg::framebuffer_config& framebuf_config);
+                                         cc::span<VkVertexInputAttributeDescription const> vertex_attributes,
+                                         arg::graphics_pipeline_state_description const& desc);
 
 [[nodiscard]] VkPipeline create_compute_pipeline(VkDevice device, VkPipelineLayout pipeline_layout, const util::PatchedShaderStage& compute_shader);
 

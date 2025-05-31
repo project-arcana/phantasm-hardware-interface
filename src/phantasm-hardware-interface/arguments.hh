@@ -24,9 +24,6 @@ namespace phi::arg
 // configuration of the rasterizer when creating a graphics PSO
 struct pipeline_config
 {
-    // how to interpret the input primitives
-    primitive_topology topology = primitive_topology::triangles;
-
     // the function used for depth testing
     depth_function depth = depth_function::none;
 
@@ -35,9 +32,6 @@ struct pipeline_config
 
     // the face culling mode (front / back / none)
     cull_mode cull = cull_mode::none;
-
-    // amount of (MSAA) samples in the render targets
-    int32_t samples = 1;
 
     // enable conservative rasterization, not available on all supported GPUs
     bool conservative_raster = false;
@@ -48,8 +42,11 @@ struct pipeline_config
     // whether to draw in wireframe mode
     bool wireframe = false;
 
-    // (D3D12 only) whether to create a special command signature required for cmd::draw_indirect using draw_indexed_with_id
-    bool allow_draw_indirect_with_id = false;
+    bool _pad0 = false;
+    bool _pad1 = false;
+
+    // amount of (MSAA) samples in the render targets
+    int32_t samples = 1;
 
     // depth biasing
     // see https://docs.microsoft.com/en-us/windows/win32/direct3d11/d3d10-graphics-programming-guide-output-merger-stage-depth-bias
@@ -375,6 +372,8 @@ public:
 
 struct vertex_format
 {
+    // how to interpret the input primitives
+    primitive_topology topology = primitive_topology::triangles;
     // vertex attribute descriptions
     cc::span<vertex_attribute_info const> attributes;
     // vertex data size in bytes, per vertex buffer (leave at 0 if none)
@@ -406,6 +405,9 @@ struct graphics_pipeline_state_description
     framebuffer_config framebuffer;
     root_signature_description root_signature;
     vertex_format vertices;
+
+    // (D3D12 only) whether to create a special command signature required for cmd::draw_indirect using draw_indexed_with_id
+    bool allow_draw_indirect_with_id = false;
 
     // up to one shader per stage (vertex, hull, domain, geometry, pixel)
     flat_vector<graphics_shader, limits::num_graphics_shader_stages> shader_binaries;

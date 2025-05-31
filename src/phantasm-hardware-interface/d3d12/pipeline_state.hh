@@ -14,7 +14,8 @@ namespace phi::d3d12
                                                          cc::span<D3D12_INPUT_ELEMENT_DESC const> vertex_input_layout,
                                                          const arg::framebuffer_config& framebuffer_format,
                                                          arg::graphics_shaders shader_stages,
-                                                         arg::pipeline_config const& config);
+                                                         arg::pipeline_config const& config,
+                                                         primitive_topology topology);
 
 // creates a mesh shading pipeline state
 // shader stages must contain at least a mesh shader, and optionally an amplification and a pixel shader

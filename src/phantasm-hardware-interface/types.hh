@@ -83,7 +83,20 @@ struct shader_stage_flags
     };
 };
 
+// tests whether the shader stage is valid
 constexpr bool is_valid_shader_stage(shader_stage s) { return s > shader_stage::none && s < shader_stage::MAX_SHADER_STAGE_RANGE; }
+
+// tests whether the shader stage is valid for a classical graphics PSO
+constexpr bool is_graphics_shader_stage(shader_stage s) { return s >= shader_stage::vertex && s <= shader_stage::pixel; }
+
+// tests whether the shader stage is valid for a raytracing PSO
+constexpr bool is_raytracing_shader_stage(shader_stage s) { return s >= shader_stage::ray_gen && s <= shader_stage::ray_callable; }
+
+// tests whether the shader stage is valid for a mesh PSO
+constexpr bool is_mesh_shader_stage(shader_stage s)
+{
+    return s == shader_stage::amplification || s == shader_stage::mesh || s == shader_stage::pixel;
+}
 
 constexpr shader_stage_flags_t to_shader_stage_flags(shader_stage s)
 {

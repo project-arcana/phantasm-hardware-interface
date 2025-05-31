@@ -51,7 +51,7 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createPipelineS
     root_signature* pRootSig = nullptr;
     ID3D12CommandSignature* pDrawIDComSig = nullptr;
 
-    bool const bEnableDrawID = desc.config.allow_draw_indirect_with_id;
+    bool const bEnableDrawID = desc.allow_draw_indirect_with_id;
 
     if (bEnableDrawID && !desc.root_signature.has_root_constants)
     {
@@ -85,8 +85,8 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createPipelineS
     }
 
     auto const vertexFormatNative = util::get_native_vertex_format(desc.vertices.attributes);
-    ID3D12PipelineState* const pPipelineState
-        = create_pipeline_state(*mDevice, pRootSig->raw_root_sig, vertexFormatNative, desc.framebuffer, desc.shader_binaries, desc.config);
+    ID3D12PipelineState* const pPipelineState = create_pipeline_state(*mDevice, pRootSig->raw_root_sig, vertexFormatNative, desc.framebuffer,
+                                                                      desc.shader_binaries, desc.config, desc.vertices.topology);
 
     if (!pPipelineState)
     {
@@ -103,7 +103,7 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createPipelineS
     new_node.pPSO = pPipelineState;
     new_node.pAssociatedRootSig = pRootSig;
     new_node.pAssociatedComSigForDrawID = pDrawIDComSig;
-    new_node.primitive_topology = util::to_native_topology(desc.config.topology);
+    new_node.primitive_topology = util::to_native_topology(desc.vertices.topology);
 
     return {res};
 }
@@ -111,13 +111,6 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createPipelineS
 phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createMeshPipelineState(phi::arg::mesh_pipeline_state_description const& desc, char const* dbg_name)
 {
     root_signature* pRootSig = nullptr;
-
-    if (desc.config.allow_draw_indirect_with_id)
-    {
-        PHI_LOG_ERROR("Indirect Draw ID mode not supported for mesh pipeline states. Aborting compilation of PSO with debug name: {}",
-                      dbg_name ? dbg_name : "unnamed (nullptr)");
-        return handle::null_pipeline_state;
-    }
 
     // Do things requiring synchronization first
     {

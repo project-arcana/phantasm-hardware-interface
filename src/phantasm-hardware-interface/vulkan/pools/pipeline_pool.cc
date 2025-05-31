@@ -37,12 +37,7 @@ void verifyReflectionDataConsistencyInDebug(cc::span<const phi::vk::util::Reflec
 }
 } // namespace
 
-phi::handle::pipeline_state phi::vk::PipelinePool::createPipelineState(phi::arg::vertex_format vertex_format,
-                                                                       phi::arg::framebuffer_config const& framebuffer_config,
-                                                                       phi::arg::shader_arg_shapes shader_arg_shapes,
-                                                                       bool should_have_push_constants,
-                                                                       phi::arg::graphics_shaders shader_stages,
-                                                                       const phi::arg::pipeline_config& primitive_config,
+phi::handle::pipeline_state phi::vk::PipelinePool::createPipelineState(arg::graphics_pipeline_state_description const& desc,
                                                                        cc::allocator* scratch_alloc,
                                                                        char const* dbg_name)
 {
@@ -58,9 +53,9 @@ phi::handle::pipeline_state phi::vk::PipelinePool::createPipelineState(phi::arg:
 
     {
         util::ReflectedShaderInfo spirv_info;
-        spirv_info.descriptor_infos.reset_reserve(scratch_alloc, shader_stages.size() * 8);
+        spirv_info.descriptor_infos.reset_reserve(scratch_alloc, desc.shader_binaries.size() * 8);
 
-        for (auto const& shader : shader_stages)
+        for (auto const& shader : desc.shader_binaries)
         {
             patched_shader_stages.push_back(util::createPatchedShader(shader.binary.data, shader.binary.size, spirv_info, scratch_alloc));
         }
@@ -93,7 +88,8 @@ phi::handle::pipeline_state phi::vk::PipelinePool::createPipelineState(phi::arg:
     }
 #endif
 
-    verifyReflectionDataConsistencyInDebug(shader_descriptor_ranges, shader_arg_shapes, has_push_constants, should_have_push_constants);
+    bool const bShouldHaveRootConstants = desc.root_signature.has_root_constants;
+    verifyReflectionDataConsistencyInDebug(shader_descriptor_ranges, desc.root_signature.shader_arg_shapes, has_push_constants, bShouldHaveRootConstants);
 
     pipeline_layout* layout;
     // Do things requiring synchronization
@@ -107,17 +103,17 @@ phi::handle::pipeline_state phi::vk::PipelinePool::createPipelineState(phi::arg:
     pso_node& new_node = mPool.get(pool_index);
     new_node.associated_pipeline_layout = layout;
 
-    CC_ASSERT(primitive_config.samples > 0 && "invalid amount of MSAA samples");
+    CC_ASSERT(desc.config.samples > 0 && "invalid amount of MSAA samples");
 
 
     {
         // Create VkPipeline
-        auto const vert_format_native = util::get_native_vertex_format(vertex_format.attributes);
+        auto const vert_format_native = util::get_native_vertex_format(desc.vertices.attributes);
 
-        VkRenderPass dummy_render_pass = create_render_pass(mDevice, framebuffer_config, primitive_config);
+        VkRenderPass dummy_render_pass = create_render_pass(mDevice, desc.framebuffer, desc.config);
 
-        new_node.raw_pipeline = create_pipeline(mDevice, dummy_render_pass, new_node.associated_pipeline_layout->raw_layout, patched_shader_stages,
-                                                primitive_config, vert_format_native, vertex_format.vertex_sizes_bytes, framebuffer_config);
+        new_node.raw_pipeline
+            = create_pipeline(mDevice, dummy_render_pass, new_node.associated_pipeline_layout->raw_layout, patched_shader_stages, vert_format_native, desc);
 
         util::set_object_name(mDevice, new_node.raw_pipeline, "phi graphics pso %s", dbg_name ? dbg_name : "");
 
@@ -234,10 +230,12 @@ void phi::vk::PipelinePool::destroy()
 {
     auto num_leaks = 0;
 
-    mPool.iterate_allocated_nodes([&](pso_node& leaked_node) {
-        ++num_leaks;
-        vkDestroyPipeline(mDevice, leaked_node.raw_pipeline, nullptr);
-    });
+    mPool.iterate_allocated_nodes(
+        [&](pso_node& leaked_node)
+        {
+            ++num_leaks;
+            vkDestroyPipeline(mDevice, leaked_node.raw_pipeline, nullptr);
+        });
 
     if (num_leaks > 0)
     {

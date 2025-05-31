@@ -72,7 +72,8 @@ ID3D12PipelineState* phi::d3d12::create_pipeline_state(ID3D12Device5& device,
                                                        cc::span<const D3D12_INPUT_ELEMENT_DESC> vertex_input_layout,
                                                        phi::arg::framebuffer_config const& framebuffer_format,
                                                        phi::arg::graphics_shaders shader_stages,
-                                                       const phi::arg::pipeline_config& config)
+                                                       const phi::arg::pipeline_config& config,
+                                                       primitive_topology topology)
 {
     D3D12_GRAPHICS_PIPELINE_STATE_DESC pso_desc = {};
     pso_desc.InputLayout = {!vertex_input_layout.empty() ? vertex_input_layout.data() : nullptr, UINT(vertex_input_layout.size())};
@@ -110,7 +111,7 @@ ID3D12PipelineState* phi::d3d12::create_pipeline_state(ID3D12Device5& device,
     PopulateDepthStencilState(&pso_desc.DepthStencilState, config, framebuffer_format);
     PopulateBlendState(&pso_desc.BlendState, framebuffer_format);
 
-    pso_desc.PrimitiveTopologyType = util::to_native(config.topology);
+    pso_desc.PrimitiveTopologyType = util::to_native(topology);
 
     pso_desc.NumRenderTargets = UINT(framebuffer_format.render_targets.size());
 
