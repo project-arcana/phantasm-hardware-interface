@@ -13,6 +13,19 @@ uint64_t phi::ComputeHash(arg::root_signature_description const& rootSignatureDe
     return util::sse_hash_type(&rootSignatureDesc);
 }
 
+uint64_t phi::ComputeHash(arg::vertex_format const& vertexFormat)
+{
+    uint64_t resHash = phi::util::sse_hash_data(vertexFormat.vertex_sizes_bytes, sizeof(vertexFormat.vertex_sizes_bytes));
+
+    // vertex attributes
+    for (phi::vertex_attribute_info const& attribute : vertexFormat.attributes)
+    {
+        resHash = cc::hash_combine(resHash, cc::stringhash(attribute.semantic_name), cc::make_hash(attribute.offset, attribute.fmt, attribute.vertex_buffer_i));
+    }
+    resHash = cc::hash_combine(resHash, cc::make_hash(vertexFormat.topology));
+    return resHash;
+}
+
 uint64_t phi::ComputeHash(arg::graphics_pipeline_state_description const& psoDesc)
 {
     uint64_t psoHash = cc::hash_combine(           //
@@ -20,12 +33,27 @@ uint64_t phi::ComputeHash(arg::graphics_pipeline_state_description const& psoDes
         util::sse_hash_type(&psoDesc.framebuffer), //
         util::sse_hash_type(&psoDesc.root_signature));
 
-    // vertex attributes
-    for (phi::vertex_attribute_info const& attribute : psoDesc.vertices.attributes)
+    // vertex format + indirect id flag
+    psoHash = cc::hash_combine(psoHash, ComputeHash(psoDesc.vertices), cc::make_hash(psoDesc.allow_draw_indirect_with_id));
+
+    // shaders
+    for (phi::arg::graphics_shader const& shader : psoDesc.shader_binaries)
     {
-        psoHash = cc::hash_combine(psoHash, cc::stringhash(attribute.semantic_name), cc::make_hash(attribute.offset, attribute.fmt, attribute.vertex_buffer_i));
+        psoHash = cc::hash_combine(psoHash, cc::make_hash(shader.stage), cc::hash_xxh3(cc::span(shader.binary.data, shader.binary.size), 0u));
     }
-    psoHash = cc::hash_combine(psoHash, phi::util::sse_hash_data(psoDesc.vertices.vertex_sizes_bytes, sizeof(psoDesc.vertices.vertex_sizes_bytes)));
+
+    return psoHash;
+}
+
+uint64_t phi::ComputeHash(arg::mesh_pipeline_state_description const& psoDesc)
+{
+    uint64_t psoHash = cc::hash_combine(           //
+        util::sse_hash_type(&psoDesc.config),      //
+        util::sse_hash_type(&psoDesc.framebuffer), //
+        util::sse_hash_type(&psoDesc.root_signature));
+
+    // indirect id flag
+    psoHash = cc::hash_combine(psoHash, cc::make_hash(psoDesc.allow_dispatch_indirect_with_id));
 
     // shaders
     for (phi::arg::graphics_shader const& shader : psoDesc.shader_binaries)

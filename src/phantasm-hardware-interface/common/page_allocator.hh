@@ -19,6 +19,7 @@ struct page_allocator
     // allocate a block of the given size, returns the resulting page index or -1u
     [[nodiscard]] uint64_t allocate(uint64_t size)
     {
+        CC_ASSERT(_page_size > 0 && "uninitialized");
         uint64_t const num_pages = cc::int_div_ceil(size, _page_size);
 
         uint64_t num_contiguous_free_pages = 0;
@@ -96,7 +97,7 @@ private:
     cc::alloc_array<uint64_t> _pages;
 
     // amount of elements per page
-    uint64_t _page_size;
+    uint64_t _page_size = 0;
 };
 
 

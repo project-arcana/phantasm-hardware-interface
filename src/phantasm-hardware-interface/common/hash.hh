@@ -9,7 +9,11 @@ namespace phi
 {
 PHI_API uint64_t ComputeHash(arg::root_signature_description const& rootSignatureDesc);
 
+PHI_API uint64_t ComputeHash(arg::vertex_format const& vertexFormat);
+
 PHI_API uint64_t ComputeHash(arg::graphics_pipeline_state_description const& psoDesc);
+
+PHI_API uint64_t ComputeHash(arg::mesh_pipeline_state_description const& psoDesc);
 
 PHI_API uint64_t ComputeHash(arg::compute_pipeline_state_description const& psoDesc);
 
