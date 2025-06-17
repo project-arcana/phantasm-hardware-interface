@@ -58,7 +58,7 @@ void phi::d3d12::SwapchainPool::initialize(IDXGIFactory6* factory, ID3D12Device*
     // test for tearing support
     {
         BOOL bTearingSupported = FALSE;
-        HRESULT hr = mParentFactory->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &bTearingSupported, sizeof(mTearingSupported));
+        HRESULT hr = mParentFactory->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &bTearingSupported, sizeof(bTearingSupported));
 
         mTearingSupported = SUCCEEDED(hr) && bTearingSupported;
     }
@@ -116,7 +116,7 @@ phi::handle::swapchain phi::d3d12::SwapchainPool::createSwapchain(HWND window_ha
 
     // create swapchain
     {
-        // Swapchains are always using FLIP_DISCARD and allow tearing depending on the settings
+        // Swapchains are always using FLIP_DISCARD and allow tearing depending on feature availability
         DXGI_SWAP_CHAIN_DESC1 swapchain_desc = {};
         swapchain_desc.BufferCount = desc.num_backbuffers;
         swapchain_desc.Width = UINT(desc.initial_width);
@@ -258,7 +258,7 @@ void phi::d3d12::SwapchainPool::present(phi::handle::swapchain handle)
 
     // present
     UINT const sync_interval = get_sync_interval(node.mode);
-    UINT const flags = mTearingSupported ? DXGI_PRESENT_ALLOW_TEARING : 0;
+    UINT const flags = (mTearingSupported && node.mode == present_mode::unsynced_allow_tearing) ? DXGI_PRESENT_ALLOW_TEARING : 0;
     PHI_D3D12_VERIFY_FULL(node.swapchain_com->Present(sync_interval, flags), mParentDevice);
 
     // issue present fence on GPU for the next backbuffer in line
