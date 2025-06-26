@@ -90,6 +90,26 @@ public:
     // returns the page of the given allocation
     uint64_t get_page_from_allocation_start(uint64_t allocation_start) const { return allocation_start / _page_size; }
 
+    // computes the amount of allocated pages
+    uint64_t compute_num_allocated_pages() const
+    {
+        uint64_t res = 0;
+        for (uint64_t i = 0u; i < _pages.size(); ++i)
+        {
+            auto const page_val = _pages[i];
+            if (page_val > 0)
+            {
+                // allocated block, skip forward
+                i = i + (page_val - 1);
+                res += page_val;
+            }
+        }
+        return res;
+    }
+
+    // computes the amount of allocated elements
+    uint64_t compute_num_allocated_elements() const { return compute_num_allocated_pages() * get_page_size(); }
+
 private:
     // pages, each element is a natural number n
     // n > 0: this and the following n-1 pages are allocated
