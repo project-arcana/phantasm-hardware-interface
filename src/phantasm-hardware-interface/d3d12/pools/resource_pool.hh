@@ -193,6 +193,8 @@ public:
 
     [[nodiscard]] bool isBackbuffer(handle::resource res) const { return mPool.get_handle_index(res._value) < mNumReservedBackbuffers; }
 
+    allocated_resource_info queryAllocatedResourceInfo() { return mAllocator.getStats(); }
+
 private:
     [[nodiscard]] handle::resource acquireBuffer(D3D12MA::Allocation* alloc, D3D12_RESOURCE_STATES initial_state, arg::buffer_description const& desc);
 

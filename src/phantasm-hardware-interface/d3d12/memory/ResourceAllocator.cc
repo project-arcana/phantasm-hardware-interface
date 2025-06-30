@@ -55,3 +55,30 @@ D3D12MA::Allocation* phi::d3d12::ResourceAllocator::allocate(const D3D12_RESOURC
     PHI_D3D12_VERIFY_FULL(mAllocator->CreateResource(&allocation_desc, &desc, initial_state, clear_value, &res, __uuidof(ID3D12Resource), nullptr), mDevice);
     return res;
 }
+
+phi::allocated_resource_info phi::d3d12::ResourceAllocator::getStats()
+{
+    D3D12MA::Stats FullStats = {};
+    mAllocator->CalculateStats(&FullStats);
+
+    D3D12MA::StatInfo const& Stats = FullStats.Total;
+
+    allocated_resource_info res = {};
+    
+    res.num_allocated_blocks = Stats.BlockCount;
+    res.num_allocations = Stats.AllocationCount;
+    res.num_unused_ranges = Stats.UnusedRangeCount;
+
+    res.num_allocated_bytes = Stats.UsedBytes;
+    res.num_unused_bytes = Stats.UnusedBytes;
+
+    res.num_bytes_allocations_min = Stats.AllocationSizeMin;
+    res.num_bytes_allocations_avg = Stats.AllocationSizeAvg;
+    res.num_bytes_allocations_max = Stats.AllocationSizeMax;
+
+    res.num_bytes_unused_ranges_min = Stats.UnusedRangeSizeMin;
+    res.num_bytes_unused_ranges_avg = Stats.UnusedRangeSizeAvg;
+    res.num_bytes_unused_ranges_max = Stats.UnusedRangeSizeMax;
+
+    return res;
+}

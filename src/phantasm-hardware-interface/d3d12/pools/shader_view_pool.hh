@@ -99,9 +99,11 @@ public:
         return uint32_t(mPageAllocator.get_allocation_size_in_elements(handle));
     }
 
-    int32_t getNumLiveDescriptors() const { return mNumLiveDescriptors; }
+    uint32_t getNumLiveDescriptors() const { return (uint32_t)cc::max<int32_t>(mNumLiveDescriptors, 0); }
 
-    int32_t getMaxNumDescriptors() const { return (int32_t)mPageAllocator.get_num_elements(); }
+    uint32_t getDescriptorSizeBytes() const { return mDescriptorSize; }
+
+    uint32_t getMaxNumDescriptors() const { return (uint32_t)mPageAllocator.get_num_elements(); }
 
     float getAllocatedLiveDescriptorRatio() const { return mNumLiveDescriptors / (float)mPageAllocator.get_num_elements(); }
 

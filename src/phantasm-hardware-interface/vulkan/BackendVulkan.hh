@@ -256,6 +256,12 @@ public:
 
     gpu_info const& getGPUInfo() const override { return mGPUInfo; }
 
+    bool getAllocatedResourceInfo(allocated_resource_info* pOutInfo) override
+    {
+        *pOutInfo = mPoolResources.queryAllocatedResourceInfo();
+        return true;
+    }
+
     VkInstance nativeGetInstance() { return mInstance; }
 
 public:

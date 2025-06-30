@@ -188,6 +188,8 @@ public:
 
     [[nodiscard]] VkImageView getBackbufferView(handle::resource res) const { return mInjectedBackbufferViews[mPool.get_handle_index(res._value)]; }
 
+    allocated_resource_info queryAllocatedResourceInfo();
+
 private:
     [[nodiscard]] handle::resource acquireBuffer(VmaAllocation alloc, VkBuffer buffer, VkBufferUsageFlags usage, arg::buffer_description const& desc);
 

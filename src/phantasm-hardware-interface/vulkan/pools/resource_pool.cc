@@ -377,6 +377,33 @@ phi::handle::resource phi::vk::ResourcePool::injectBackbufferResource(
     return {res_handle};
 }
 
+phi::allocated_resource_info phi::vk::ResourcePool::queryAllocatedResourceInfo()
+{
+    VmaStats FullStats = {};
+    mAllocator->CalculateStats(&FullStats);
+
+    VmaStatInfo const& Stats = FullStats.total;
+
+    allocated_resource_info res = {};
+
+    res.num_allocated_blocks = Stats.blockCount;
+    res.num_allocations = Stats.allocationCount;
+    res.num_unused_ranges = Stats.unusedRangeCount;
+
+    res.num_allocated_bytes = Stats.usedBytes;
+    res.num_unused_bytes = Stats.unusedBytes;
+
+    res.num_bytes_allocations_min = Stats.allocationSizeMin;
+    res.num_bytes_allocations_avg = Stats.allocationSizeAvg;
+    res.num_bytes_allocations_max = Stats.allocationSizeMax;
+
+    res.num_bytes_unused_ranges_min = Stats.unusedRangeSizeMin;
+    res.num_bytes_unused_ranges_avg = Stats.unusedRangeSizeAvg;
+    res.num_bytes_unused_ranges_max = Stats.unusedRangeSizeMax;
+
+    return res;
+}
+
 phi::handle::resource phi::vk::ResourcePool::acquireBuffer(VmaAllocation alloc, VkBuffer buffer, VkBufferUsageFlags usage, arg::buffer_description const& desc)
 {
     bool const create_cbv_desc = (desc.size_bytes < 65536) && (usage & VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);

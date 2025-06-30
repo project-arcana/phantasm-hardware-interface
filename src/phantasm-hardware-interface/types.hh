@@ -983,25 +983,65 @@ struct clock_synchronization_info
     }
 };
 
-// info about allocated and available descriptors
+// global info about allocated and available descriptors
 struct allocated_descriptor_info
 {
-    int32_t num_srvs_uavs_allocated = 0;
-    int32_t num_srvs_uavs_total = 0;
+    uint32_t num_srvs_uavs_allocated = 0;
+    uint32_t num_srvs_uavs_total = 0;
+    uint32_t num_bytes_per_srv_uav = 0;
 
-    int32_t num_samplers_allocated = 0;
-    int32_t num_samplers_total = 0;
+    uint32_t num_samplers_allocated = 0;
+    uint32_t num_samplers_total = 0;
+    uint32_t num_bytes_per_sampler = 0;
 
-    int32_t num_staging_srvs_uavs_allocated = 0;
-    int32_t num_staging_srvs_uavs_total = 0;
+    uint32_t num_staging_srvs_uavs_allocated = 0;
+    uint32_t num_staging_srvs_uavs_total = 0;
+    uint32_t num_bytes_per_staging_srv_uav = 0;
 
-    int32_t num_staging_samplers_allocated = 0;
-    int32_t num_staging_samplers_total = 0;
+    uint32_t num_staging_samplers_allocated = 0;
+    uint32_t num_staging_samplers_total = 0;
+    uint32_t num_bytes_per_staging_sampler = 0;
 
     float get_srv_uav_ratio() const { return num_srvs_uavs_allocated / (float)num_srvs_uavs_total; }
     float get_sampler_ratio() const { return num_samplers_allocated / (float)num_samplers_total; }
     float get_staging_srv_uav_ratio() const { return num_staging_srvs_uavs_allocated / (float)num_staging_srvs_uavs_total; }
     float get_staging_sampler_ratio() const { return num_staging_samplers_allocated / (float)num_staging_samplers_total; }
+    uint32_t get_num_bytes_srv_uav() const { return num_bytes_per_srv_uav * num_srvs_uavs_total; }
+    uint32_t get_num_bytes_sampler() const { return num_bytes_per_sampler * num_samplers_total; }
+    uint32_t get_num_bytes_staging_srv_uav() const { return num_bytes_per_staging_srv_uav * num_staging_srvs_uavs_total; }
+    uint32_t get_num_bytes_staging_sampler() const { return num_bytes_per_staging_sampler * num_staging_samplers_total; }
+    uint32_t get_num_bytes_total() const
+    {
+        return get_num_bytes_srv_uav() + get_num_bytes_sampler() + get_num_bytes_staging_srv_uav() + get_num_bytes_staging_sampler();
+    }
+};
+
+// global info about allocated memory for resources
+struct allocated_resource_info
+{
+    // the amount of blocks that are allocated
+    uint32_t num_allocated_blocks = 0;
+    // the amount of individual allocations
+    uint32_t num_allocations = 0;
+    // the amount of free memory ranges between allocations
+    uint32_t num_unused_ranges = 0;
+
+    uint32_t _pad = 0;
+
+    // the amount of bytes across all allocations
+    uint64_t num_allocated_bytes = 0;
+    // the amount of bytes that are currently unused
+    uint64_t num_unused_bytes = 0;
+
+    // the minimum, average, and maximum size of all active allocations in bytes
+    uint64_t num_bytes_allocations_min = 0;
+    uint64_t num_bytes_allocations_avg = 0;
+    uint64_t num_bytes_allocations_max = 0;
+
+    // the minimum, average, and maximum size of all unused memory ranges in bytes
+    uint64_t num_bytes_unused_ranges_min = 0;
+    uint64_t num_bytes_unused_ranges_avg = 0;
+    uint64_t num_bytes_unused_ranges_max = 0;
 };
 
 // end of memhash structs

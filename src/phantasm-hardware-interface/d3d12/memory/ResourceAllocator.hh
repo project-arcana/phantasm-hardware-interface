@@ -24,6 +24,8 @@ public:
                                                 D3D12_CLEAR_VALUE* clear_value = nullptr,
                                                 D3D12_HEAP_TYPE heap_type = D3D12_HEAP_TYPE_DEFAULT);
 
+    allocated_resource_info getStats();
+
 private:
     D3D12MA::Allocator* mAllocator = nullptr;
     ID3D12Device* mDevice = nullptr;

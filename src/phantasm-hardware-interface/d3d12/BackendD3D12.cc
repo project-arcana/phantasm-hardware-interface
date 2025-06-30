@@ -881,6 +881,18 @@ bool phi::d3d12::BackendD3D12::isRaytracingEnabled() const { return mDevice.hasR
 
 bool phi::d3d12::BackendD3D12::isMeshShadingEnabled() const { return mDevice.hasMeshShading(); }
 
+bool phi::d3d12::BackendD3D12::getAllocatedDescriptorInfo(allocated_descriptor_info* pOutInfo)
+{
+    *pOutInfo = mPoolShaderViews.queryAllocatedNumDescriptors();
+    return true;
+}
+
+bool phi::d3d12::BackendD3D12::getAllocatedResourceInfo(allocated_resource_info* pOutInfo)
+{
+    *pOutInfo = mPoolResources.queryAllocatedResourceInfo();
+    return true;
+}
+
 phi::vram_state_info phi::d3d12::BackendD3D12::nativeGetVRAMStateInfo()
 {
     DXGI_QUERY_VIDEO_MEMORY_INFO nativeInfo = {};

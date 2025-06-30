@@ -288,15 +288,19 @@ phi::allocated_descriptor_info phi::d3d12::ShaderViewPool::queryAllocatedNumDesc
 
         res.num_srvs_uavs_allocated = mSRVUAVAllocator.getNumLiveDescriptors();
         res.num_srvs_uavs_total = mSRVUAVAllocator.getMaxNumDescriptors();
+        res.num_bytes_per_srv_uav = mSRVUAVAllocator.getDescriptorSizeBytes();
 
         res.num_samplers_allocated = mSamplerAllocator.getNumLiveDescriptors();
         res.num_samplers_total = mSamplerAllocator.getMaxNumDescriptors();
+        res.num_bytes_per_sampler = mSamplerAllocator.getDescriptorSizeBytes();
 
         res.num_staging_srvs_uavs_allocated = mStagingSRVUAVAllocator.getNumLiveDescriptors();
         res.num_staging_srvs_uavs_total = mStagingSRVUAVAllocator.getMaxNumDescriptors();
+        res.num_bytes_per_staging_srv_uav = mStagingSRVUAVAllocator.getDescriptorSizeBytes();
 
         res.num_staging_samplers_allocated = mStagingSamplerAllocator.getNumLiveDescriptors();
         res.num_staging_samplers_total = mStagingSamplerAllocator.getMaxNumDescriptors();
+        res.num_bytes_per_staging_sampler = mStagingSamplerAllocator.getDescriptorSizeBytes();
     }
 
     return res;

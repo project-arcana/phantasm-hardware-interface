@@ -354,7 +354,11 @@ public:
 
     virtual gpu_info const& getGPUInfo() const = 0;
 
-    virtual allocated_descriptor_info getAllocatedDescriptorInfo() { return {}; }
+    /// query global info about allocated and available descriptors
+    virtual bool getAllocatedDescriptorInfo(allocated_descriptor_info* pOutInfo) { return false; }
+
+    /// query global info about allocated memory for resources
+    virtual bool getAllocatedResourceInfo(allocated_resource_info* pOutInfo) { return false; }
 
     //
     // Non-virtual utility
