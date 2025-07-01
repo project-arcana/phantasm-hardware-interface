@@ -842,6 +842,8 @@ phi::arg::buffer_description const& phi::d3d12::BackendD3D12::getResourceBufferD
     return mPoolResources.getBufferDescription(res);
 }
 
+uint64_t phi::d3d12::BackendD3D12::getResourceSizeVRAM(handle::resource res) const { return mPoolResources.getResourceSizeVRAM(res); }
+
 void phi::d3d12::BackendD3D12::setDebugName(phi::handle::resource res, cc::string_view name)
 {
     mPoolResources.setDebugName(res, name.data(), uint32_t(name.length()));

@@ -320,6 +320,8 @@ public:
 
     virtual arg::buffer_description const& getResourceBufferDescription(handle::resource res) const = 0;
 
+    virtual uint64_t getResourceSizeVRAM(handle::resource res) const = 0;
+
     //
     // Debug interface
     //

@@ -240,6 +240,7 @@ public:
     arg::resource_description const& getResourceDescription(handle::resource res) const override;
     arg::texture_description const& getResourceTextureDescription(handle::resource res) const override;
     arg::buffer_description const& getResourceBufferDescription(handle::resource res) const override;
+    uint64_t getResourceSizeVRAM(handle::resource res) const override;
 
     //
     // Debug interface

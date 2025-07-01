@@ -41,6 +41,8 @@ public:
 
     void setDebugName(handle::resource res, char const* name, unsigned name_len);
 
+    uint64_t getResourceSizeVRAM(handle::resource res) const;
+
 public:
     struct resource_node
     {

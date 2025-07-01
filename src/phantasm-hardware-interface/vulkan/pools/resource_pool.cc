@@ -281,6 +281,13 @@ void phi::vk::ResourcePool::setDebugName(phi::handle::resource res, const char* 
     }
 }
 
+uint64_t phi::vk::ResourcePool::getResourceSizeVRAM(handle::resource res) const
+{
+    CC_ASSERT(res.is_valid());
+    resource_node const& node = mPool.get(res._value);
+    return node.allocation->GetSize();
+}
+
 void phi::vk::ResourcePool::initialize(VkPhysicalDevice physical, VkDevice device, unsigned max_num_resources, unsigned max_num_swapchains, cc::allocator* static_alloc)
 {
     mDevice = device;

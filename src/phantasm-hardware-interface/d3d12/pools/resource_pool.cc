@@ -301,6 +301,13 @@ void phi::d3d12::ResourcePool::setDebugName(phi::handle::resource res, const cha
     util::set_object_name(internalGet(res).resource, "%*s [respool named]", name_length, name);
 }
 
+uint64_t phi::d3d12::ResourcePool::getResourceSizeVRAM(handle::resource res) const
+{
+    CC_ASSERT(res.is_valid());
+    resource_node const& node = mPool.get(res._value);
+    return node.allocation->GetSize();
+}
+
 phi::handle::resource phi::d3d12::ResourcePool::acquireBuffer(D3D12MA::Allocation* alloc, D3D12_RESOURCE_STATES initial_state, arg::buffer_description const& desc)
 {
     uint32_t const res = mPool.acquire();

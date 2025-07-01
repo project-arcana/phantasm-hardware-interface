@@ -870,6 +870,8 @@ phi::arg::buffer_description const& phi::vk::BackendVulkan::getResourceBufferDes
     return mPoolResources.getBufferDescription(res);
 }
 
+uint64_t phi::vk::BackendVulkan::getResourceSizeVRAM(handle::resource res) const { return mPoolResources.getResourceSizeVRAM(res); }
+
 void phi::vk::BackendVulkan::setDebugName(phi::handle::resource res, cc::string_view name)
 {
     mPoolResources.setDebugName(res, name.data(), uint32_t(name.length()));
