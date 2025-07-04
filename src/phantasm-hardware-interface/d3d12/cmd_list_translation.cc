@@ -723,7 +723,7 @@ void phi::d3d12::CommandListTranslator::execute(const phi::cmd::copy_buffer_to_t
 
     CD3DX12_TEXTURE_COPY_LOCATION const source(_context->pool_resources->getRawResource(copy_text.source), placed_footprint);
     CD3DX12_TEXTURE_COPY_LOCATION const dest(_context->pool_resources->getRawResource(copy_text.destination), subres_index);
-    _cmd_list->CopyTextureRegion(&dest, 0, 0, 0, &source, nullptr);
+    _cmd_list->CopyTextureRegion(&dest, copy_text.dest_start_x, copy_text.dest_start_y, copy_text.dest_start_z, &source, nullptr);
 }
 
 void phi::d3d12::CommandListTranslator::execute(const phi::cmd::copy_texture_to_buffer& copy_text)

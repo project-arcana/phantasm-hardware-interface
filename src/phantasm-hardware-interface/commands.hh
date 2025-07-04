@@ -498,6 +498,9 @@ PHI_DEFINE_CMD(copy_buffer_to_texture)
     uint32_t dest_height = 0;      ///< height of the destination texture (in the specified MIP level and array element)
     uint32_t dest_mip_index = 0;   ///< index of the MIP level to copy
     uint32_t dest_array_index = 0; ///< index of the array element to copy (usually: 0)
+    uint32_t dest_start_x = 0;     ///< first texel in X dimension to write to (usually: 0)
+    uint32_t dest_start_y = 0;     ///< first texel in Y dimension to write to (usually: 0)
+    uint32_t dest_start_z = 0;     ///< first texel in Z dimension to write to (usually: 0)
 
 public:
     void init(handle::resource src, handle::resource dest, uint32_t dest_w, uint32_t dest_h, uint32_t src_offset = 0, uint32_t dest_mip_i = 0,
@@ -510,6 +513,9 @@ public:
         dest_height = dest_h;
         dest_mip_index = dest_mip_i;
         dest_array_index = dest_arr_i;
+        dest_start_x = 0;
+        dest_start_y = 0;
+        dest_start_z = 0;
     }
 };
 

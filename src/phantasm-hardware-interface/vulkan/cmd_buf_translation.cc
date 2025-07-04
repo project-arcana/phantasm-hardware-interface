@@ -657,6 +657,9 @@ void phi::vk::CommandListTranslator::execute(const phi::cmd::copy_buffer_to_text
     region.imageSubresource.baseArrayLayer = copy_text.dest_array_index;
     region.imageSubresource.layerCount = 1;
     region.imageSubresource.mipLevel = copy_text.dest_mip_index;
+    region.imageOffset.x = copy_text.dest_start_x;
+    region.imageOffset.y = copy_text.dest_start_y;
+    region.imageOffset.z = copy_text.dest_start_z;
     region.imageExtent.width = copy_text.dest_width;
     region.imageExtent.height = copy_text.dest_height;
     region.imageExtent.depth = 1;
