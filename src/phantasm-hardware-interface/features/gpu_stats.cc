@@ -14,6 +14,8 @@
 
 #include <phantasm-hardware-interface/common/log.hh>
 
+namespace phi
+{
 namespace
 {
 #ifdef CC_OS_WINDOWS
@@ -159,6 +161,7 @@ struct nvml_dll_state
 
 nvml_dll_state g_nvml;
 } // namespace
+}
 
 bool phi::gpustats::initialize() { return g_nvml.load(); }
 
