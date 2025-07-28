@@ -629,7 +629,8 @@ enum class primitive_topology : uint8_t
     triangles,
     lines,
     points,
-    patches
+    patches,
+    triangle_strips
 };
 
 // the depth function a handle::pipeline_state is using

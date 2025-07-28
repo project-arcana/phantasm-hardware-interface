@@ -87,6 +87,7 @@ namespace phi::d3d12::util
     switch (topology)
     {
     case phi::primitive_topology::triangles:
+    case phi::primitive_topology::triangle_strips:
         return D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
     case phi::primitive_topology::lines:
         return D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
@@ -112,6 +113,8 @@ namespace phi::d3d12::util
         return D3D_PRIMITIVE_TOPOLOGY_POINTLIST;
     case phi::primitive_topology::patches:
         return D3D_PRIMITIVE_TOPOLOGY_1_CONTROL_POINT_PATCHLIST; // TODO
+    case phi::primitive_topology::triangle_strips:
+        return D3D10_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
     }
 
     CC_UNREACHABLE("to_native uncaught argument");

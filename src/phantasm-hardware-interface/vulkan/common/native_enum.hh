@@ -256,6 +256,8 @@ constexpr VkPrimitiveTopology to_native(phi::primitive_topology topology)
         return VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
     case phi::primitive_topology::patches:
         return VK_PRIMITIVE_TOPOLOGY_PATCH_LIST;
+    case phi::primitive_topology::triangle_strips:
+        return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
     }
 
     CC_UNREACHABLE_SWITCH_WORKAROUND(topology);
