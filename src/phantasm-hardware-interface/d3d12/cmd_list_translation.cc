@@ -131,6 +131,10 @@ void phi::d3d12::CommandListTranslator::endTranslation(bool bDoClose)
         }
     }
 
+    // TODO: The Optick-internal TLS variables reset in some circumstances if the application is using multiple Win32 windows
+    // Re-setting the GPU context fixes it (also see ::execute(cmd::end_profile_scope))
+    Optick::SetGpuContext(Optick::GPUContext(_cmd_list, phiQueueTypeToOptickD3D12(_current_queue_type), 0));
+
     // end last pending optick events
     while (!_current_optick_event_stack.empty())
     {
@@ -839,6 +843,10 @@ void phi::d3d12::CommandListTranslator::execute(cmd::end_profile_scope const&)
     }
     else if (!_current_optick_event_stack.empty())
     {
+        // TODO: The Optick-internal TLS variables reset in some circumstances if the application is using multiple Win32 windows
+        // Re-setting the GPU context fixes it (also see ::endTranslation)
+        Optick::SetGpuContext(Optick::GPUContext(_cmd_list, phiQueueTypeToOptickD3D12(_current_queue_type), 0));
+
         Optick::GPUEvent::Stop(*_current_optick_event_stack.back());
         _current_optick_event_stack.pop_back();
     }
