@@ -140,6 +140,19 @@ VkDescriptorSetLayout DescriptorAllocator::createLayoutFromShaderViewArgs(cc::sp
 }
 VkDescriptorSetLayout DescriptorAllocator::createLayoutFromDescription(arg::shader_view_description const& desc, bool usageCompute)
 {
+    // TODO(25-10-12): This needs to be aligned with the D3D12 interface. Ideally we get rid of both 'usageCompute' and the
+    // 'srv_entries' and 'uav_entries' fields of shader_view_description. The direction is roughly using this struct in the pNext chain
+    // of VkDescriptorSetLayoutCreateInfo, and flag the SRV and UAV ranges with 
+    // VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT:
+    // 
+    // VkDescriptorSetLayoutBindingFlagsCreateInfo layout_binding_flags_info = {};
+    // layout_binding_flags_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO; 
+    //
+    // The required device features are already being tested and enabled on device creation.
+    // Remaining issue: Even with this, the VkDescriptorSetLayoutBinding array still needs to exist and needs a category, which discerns buffers vs. textures (images)
+    // Ref: https://gist.github.com/DethRaid/0171f3cfcce51950ee4ef96c64f59617
+    //
+
     // NOTE: Eventually arguments could be constrained to stages in a more fine-grained manner
     auto const argument_visibility = usageCompute ? VK_SHADER_STAGE_COMPUTE_BIT : VK_SHADER_STAGE_ALL_GRAPHICS;
 
