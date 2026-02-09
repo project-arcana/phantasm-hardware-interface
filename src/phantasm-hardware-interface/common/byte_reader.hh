@@ -35,7 +35,7 @@ struct byte_reader
         return res;
     }
 
-    // in memory: [size_t: num] [T] [T] .. x num .. [T]
+    // in memory: [u64: num] [T] [T] .. x num .. [T]
     template <class T>
     cc::span<T const> read_sized_array()
     {

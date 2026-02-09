@@ -110,6 +110,8 @@ public:
     // computes the amount of allocated elements
     uint64_t compute_num_allocated_elements() const { return compute_num_allocated_pages() * get_page_size(); }
 
+    cc::span<uint64_t const> get_page_contents() const { return _pages; }
+
 private:
     // pages, each element is a natural number n
     // n > 0: this and the following n-1 pages are allocated
