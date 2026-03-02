@@ -90,6 +90,12 @@ enum class query_type : uint8_t;
 // helpers
 struct command_stream_parser;
 struct command_stream_writer;
+
+// info
+struct vram_state_info;
+struct clock_synchronization_info;
+struct allocated_descriptor_info;
+struct allocated_resource_info;
 } // namespace phi
 
 namespace phi::arg
