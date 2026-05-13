@@ -401,11 +401,9 @@ phi::allocated_resource_info phi::vk::ResourcePool::queryAllocatedResourceInfo()
     res.num_unused_bytes = Stats.unusedBytes;
 
     res.num_bytes_allocations_min = Stats.allocationSizeMin;
-    res.num_bytes_allocations_avg = Stats.allocationSizeAvg;
     res.num_bytes_allocations_max = Stats.allocationSizeMax;
 
     res.num_bytes_unused_ranges_min = Stats.unusedRangeSizeMin;
-    res.num_bytes_unused_ranges_avg = Stats.unusedRangeSizeAvg;
     res.num_bytes_unused_ranges_max = Stats.unusedRangeSizeMax;
 
     return res;

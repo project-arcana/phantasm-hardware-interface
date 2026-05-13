@@ -78,7 +78,7 @@ public:
 public:
     // internal API
 
-    void initialize(ID3D12Device* device, uint32_t max_num_resources, uint32_t max_num_swapchains, cc::allocator* static_alloc, cc::allocator* dynamic_alloc);
+    void initialize(ID3D12Device* pDevice, IDXGIAdapter* pAdapter, uint32_t max_num_resources, uint32_t max_num_swapchains, cc::allocator* static_alloc, cc::allocator* dynamic_alloc);
     bool destroy();
 
     //

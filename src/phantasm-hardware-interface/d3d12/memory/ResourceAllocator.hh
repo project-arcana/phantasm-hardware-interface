@@ -15,7 +15,7 @@ namespace phi::d3d12
 class ResourceAllocator
 {
 public:
-    void initialize(ID3D12Device* device, cc::allocator* dynamic_alloc);
+    void initialize(ID3D12Device* pDevice, IDXGIAdapter* pAdapter, cc::allocator* pDynamicAlloc);
     void destroy();
 
     /// allocate a resource, thread safe

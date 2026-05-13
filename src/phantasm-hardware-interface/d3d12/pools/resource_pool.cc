@@ -13,7 +13,6 @@
 #include <phantasm-hardware-interface/d3d12/common/native_enum.hh>
 #include <phantasm-hardware-interface/d3d12/common/util.hh>
 #include <phantasm-hardware-interface/d3d12/common/verify.hh>
-#include <phantasm-hardware-interface/d3d12/memory/D3D12MA.hh>
 
 namespace
 {
@@ -63,9 +62,10 @@ constexpr D3D12_RESOURCE_STATES d3d12_get_initial_state_by_heap(phi::resource_he
 }
 } // namespace
 
-void phi::d3d12::ResourcePool::initialize(ID3D12Device* device, uint32_t max_num_resources, uint32_t max_num_swapchains, cc::allocator* static_alloc, cc::allocator* dynamic_alloc)
+void phi::d3d12::ResourcePool::initialize(
+    ID3D12Device* pDevice, IDXGIAdapter* pAdapter, uint32_t max_num_resources, uint32_t max_num_swapchains, cc::allocator* static_alloc, cc::allocator* dynamic_alloc)
 {
-    mAllocator.initialize(device, dynamic_alloc);
+    mAllocator.initialize(pDevice, pAdapter, dynamic_alloc);
     mPool.initialize(max_num_resources + max_num_swapchains, static_alloc); // additional resources for swapchain backbuffers
 
     mParallelResourceDescriptions.reset(static_alloc, mPool.max_size());

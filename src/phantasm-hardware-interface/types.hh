@@ -1034,14 +1034,12 @@ struct allocated_resource_info
     // the amount of bytes that are currently unused
     uint64_t num_unused_bytes = 0;
 
-    // the minimum, average, and maximum size of all active allocations in bytes
+    // the minimum and maximum size of all active allocations in bytes
     uint64_t num_bytes_allocations_min = 0;
-    uint64_t num_bytes_allocations_avg = 0;
     uint64_t num_bytes_allocations_max = 0;
 
-    // the minimum, average, and maximum size of all unused memory ranges in bytes
+    // the minimum and maximum size of all unused memory ranges in bytes
     uint64_t num_bytes_unused_ranges_min = 0;
-    uint64_t num_bytes_unused_ranges_avg = 0;
     uint64_t num_bytes_unused_ranges_max = 0;
 };
 
