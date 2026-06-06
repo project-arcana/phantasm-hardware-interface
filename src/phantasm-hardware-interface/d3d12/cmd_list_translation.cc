@@ -477,7 +477,6 @@ void phi::d3d12::CommandListTranslator::execute(cmd::dispatch_mesh const& dispat
     if (_bound.update_pso(dispatch.pipeline_state))
     {
         _cmd_list->SetPipelineState(pso_node.pPSO);
-        _cmd_list->IASetPrimitiveTopology(pso_node.primitive_topology);
     }
 
     // Root signature
@@ -505,7 +504,6 @@ void phi::d3d12::CommandListTranslator::execute(cmd::dispatch_mesh_indirect cons
     if (_bound.update_pso(dispatch_indirect.pipeline_state))
     {
         _cmd_list->SetPipelineState(pso_node.pPSO);
-        _cmd_list->IASetPrimitiveTopology(pso_node.primitive_topology);
     }
 
     // Root signature
