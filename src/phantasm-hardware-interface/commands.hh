@@ -2,6 +2,8 @@
 
 #include <cstring>
 
+#include <clean-core/span.hh>
+
 #include <typed-geometry/types/objects/aabb.hh>
 #include <typed-geometry/types/size.hh>
 
