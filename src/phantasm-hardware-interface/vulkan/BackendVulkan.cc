@@ -80,7 +80,7 @@ phi::init_status phi::vk::BackendVulkan::initialize(const backend_config& config
         app_info.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
         app_info.pEngineName = "Phantasm Hardware Interface";
         app_info.engineVersion = VK_MAKE_VERSION(1, 2, 0);
-        app_info.apiVersion = VK_API_VERSION_1_2;
+        app_info.apiVersion = VK_API_VERSION_1_4;
 
         VkInstanceCreateInfo instance_info = {};
         instance_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;

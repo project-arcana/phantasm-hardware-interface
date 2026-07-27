@@ -271,6 +271,12 @@ phi::vk::LayerExtensionArray phi::vk::getUsedDeviceExtensions(const phi::vk::Lay
         outHasConservativeRaster = true;
     }
 
+    bool bHasDescHeap = false;
+    if (f_add_ext(VK_EXT_DESCRIPTOR_HEAP_EXTENSION_NAME))
+    {
+        bHasDescHeap = true;
+    }
+
     outHasRaytracing = false;
     if (config.enable_raytracing)
     {
