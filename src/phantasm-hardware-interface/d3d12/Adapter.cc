@@ -93,6 +93,8 @@ bool phi::d3d12::Adapter::initialize(const backend_config& config, ID3D12Device*
                     // launched from inside NSight, where SetEnableSynchronizedCommandQueueValidation
                     // will crash
                     debugControllerV3->SetEnableSynchronizedCommandQueueValidation(true);
+
+                    
                 }
                 else
                 {

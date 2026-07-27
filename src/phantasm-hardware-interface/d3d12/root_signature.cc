@@ -50,7 +50,7 @@ ID3D12RootSignature* phi::d3d12::create_root_signature(ID3D12Device& device,
         CC_ASSERT(false && "invalid root signature type");
     }
 
-#if D3D12_SDK_VERSION >= 614
+#if D3D12_SDK_VERSION >= 612
     if (bEnableResourceHeap)
     {
         desc.Flags |= D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED;
@@ -58,6 +58,11 @@ ID3D12RootSignature* phi::d3d12::create_root_signature(ID3D12Device& device,
     if (bEnableSamplerHeap)
     {
         desc.Flags |= D3D12_ROOT_SIGNATURE_FLAG_SAMPLER_HEAP_DIRECTLY_INDEXED;
+    }
+#else
+    if (bEnableResourceHeap || bEnableSamplerHeap)
+    {
+        PHI_LOG_ERROR("root signature requested direct ResourceDescriptorHeap indexing, but SDK version is below 612");
     }
 #endif
 
