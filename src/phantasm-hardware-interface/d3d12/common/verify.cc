@@ -317,9 +317,17 @@ void phi::d3d12::detail::verify_failure_handler(HRESULT hr, const char* expressi
     // Make sure this really is a failed HRESULT
     CC_RUNTIME_ASSERT(FAILED(hr) && "assert handler was called with a non-failed HRESULT");
 
+    // OutputDebugString on top of logs to ensure visibility
+    // during remote debugging on target devices regardless of log config
+    ::OutputDebugStringA("[PHI] D3D12 call failed:\n");
+    ::OutputDebugStringA(expression);
+
     char error_string[1024];
     error_string[0] = '\0';
     get_hresult_error_message(hr, error_string, sizeof(error_string));
+
+    ::OutputDebugStringA("\n[PHI] Error:\n");
+    ::OutputDebugStringA(error_string);
 
     PHI_LOG_ASSERT("D3D12 call {} failed", expression);
     PHI_LOG_ASSERT("  error:");
