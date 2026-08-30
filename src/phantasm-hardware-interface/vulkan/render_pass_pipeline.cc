@@ -14,7 +14,7 @@
 #include "resources/transition_barrier.hh"
 #include "shader.hh"
 
-VkRenderPass phi::vk::create_render_pass(VkDevice device, arg::framebuffer_config const& framebuffer, const phi::pipeline_config& config)
+VkRenderPass phi::vk::create_render_pass(VkDevice device, arg::framebuffer_config const& framebuffer, const phi::arg::pipeline_config& config)
 {
     auto const sample_bits = util::to_native_sample_flags(static_cast<unsigned>(config.samples));
 
@@ -174,14 +174,10 @@ VkRenderPass phi::vk::create_render_pass(VkDevice device, const phi::cmd::begin_
 VkPipeline phi::vk::create_pipeline(VkDevice device,
                                     VkRenderPass render_pass,
                                     VkPipelineLayout pipeline_layout,
-                                    cc::span<const util::patched_spirv_stage> shaders,
-                                    const phi::pipeline_config& config,
-                                    cc::span<const VkVertexInputAttributeDescription> vertex_attribs,
-                                    uint32_t vertex_sizes[limits::max_vertex_buffers],
-                                    arg::framebuffer_config const& framebuf_config)
+                                    cc::span<util::PatchedShaderStage const> shaders,
+                                    cc::span<VkVertexInputAttributeDescription const> vertex_attribs,
+                                    arg::graphics_pipeline_state_description const& desc)
 {
-    CC_CONTRACT(vertex_sizes);
-
     cc::capped_vector<shader, 6> shader_stages;
     cc::capped_vector<VkPipelineShaderStageCreateInfo, 6> shader_stage_create_infos;
 
@@ -189,7 +185,7 @@ VkPipeline phi::vk::create_pipeline(VkDevice device,
     for (auto const& shader : shaders)
     {
         auto& new_shader = shader_stages.emplace_back();
-        initialize_shader(new_shader, device, shader.data, shader.size, shader.entrypoint_name.c_str(), shader.stage);
+        initialize_shader(new_shader, device, shader.data, shader.size, shader.entrypoint_name, shader.stage);
 
         shader_stage_create_infos.push_back(get_shader_create_info(new_shader));
 
@@ -197,20 +193,20 @@ VkPipeline phi::vk::create_pipeline(VkDevice device,
             has_pixel_shader = true;
     }
 
-    CC_ASSERT(framebuf_config.render_targets.empty() ? true : has_pixel_shader && "creating a PSO with rendertargets, but missing pixel shader");
+    CC_ASSERT(desc.framebuffer.render_targets.empty() ? true : has_pixel_shader && "creating a PSO with rendertargets, but missing pixel shader");
 
     cc::capped_vector<VkVertexInputBindingDescription, limits::max_vertex_buffers> vertex_bind_descs;
 
     for (auto i = 0u; i < limits::max_vertex_buffers; ++i)
     {
-        if (vertex_sizes[i] == 0)
+        if (desc.vertices.vertex_sizes_bytes[i] == 0)
         {
             break;
         }
 
         VkVertexInputBindingDescription& vertex_bind_desc = vertex_bind_descs.emplace_back();
         vertex_bind_desc.binding = 0;
-        vertex_bind_desc.stride = vertex_sizes[i];
+        vertex_bind_desc.stride = desc.vertices.vertex_sizes_bytes[i];
         vertex_bind_desc.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
     }
 
@@ -219,14 +215,14 @@ VkPipeline phi::vk::create_pipeline(VkDevice device,
 
     VkPipelineVertexInputStateCreateInfo vertex_input_info = {};
     vertex_input_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    vertex_input_info.vertexBindingDescriptionCount = vertex_bind_descs.size();
+    vertex_input_info.vertexBindingDescriptionCount = uint32_t(vertex_bind_descs.size());
     vertex_input_info.pVertexBindingDescriptions = vertex_bind_descs.empty() ? nullptr : vertex_bind_descs.data();
     vertex_input_info.vertexAttributeDescriptionCount = uint32_t(vertex_attribs.size());
     vertex_input_info.pVertexAttributeDescriptions = vertex_attribs.empty() ? nullptr : vertex_attribs.data();
 
     VkPipelineInputAssemblyStateCreateInfo input_assembly = {};
     input_assembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-    input_assembly.topology = util::to_native(config.topology);
+    input_assembly.topology = util::to_native(desc.vertices.topology);
     input_assembly.primitiveRestartEnable = VK_FALSE;
 
     // we use dynamic viewports and scissors, these initial values are irrelevant
@@ -255,18 +251,20 @@ VkPipeline phi::vk::create_pipeline(VkDevice device,
     rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
     rasterizer.depthClampEnable = VK_FALSE;
     rasterizer.rasterizerDiscardEnable = VK_FALSE;
-    rasterizer.polygonMode = config.wireframe ? VK_POLYGON_MODE_LINE : VK_POLYGON_MODE_FILL;
+    rasterizer.polygonMode = desc.config.wireframe ? VK_POLYGON_MODE_LINE : VK_POLYGON_MODE_FILL;
     rasterizer.lineWidth = 1.0f;
-    rasterizer.cullMode = util::to_native(config.cull);
-    rasterizer.frontFace = config.frontface_counterclockwise ? VK_FRONT_FACE_COUNTER_CLOCKWISE : VK_FRONT_FACE_CLOCKWISE;
-    rasterizer.depthBiasEnable = VK_FALSE;
-    rasterizer.depthBiasConstantFactor = 0.0f; // Optional
-    rasterizer.depthBiasClamp = 0.0f;          // Optional
-    rasterizer.depthBiasSlopeFactor = 0.0f;    // Optional
+    rasterizer.cullMode = util::to_native(desc.config.cull);
+    rasterizer.frontFace = desc.config.frontface_counterclockwise ? VK_FRONT_FACE_COUNTER_CLOCKWISE : VK_FRONT_FACE_CLOCKWISE;
+    rasterizer.depthBiasEnable = desc.config.depth_bias != 0 || desc.config.slope_scaled_depth_bias != 0.f;
+    // this seems to be the correct mapping
+    // ref https://www.gamedev.net/forums/topic/693280-comparing-depth-bias-in-dx-vs-vulkan/
+    rasterizer.depthBiasConstantFactor = float(desc.config.depth_bias);
+    rasterizer.depthBiasClamp = 0.0f;
+    rasterizer.depthBiasSlopeFactor = desc.config.slope_scaled_depth_bias;
 
     VkPipelineRasterizationConservativeStateCreateInfoEXT conservative_raster = {};
 
-    if (config.conservative_raster)
+    if (desc.config.conservative_raster)
     {
         conservative_raster.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_CONSERVATIVE_STATE_CREATE_INFO_EXT;
         conservative_raster.conservativeRasterizationMode = VK_CONSERVATIVE_RASTERIZATION_MODE_OVERESTIMATE_EXT;
@@ -276,7 +274,7 @@ VkPipeline phi::vk::create_pipeline(VkDevice device,
     VkPipelineMultisampleStateCreateInfo multisampling = {};
     multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
     multisampling.sampleShadingEnable = VK_FALSE;
-    multisampling.rasterizationSamples = util::to_native_sample_flags(static_cast<unsigned>(config.samples));
+    multisampling.rasterizationSamples = util::to_native_sample_flags(static_cast<unsigned>(desc.config.samples));
     multisampling.minSampleShading = 1.0f;          // Optional
     multisampling.pSampleMask = nullptr;            // Optional
     multisampling.alphaToCoverageEnable = VK_FALSE; // Optional
@@ -284,7 +282,7 @@ VkPipeline phi::vk::create_pipeline(VkDevice device,
 
     cc::capped_vector<VkPipelineColorBlendAttachmentState, limits::max_render_targets> color_blend_attachments;
 
-    for (auto const& rt : framebuf_config.render_targets)
+    for (auto const& rt : desc.framebuffer.render_targets)
     {
         VkPipelineColorBlendAttachmentState& rt_attachment = color_blend_attachments.emplace_back();
         rt_attachment = {};
@@ -300,8 +298,8 @@ VkPipeline phi::vk::create_pipeline(VkDevice device,
 
     VkPipelineColorBlendStateCreateInfo colorBlending = {};
     colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-    colorBlending.logicOpEnable = framebuf_config.logic_op_enable ? VK_TRUE : VK_FALSE;
-    colorBlending.logicOp = util::to_native(framebuf_config.logic_op);
+    colorBlending.logicOpEnable = desc.framebuffer.logic_op_enable ? VK_TRUE : VK_FALSE;
+    colorBlending.logicOp = util::to_native(desc.framebuffer.logic_op);
     colorBlending.attachmentCount = static_cast<uint32_t>(color_blend_attachments.size());
     colorBlending.pAttachments = color_blend_attachments.data();
     colorBlending.blendConstants[0] = 0.0f; // Optional
@@ -309,18 +307,18 @@ VkPipeline phi::vk::create_pipeline(VkDevice device,
     colorBlending.blendConstants[2] = 0.0f; // Optional
     colorBlending.blendConstants[3] = 0.0f; // Optional
 
-    cc::array constexpr dynamicStates = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
+    VkDynamicState const dynamicStates[] = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
 
     VkPipelineDynamicStateCreateInfo dynamicState = {};
     dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-    dynamicState.dynamicStateCount = uint32_t(dynamicStates.size());
-    dynamicState.pDynamicStates = dynamicStates.data();
+    dynamicState.dynamicStateCount = CC_COUNTOF(dynamicStates);
+    dynamicState.pDynamicStates = dynamicStates;
 
     VkPipelineDepthStencilStateCreateInfo depthStencil = {};
     depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-    depthStencil.depthTestEnable = config.depth == phi::depth_function::none ? VK_FALSE : VK_TRUE;
-    depthStencil.depthWriteEnable = config.depth_readonly ? VK_FALSE : VK_TRUE;
-    depthStencil.depthCompareOp = util::to_native(config.depth);
+    depthStencil.depthTestEnable = desc.config.depth == phi::depth_function::none ? VK_FALSE : VK_TRUE;
+    depthStencil.depthWriteEnable = desc.config.depth_readonly ? VK_FALSE : VK_TRUE;
+    depthStencil.depthCompareOp = util::to_native(desc.config.depth);
     depthStencil.depthBoundsTestEnable = VK_FALSE;
     depthStencil.minDepthBounds = 0.0f; // Optional
     depthStencil.maxDepthBounds = 1.0f; // Optional
@@ -357,10 +355,10 @@ VkPipeline phi::vk::create_pipeline(VkDevice device,
     return res;
 }
 
-VkPipeline phi::vk::create_compute_pipeline(VkDevice device, VkPipelineLayout pipeline_layout, const util::patched_spirv_stage& compute_shader)
+VkPipeline phi::vk::create_compute_pipeline(VkDevice device, VkPipelineLayout pipeline_layout, const util::PatchedShaderStage& compute_shader)
 {
     shader shader_stage;
-    initialize_shader(shader_stage, device, compute_shader.data, compute_shader.size, compute_shader.entrypoint_name.c_str(), shader_stage::compute);
+    initialize_shader(shader_stage, device, compute_shader.data, compute_shader.size, compute_shader.entrypoint_name, shader_stage::compute);
 
     VkComputePipelineCreateInfo pipeline_info = {};
     pipeline_info.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
@@ -383,7 +381,8 @@ VkPipeline phi::vk::create_raytracing_pipeline(VkDevice device,
                                                unsigned max_attribute_size_bytes,
                                                cc::allocator* scratch_alloc)
 {
-    auto f_get_shader_index_or_unused = [&](int index, shader_stage stage_verification) -> uint32_t {
+    auto f_get_shader_index_or_unused = [&](int index, shader_stage stage_verification) -> uint32_t
+    {
         if (index < 0)
             return VK_SHADER_UNUSED_NV;
 

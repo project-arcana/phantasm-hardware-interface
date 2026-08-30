@@ -3,18 +3,13 @@
 #include <cstdio>
 
 #include <algorithm>
-#include <fstream>
 
 #include <clean-core/alloc_array.hh>
-#include <clean-core/array.hh>
 #include <clean-core/assert.hh>
-#include <clean-core/bit_cast.hh>
 #include <clean-core/utility.hh>
 
 #include <phantasm-hardware-interface/common/lib/SPIRV_reflect/spirv_reflect.h>
 
-#include <phantasm-hardware-interface/common/byte_reader.hh>
-#include <phantasm-hardware-interface/common/container/unique_buffer.hh>
 #include <phantasm-hardware-interface/common/log.hh>
 #include <phantasm-hardware-interface/limits.hh>
 
@@ -23,7 +18,7 @@
 
 namespace
 {
-[[nodiscard]] constexpr VkDescriptorType reflect_to_native(SpvReflectDescriptorType type)
+constexpr VkDescriptorType reflect_to_native(SpvReflectDescriptorType type)
 {
     switch (type)
     {
@@ -55,7 +50,7 @@ namespace
     CC_UNREACHABLE_SWITCH_WORKAROUND(type);
 }
 
-[[nodiscard]] constexpr phi::shader_stage reflect_to_pr(SpvReflectShaderStageFlagBits shader_stage_flags)
+constexpr phi::shader_stage reflect_to_pr(SpvReflectShaderStageFlagBits shader_stage_flags)
 {
     using sd = phi::shader_stage;
     switch (shader_stage_flags)
@@ -90,6 +85,20 @@ namespace
     CC_UNREACHABLE_SWITCH_WORKAROUND(shader_stage_flags);
 }
 
+constexpr bool isBindingCBV(uint32_t binding) { return binding >= phi::vk::spv::cbv_binding_start && binding < phi::vk::spv::srv_binding_start; }
+
+constexpr bool isBindingSRV(uint32_t binding) { return binding >= phi::vk::spv::srv_binding_start && binding < phi::vk::spv::uav_binding_start; }
+
+constexpr bool isBindingUAV(uint32_t binding) { return binding >= phi::vk::spv::uav_binding_start && binding < phi::vk::spv::sampler_binding_start; }
+
+constexpr bool isBindingSampler(uint32_t binding) { return binding >= phi::vk::spv::sampler_binding_start; }
+
+constexpr bool isDescriptorSetInNthArgument(uint32_t set, uint32_t argument)
+{
+    return (set < phi::limits::max_shader_arguments && set == argument) || //
+           (set >= phi::limits::max_shader_arguments && set - phi::limits::max_shader_arguments == argument);
+}
+
 VkShaderStageFlags reflect_to_native_shader_stage(SpvReflectShaderStageFlagBits shader_stage_flags)
 {
     switch (shader_stage_flags)
@@ -119,7 +128,7 @@ VkShaderStageFlags reflect_to_native_shader_stage(SpvReflectShaderStageFlagBits 
 }
 
 void patchSpvReflectShader(SpvReflectShaderModule& module,
-                           cc::alloc_vector<phi::vk::util::spirv_desc_info>& out_desc_infos,
+                           cc::alloc_vector<phi::vk::util::ReflectedDescriptorInfo>& out_desc_infos,
                            cc::allocator* scratch_alloc,
                            VkShaderStageFlags visible_shader_stages,
                            VkPipelineStageFlags visible_pipeline_stages)
@@ -167,13 +176,79 @@ void patchSpvReflectShader(SpvReflectShaderModule& module,
     return;
 }
 
+struct ReflectedRangeInfos
+{
+    uint32_t num_cbvs = 0;
+    uint32_t num_srvs = 0;
+    uint32_t num_uavs = 0;
+    uint32_t num_samplers = 0;
+};
+
+void descriptorsToRangeInfos(cc::span<phi::vk::util::ReflectedDescriptorInfo const> reflectedDescriptors,
+                             ReflectedRangeInfos (&outRangeInfos)[phi::limits::max_shader_arguments])
+{
+    using namespace phi;
+    using namespace phi::vk;
+
+    for (auto const& descriptor : reflectedDescriptors)
+    {
+        auto set_shape_index = descriptor.set;
+
+        // wrap CBVs down to their "true" set (as it is given in HLSL)
+        if (set_shape_index >= limits::max_shader_arguments)
+            set_shape_index -= limits::max_shader_arguments;
+
+        CC_ASSERT(set_shape_index < phi::limits::max_shader_arguments && "Descriptor set index OOB (specified space beyond limits::max_shader_arguments?)");
+        ReflectedRangeInfos& info = outRangeInfos[set_shape_index];
+
+        if (descriptor.binding >= spv::sampler_binding_start)
+        {
+            // Sampler
+            info.num_samplers += descriptor.binding_array_size;
+        }
+        else if (descriptor.binding >= spv::uav_binding_start)
+        {
+            // UAV
+            info.num_uavs += descriptor.binding_array_size;
+        }
+        else if (descriptor.binding >= spv::srv_binding_start)
+        {
+            // SRV
+            info.num_srvs += descriptor.binding_array_size;
+        }
+        else /*if (range.binding >= spv::cbv_binding_start)*/
+        {
+            // CBV
+            info.num_cbvs += descriptor.binding_array_size;
+        }
+    }
+}
+
+// sort by set, then binding (both ascending)
+void sortDescriptorsBySetAndBinding(cc::span<phi::vk::util::ReflectedDescriptorInfo> inOutDescriptorInfos)
+{
+    using namespace phi::vk::util;
+
+    std::sort(inOutDescriptorInfos.begin(), inOutDescriptorInfos.end(),
+              [](ReflectedDescriptorInfo const& lhs, ReflectedDescriptorInfo const& rhs)
+              {
+                  if (lhs.set != rhs.set)
+                      return lhs.set < rhs.set;
+                  else
+                      return lhs.binding < rhs.binding;
+              });
+}
 
 constexpr uint32_t gc_patched_spirv_binary_version = 0xDEAD0001;
 } // namespace
 
-phi::vk::util::patched_spirv_stage phi::vk::util::create_patched_spirv(std::byte const* bytecode, size_t bytecode_size, spirv_refl_info& out_info, cc::allocator* scratch_alloc)
+phi::vk::util::PatchedShaderStage phi::vk::util::createPatchedShader(std::byte const* bytecode, size_t bytecode_size, ReflectedShaderInfo& out_info, cc::allocator* scratch_alloc)
 {
-    patched_spirv_stage res;
+    // we have to shift all CBVs up by [max num shader args] sets to make our API work in vulkan
+    // unlike the register-to-binding shift with -fvk-[x]-shift, this cannot be done with DXC flags
+    // instead we provide these helpers which use the spirv-reflect library to do the same
+
+    PatchedShaderStage res;
 
     SpvReflectShaderModule module;
     auto const result = spvReflectCreateShaderModule(bytecode_size, bytecode, &module);
@@ -187,7 +262,7 @@ phi::vk::util::patched_spirv_stage phi::vk::util::create_patched_spirv(std::byte
     patchSpvReflectShader(module, out_info.descriptor_infos, scratch_alloc, native_shader_flags, native_pipeline_flags);
 
     res.size = spvReflectGetCodeSize(&module);
-    res.data = cc::bit_cast<std::byte*>(module._internal->spirv_code);
+    res.data = reinterpret_cast<std::byte*>(module._internal->spirv_code);
 
     // check for push constants
     {
@@ -201,7 +276,8 @@ phi::vk::util::patched_spirv_stage phi::vk::util::create_patched_spirv(std::byte
         }
     }
 
-    res.entrypoint_name = module.entry_point_name;
+    // copy name
+    std::snprintf(res.entrypoint_name, sizeof(res.entrypoint_name), "%s", module.entry_point_name);
 
     // spirv-reflect internally checks if this field is a nullptr before calling ::free,
     // so we can keep it alive by setting this
@@ -211,27 +287,22 @@ phi::vk::util::patched_spirv_stage phi::vk::util::create_patched_spirv(std::byte
 }
 
 
-void phi::vk::util::free_patched_spirv(const patched_spirv_stage& val)
+void phi::vk::util::freePatchedShader(const PatchedShaderStage& val)
 {
     // do the same thing spirv-reflect would have done in spvReflectDestroyShaderModule
     ::free(val.data);
 }
 
-cc::alloc_vector<phi::vk::util::spirv_desc_info> phi::vk::util::merge_spirv_descriptors(cc::span<spirv_desc_info> desc_infos, cc::allocator* alloc)
+cc::alloc_vector<phi::vk::util::ReflectedDescriptorInfo> phi::vk::util::mergeReflectedDescriptors(cc::span<ReflectedDescriptorInfo> inOutDescriptorInfos,
+                                                                                                  cc::allocator* alloc)
 {
-    // sort by set, then binding (both ascending)
-    std::sort(desc_infos.begin(), desc_infos.end(), [](spirv_desc_info const& lhs, spirv_desc_info const& rhs) {
-        if (lhs.set != rhs.set)
-            return lhs.set < rhs.set;
-        else
-            return lhs.binding < rhs.binding;
-    });
+    sortDescriptorsBySetAndBinding(inOutDescriptorInfos);
 
-    cc::alloc_vector<spirv_desc_info> sorted_merged_res(alloc);
-    sorted_merged_res.reserve(desc_infos.size());
-    spirv_desc_info* current_descriptor = nullptr;
+    cc::alloc_vector<ReflectedDescriptorInfo> sorted_merged_res(alloc);
+    sorted_merged_res.reserve(inOutDescriptorInfos.size());
+    ReflectedDescriptorInfo* current_descriptor = nullptr;
 
-    for (auto const& descriptor : desc_infos)
+    for (auto const& descriptor : inOutDescriptorInfos)
     {
         if (current_descriptor &&                             // this is not the first range
             current_descriptor->set == descriptor.set &&      // set and -
@@ -270,49 +341,130 @@ cc::alloc_vector<phi::vk::util::spirv_desc_info> phi::vk::util::merge_spirv_desc
     return sorted_merged_res;
 }
 
-void phi::vk::util::warnIfReflectionIsIncosistent(cc::span<const phi::vk::util::spirv_desc_info> reflected_descriptors, phi::arg::shader_arg_shapes arg_shapes)
+size_t phi::vk::util::addDummyDescriptors(cc::span<arg::shader_arg_shape const> argShapes, cc::alloc_vector<ReflectedDescriptorInfo>& inOutFillerDescriptors)
 {
-    struct reflected_range_infos
+    // NOTE: this is near-impossible
+    // not only does validation cry when the dummy descriptor type is not the SAME one as in the bound descriptor set,
+    // it also changes the rendered image meaning this is proper, real UB
+    // other open questions: visibility flags, array sizes
+    //
+    // we can probably do this for CBVs and Samplers (if solving visibility questions)
+    // but for SRVs and UAVs it's not really an option
+
+
+    // compute amounts in reflected descriptors
+    ReflectedRangeInfos range_infos[limits::max_shader_arguments] = {};
+    descriptorsToRangeInfos(inOutFillerDescriptors, range_infos);
+
+    size_t numWritten = 0;
+    auto F_AddDescriptor = [&](VkDescriptorType type, uint32_t set, uint32_t binding)
     {
-        uint32_t num_cbvs = 0;
-        uint32_t num_srvs = 0;
-        uint32_t num_uavs = 0;
-        uint32_t num_samplers = 0;
+        // TODO: visibility flags are arbitrary, might cause problems (ALL_GRAPHICS works for naive graphics PSOs)
+        inOutFillerDescriptors.push_back(ReflectedDescriptorInfo{set, binding, 1, type, VK_SHADER_STAGE_ALL_GRAPHICS, VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT});
+        ++numWritten;
     };
 
-    cc::array<reflected_range_infos, limits::max_shader_arguments> range_infos;
+    size_t const numDescriptorsBefore = inOutFillerDescriptors.size();
 
-    for (auto const& descriptor : reflected_descriptors)
+    VkDescriptorType const dummyTypeCBV = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC; // correct
+    VkDescriptorType const dummyTypeSRV = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;          // poor guess
+    VkDescriptorType const dummyTypeUAV = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;         // poor guess
+    VkDescriptorType const dummyTypeSampler = VK_DESCRIPTOR_TYPE_SAMPLER;            // correct
+
+    // go over each argument
+    for (auto i = 0u; i < argShapes.size(); ++i)
     {
-        auto set_shape_index = descriptor.set;
+        auto const& ri = range_infos[i];
+        auto const& shape = argShapes[i];
 
-        // wrap CBVs down to their "true" set (as it is given in HLSL)
-        if (set_shape_index >= limits::max_shader_arguments)
-            set_shape_index -= limits::max_shader_arguments;
+        uint32_t const shape_num_cbvs = shape.has_cbv ? 1u : 0u;
 
-        reflected_range_infos& info = range_infos[set_shape_index];
+        if (ri.num_cbvs < shape_num_cbvs)
+        {
+            // add a dummy CBV in the single binding it can fit
+            F_AddDescriptor(dummyTypeCBV, i + limits::max_shader_arguments, spv::cbv_binding_start);
+        }
 
-        if (descriptor.binding >= spv::sampler_binding_start)
+        if (ri.num_srvs < shape.num_srvs)
         {
-            // Sampler
-            info.num_samplers += descriptor.binding_array_size;
+            // add dummy SRVs, first fill up holes in the binding sequence, then append
+
+            uint32_t numMissingSRVs = shape.num_srvs - ri.num_srvs;
+            uint32_t currentBinding = spv::srv_binding_start;
+
+            for (auto j = 0u; j < numDescriptorsBefore; ++j)
+            {
+                ReflectedDescriptorInfo const& descInfo = inOutFillerDescriptors[j];
+
+                if (descInfo.set < i)
+                {
+                    // skip forward to set
+                    continue;
+                }
+                else if (descInfo.set > i)
+                {
+                    // stop search beyond set
+                    break;
+                }
+
+                if (isBindingCBV(descInfo.binding))
+                {
+                    // skip forward to SRVs
+                }
+                else if (!isBindingSRV(descInfo.binding))
+                {
+                    // stop search beyond SRVs
+                    break;
+                }
+
+                // we are in the correct set, in SRVs
+                if (currentBinding == descInfo.binding)
+                {
+                    // this binding continues seamlessly, skip
+                    ++currentBinding;
+                    continue;
+                }
+
+                // this binding has skipped
+                uint32_t const numBindingsSkipped = descInfo.binding - currentBinding;
+                uint32_t const numDummiesToAdd = cc::min(numMissingSRVs, numBindingsSkipped);
+
+                // add dummies
+                for (auto k = 0u; k < numDummiesToAdd; ++k)
+                {
+                    F_AddDescriptor(dummyTypeSRV, i, currentBinding++);
+                }
+
+                numMissingSRVs -= numDummiesToAdd;
+                if (numMissingSRVs == 0)
+                    break;
+            }
+
+            // add remaining
+            for (auto k = 0u; k < numMissingSRVs; ++k)
+            {
+                F_AddDescriptor(dummyTypeSRV, i, currentBinding++);
+            }
         }
-        else if (descriptor.binding >= spv::uav_binding_start)
-        {
-            // UAV
-            info.num_uavs += descriptor.binding_array_size;
-        }
-        else if (descriptor.binding >= spv::srv_binding_start)
-        {
-            // SRV
-            info.num_srvs += descriptor.binding_array_size;
-        }
-        else /*if (range.binding >= spv::cbv_binding_start)*/
-        {
-            // CBV
-            info.num_cbvs += descriptor.binding_array_size;
-        }
+
+        // TODO: UAVs, Samplers
     }
+
+    // if any descriptors were added, re-sort by set/binding (ascending)
+    if (numWritten > 0)
+    {
+        sortDescriptorsBySetAndBinding(inOutFillerDescriptors);
+    }
+
+    return numWritten;
+}
+
+bool phi::vk::util::warnIfReflectionIsInconsistent(cc::span<const phi::vk::util::ReflectedDescriptorInfo> reflected_descriptors, phi::arg::shader_arg_shapes arg_shapes)
+{
+    ReflectedRangeInfos range_infos[limits::max_shader_arguments];
+    descriptorsToRangeInfos(reflected_descriptors, range_infos);
+
+    bool isInconsistent = false;
 
     for (auto i = 0u; i < arg_shapes.size(); ++i)
     {
@@ -321,106 +473,35 @@ void phi::vk::util::warnIfReflectionIsIncosistent(cc::span<const phi::vk::util::
 
         if (ri.num_cbvs != (shape.has_cbv ? 1 : 0))
         {
-            PHI_LOG_WARN << "SPIR-V reflection inconsistent - CBVs: " << ri.num_cbvs << " reflected, vs " << (shape.has_cbv ? 1 : 0) << " in argument #" << i;
+            PHI_LOG_WARN("SPIR-V reflection inconsistent - CBVs: {} reflected, vs {} in argument #{}", ri.num_cbvs, (shape.has_cbv ? 1 : 0), i);
+            isInconsistent = true;
         }
 
         if (ri.num_srvs != shape.num_srvs)
         {
-            PHI_LOG_WARN << "SPIR-V reflection inconsistent - SRVs: " << ri.num_srvs << " reflected, vs " << shape.num_srvs << " in argument #" << i;
+            PHI_LOG_WARN("SPIR-V reflection inconsistent - SRVs: {} reflected, vs {} in argument #{}", ri.num_srvs, shape.num_srvs, i);
+            isInconsistent = true;
         }
         if (ri.num_uavs != shape.num_uavs)
         {
-            PHI_LOG_WARN << "SPIR-V reflection inconsistent - UAVs: " << ri.num_uavs << " reflected, vs " << shape.num_uavs << " in argument #" << i;
+            PHI_LOG_WARN("SPIR-V reflection inconsistent - UAVs: {} reflected, vs {} in argument #{}", ri.num_uavs, shape.num_uavs, i);
+            isInconsistent = true;
         }
         if (ri.num_samplers != shape.num_samplers)
         {
-            PHI_LOG_WARN << "SPIR-V reflection inconsistent - Samplers: " << ri.num_samplers << " reflected, vs " << shape.num_samplers << " in argument #" << i;
+            PHI_LOG_WARN("SPIR-V reflection inconsistent - Samplers: {} reflected, vs {} in argument #{}", ri.num_samplers, shape.num_samplers, i);
+            isInconsistent = true;
         }
     }
+
+    return isInconsistent;
 }
 
-void phi::vk::util::print_spirv_info(cc::span<const phi::vk::util::spirv_desc_info> info)
+void phi::vk::util::logReflectedDescriptors(cc::span<const phi::vk::util::ReflectedDescriptorInfo> info)
 {
-    auto log_obj = PHI_LOG;
-    log_obj("SPIR-V descriptor info:\n");
+    PHI_LOG("SPIR-V descriptor info:");
     for (auto const& i : info)
     {
-        log_obj.printf("  set %u, binding %u, array size %u, VkDescriptorType %d\n", i.set, i.binding, i.binding_array_size, i.type);
+        PHI_LOG("  set %u, binding %u, array size %u, VkDescriptorType %d", i.set, i.binding, i.binding_array_size, i.type);
     }
-}
-
-bool phi::vk::util::write_patched_spirv(const phi::vk::util::patched_spirv_stage& spirv,
-                                        cc::span<const phi::vk::util::spirv_desc_info> merged_descriptor_info,
-                                        bool has_root_consts,
-                                        const char* out_path)
-{
-    if (!out_path)
-        return false;
-
-    auto outfile = std::fstream(out_path, std::ios::out | std::ios::binary);
-    if (!outfile.good())
-        return false;
-
-    outfile.write((char const*)&gc_patched_spirv_binary_version, sizeof(gc_patched_spirv_binary_version));
-
-    // write patched SPIR-V
-    outfile.write((char const*)&spirv.size, sizeof(spirv.size)); // size of patched SPIR-V
-    outfile.write((char const*)spirv.data, spirv.size);          // patched SPIR-V
-
-    // write entrypoint string
-    size_t const entrypoint_size = spirv.entrypoint_name.size();
-    outfile.write((char const*)&entrypoint_size, sizeof(entrypoint_size)); // size of entrypoint string
-    outfile.write(spirv.entrypoint_name.c_str(), entrypoint_size);         // entrypoint string
-
-    // write shader stage
-    outfile.write((char const*)&spirv.stage, sizeof(spirv.stage));
-
-    // write descriptor infos
-    size_t const num_descriptor_infos = merged_descriptor_info.size();
-    outfile.write((char const*)&num_descriptor_infos, sizeof(num_descriptor_infos));                // num of descriptor infos
-    outfile.write((char const*)merged_descriptor_info.data(), merged_descriptor_info.size_bytes()); // descriptor info data
-
-    // has root constants
-    outfile.write((char const*)&has_root_consts, sizeof(bool));
-
-    return true;
-}
-
-bool phi::vk::util::parse_patched_spirv(cc::span<const std::byte> data, phi::vk::util::patched_spirv_data_nonowning& out_parsed)
-{
-    if (data.empty())
-        return false;
-
-    auto reader = byte_reader{data};
-
-    uint32_t version_number = 0;
-    reader.read_t(version_number);
-
-    if (version_number != gc_patched_spirv_binary_version)
-        return false;
-
-    // read patched SPIR-V
-    reader.read_t(out_parsed.binary_size_bytes);
-    out_parsed.binary_data = reader.head();
-    reader.skip(out_parsed.binary_size_bytes);
-
-    // read entrypoint string
-    size_t string_length = 0;
-    reader.read_t(string_length);
-    out_parsed.entrypoint_name = reinterpret_cast<char const*>(reader.head());
-    reader.skip(string_length);
-
-    // read shader stage
-    reader.read_t(out_parsed.stage);
-
-    // read descriptor infos
-    size_t num_descriptor_infos = 0u;
-    reader.read_t(num_descriptor_infos);
-    out_parsed.descriptor_infos = {reinterpret_cast<spirv_desc_info const*>(reader.head()), num_descriptor_infos};
-    reader.skip(out_parsed.descriptor_infos.size_bytes());
-
-    // read root constant flag
-    reader.read_t(out_parsed.has_root_constants);
-
-    return true;
 }

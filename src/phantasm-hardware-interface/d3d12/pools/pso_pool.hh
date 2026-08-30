@@ -23,25 +23,19 @@ class PipelineStateObjectPool
 public:
     // frontend-facing API
 
-    [[nodiscard]] handle::pipeline_state createPipelineState(arg::vertex_format vertex_format,
-                                                             const arg::framebuffer_config& framebuffer_format,
-                                                             arg::shader_arg_shapes shader_arg_shapes,
-                                                             bool has_root_constants,
-                                                             arg::graphics_shaders shader_stages,
-                                                             phi::pipeline_config const& primitive_config,
-                                                             char const* dbg_name);
+    [[nodiscard]] handle::pipeline_state createPipelineState(phi::arg::graphics_pipeline_state_description const& desc, char const* dbg_name);
 
-    [[nodiscard]] handle::pipeline_state createComputePipelineState(arg::shader_arg_shapes shader_arg_shapes,
-                                                                    arg::shader_binary compute_shader,
-                                                                    bool has_root_constants,
-                                                                    char const* dbg_name);
+    [[nodiscard]] handle::pipeline_state createMeshPipelineState(phi::arg::mesh_pipeline_state_description const& desc, char const* dbg_name);
+
+    [[nodiscard]] handle::pipeline_state createComputePipelineState(arg::compute_pipeline_state_description const& desc, char const* dbg_name);
 
     [[nodiscard]] handle::pipeline_state createRaytracingPipelineState(cc::span<arg::raytracing_shader_library const> libraries,
                                                                        cc::span<arg::raytracing_argument_association const> arg_assocs,
                                                                        cc::span<arg::raytracing_hit_group const> hit_groups,
-                                                                       unsigned max_recursion,
-                                                                       unsigned max_payload_size_bytes,
-                                                                       unsigned max_attribute_size_bytes,
+                                                                       arg::root_signature_description const* p_opt_global_rootsig,
+                                                                       uint32_t max_recursion,
+                                                                       uint32_t max_payload_size_bytes,
+                                                                       uint32_t max_attribute_size_bytes,
                                                                        cc::allocator* scratch_alloc,
                                                                        char const* dbg_name);
 
@@ -86,9 +80,18 @@ public:
 
     struct pso_node
     {
-        ID3D12PipelineState* raw_pso;
-        root_signature* associated_root_sig;
-        D3D12_PRIMITIVE_TOPOLOGY primitive_topology;
+        // the pipeline state itself
+        ID3D12PipelineState* pPSO = nullptr;
+
+        // the root signature (looked up from a cache, not 1:1)
+        root_signature* pAssociatedRootSig = nullptr;
+
+        // special command signature for _indirect commands that prepend a ID into the root constants
+        // graphics PSOs with enabled support for cmd::draw_indirect with draw ID mode require this
+        // mesh PSOs with enabled support for cmd::dispatch_mesh_indirect with dispatch ID require this
+        ID3D12CommandSignature* pAssociatedComSigForIndirectID = nullptr;
+
+        D3D12_PRIMITIVE_TOPOLOGY primitive_topology = {};
     };
 
     struct rt_pso_node
@@ -96,6 +99,10 @@ public:
         ID3D12StateObject* raw_state_object;
         ID3D12StateObjectProperties* raw_state_object_props; // currently unused after creation, could be removed
         cc::capped_vector<root_signature*, limits::max_raytracing_argument_assocs> associated_root_signatures;
+
+        // the global root signature (looked up from a cache, not 1:1)
+        // optional - if this is null, use getGlobalEmptyRaytraceRootSignature()
+        root_signature* pGlobalRootSig = nullptr;
 
         struct export_info
         {
@@ -110,8 +117,8 @@ public:
 public:
     // internal API
 
-    void initialize(ID3D12Device5* device_rt, unsigned max_num_psos, unsigned max_num_psos_raytracing, cc::allocator* static_alloc, cc::allocator* dynamic_alloc);
-    void destroy();
+    void initialize(ID3D12Device5* device_rt, unsigned max_num_psos, unsigned max_num_psos_raytracing, cc::allocator* static_alloc, cc::allocator* dynamic_alloc, bool bHasRT, bool bHasMeshShading);
+    bool destroy();
 
     [[nodiscard]] pso_node const& get(handle::pipeline_state ps) const { return mPool.get(ps._value); }
 
@@ -122,20 +129,27 @@ public:
     ID3D12CommandSignature* getGlobalComSigDraw() const { return mGlobalComSigDraw; }
     ID3D12CommandSignature* getGlobalComSigDrawIndexed() const { return mGlobalComSigDrawIndexed; }
     ID3D12CommandSignature* getGlobalComSigDispatch() const { return mGlobalComSigDispatch; }
+    ID3D12CommandSignature* getGlobalComSigDispatchMesh() const { return mGlobalComSigDispatchMesh; }
+
+    ID3D12RootSignature* getGlobalEmptyRaytraceRootSignature() const { return mEmptyGlobalRaytraceRootSignature; }
 
 private:
     ID3D12Device5* mDevice = nullptr;
     cc::allocator* mDynamicAllocator = nullptr;
 
     RootSignatureCache mRootSigCache;
-    ID3D12RootSignature* mEmptyRaytraceRootSignature = nullptr;
+    CommandSignatureCache mComSigCache;
+
+    ID3D12RootSignature* mEmptyGlobalRaytraceRootSignature = nullptr;
+    ID3D12RootSignature* mEmptyLocalRaytraceRootSignature = nullptr;
     ID3D12CommandSignature* mGlobalComSigDraw = nullptr;
     ID3D12CommandSignature* mGlobalComSigDrawIndexed = nullptr;
     ID3D12CommandSignature* mGlobalComSigDispatch = nullptr;
+    ID3D12CommandSignature* mGlobalComSigDispatchMesh = nullptr;
 
     cc::atomic_linked_pool<pso_node> mPool;
     cc::atomic_linked_pool<rt_pso_node> mPoolRaytracing;
     std::mutex mMutex;
 };
 
-}
+} // namespace phi::d3d12

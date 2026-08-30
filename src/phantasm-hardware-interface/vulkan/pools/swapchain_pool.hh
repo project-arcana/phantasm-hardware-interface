@@ -52,11 +52,11 @@ public:
     };
 
 public:
-    handle::swapchain createSwapchain(window_handle const& window_handle, int initial_w, int initial_h, unsigned num_backbuffers, present_mode mode);
+    handle::swapchain createSwapchain(arg::swapchain_description const& desc, cc::allocator* scratch, char const* pDebugName);
 
     void free(handle::swapchain handle);
 
-    void onResize(handle::swapchain handle, int w, int h);
+    void onResize(handle::swapchain handle, int w, int h, cc::allocator* scratch);
 
     bool clearResizeFlag(handle::swapchain handle)
     {
@@ -68,9 +68,9 @@ public:
         return true;
     }
 
-    bool present(handle::swapchain handle);
+    bool present(handle::swapchain handle, cc::allocator* scratch);
 
-    bool acquireBackbuffer(handle::swapchain handle);
+    bool acquireBackbuffer(handle::swapchain handle, cc::allocator* scratch);
 
     swapchain const& get(handle::swapchain handle) const { return mPool.get(handle._value); }
 
@@ -84,7 +84,7 @@ public:
 
 
 private:
-    void setupSwapchain(handle::swapchain handle, int width_hint, int height_hint);
+    void setupSwapchain(handle::swapchain handle, int width_hint, int height_hint, cc::allocator* scratch);
 
     void teardownSwapchain(swapchain& node);
 
@@ -104,4 +104,4 @@ private:
     VkRenderPass mRenderPass = nullptr;
     VkCommandPool mDummyPresentCommandPool;
 };
-}
+} // namespace phi::vk

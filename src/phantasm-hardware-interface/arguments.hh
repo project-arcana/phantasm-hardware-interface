@@ -7,22 +7,128 @@
 #include <phantasm-hardware-interface/common/byte_util.hh>
 #include <phantasm-hardware-interface/common/container/flat_vector.hh>
 #include <phantasm-hardware-interface/common/format_size.hh>
+#include <phantasm-hardware-interface/window_handle.hh>
 
 #include "limits.hh"
 #include "types.hh"
 
 namespace phi::arg
 {
+// memhashed structs that must not be padded, C4820: warning about padding
+// #pragma warning(error: 4820): enable C4820 and promote it to an error
+#ifdef CC_COMPILER_MSVC
+#pragma warning(push)
+#pragma warning(error : 4820)
+#endif
+
+// configuration of the rasterizer when creating a graphics PSO
+struct pipeline_config
+{
+    // the function used for depth testing
+    depth_function depth = depth_function::none;
+
+    // whether the depth buffer cannot be written to
+    bool depth_readonly = false;
+
+    // the face culling mode (front / back / none)
+    cull_mode cull = cull_mode::none;
+
+    // enable conservative rasterization, not available on all supported GPUs
+    bool conservative_raster = false;
+
+    // how to determine if a face is front-facing (relevant for cull mode)
+    bool frontface_counterclockwise = true; // TODO: this default should be flipped
+
+    // whether to draw in wireframe mode
+    bool wireframe = false;
+
+    bool _pad0 = false;
+    bool _pad1 = false;
+
+    // amount of (MSAA) samples in the render targets
+    int32_t samples = 1;
+
+    // depth biasing
+    // see https://docs.microsoft.com/en-us/windows/win32/direct3d11/d3d10-graphics-programming-guide-output-merger-stage-depth-bias
+    int32_t depth_bias = 0;
+    float slope_scaled_depth_bias = 0.f;
+};
+
+
+struct blend_state
+{
+    blend_factor blend_color_src = blend_factor::one;
+    blend_factor blend_color_dest = blend_factor::zero;
+    blend_op blend_op_color = blend_op::op_add;
+    blend_factor blend_alpha_src = blend_factor::one;
+    blend_factor blend_alpha_dest = blend_factor::zero;
+    blend_op blend_op_alpha = blend_op::op_add;
+
+public:
+    blend_state() = default;
+
+    blend_state(blend_factor blend_color_src, blend_factor blend_color_dest, blend_op blend_op_color, blend_factor blend_alpha_src, blend_factor blend_alpha_dest, blend_op blend_op_alpha)
+      : blend_color_src(blend_color_src),
+        blend_color_dest(blend_color_dest),
+        blend_op_color(blend_op_color),
+        blend_alpha_src(blend_alpha_src),
+        blend_alpha_dest(blend_alpha_dest),
+        blend_op_alpha(blend_op_alpha)
+    {
+    }
+
+    blend_state(blend_factor blend_color_src, blend_factor blend_color_dest, blend_factor blend_alpha_src, blend_factor blend_alpha_dest)
+      : blend_color_src(blend_color_src),
+        blend_color_dest(blend_color_dest),
+        blend_op_color(blend_op::op_add),
+        blend_alpha_src(blend_alpha_src),
+        blend_alpha_dest(blend_alpha_dest),
+        blend_op_alpha(blend_op::op_add)
+    {
+    }
+
+    blend_state(blend_factor blend_src, blend_factor blend_dest, blend_op blend_op = blend_op::op_add)
+      : blend_color_src(blend_src), blend_color_dest(blend_dest), blend_op_color(blend_op), blend_alpha_src(blend_src), blend_alpha_dest(blend_dest), blend_op_alpha(blend_op)
+    {
+    }
+
+    // blend state for additive blending "src + dest"
+    static blend_state additive() { return blend_state(blend_factor::one, blend_factor::one); }
+
+    // blend state for multiplicative blending "src * dest"
+    static blend_state multiplicative()
+    {
+        return blend_state(blend_factor::dest_color, blend_factor::zero, blend_factor::dest_alpha, blend_factor::zero);
+    }
+
+    // blend state for normal alpha blending "mix(dest, src, src.a)"
+    static blend_state alpha_blending() { return blend_state(blend_factor::src_alpha, blend_factor::inv_src_alpha); }
+
+    // blend state for premultiplied alpha blending "dest * (1 - src.a) + src"
+    static blend_state alpha_blending_premultiplied() { return blend_state(blend_factor::one, blend_factor::inv_src_alpha); }
+};
+
+
+// the blending configuration for a specific render target slot of a graphics PSO
+struct render_target_config
+{
+    format fmt = format::rgba8un;
+    bool blend_enable = false;
+    blend_state state;
+};
+
 struct framebuffer_config
 {
-    /// configs of the render targets, [0, n]
+    // configs of the render targets, [0, n]
     flat_vector<render_target_config, limits::max_render_targets> render_targets;
 
-    bool logic_op_enable = false;
+    bool32_t logic_op_enable = false;
     blend_logic_op logic_op = blend_logic_op::no_op;
 
-    /// format of the depth stencil target, or format::none
+    // format of the depth stencil target, or format::none
     format depth_target = format::none;
+    uint8_t _pad0 = 0;
+    uint8_t _pad1 = 0;
 
 public:
     void add_render_target(format fmt)
@@ -36,21 +142,13 @@ public:
     void remove_depth_target() { depth_target = format::none; }
 };
 
-struct vertex_format
-{
-    // vertex attribute descriptions
-    cc::span<vertex_attribute_info const> attributes;
-    // vertex data size in bytes, per vertex buffer (leave at 0 if none)
-    uint32_t vertex_sizes_bytes[limits::max_vertex_buffers] = {};
-};
-
 /// A shader argument consists of SRVs, UAVs, an optional CBV, and an offset into it
 struct shader_arg_shape
 {
     uint32_t num_srvs = 0;
     uint32_t num_uavs = 0;
     uint32_t num_samplers = 0;
-    bool has_cbv = false;
+    bool32_t has_cbv = false;
 
 public:
     constexpr shader_arg_shape(uint32_t srvs, uint32_t uavs = 0, uint32_t samplers = 0, bool cbv = false)
@@ -65,218 +163,57 @@ public:
     }
 };
 
-/// A shader payload consists of [1, 4] shader arguments
-using shader_arg_shapes = cc::span<shader_arg_shape const>;
-
-struct shader_binary
+struct root_signature_description
 {
-    std::byte const* data = nullptr; ///< pointer to the (backend-dependent) shader binary data
-    size_t size = 0;
-};
-
-struct graphics_shader
-{
-    shader_binary binary;
-    shader_stage stage = shader_stage::none;
-};
-
-/// A graphics shader bundle consists of up to 1 shader per graphics stage
-using graphics_shaders = cc::span<graphics_shader const>;
-
-struct graphics_pipeline_state_description
-{
-    pipeline_config config;
-    framebuffer_config framebuffer;
-    vertex_format vertices;
-
-    flat_vector<graphics_shader, limits::num_graphics_shader_stages> shader_binaries;
-    flat_vector<shader_arg_shape, limits::max_shader_arguments> shader_arg_shapes;
-    bool has_root_constants = false;
-};
-
-struct compute_pipeline_state_description
-{
-    shader_binary shader;
-    flat_vector<shader_arg_shape, limits::max_shader_arguments> shader_arg_shapes;
-    bool has_root_constants = false;
-};
-
-/// the category of a SRV or UAV descriptor slot in a shader
-enum class descriptor_category
-{
-    NONE = 0,
-
-    // HLSL: [RW]Texture1D/2D/3D/Cube[MS][Array]
-    texture,
-
-    // HLSL: [RW][Append][ByteAddress/Structured]Buffer
-    buffer,
-
-    // HLSL: RaytracingAccelerationStructure
-    raytracing_accel_struct,
-};
-
-/// properties of a single descriptor or descriptor array in a shader view
-struct descriptor_entry
-{
-    descriptor_category category = descriptor_category::NONE;
-    uint32_t array_size = 0;
-};
-
-/// describes the shape of a shader view
-/// used in createEmptyShaderView
-struct shader_view_description
-{
-    /// total amount of SRVs in the shader view
-    uint32_t num_srvs = 0;
-    /// properties of the SRV descriptors (in order) [optional in D3D12]
-    cc::span<descriptor_entry const> srv_entries = {};
-
-    /// total amount of UAVs in the shader view
-    uint32_t num_uavs = 0;
-    /// properties of the UAV descriptors (in order) [optional in D3D12]
-    cc::span<descriptor_entry const> uav_entries = {};
-
-    /// total amount of samplers in the shader view
-    uint32_t num_samplers = 0;
-};
-
-/// an element in a bottom-level acceleration strucutre
-struct blas_element
-{
-    /// the vertex buffer containing positions
-    buffer_address vertex_addr;
-    /// amount of vertices to use
-    uint32_t num_vertices = 0;
-    /// the vertex position format
-    /// positions must come first in the vertex struct
-    format vertex_pos_format = format::rgb32f;
-
-    /// the index buffer to use, optional
-    buffer_address index_addr;
-    /// amount of indices to read
-    uint32_t num_indices = 0;
-
-    /// location in a buffer containing a 3x4 affine transform matrix (row major), optional
-    buffer_address transform_addr;
-
-    /// if true, the geometry acts as if no any-hit shader is present when hit
-    /// enable wherever possible (can be overriden using flags in TraceRay)
-    bool is_opaque = true;
-};
-
-struct raytracing_library_export
-{
-    shader_stage stage = shader_stage::none;
-    char const* entrypoint = nullptr;
-};
-
-/// a shader library lists the symbol names it exports
-struct raytracing_shader_library
-{
-    shader_binary binary;
-    flat_vector<raytracing_library_export, 16> shader_exports;
-};
-
-/// associates exports from libraries with their argument shapes
-struct raytracing_argument_association
-{
-    enum e_arg_association_target : uint8_t
+    using e_root_signature_flags_t = uint32_t;
+    enum e_root_signature_flags : e_root_signature_flags_t
     {
-        e_target_identifiable_shader,
-        e_target_hitgroup
+        e_rsf_none = 0,
+        // Enable support for SM6.6 ResourceDescriptorHeap
+        e_rsf_allow_resource_descriptor_heap = 1 << 0,
+        // Enable support for SM6.6 SamplerDescriptorHeap
+        e_rsf_allow_sampler_descriptor_heap = 1 << 1,
     };
 
-    /// an argument association targets an identifiable shader (identfiable: ray_gen, ray_miss or ray_callable), or a hitgroup
-    e_arg_association_target target_type = e_target_identifiable_shader;
-    /// order corresponds to the order of exports/hitgroups at PSO creation
-    /// NOTE: identifiable shaders are indexed contiguously across libraries, and non-identifiable shaders are skipped
-    flat_vector<uint32_t, 16> target_indices;
+    flat_vector<shader_arg_shape, limits::max_shader_arguments> shader_arg_shapes;
+    bool32_t has_root_constants = false;
 
-    flat_vector<shader_arg_shape, limits::max_shader_arguments> argument_shapes;
-    bool has_root_constants = false;
+    // D3D12: Amount of overlapped descriptor ranges in space0
+    // Use case: Bindless (descriptor indexing)
+    // for example
+    // Texture2D gTextures2D[1024]      : register(space0);
+    // Texture3D gTextures3D[1024]      : register(space0);
+    // ByteAddressBuffer gBuffers[1024] : register(space0);
+    // this would be 1024 SRVs, overlapped 3 times
+    uint32_t num_overlapped_space0_srv_ranges = 1;
+    uint32_t num_overlapped_space0_uav_ranges = 1;
+    uint32_t num_overlapped_space0_sampler_ranges = 1;
 
-public:
-    void set_target_identifiable() { target_type = e_target_identifiable_shader; }
-    void set_target_hitgroup() { target_type = e_target_hitgroup; }
+    // additional flags
+    e_root_signature_flags_t flags = e_rsf_none;
 
-    void add_shader_arg(uint32_t num_srvs, uint32_t num_uavs, uint32_t num_samplers, bool has_cbv)
+    void add_shader_arg(uint32_t num_srvs, uint32_t num_uavs, uint32_t num_samplers, bool has_cbvs)
     {
-        argument_shapes.push_back(shader_arg_shape{num_srvs, num_uavs, num_samplers, has_cbv});
-    }
-};
-
-/// a triangle hit group, has a closest hit shader, and optionally an any hit and intersection shader
-struct raytracing_hit_group
-{
-    char const* name = nullptr;
-
-    /// order corresponds to the order of exports, flat across all libraries
-    int closest_hit_export_index = -1;
-    int any_hit_export_index = -1;      ///< optional
-    int intersection_export_index = -1; ///< optional
-};
-
-struct raytracing_pipeline_state_description
-{
-    cc::span<raytracing_shader_library const> libraries;
-    cc::span<raytracing_argument_association const> argument_associations;
-    cc::span<raytracing_hit_group const> hit_groups;
-
-    uint32_t max_recursion = 0;
-    uint32_t max_payload_size_bytes = 0;
-    uint32_t max_attribute_size_bytes = 0;
-};
-
-struct shader_table_record
-{
-    enum e_table_record_target : uint8_t
-    {
-        e_target_identifiable_shader,
-        e_target_hitgroup
-    };
-
-    /// a shader table record targets an identifiable shader (identfiable: ray_gen, ray_miss or ray_callable), or a hitgroup
-    e_table_record_target target_type = e_target_identifiable_shader;
-    /// order corresponds to the order of exports/hitgroups at PSO creation
-    /// NOTE: identifiable shaders are indexed contiguously across libraries, and non-identifiable shaders are skipped
-    uint32_t target_index = 0;
-
-    void const* root_arg_data = nullptr; ///< optional, data of the root constant data
-    uint32_t root_arg_size_bytes = 0;    ///< size of the root constant data
-    flat_vector<shader_argument, limits::max_shader_arguments> shader_arguments;
-
-    void set_shader(uint32_t index)
-    {
-        target_type = e_target_identifiable_shader;
-        target_index = index;
+        shader_arg_shapes.push_back(shader_arg_shape{num_srvs, num_uavs, num_samplers, has_cbvs});
     }
 
-    void set_hitgroup(uint32_t index)
-    {
-        target_type = e_target_hitgroup;
-        target_index = index;
-    }
-
-    void add_shader_arg(handle::resource cbv, uint32_t cbv_off = 0, handle::shader_view sv = handle::null_shader_view)
-    {
-        shader_arguments.push_back(shader_argument{cbv, sv, cbv_off});
-    }
+    bool has_resource_descriptor_heap() const { return !!(flags & e_rsf_allow_resource_descriptor_heap); }
+    bool has_sampler_descriptor_heap() const { return !!(flags & e_rsf_allow_sampler_descriptor_heap); }
 };
 
 // resource creation info
 
 struct texture_description
 {
-    phi::format fmt;
-    phi::texture_dimension dim;
-    resource_usage_flags_t usage;
-    int width;
-    int height;
-    uint32_t depth_or_array_size;
-    uint32_t num_mips;
-    uint32_t num_samples;
-    uint32_t optimized_clear_value;
+    format fmt = format::none;
+    texture_dimension dim = texture_dimension::none;
+    resource_usage_flags_t usage = resource_usage_flags::none;
+    int32_t width = 0;
+    int32_t height = 0;
+    uint32_t depth_or_array_size = 0;
+    uint32_t num_mips = 0;
+    uint32_t num_samples = 0;
+    uint32_t optimized_clear_value = 0;
 
 public:
     [[nodiscard]] static texture_description create_tex(phi::format fmt,
@@ -286,8 +223,17 @@ public:
                                                         uint32_t depth_or_array_size = 1,
                                                         bool allow_uav = false)
     {
-        return texture_description{fmt, dim, allow_uav ? resource_usage_flags::allow_uav : 0, size.width, size.height, depth_or_array_size, num_mips,
-                                   1u,  0u};
+        texture_description res = {};
+        res.fmt = fmt;
+        res.dim = dim;
+        res.usage = allow_uav ? resource_usage_flags::allow_uav : 0;
+        res.width = size.width;
+        res.height = size.height;
+        res.depth_or_array_size = depth_or_array_size;
+        res.num_mips = num_mips;
+        res.num_samples = 1;
+        res.optimized_clear_value = 0;
+        return res;
     }
 
     [[nodiscard]] static texture_description create_rt(
@@ -309,36 +255,44 @@ public:
         return res;
     }
 
-    constexpr bool operator==(texture_description const& rhs) const noexcept
-    {
-        return fmt == rhs.fmt && dim == rhs.dim && usage == rhs.usage && width == rhs.width && height == rhs.height && depth_or_array_size == rhs.depth_or_array_size
-               && num_mips == rhs.num_mips && num_samples == rhs.num_samples && optimized_clear_value == rhs.optimized_clear_value;
-    }
+    bool operator==(texture_description const& rhs) const noexcept { return std::memcmp(this, &rhs, sizeof(texture_description)) == 0; }
+
+    uint32_t get_array_size() const { return dim == texture_dimension::t3d ? 1 : depth_or_array_size; }
+    uint32_t get_depth() const { return dim == texture_dimension::t3d ? depth_or_array_size : 1; }
+    uint32_t get_num_subresources() const { return get_array_size() * num_mips; }
+    bool is_cubemap() const { return dim == texture_dimension::t2d && depth_or_array_size == 6; }
 };
 
 struct buffer_description
 {
-    uint32_t size_bytes;
-    uint32_t stride_bytes;
-    bool allow_uav;
-    phi::resource_heap heap;
+    // size of the entire buffer in bytes
+    uint32_t size_bytes = 0;
+    // stride of individual buffer elements in bytes, optional
+    uint32_t stride_bytes = 0;
+    // whether to allow usage as a UAV
+    bool allow_uav = false;
+    // the heap where this buffer is created
+    resource_heap heap = resource_heap::none;
+    // whether this buffer is used (exclusively) to back one or multiple bottom level acceleration structures (BLAS)
+    // requires allow_uav, GPU heap, and zero stride
+    bool is_bottom_level_accel_struct = false;
+    uint8_t _pad0 = 0;
 
 public:
     static buffer_description create(uint32_t size_bytes, uint32_t stride_bytes, phi::resource_heap heap = phi::resource_heap::gpu, bool allow_uav = false)
     {
         return buffer_description{size_bytes, stride_bytes, allow_uav, heap};
     }
-    constexpr bool operator==(buffer_description const& rhs) const noexcept
-    {
-        return size_bytes == rhs.size_bytes && stride_bytes == rhs.stride_bytes && allow_uav == rhs.allow_uav && heap == rhs.heap;
-    }
+
+    bool operator==(buffer_description const& rhs) const noexcept { return std::memcmp(this, &rhs, sizeof(buffer_description)) == 0; }
 };
 
 struct resource_description
 {
     enum e_resource_type
     {
-        e_resource_undefined,
+        e_resource_undefined = 0,
+
         e_resource_texture,
         e_resource_buffer
     };
@@ -350,6 +304,26 @@ struct resource_description
         texture_description info_texture;
         buffer_description info_buffer;
     };
+
+    constexpr resource_description() : type(e_resource_undefined), info_texture() {}
+
+    constexpr bool is_buffer() const { return type == e_resource_buffer; }
+    constexpr bool is_texture() const { return type == e_resource_texture; }
+    constexpr bool allows_uav() const
+    {
+        return is_buffer() ? info_buffer.allow_uav : is_texture() && (info_texture.usage & resource_usage_flags::allow_uav) != 0;
+    }
+
+    bool operator==(resource_description const& rhs) const noexcept
+    {
+        if (type != rhs.type)
+            return false;
+
+        if (type == e_resource_undefined)
+            return true;
+
+        return type == e_resource_texture ? info_texture == rhs.info_texture : info_buffer == rhs.info_buffer;
+    }
 
 public:
     // static convenience
@@ -388,6 +362,293 @@ public:
     static resource_description buffer(uint32_t size_bytes, uint32_t stride_bytes, phi::resource_heap heap = phi::resource_heap::gpu, bool allow_uav = false)
     {
         return create(buffer_description::create(size_bytes, stride_bytes, heap, allow_uav));
+    }
+};
+
+// end of memhash structs
+#ifdef CC_COMPILER_MSVC
+#pragma warning(pop)
+#endif
+
+struct vertex_format
+{
+    // how to interpret the input primitives
+    primitive_topology topology = primitive_topology::triangles;
+    // vertex attribute descriptions
+    cc::span<vertex_attribute_info const> attributes;
+    // vertex data size in bytes, per vertex buffer (leave at 0 if none)
+    uint32_t vertex_sizes_bytes[limits::max_vertex_buffers] = {};
+};
+
+/// A shader payload consists of [1, 4] shader arguments
+using shader_arg_shapes = cc::span<shader_arg_shape const>;
+
+struct shader_binary
+{
+    std::byte const* data = nullptr; ///< pointer to the (backend-dependent) shader binary data
+    size_t size = 0;
+};
+
+struct graphics_shader
+{
+    shader_binary binary;
+    shader_stage stage = shader_stage::none;
+};
+
+/// A graphics shader bundle consists of up to 1 shader per graphics stage
+using graphics_shaders = cc::span<graphics_shader const>;
+
+// Description to create a classical graphics pipeline state
+struct graphics_pipeline_state_description
+{
+    pipeline_config config;
+    framebuffer_config framebuffer;
+    root_signature_description root_signature;
+    vertex_format vertices;
+
+    // (D3D12 only) whether to create a special command signature required for cmd::draw_indirect using draw_indexed_with_id
+    bool allow_draw_indirect_with_id = false;
+
+    // up to one shader per stage (vertex, hull, domain, geometry, pixel)
+    flat_vector<graphics_shader, limits::num_graphics_shader_stages> shader_binaries;
+};
+
+// Description to create a mesh shading pipeline state
+struct mesh_pipeline_state_description
+{
+    pipeline_config config;
+    framebuffer_config framebuffer;
+    root_signature_description root_signature;
+
+    // whether to create a special command signature required for cmd::dispatch_mesh_indirect using dispatch_indirect_with_id
+    bool allow_dispatch_indirect_with_id = false;
+
+    // up to one shader per stage (amplification, mesh, pixel)
+    flat_vector<graphics_shader, 3> shader_binaries;
+};
+
+// Description to create a compute pipeline state
+struct compute_pipeline_state_description
+{
+    root_signature_description root_signature;
+
+    shader_binary shader;
+};
+
+/// the category of a SRV or UAV descriptor slot in a shader
+enum class descriptor_category
+{
+    NONE = 0,
+
+    // HLSL: [RW]Texture1D/2D/3D/Cube[MS][Array]
+    texture,
+
+    // HLSL: [RW][Append][ByteAddress/Structured]Buffer
+    buffer,
+
+    // HLSL: RaytracingAccelerationStructure
+    raytracing_accel_struct,
+};
+
+/// properties of a single descriptor or descriptor array in a shader view
+struct descriptor_entry
+{
+    descriptor_category category = descriptor_category::NONE;
+    uint32_t array_size = 0;
+};
+
+/// describes the shape of a shader view
+/// used in createEmptyShaderView
+struct shader_view_description
+{
+    /// total amount of SRVs in the shader view
+    uint32_t num_srvs = 0;
+    /// properties of the SRV descriptors (in order) [unused in D3D12]
+    cc::span<descriptor_entry const> srv_entries = {};
+
+    /// total amount of UAVs in the shader view
+    uint32_t num_uavs = 0;
+    /// properties of the UAV descriptors (in order) [unused in D3D12]
+    cc::span<descriptor_entry const> uav_entries = {};
+
+    /// total amount of samplers in the shader view
+    uint32_t num_samplers = 0;
+
+    /// staging shader views can be used as copy sources in Backend::copyShaderViewSRVs/UAVs/Samplers
+    bool is_staging = false;
+};
+
+/// describes a swapchain
+struct swapchain_description
+{
+    // the window for which this swapchain is created
+    window_handle handle = {};
+
+    // initial size, must be specified
+    int32_t initial_width = 0;
+    int32_t initial_height = 0;
+
+    // present mode / v-sync settings
+    present_mode mode = present_mode::synced;
+
+    // amount of backbuffers to create
+    uint32_t num_backbuffers = 3;
+
+    // format preference is not necessarily satisfied, check the swapchain format using
+    // getBackbufferFormat after swapchain creation
+    // format::none - no preference, use 8bit default
+    format format_preference = format::none;
+
+    // if a format with more than 8 bit per channel is chosen, enable HDR features
+    // color space:
+    // HDR off: DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709 (sRGB curve)
+    // HDR on, 10 bit per channel: DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020 (ST2048 curve)
+    // HDR on, 16 bit per channel: DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709 (no curve, linear)
+    bool enable_hdr = false;
+
+    // settings only have effect if HDR is on
+    float hdr_max_output_nits = 1000.f;
+    float hdr_min_output_nits = 0.001f;
+    float hdr_max_content_light_level = 2000.f;
+    float hdr_max_frame_average_light_level = 500.f;
+};
+
+/// an element in a bottom-level acceleration strucutre
+struct blas_element
+{
+    /// the vertex buffer containing positions
+    buffer_address vertex_addr;
+    /// amount of vertices to use
+    uint32_t num_vertices = 0;
+    /// the vertex position format
+    /// positions must come first in the vertex struct
+    format vertex_pos_format = format::rgb32f;
+    /// the vertex stride in bytes
+    /// if zero, falls back to the stride of the vertex buffer
+    uint32_t vertex_stride_bytes = 0;
+
+    /// the index buffer to use, optional
+    buffer_address index_addr;
+    /// amount of indices to read
+    uint32_t num_indices = 0;
+    /// the index format
+    format index_format = format::r32u;
+
+    /// location in a buffer containing a 3x4 affine transform matrix (row major), optional
+    buffer_address transform_addr;
+
+    /// if true, the geometry acts as if no any-hit shader is present when hit
+    /// enable wherever possible (can be overriden using flags in TraceRay)
+    bool is_opaque = true;
+};
+
+struct raytracing_library_export
+{
+    shader_stage stage = shader_stage::none;
+    char const* entrypoint = nullptr;
+};
+
+/// a shader library lists the symbol names it exports
+struct raytracing_shader_library
+{
+    shader_binary binary;
+    flat_vector<raytracing_library_export, 16> shader_exports;
+};
+
+/// associates exports from libraries with their argument shapes
+struct raytracing_argument_association
+{
+    enum e_arg_association_target : uint8_t
+    {
+        e_target_identifiable_shader,
+        e_target_hitgroup
+    };
+
+    /// an argument association targets an identifiable shader (identfiable: ray_gen, ray_miss or ray_callable), or a hitgroup
+    e_arg_association_target target_type = e_target_identifiable_shader;
+    /// order corresponds to the order of exports/hitgroups at PSO creation
+    /// NOTE: identifiable shaders are indexed contiguously across libraries, and non-identifiable shaders are skipped
+    flat_vector<uint32_t, 16> target_indices;
+
+    root_signature_description root_signature;
+
+public:
+    void set_target_identifiable() { target_type = e_target_identifiable_shader; }
+    void set_target_hitgroup() { target_type = e_target_hitgroup; }
+};
+
+/// a triangle hit group, has a closest hit shader, and optionally an any hit and intersection shader
+struct raytracing_hit_group
+{
+    char const* name = nullptr;
+
+    /// order corresponds to the order of exports, flat across all libraries
+    int closest_hit_export_index = -1;
+    int any_hit_export_index = -1;      ///< optional
+    int intersection_export_index = -1; ///< optional
+};
+
+struct raytracing_pipeline_state_description
+{
+    // specify the libraries ( = shaders) composing this RT PSO
+    cc::span<raytracing_shader_library const> libraries;
+
+    // associate (N) hitgroups or identifiable shaders with a local root signature
+    cc::span<raytracing_argument_association const> argument_associations;
+
+    // specify the hitgroups (having no hitgroups is a valid case)
+    cc::span<raytracing_hit_group const> hit_groups;
+
+    // optionally specify a global root signature
+    // global and local root signatures (via argument_associations) can coexist, but most not overlap registers
+    root_signature_description const* opt_global_root_sig = nullptr; ///< optional
+
+    // the maximum amount of ray recursion
+    uint32_t max_recursion = 0;
+    // byte size of the biggest ray payload used by shaders of this PSO
+    uint32_t max_payload_size_bytes = 0;
+    // byte size of the biggest attribute used by shaders of this PSO
+    uint32_t max_attribute_size_bytes = 0;
+};
+
+struct shader_table_record
+{
+    enum e_table_record_target : uint8_t
+    {
+        e_target_identifiable_shader,
+        e_target_hitgroup
+    };
+
+    /// a shader table record targets an identifiable shader (identfiable: ray_gen, ray_miss or ray_callable), or a hitgroup
+    e_table_record_target target_type = e_target_identifiable_shader;
+    /// order corresponds to the order of exports/hitgroups at PSO creation
+    /// NOTE: identifiable shaders are indexed contiguously across libraries, and non-identifiable shaders are skipped
+    uint32_t target_index = 0;
+
+    void const* root_arg_data = nullptr; ///< optional, data of the root constant data
+    uint32_t root_arg_size_bytes = 0;    ///< size of the root constant data
+    flat_vector<shader_argument, limits::max_shader_arguments> shader_arguments;
+
+    void set_shader(uint32_t index)
+    {
+        target_type = e_target_identifiable_shader;
+        target_index = index;
+    }
+
+    void set_hitgroup(uint32_t index)
+    {
+        target_type = e_target_hitgroup;
+        target_index = index;
+    }
+
+    void add_shader_arg(handle::resource cbv, uint32_t cbv_off = 0, handle::shader_view sv = handle::null_shader_view)
+    {
+        shader_arguments.push_back(shader_argument{cbv, sv, cbv_off});
+    }
+
+    void add_shader_arg(buffer_address cbv, handle::shader_view sv = handle::null_shader_view)
+    {
+        shader_arguments.push_back(shader_argument{cbv.buffer, sv, cbv.offset_bytes});
     }
 };
 } // namespace phi::arg

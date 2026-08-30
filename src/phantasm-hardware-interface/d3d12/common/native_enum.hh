@@ -56,6 +56,9 @@ namespace phi::d3d12::util
 
     case rs::raytrace_accel_struct:
         return D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE;
+
+    case rs::shader_resource_nonpixel_or_index:
+        return D3D12_RESOURCE_STATE_INDEX_BUFFER | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
     }
 
 
@@ -84,6 +87,7 @@ namespace phi::d3d12::util
     switch (topology)
     {
     case phi::primitive_topology::triangles:
+    case phi::primitive_topology::triangle_strips:
         return D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
     case phi::primitive_topology::lines:
         return D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
@@ -109,6 +113,8 @@ namespace phi::d3d12::util
         return D3D_PRIMITIVE_TOPOLOGY_POINTLIST;
     case phi::primitive_topology::patches:
         return D3D_PRIMITIVE_TOPOLOGY_1_CONTROL_POINT_PATCHLIST; // TODO
+    case phi::primitive_topology::triangle_strips:
+        return D3D10_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
     }
 
     CC_UNREACHABLE("to_native uncaught argument");
@@ -281,6 +287,7 @@ namespace phi::d3d12::util
     case resource_view_dimension::texture2d_ms:
         return D3D12_DSV_DIMENSION_TEXTURE2DMS;
     case resource_view_dimension::texture2d_array:
+    case resource_view_dimension::texturecube:
         return D3D12_DSV_DIMENSION_TEXTURE2DARRAY;
     case resource_view_dimension::texture2d_ms_array:
         return D3D12_DSV_DIMENSION_TEXTURE2DMSARRAY;

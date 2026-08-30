@@ -14,6 +14,8 @@
 
 #include <phantasm-hardware-interface/common/log.hh>
 
+namespace phi
+{
 namespace
 {
 #ifdef CC_OS_WINDOWS
@@ -83,7 +85,7 @@ struct nvml_dll_state
         {
             // Try in the canonical install directory (this is the more likely one)
             char expanded_path[512];
-            ::ExpandEnvironmentStringsA("%ProgramW6432%\\NVIDIA Corporation\\NVSMI\\nvml.dll", expanded_path, sizeof(expanded_path));
+            ExpandEnvironmentStrings("%ProgramW6432%\\NVIDIA Corporation\\NVSMI\\nvml.dll", expanded_path, sizeof(expanded_path));
             _dll = LoadLibrary(expanded_path);
         }
 #elif defined(CC_OS_LINUX)
@@ -93,7 +95,7 @@ struct nvml_dll_state
 
         if (!_dll)
         {
-            PHI_LOG_ERROR("Unable to load NVML .dll/.so");
+            PHI_LOG_ERROR("Unable to load NVML .dll/.so - Cannot use Nvidia GPU thermal queries");
             return false;
         }
 
@@ -158,6 +160,7 @@ struct nvml_dll_state
 };
 
 nvml_dll_state g_nvml;
+} // namespace
 }
 
 bool phi::gpustats::initialize() { return g_nvml.load(); }
@@ -165,18 +168,16 @@ bool phi::gpustats::initialize() { return g_nvml.load(); }
 phi::gpustats::gpu_handle_t phi::gpustats::get_gpu_by_index(unsigned index)
 {
     CC_ASSERT(g_nvml._dll != nullptr && "gpustats not initialized");
-    nvmlDevice_t ret;
+    nvmlDevice_t hGPU = 0;
 
-    auto const operationResult = g_nvml._nvmlDeviceGetHandleByIndex(index, &ret);
+    nvmlReturn_t const res = g_nvml._nvmlDeviceGetHandleByIndex(index, &hGPU);
 
-    if (operationResult == 0)
-    {
-        return static_cast<void*>(ret);
-    }
-    else
+    if (res != 0 /*NVML_SUCCESS*/)
     {
         return nullptr;
     }
+
+    return static_cast<void*>(hGPU);
 }
 
 int phi::gpustats::get_temperature(phi::gpustats::gpu_handle_t handle)
@@ -186,10 +187,18 @@ int phi::gpustats::get_temperature(phi::gpustats::gpu_handle_t handle)
     if (!handle)
         return -1;
 
-    unsigned ret;
+    unsigned temp = 0;
+
     // magical 0 as second arg: only valid enum value at time of writing, represents main GPU die sensor
-    g_nvml._nvmlDeviceGetTemperature(static_cast<nvmlDevice_t>(handle), 0, &ret);
-    return int(ret);
+    nvmlReturn_t const res = g_nvml._nvmlDeviceGetTemperature(static_cast<nvmlDevice_t>(handle), 0, &temp);
+
+    if (res != 0 /*NVML_SUCCESS*/)
+    {
+        // device lost or fatal error
+        return -1;
+    }
+
+    return int(temp);
 }
 
 int phi::gpustats::get_fanspeed_percent(phi::gpustats::gpu_handle_t handle)
@@ -199,9 +208,16 @@ int phi::gpustats::get_fanspeed_percent(phi::gpustats::gpu_handle_t handle)
     if (!handle)
         return -1;
 
-    unsigned ret;
-    g_nvml._nvmlDeviceGetFanSpeed(static_cast<nvmlDevice_t>(handle), &ret);
-    return int(ret);
+    unsigned speedPercentage = 0;
+    nvmlReturn_t const res = g_nvml._nvmlDeviceGetFanSpeed(static_cast<nvmlDevice_t>(handle), &speedPercentage);
+
+    if (res != 0 /*NVML_SUCCESS*/)
+    {
+        // device lost or fatal error
+        return -1;
+    }
+
+    return int(speedPercentage);
 }
 
 void phi::gpustats::shutdown() { g_nvml.unload(); }

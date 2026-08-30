@@ -3,7 +3,7 @@
 #include <clean-core/bit_cast.hh>
 #include <clean-core/utility.hh>
 
-#include <typed-geometry/tg.hh>
+#include <typed-geometry/types/size.hh>
 
 #include <phantasm-hardware-interface/common/format_size.hh>
 #include <phantasm-hardware-interface/common/log.hh>
@@ -62,7 +62,7 @@ constexpr char const* vk_get_heap_type_literal(phi::resource_heap heap)
 
     return "unknown_heap_type";
 }
-}
+} // namespace
 
 phi::handle::resource phi::vk::ResourcePool::createTexture(arg::texture_description const& description, char const* dbg_name)
 {
@@ -76,9 +76,9 @@ phi::handle::resource phi::vk::ResourcePool::createTexture(arg::texture_descript
 
     image_info.extent.width = description.width;
     image_info.extent.height = description.height;
-    image_info.extent.depth = description.dim == texture_dimension::t3d ? description.depth_or_array_size : 1;
+    image_info.extent.depth = description.get_depth();
     image_info.mipLevels = description.num_mips < 1 ? phi::util::get_num_mips(description.width, description.height) : description.num_mips;
-    image_info.arrayLayers = description.dim == texture_dimension::t3d ? 1 : description.depth_or_array_size;
+    image_info.arrayLayers = description.get_array_size();
 
     image_info.samples = util::to_native_sample_flags(description.num_samples);
     image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -112,7 +112,7 @@ phi::handle::resource phi::vk::ResourcePool::createTexture(arg::texture_descript
     // MUTABLE_FORMAT: can be viewed with a different format
     image_info.flags = VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT;
 
-    if (description.dim == texture_dimension::t2d && description.depth_or_array_size == 6)
+    if (description.is_cubemap())
     {
         // t2d[6] is likely used as a cubemap
         image_info.flags |= VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
@@ -136,16 +136,26 @@ phi::handle::resource phi::vk::ResourcePool::createBuffer(arg::buffer_descriptio
     buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     buffer_info.size = desc.size_bytes;
 
-    // right now we'll just take all usages this thing might have in API semantics
-    // it might be required down the line to restrict this (as in, make it part of API)
-    buffer_info.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
-                        | VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT
-                        | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_RAY_TRACING_BIT_NV;
+    if (desc.is_bottom_level_accel_struct)
+    {
+        CC_ASSERT(desc.stride_bytes == 0 && "buffers created to hold BLAS must have stride zero");
+        CC_ASSERT(desc.allow_uav && "buffers created to hold BLAS must allow UAV access");
+        CC_ASSERT(desc.heap == resource_heap::gpu && "buffers created to hold BLAS must be on the GPU heap");
+        buffer_info.usage = VK_BUFFER_USAGE_RAY_TRACING_BIT_NV;
+    }
+    else
+    {
+        // right now we'll just take all usages this thing might have in API semantics
+        // it might be required down the line to restrict this (as in, make it part of API)
+        buffer_info.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
+                            | VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT
+                            | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_RAY_TRACING_BIT_NV;
 
-    // NOTE: we currently do not make use of allow_uav or the heap type to restrict usage flags at all
-    // allow_uav might have been a poor API decision, we might need something more finegrained instead, and have the default be allowing everything
-    // problem is, in d3d12 ALLOW_UNORDERED_ACCESS is exclusive with ALLOW_DEPTH_STENCIL, so defaulting right away is not possible
-    // if (allow_uav || heap == resource_heap::upload) { ... }
+        // NOTE: we currently do not make use of allow_uav or the heap type to restrict usage flags at all
+        // allow_uav might have been a poor API decision, we might need something more finegrained instead, and have the default be allowing everything
+        // problem is, in d3d12 ALLOW_UNORDERED_ACCESS is exclusive with ALLOW_DEPTH_STENCIL, so defaulting right away is not possible
+        // if (allow_uav || heap == resource_heap::upload) { ... }
+    }
 
     VmaAllocationCreateInfo alloc_info = {};
     alloc_info.usage = vk_heap_to_vma(desc.heap);
@@ -170,7 +180,7 @@ std::byte* phi::vk::ResourcePool::mapBuffer(phi::handle::resource res, int begin
     void* data_start_void;
     vmaMapMemory(mAllocator, node.allocation, &data_start_void);
     // read-write access to pool, but access to resource is user-synchronized
-    node.buffer.num_vma_maps++;
+    node.buffer.num_vma_maps.fetch_add(1);
 
 
     // NOTE: Vulkan terminology:
@@ -204,8 +214,8 @@ void phi::vk::ResourcePool::unmapBuffer(phi::handle::resource res, int begin, in
 
     vmaUnmapMemory(mAllocator, node.allocation);
     // read-write access to pool, but access to resource is user-synchronized
-    node.buffer.num_vma_maps--;
-    CC_ASSERT(node.buffer.num_vma_maps >= 0 && "more unmaps than maps on resource");
+    auto const prevNum = node.buffer.num_vma_maps.fetch_sub(1);
+    CC_ASSERT(prevNum >= 1 && "more unmaps than maps on resource");
 
     // see note in ::mapBuffer above
     if (node.heap == resource_heap::upload)
@@ -271,6 +281,13 @@ void phi::vk::ResourcePool::setDebugName(phi::handle::resource res, const char* 
     }
 }
 
+uint64_t phi::vk::ResourcePool::getResourceSizeVRAM(handle::resource res) const
+{
+    CC_ASSERT(res.is_valid());
+    resource_node const& node = mPool.get(res._value);
+    return node.allocation->GetSize();
+}
+
 void phi::vk::ResourcePool::initialize(VkPhysicalDevice physical, VkDevice device, unsigned max_num_resources, unsigned max_num_swapchains, cc::allocator* static_alloc)
 {
     mDevice = device;
@@ -311,13 +328,15 @@ void phi::vk::ResourcePool::destroy()
     }
 
     auto num_leaks = 0;
-    mPool.iterate_allocated_nodes([&](resource_node& leaked_node) {
-        if (leaked_node.allocation != nullptr)
+    mPool.iterate_allocated_nodes(
+        [&](resource_node& leaked_node)
         {
-            ++num_leaks;
-            internalFree(leaked_node);
-        }
-    });
+            if (leaked_node.allocation != nullptr)
+            {
+                ++num_leaks;
+                internalFree(leaked_node);
+            }
+        });
 
     if (num_leaks > 0)
     {
@@ -363,6 +382,31 @@ phi::handle::resource phi::vk::ResourcePool::injectBackbufferResource(
     storedDesc = arg::resource_description::texture(format::bgra8un, tg::isize2(width, height));
 
     return {res_handle};
+}
+
+phi::allocated_resource_info phi::vk::ResourcePool::queryAllocatedResourceInfo()
+{
+    VmaStats FullStats = {};
+    mAllocator->CalculateStats(&FullStats);
+
+    VmaStatInfo const& Stats = FullStats.total;
+
+    allocated_resource_info res = {};
+
+    res.num_allocated_blocks = Stats.blockCount;
+    res.num_allocations = Stats.allocationCount;
+    res.num_unused_ranges = Stats.unusedRangeCount;
+
+    res.num_allocated_bytes = Stats.usedBytes;
+    res.num_unused_bytes = Stats.unusedBytes;
+
+    res.num_bytes_allocations_min = Stats.allocationSizeMin;
+    res.num_bytes_allocations_max = Stats.allocationSizeMax;
+
+    res.num_bytes_unused_ranges_min = Stats.unusedRangeSizeMin;
+    res.num_bytes_unused_ranges_max = Stats.unusedRangeSizeMax;
+
+    return res;
 }
 
 phi::handle::resource phi::vk::ResourcePool::acquireBuffer(VmaAllocation alloc, VkBuffer buffer, VkBufferUsageFlags usage, arg::buffer_description const& desc)
@@ -424,7 +468,7 @@ phi::handle::resource phi::vk::ResourcePool::acquireBuffer(VmaAllocation alloc, 
     new_node.buffer.raw_uniform_dynamic_ds_compute = cbv_desc_set_compute;
     new_node.buffer.width = desc.size_bytes;
     new_node.buffer.stride = desc.stride_bytes;
-    new_node.buffer.num_vma_maps = 0;
+    new_node.buffer.num_vma_maps.store(0);
 
     new_node.master_state = resource_state::undefined;
     new_node.master_state_dependency = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
@@ -468,7 +512,8 @@ void phi::vk::ResourcePool::internalFree(resource_node& node)
     }
     else
     {
-        for (auto _ = 0; _ < node.buffer.num_vma_maps; ++_)
+        auto const numMaps = node.buffer.num_vma_maps.load();
+        for (auto _ = 0; _ < numMaps; ++_)
         {
             // clear remaining VMA maps
             vmaUnmapMemory(mAllocator, node.allocation);

@@ -42,7 +42,6 @@ SpaceInEmptyParentheses: false
 SpacesBeforeTrailingComments: 1
 SpacesInAngles: false
 SpacesInCStyleCastParentheses: false
-SpacesInCStyleCastParentheses: false
 SpacesInParentheses: false
 #SpacesInSquareBrackets: false
 UseTab: Never
@@ -57,6 +56,3 @@ CommentPragmas: '!Api.*'
 
 # Includes
 IncludeBlocks: Preserve
-
-# Closing namespace comments
-FixNamespaceComments: true

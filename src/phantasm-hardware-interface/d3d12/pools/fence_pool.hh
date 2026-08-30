@@ -18,7 +18,7 @@ public:
 
 public:
     void initialize(ID3D12Device* device, unsigned max_num_fences, cc::allocator* static_alloc);
-    void destroy();
+    bool destroy();
 
     ID3D12Fence* get(handle::fence fence) const { return internalGet(fence).fence; }
 

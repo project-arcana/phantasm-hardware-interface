@@ -78,6 +78,9 @@ public:
         new_key.key = KeyT(key);
         new_key.occupied = true;
 
+        // default-construct or memzero value
+        _values[idx] = {};
+
         return _values[idx];
     }
 
@@ -122,4 +125,4 @@ private:
     cc::alloc_array<ValueT> _values;
     cc::alloc_array<key_element> _keys;
 };
-}
+} // namespace phi::detail

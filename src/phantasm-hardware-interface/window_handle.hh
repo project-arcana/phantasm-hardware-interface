@@ -1,7 +1,5 @@
 #pragma once
 
-#include <cstdint>
-
 struct SDL_Window;
 typedef struct HWND__* HWND;
 typedef struct _XDisplay Display;
@@ -15,6 +13,8 @@ struct window_handle
 {
     enum wh_type
     {
+		wh_invalid = 0,
+
         wh_sdl,
         wh_win32_hwnd,
         wh_xlib
@@ -30,8 +30,9 @@ struct window_handle
             ::Window window;
             ::Display* display;
         } xlib_handles;
-    } value;
+	} value = {};
 
+	window_handle() : type(wh_invalid) {}
     window_handle(::HWND hwnd) : type(wh_win32_hwnd) { value.win32_hwnd = hwnd; }
     window_handle(::SDL_Window* sdl_window) : type(wh_sdl) { value.sdl_handle = sdl_window; }
     window_handle(::Window xlib_win, ::Display* xlib_display) : type(wh_xlib)

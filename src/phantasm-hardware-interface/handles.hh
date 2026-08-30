@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cstdint>
+#include <stdint.h>
 
 namespace phi::handle
 {
@@ -52,4 +52,7 @@ PHI_DEFINE_HANDLE(query_range);
 
 /// raytracing acceleration structure handle
 PHI_DEFINE_HANDLE(accel_struct);
+
+/// live-recording command list
+PHI_DEFINE_HANDLE(live_command_list);
 } // namespace phi::handle

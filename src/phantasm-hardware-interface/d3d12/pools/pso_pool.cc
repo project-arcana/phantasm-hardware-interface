@@ -44,75 +44,175 @@ struct text_buffer
         return res;
     }
 };
-}
+} // namespace
 
-phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createPipelineState(phi::arg::vertex_format vertex_format,
-                                                                                     phi::arg::framebuffer_config const& framebuffer_format,
-                                                                                     phi::arg::shader_arg_shapes shader_arg_shapes,
-                                                                                     bool has_root_constants,
-                                                                                     phi::arg::graphics_shaders shader_stages,
-                                                                                     const phi::pipeline_config& primitive_config,
-                                                                                     char const* dbg_name)
+phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createPipelineState(phi::arg::graphics_pipeline_state_description const& desc, char const* dbg_name)
 {
-    root_signature* root_sig;
+    root_signature* pRootSig = nullptr;
+    ID3D12CommandSignature* pDrawIDComSig = nullptr;
+
+    bool const bEnableDrawID = desc.allow_draw_indirect_with_id;
+
+    if (bEnableDrawID && !desc.root_signature.has_root_constants)
+    {
+        PHI_LOG_ERROR("allow_draw_indirect_with_id requires enabled root constants. Aborting compilation of PSO, debug name: {}",
+                      dbg_name ? dbg_name : "unnamed (nullptr)");
+        return handle::null_pipeline_state;
+    }
+
     // Do things requiring synchronization first
     {
         auto lg = std::lock_guard(mMutex);
-        root_sig = mRootSigCache.getOrCreate(*mDevice, shader_arg_shapes, has_root_constants, root_signature_type::graphics);
+
+        pRootSig = mRootSigCache.getOrCreate(*mDevice, desc.root_signature, root_signature_type::graphics);
+
+        if (bEnableDrawID)
+        {
+            pDrawIDComSig = mComSigCache.getOrCreateDrawIDComSig(mDevice, pRootSig);
+        }
     }
 
-    unsigned const pool_index = mPool.acquire();
+    if (!pRootSig)
+    {
+        PHI_LOG_ERROR("Failed to create root signature when compiling PSO, debug name: {}", dbg_name ? dbg_name : "unnamed (nullptr)");
+        return phi::handle::null_pipeline_state;
+    }
+
+    if (bEnableDrawID && !pDrawIDComSig)
+    {
+        PHI_LOG_ERROR("Failed to create Draw ID command signature when compiling PSO, debug name: {}", dbg_name ? dbg_name : "unnamed (nullptr)");
+        return phi::handle::null_pipeline_state;
+    }
+
+    auto const vertexFormatNative = util::get_native_vertex_format(desc.vertices.attributes);
+    ID3D12PipelineState* const pPipelineState = create_pipeline_state(*mDevice, pRootSig->raw_root_sig, vertexFormatNative, desc.framebuffer,
+                                                                      desc.shader_binaries, desc.config, desc.vertices.topology);
+
+    if (!pPipelineState)
+    {
+        PHI_LOG_ERROR("Failed to compile PSO, debug name: {}", dbg_name ? dbg_name : "unnamed (nullptr)");
+        return phi::handle::null_pipeline_state;
+    }
+
+    util::set_object_name(pPipelineState, "%s", dbg_name ? dbg_name : "Unnamed Graphics PSO");
+
+    uint32_t const res = mPool.acquire();
 
     // Populate new node
-    pso_node& new_node = mPool.get(pool_index);
-    new_node.associated_root_sig = root_sig;
-    new_node.primitive_topology = util::to_native_topology(primitive_config.topology);
+    pso_node& new_node = mPool.get(res);
+    new_node.pPSO = pPipelineState;
+    new_node.pAssociatedRootSig = pRootSig;
+    new_node.pAssociatedComSigForIndirectID = pDrawIDComSig;
+    new_node.primitive_topology = util::to_native_topology(desc.vertices.topology);
 
-    {
-        // Create PSO
-        auto const vert_format_native = util::get_native_vertex_format(vertex_format.attributes);
-        new_node.raw_pso = create_pipeline_state(*mDevice, root_sig->raw_root_sig, vert_format_native, framebuffer_format, shader_stages, primitive_config);
-        util::set_object_name(new_node.raw_pso, "phi graphics pso %s", dbg_name ? dbg_name : "");
-    }
-
-
-    return {static_cast<handle::handle_t>(pool_index)};
+    return {res};
 }
 
-phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createComputePipelineState(phi::arg::shader_arg_shapes shader_arg_shapes,
-                                                                                            arg::shader_binary compute_shader,
-                                                                                            bool has_root_constants,
-                                                                                            char const* dbg_name)
+phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createMeshPipelineState(phi::arg::mesh_pipeline_state_description const& desc, char const* dbg_name)
 {
-    root_signature* root_sig;
+    root_signature* pRootSig = nullptr;
+    ID3D12CommandSignature* pIndirectIDComSig = nullptr;
+
+    bool const bEnableIndirectID = desc.allow_dispatch_indirect_with_id;
+
+    if (bEnableIndirectID && !desc.root_signature.has_root_constants)
+    {
+        PHI_LOG_ERROR("allow_dispatch_indirect_with_id requires enabled root constants. Aborting compilation of PSO, debug name: {}",
+                      dbg_name ? dbg_name : "unnamed (nullptr)");
+        return handle::null_pipeline_state;
+    }
+
     // Do things requiring synchronization first
     {
         auto lg = std::lock_guard(mMutex);
-        root_sig = mRootSigCache.getOrCreate(*mDevice, shader_arg_shapes, has_root_constants, root_signature_type::compute);
+
+        pRootSig = mRootSigCache.getOrCreate(*mDevice, desc.root_signature, root_signature_type::mesh);
+
+        if (bEnableIndirectID)
+        {
+            pIndirectIDComSig = mComSigCache.getOrCreateDispatchMeshIDComSig(mDevice, pRootSig);
+        }
     }
 
-    uint32_t const pool_index = mPool.acquire();
+    if (!pRootSig)
+    {
+        PHI_LOG_ERROR("Failed to create root signature when compiling mesh PSO, debug name: {}", dbg_name ? dbg_name : "unnamed (nullptr)");
+        return phi::handle::null_pipeline_state;
+    }
+
+    if (bEnableIndirectID && !pIndirectIDComSig)
+    {
+        PHI_LOG_ERROR("Failed to create indirect ID command signature when compiling PSO, debug name: {}", dbg_name ? dbg_name : "unnamed (nullptr)");
+        return phi::handle::null_pipeline_state;
+    }
+
+    ID3D12PipelineState* const pPipelineState
+        = create_mesh_pipeline_state(*mDevice, pRootSig->raw_root_sig, desc.framebuffer, desc.shader_binaries, desc.config);
+
+    if (!pPipelineState)
+    {
+        PHI_LOG_ERROR("Failed to compile mesh PSO, debug name: {}", dbg_name ? dbg_name : "unnamed (nullptr)");
+        return phi::handle::null_pipeline_state;
+    }
+
+    util::set_object_name(pPipelineState, "%s", dbg_name ? dbg_name : "Unnamed Mesh PSO");
+
+    uint32_t const res = mPool.acquire();
 
     // Populate new node
-    pso_node& new_node = mPool.get(pool_index);
-    new_node.associated_root_sig = root_sig;
+    pso_node& new_node = mPool.get(res);
+    new_node.pPSO = pPipelineState;
+    new_node.pAssociatedRootSig = pRootSig;
+    new_node.pAssociatedComSigForIndirectID = pIndirectIDComSig;
     new_node.primitive_topology = D3D_PRIMITIVE_TOPOLOGY_UNDEFINED;
 
-    // Create PSO
-    new_node.raw_pso = create_compute_pipeline_state(*mDevice, root_sig->raw_root_sig, compute_shader.data, compute_shader.size);
-    util::set_object_name(new_node.raw_pso, "pool compute pso %s", dbg_name ? dbg_name : "");
+    return {res};
+}
 
-    auto const res = handle::pipeline_state{pool_index};
-    CC_ASSERT(!isRaytracingPipeline(res));
-    return res;
+phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createComputePipelineState(arg::compute_pipeline_state_description const& desc, char const* dbg_name)
+{
+    root_signature* pRootSig = nullptr;
+    // Do things requiring synchronization first
+    {
+        auto lg = std::lock_guard(mMutex);
+        pRootSig = mRootSigCache.getOrCreate(*mDevice, desc.root_signature, root_signature_type::compute);
+    }
+
+    if (!pRootSig)
+    {
+        PHI_LOG_ERROR("Failed to create root signature when compiling PSO, debug name: {}", dbg_name ? dbg_name : "unnamed (nullptr)");
+        return phi::handle::null_pipeline_state;
+    }
+
+    ID3D12PipelineState* const pPipelineState = create_compute_pipeline_state(*mDevice, pRootSig->raw_root_sig, desc.shader);
+
+    if (!pPipelineState)
+    {
+        PHI_LOG_ERROR("Failed to compile PSO, debug name: {}", dbg_name ? dbg_name : "unnamed (nullptr)");
+        return phi::handle::null_pipeline_state;
+    }
+
+    util::set_object_name(pPipelineState, "%s", dbg_name ? dbg_name : "Unnamed Compute PSO");
+
+    uint32_t const res = mPool.acquire();
+
+    // Populate new node
+    pso_node& new_node = mPool.get(res);
+    new_node.pPSO = pPipelineState;
+    new_node.pAssociatedRootSig = pRootSig;
+    new_node.pAssociatedComSigForIndirectID = nullptr;
+    new_node.primitive_topology = D3D_PRIMITIVE_TOPOLOGY_UNDEFINED;
+
+    return {res};
 }
 
 phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracingPipelineState(cc::span<const arg::raytracing_shader_library> libraries,
                                                                                                cc::span<const arg::raytracing_argument_association> arg_assocs,
                                                                                                cc::span<const arg::raytracing_hit_group> hit_groups,
-                                                                                               unsigned max_recursion,
-                                                                                               unsigned max_payload_size_bytes,
-                                                                                               unsigned max_attribute_size_bytes,
+                                                                                               arg::root_signature_description const* p_opt_global_rootsig,
+                                                                                               uint32_t max_recursion,
+                                                                                               uint32_t max_payload_size_bytes,
+                                                                                               uint32_t max_attribute_size_bytes,
                                                                                                cc::allocator* scratch_alloc,
                                                                                                char const* dbg_name)
 {
@@ -122,6 +222,7 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracin
     unsigned const pool_index = mPoolRaytracing.acquire();
     rt_pso_node& new_node = mPoolRaytracing.get(pool_index);
     new_node.associated_root_signatures.clear();
+    new_node.pGlobalRootSig = nullptr;
 
     // Do things requiring synchronization first
     {
@@ -132,8 +233,15 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracin
         // (the global root signature is empty and shared across all RT PSOs)
         for (auto const& aa : arg_assocs)
         {
-            new_node.associated_root_signatures.push_back(
-                mRootSigCache.getOrCreate(*mDevice, aa.argument_shapes, aa.has_root_constants, root_signature_type::raytrace_local));
+            root_signature* const pLocalRootSig = mRootSigCache.getOrCreate(*mDevice, aa.root_signature, root_signature_type::raytrace_local);
+            CC_ASSERT(pLocalRootSig != nullptr && "Failed to create local root siganture for raytracing PSO");
+
+            new_node.associated_root_signatures.push_back(pLocalRootSig);
+        }
+
+        if (p_opt_global_rootsig)
+        {
+            new_node.pGlobalRootSig = mRootSigCache.getOrCreate(*mDevice, *p_opt_global_rootsig, root_signature_type::raytrace_global);
         }
     }
 
@@ -196,14 +304,17 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracin
             par_export_symbols.push_back(symbol_name);
             par_export_stages.push_back(exp.stage);
 
-            if (shader_stage_mask_ray_identifiable & exp.stage)
+            static_assert(to_shader_stage_flags(shader_stage::ray_miss) == shader_stage_flags::ray_miss, "");
+            auto const stageAsFlags = to_shader_stage_flags(exp.stage);
+
+            if (stageAsFlags & shader_stage_flags::MASK_ray_identifiable)
             {
                 // if this stage is "identifiable" (raygen, miss or callable), add its index to the list
                 identifiable_exports.push_back({new_export_index});
             }
             else
             {
-                CC_ASSERT(shader_stage_mask_ray_hitgroup & exp.stage && "unexpected stage");
+                CC_ASSERT(!!(stageAsFlags & shader_stage_flags::MASK_ray_hitgroup) && "unexpected stage");
             }
         }
 
@@ -217,7 +328,8 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracin
     cc::alloc_vector<int> hit_group_rootsig_indices(scratch_alloc);
     hit_group_rootsig_indices.resize(hit_groups.size(), -1);
 
-    auto f_get_export_name_or_nullptr = [&](int index, shader_stage stage_verification) -> wchar_t const* {
+    auto f_get_export_name_or_nullptr = [&](int index, shader_stage stage_verification) -> wchar_t const*
+    {
         if (index < 0)
             return nullptr;
 
@@ -319,7 +431,7 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracin
 
     // global empty root sig
     D3D12_GLOBAL_ROOT_SIGNATURE global_root_sig = {};
-    global_root_sig.pGlobalRootSignature = mEmptyRaytraceRootSignature;
+    global_root_sig.pGlobalRootSignature = new_node.pGlobalRootSig ? new_node.pGlobalRootSig->raw_root_sig : mEmptyGlobalRaytraceRootSignature;
 
     cc::alloc_vector<D3D12_STATE_SUBOBJECT> subobjects(scratch_alloc);
     {
@@ -328,12 +440,12 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracin
         // 1 per shader library
         // 2 per argument association: local rootsig and subobject association
         // always: shader config + association, pipeline config, global empty rootsig
-        subobjects.reserve(library_descs.size() + arg_assocs.size() * 2 + hit_group_descs.size() + 4);
+        subobjects.reserve(library_descs.size() + cc::max<size_t>(1, arg_assocs.size() * 2) + hit_group_descs.size() + 4);
 
         for (auto i = 0u; i < library_descs.size(); ++i)
         {
             // subobject for library
-            auto& subobj = subobjects.emplace_back();
+            auto& subobj = subobjects.emplace_back_stable();
             subobj.Type = D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY;
             subobj.pDesc = &library_descs[i];
         }
@@ -341,7 +453,7 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracin
         for (auto i = 0u; i < arg_assocs.size(); ++i)
         {
             // subobject for local root signature
-            auto& subobj_rootsig = subobjects.emplace_back();
+            auto& subobj_rootsig = subobjects.emplace_back_stable();
             subobj_rootsig.Type = D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE;
             subobj_rootsig.pDesc = &new_node.associated_root_signatures[i]->raw_root_sig;
 
@@ -351,46 +463,58 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracin
                 rootsig_associations[i].pSubobjectToAssociate = &subobj_rootsig;
 
                 // subobject for association
-                auto& subobj_rootsig_assoc = subobjects.emplace_back();
+                auto& subobj_rootsig_assoc = subobjects.emplace_back_stable();
                 subobj_rootsig_assoc.Type = D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION;
                 subobj_rootsig_assoc.pDesc = &rootsig_associations[i];
             }
         }
+        if (arg_assocs.empty())
+        {
+            // add an empty dummy local root signature, and do not associate it
+            // we need at least one according to spec
+            // ref: https://developer.nvidia.com/rtx/raytracing/dxr/dx12-raytracing-tutorial/dxr_tutorial_helpers
+            //      (6., last paragraph)
+            auto& subobj_rootsig = subobjects.emplace_back_stable();
+            subobj_rootsig.Type = D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE;
+            subobj_rootsig.pDesc = &mEmptyLocalRaytraceRootSignature;
+        }
 
         for (auto const& hit_desc : hit_group_descs)
         {
-            auto& subobj = subobjects.emplace_back();
+            auto& subobj = subobjects.emplace_back_stable();
             subobj.Type = D3D12_STATE_SUBOBJECT_TYPE_HIT_GROUP;
             subobj.pDesc = &hit_desc;
         }
 
         // shader config and association
         {
-            auto& subobj = subobjects.emplace_back();
+            auto& subobj = subobjects.emplace_back_stable();
             subobj.Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_SHADER_CONFIG;
             subobj.pDesc = &shader_config;
 
             shader_config_association.pSubobjectToAssociate = &subobj;
 
-            auto& subobj_association = subobjects.emplace_back();
+            auto& subobj_association = subobjects.emplace_back_stable();
             subobj_association.Type = D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION;
             subobj_association.pDesc = &shader_config_association;
         }
 
         // pipeline config
         {
-            auto& subobj = subobjects.emplace_back();
+            auto& subobj = subobjects.emplace_back_stable();
             subobj.Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG;
             subobj.pDesc = &pipeline_config;
         }
 
         // empty global rootsig
         {
-            auto& subobj = subobjects.emplace_back();
+            auto& subobj = subobjects.emplace_back_stable();
             subobj.Type = D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE;
             subobj.pDesc = &global_root_sig;
         }
     }
+
+    CC_ASSERT(rootsig_associations.size() == arg_assocs.size() && "unexpected");
 
     D3D12_STATE_OBJECT_DESC state_obj = {};
     state_obj.Type = D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE;
@@ -441,7 +565,7 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracin
                 else
                 {
                     auto const& arg_assoc = arg_assocs[identifiable_info.rootsig_index];
-                    export_info.arg_info.initialize(arg_assoc.argument_shapes, arg_assoc.has_root_constants);
+                    export_info.arg_info.initialize(arg_assoc.root_signature.shader_arg_shapes, arg_assoc.root_signature.has_root_constants);
                 }
             }
         }
@@ -475,7 +599,7 @@ phi::handle::pipeline_state phi::d3d12::PipelineStateObjectPool::createRaytracin
                 else
                 {
                     auto const& arg_assoc = arg_assocs[rootsig_i];
-                    export_info.arg_info.initialize(arg_assoc.argument_shapes, arg_assoc.has_root_constants);
+                    export_info.arg_info.initialize(arg_assoc.root_signature.shader_arg_shapes, arg_assoc.root_signature.has_root_constants);
                 }
             }
         }
@@ -501,62 +625,79 @@ void phi::d3d12::PipelineStateObjectPool::free(phi::handle::pipeline_state ps)
     {
         // This requires no synchronization, as D3D12MA internally syncs
         pso_node& freed_node = mPool.get(ps._value);
-        freed_node.raw_pso->Release();
+        freed_node.pPSO->Release();
 
         mPool.release(ps._value);
     }
 }
 
 void phi::d3d12::PipelineStateObjectPool::initialize(
-    ID3D12Device5* device_rt, unsigned max_num_psos, unsigned max_num_psos_raytracing, cc::allocator* static_alloc, cc::allocator* dynamic_alloc)
+    ID3D12Device5* device_rt, unsigned max_num_psos, unsigned max_num_psos_raytracing, cc::allocator* static_alloc, cc::allocator* dynamic_alloc, bool bHasRT, bool bHasMeshShading)
 {
     // Component init
     mDevice = device_rt;
     mDynamicAllocator = dynamic_alloc;
     mPool.initialize(max_num_psos, static_alloc);
-    mPoolRaytracing.initialize(max_num_psos_raytracing, static_alloc);
+    if (bHasRT)
+    {
+        mPoolRaytracing.initialize(max_num_psos_raytracing, static_alloc);
+    }
+
     mRootSigCache.initialize((max_num_psos / 2) + max_num_psos_raytracing, static_alloc); // almost arbitrary, revisit if this blows up
+    mComSigCache.initialize((max_num_psos / 2), static_alloc);
 
-    // Create empty raytracing rootsig
-    mEmptyRaytraceRootSignature = mRootSigCache.getOrCreate(*mDevice, {}, false, root_signature_type::raytrace_global)->raw_root_sig;
+    if (bHasRT)
+    {
+        // Create empty raytracing rootsig
+        arg::root_signature_description emptyRootSig = {};
+        mEmptyGlobalRaytraceRootSignature = mRootSigCache.getOrCreate(*mDevice, emptyRootSig, root_signature_type::raytrace_global)->raw_root_sig;
+        mEmptyLocalRaytraceRootSignature = mRootSigCache.getOrCreate(*mDevice, emptyRootSig, root_signature_type::raytrace_local)->raw_root_sig;
+    }
 
-    // Create global (indirect drawing) command signatures for draw and indexed draw
-    static_assert(sizeof(D3D12_DRAW_ARGUMENTS) == sizeof(gpu_indirect_command_draw), "gpu argument type compiles to incorrect size");
-    static_assert(sizeof(D3D12_DRAW_INDEXED_ARGUMENTS) == sizeof(gpu_indirect_command_draw_indexed), "gpu argument type compiles to incorrect size");
-    static_assert(sizeof(D3D12_DISPATCH_ARGUMENTS) == sizeof(gpu_indirect_command_dispatch), "gpu argument type compiles to incorrect size");
+    // Create global (indirect drawing) command signatures
+    mGlobalComSigDraw = createCommandSignatureForDraw(mDevice);
+    mGlobalComSigDrawIndexed = createCommandSignatureForDrawIndexed(mDevice);
+    mGlobalComSigDispatch = createCommandSignatureForDispatch(mDevice);
 
-    D3D12_INDIRECT_ARGUMENT_DESC indirect_arg;
-    indirect_arg.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW;
-
-    D3D12_COMMAND_SIGNATURE_DESC desc = {};
-    desc.NumArgumentDescs = 1;
-    desc.pArgumentDescs = &indirect_arg;
-    desc.ByteStride = sizeof(gpu_indirect_command_draw);
-    desc.NodeMask = 0;
-    PHI_D3D12_VERIFY(mDevice->CreateCommandSignature(&desc, nullptr, IID_PPV_ARGS(&mGlobalComSigDraw)));
-
-    indirect_arg.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW_INDEXED;
-    desc.ByteStride = sizeof(gpu_indirect_command_draw_indexed);
-    PHI_D3D12_VERIFY(mDevice->CreateCommandSignature(&desc, nullptr, IID_PPV_ARGS(&mGlobalComSigDrawIndexed)));
-
-    indirect_arg.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH;
-    desc.ByteStride = sizeof(gpu_indirect_command_dispatch);
-    PHI_D3D12_VERIFY(mDevice->CreateCommandSignature(&desc, nullptr, IID_PPV_ARGS(&mGlobalComSigDispatch)));
+    if (bHasMeshShading)
+    {
+        mGlobalComSigDispatchMesh = createCommandSignatureForDispatchMesh(mDevice);
+    }
 }
 
-void phi::d3d12::PipelineStateObjectPool::destroy()
+bool phi::d3d12::PipelineStateObjectPool::destroy()
 {
+    char debugname_buffer[256];
     auto num_leaks = 0;
-    mPool.iterate_allocated_nodes([&](pso_node& leaked_node) {
-        ++num_leaks;
-        leaked_node.raw_pso->Release();
-    });
 
-    mPoolRaytracing.iterate_allocated_nodes([&](rt_pso_node& leaked_node) {
-        ++num_leaks;
-        leaked_node.raw_state_object->Release();
-        leaked_node.raw_state_object_props->Release();
-    });
+    mPool.iterate_allocated_nodes(
+        [&](pso_node& leaked_node)
+        {
+            if (num_leaks == 0)
+                PHI_LOG("handle::pipeline_state leaks:");
+
+            ++num_leaks;
+
+            auto const strlen = util::get_object_name(leaked_node.pPSO, debugname_buffer);
+            PHI_LOG("  leaked handle::resource - {}", cc::string_view(debugname_buffer, cc::min<UINT>(strlen, sizeof(debugname_buffer))));
+
+            leaked_node.pPSO->Release();
+        });
+
+    mPoolRaytracing.iterate_allocated_nodes(
+        [&](rt_pso_node& leaked_node)
+        {
+            if (num_leaks == 0)
+                PHI_LOG("handle::pipeline_state leaks:");
+
+            ++num_leaks;
+
+            auto const strlen = util::get_object_name(leaked_node.raw_state_object, debugname_buffer);
+            PHI_LOG("  leaked handle::resource - {}", cc::string_view(debugname_buffer, cc::min<UINT>(strlen, sizeof(debugname_buffer))));
+
+            leaked_node.raw_state_object->Release();
+            leaked_node.raw_state_object_props->Release();
+        });
 
     if (num_leaks > 0)
     {
@@ -564,10 +705,18 @@ void phi::d3d12::PipelineStateObjectPool::destroy()
     }
 
     mRootSigCache.destroy();
+    mComSigCache.destroy();
 
     mGlobalComSigDraw->Release();
     mGlobalComSigDrawIndexed->Release();
     mGlobalComSigDispatch->Release();
+
+    if (mGlobalComSigDispatchMesh)
+    {
+        mGlobalComSigDispatchMesh->Release();
+    }
+
+    return num_leaks == 0;
 }
 
 const phi::d3d12::PipelineStateObjectPool::rt_pso_node& phi::d3d12::PipelineStateObjectPool::getRaytrace(phi::handle::pipeline_state ps) const
@@ -639,7 +788,7 @@ bool phi::d3d12::PipelineStateObjectPool::pso_argument_info::is_matching_inputs(
         {
             auto const& shape = shapes[i];
 
-            bool match_cbv = shape.has_cbv == has_cbv(i);
+            bool match_cbv = !!shape.has_cbv == has_cbv(i);
             bool match_srv_uav = (shape.num_srvs + shape.num_uavs > 0) == has_srv_uav(i);
             bool match_sampler = (shape.num_samplers > 0) == has_sampler(i);
 

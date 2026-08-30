@@ -3,10 +3,9 @@
 #include <cstdio>
 
 #ifdef PHI_HAS_OPTICK
-#include <optick/optick.h>
+#include <optick.h>
 #endif
 
-#include <clean-core/array.hh>
 #include <clean-core/assert.hh>
 
 #include <phantasm-hardware-interface/common/log.hh>
@@ -16,42 +15,32 @@
 #include "common/shared_com_ptr.hh"
 #include "common/verify.hh"
 
-bool phi::d3d12::testAdapterForFeatures(IDXGIAdapter* adapter, D3D_FEATURE_LEVEL& outMaxFeatures, ID3D12Device*& outDevice)
+bool phi::d3d12::testDeviceOnAdapter(IDXGIAdapter* pAdapter, ID3D12Device** ppOptOutDevice)
 {
 #ifdef PHI_HAS_OPTICK
-    OPTICK_EVENT("Create and Test ID3D12Device");
+    OPTICK_EVENT("Test/Create ID3D12Device");
 #endif
 
+    // if ppOptOutDevice is nullptr, this just tests and does not create the device,
+    // which is faster (but slower than testing + creating separately)
+    auto const hres = ::D3D12CreateDevice(pAdapter, D3D_FEATURE_LEVEL_12_0, __uuidof(ID3D12Device), IID_PPV_ARGS_Helper(ppOptOutDevice));
+    bool const isEligible = SUCCEEDED(hres);
 
-    bool eligible = false;
+    if (!isEligible)
+    {
+        DXGI_ADAPTER_DESC adapterDesc = {};
+        PHI_D3D12_VERIFY(pAdapter->GetDesc(&adapterDesc));
 
-    detail::perform_safe_seh_call([&] {
-        auto const hres = ::D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&outDevice));
+        // just making sure here, not sure if cc format supports %ws
+        char buf[512] = "";
+        snprintf(buf, sizeof(buf), "GPU \"%ws\" does not support DirectX 12", adapterDesc.Description);
+        PHI_LOG_TRACE("{}", buf);
+    }
 
-        if (SUCCEEDED(hres))
-        {
-            D3D_FEATURE_LEVEL const allFeatureLevels[] = {D3D_FEATURE_LEVEL_12_1, D3D_FEATURE_LEVEL_12_0, D3D_FEATURE_LEVEL_11_1, D3D_FEATURE_LEVEL_11_0};
-
-            D3D12_FEATURE_DATA_FEATURE_LEVELS feature_data;
-            feature_data.pFeatureLevelsRequested = allFeatureLevels;
-            feature_data.NumFeatureLevels = CC_COUNTOF(allFeatureLevels);
-
-            if (SUCCEEDED(outDevice->CheckFeatureSupport(D3D12_FEATURE_FEATURE_LEVELS, &feature_data, sizeof(feature_data))))
-            {
-                outMaxFeatures = feature_data.MaxSupportedFeatureLevel;
-                eligible = outDevice->GetNodeCount() > 0;
-            }
-            else
-            {
-                eligible = false;
-            }
-        }
-    });
-
-    return eligible;
+    return isEligible;
 }
 
-uint32_t phi::d3d12::getAdapterCandidates(IDXGIFactory4* factory,
+uint32_t phi::d3d12::getAdapterCandidates(IDXGIFactory6* factory,
                                           cc::span<phi::gpu_info> outCandidateInfos,
                                           cc::span<ID3D12Device*> outCandidateDevices,
                                           cc::span<IDXGIAdapter*> outCandidateAdapters)
@@ -77,15 +66,20 @@ uint32_t phi::d3d12::getAdapterCandidates(IDXGIFactory4* factory,
             break;
         }
 
-        D3D_FEATURE_LEVEL maxFeatureLevel = D3D_FEATURE_LEVEL(0);
-
         ID3D12Device* testDevice = nullptr;
-        bool const isEligible = testAdapterForFeatures(tempAdapter, maxFeatureLevel, testDevice);
+        // actually creating the device here is not necessary, see this:
+        // https://docs.microsoft.com/en-us/windows/win32/api/d3d12/nf-d3d12-d3d12createdevice#remarks
+        // for a single GPU, it is slower to test and create separately, but for many GPUs it could be much slower, TODO
+        bool const isEligible = testDeviceOnAdapter(tempAdapter, &testDevice);
 
         if (!isEligible)
         {
             // release the testing device and adapter immediately if ineligible
-            testDevice->Release();
+            if (testDevice)
+            {
+                testDevice->Release();
+            }
+
             tempAdapter->Release();
             continue;
         }
@@ -100,32 +94,58 @@ uint32_t phi::d3d12::getAdapterCandidates(IDXGIFactory4* factory,
         outCandidateAdapters[newIndex] = tempAdapter;
 
         // write GPU info
-        phi::gpu_info& newCandidateInfo = outCandidateInfos[newIndex];
-
-        DXGI_ADAPTER_DESC adapterDesc;
-        PHI_D3D12_VERIFY(tempAdapter->GetDesc(&adapterDesc));
-        newCandidateInfo.vendor = getGPUVendorFromPCIeID(adapterDesc.VendorId);
-        newCandidateInfo.index = i;
-
-        newCandidateInfo.dedicated_video_memory_bytes = adapterDesc.DedicatedVideoMemory;
-        newCandidateInfo.dedicated_system_memory_bytes = adapterDesc.DedicatedSystemMemory;
-        newCandidateInfo.shared_system_memory_bytes = adapterDesc.SharedSystemMemory;
-
-        std::snprintf(newCandidateInfo.name, sizeof(newCandidateInfo.name), "%ws", adapterDesc.Description);
-
-        if (maxFeatureLevel < D3D_FEATURE_LEVEL_12_0)
-            newCandidateInfo.capabilities = gpu_capabilities::insufficient;
-        else if (maxFeatureLevel == D3D_FEATURE_LEVEL_12_0)
-            newCandidateInfo.capabilities = gpu_capabilities::level_1;
-        else if (maxFeatureLevel == D3D_FEATURE_LEVEL_12_1)
-            newCandidateInfo.capabilities = gpu_capabilities::level_2;
-        else
-            newCandidateInfo.capabilities = gpu_capabilities::level_3;
-
+        outCandidateInfos[newIndex] = getAdapterInfo(tempAdapter, i);
         tempAdapter = nullptr;
     }
 
     return numWrittenCandidates;
+}
+
+phi::gpu_info phi::d3d12::getAdapterInfo(IDXGIAdapter* adapter, uint32_t index)
+{
+    phi::gpu_info info;
+
+    DXGI_ADAPTER_DESC adapterDesc;
+    PHI_D3D12_VERIFY(adapter->GetDesc(&adapterDesc));
+    info.vendor = getGPUVendorFromPCIeID(adapterDesc.VendorId);
+    info.index = index;
+
+    info.dedicated_video_memory_bytes = adapterDesc.DedicatedVideoMemory;
+    info.dedicated_system_memory_bytes = adapterDesc.DedicatedSystemMemory;
+    info.shared_system_memory_bytes = adapterDesc.SharedSystemMemory;
+
+    std::snprintf(info.name, sizeof(info.name), "%ws", adapterDesc.Description);
+
+    return info;
+}
+
+bool phi::d3d12::getFirstAdapter(IDXGIFactory6* factory, IDXGIAdapter** outAdapter, ID3D12Device** outDevice, uint32_t* outIndex)
+{
+#ifdef PHI_HAS_OPTICK
+    OPTICK_EVENT();
+#endif
+
+    IDXGIAdapter* tempAdapter = nullptr;
+    for (uint32_t i = 0u; factory->EnumAdapters(i, &tempAdapter) != DXGI_ERROR_NOT_FOUND; ++i)
+    {
+        if (tempAdapter == nullptr)
+            continue;
+
+        // Check to see if the adapter supports Direct3D 12 and create it
+        // It is significantly faster to do this in one step instead of two calls
+        ID3D12Device* newDevice = nullptr;
+        if (testDeviceOnAdapter(tempAdapter, &newDevice))
+        {
+            *outAdapter = tempAdapter;
+            *outDevice = newDevice;
+            *outIndex = i;
+            return true;
+        }
+
+        tempAdapter->Release();
+    }
+
+    return false;
 }
 
 phi::d3d12::gpu_feature_info phi::d3d12::getGPUFeaturesFromDevice(ID3D12Device5* device)
@@ -137,17 +157,17 @@ phi::d3d12::gpu_feature_info phi::d3d12::getGPUFeaturesFromDevice(ID3D12Device5*
 
     // Capability checks
 
+    D3D12_FEATURE_DATA_D3D12_OPTIONS FeatDataZero = {};
     {
-        D3D12_FEATURE_DATA_D3D12_OPTIONS feat_data = {};
-        auto const success = SUCCEEDED(device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &feat_data, sizeof(feat_data)));
+        auto const success = SUCCEEDED(device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &FeatDataZero, sizeof(FeatDataZero)));
 
         if (success)
         {
-            if (feat_data.ConservativeRasterizationTier != D3D12_CONSERVATIVE_RASTERIZATION_TIER_NOT_SUPPORTED)
+            if (FeatDataZero.ConservativeRasterizationTier != D3D12_CONSERVATIVE_RASTERIZATION_TIER_NOT_SUPPORTED)
             {
                 res.features |= gpu_feature::conservative_raster;
             }
-            if (feat_data.ROVsSupported)
+            if (FeatDataZero.ROVsSupported)
             {
                 res.features |= gpu_feature::rasterizer_ordered_views;
             }
@@ -156,20 +176,25 @@ phi::d3d12::gpu_feature_info phi::d3d12::getGPUFeaturesFromDevice(ID3D12Device5*
 
     // SM 6.0
     {
+        static_assert(PHI_D3D12_HAS_20H1_FEATURES, "PHI requires at least WinSDK 20H1");
+
+#define PHI_HAS_SM_6_8 (D3D12_SDK_VERSION >= 614)
+
         D3D12_FEATURE_DATA_SHADER_MODEL feat_data = {
-#if PHI_D3D12_HAS_20H1_FEATURES
-            D3D_SHADER_MODEL_6_6
+#if PHI_HAS_SM_6_8
+            D3D_SHADER_MODEL_6_8
 #else
-            D3D_SHADER_MODEL_6_5
+            D3D_SHADER_MODEL_6_6
 #endif
         };
         auto const success = SUCCEEDED(device->CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL, &feat_data, sizeof(feat_data)));
         // NOTE: CheckFeatureSupport writes the max of the current value and the highest supported SM version to feat_data
         // - it is not purely an out parameter
 
+
         if (success)
         {
-            // even with a future SM6.7, this will never return a higher value than SM6.6 as per the behavior above
+            // even with a future SM6.X, this will never return a higher value than the value of feat_data above
             switch (feat_data.HighestShaderModel)
             {
             case D3D_SHADER_MODEL_6_0:
@@ -190,9 +215,15 @@ phi::d3d12::gpu_feature_info phi::d3d12::getGPUFeaturesFromDevice(ID3D12Device5*
             case D3D_SHADER_MODEL_6_5:
                 res.sm_version = gpu_feature_info::hlsl_sm6_5;
                 break;
-#if PHI_D3D12_HAS_20H1_FEATURES
             case D3D_SHADER_MODEL_6_6:
                 res.sm_version = gpu_feature_info::hlsl_sm6_6;
+                break;
+#if PHI_HAS_SM_6_8
+            case D3D_SHADER_MODEL_6_7:
+                res.sm_version = gpu_feature_info::hlsl_sm6_7;
+                break;
+            case D3D_SHADER_MODEL_6_8:
+                res.sm_version = gpu_feature_info::hlsl_sm6_8;
                 break;
 #endif
 
@@ -203,6 +234,11 @@ phi::d3d12::gpu_feature_info phi::d3d12::getGPUFeaturesFromDevice(ID3D12Device5*
                 break;
             }
         }
+    }
+
+    if (res.sm_version >= gpu_feature_info::hlsl_sm6_6 && FeatDataZero.ResourceBindingTier >= D3D12_RESOURCE_BINDING_TIER_3)
+    {
+        res.features |= gpu_feature::hlsl_dynamic_resources;
     }
 
     // SM 6.0 wave intrinsics
@@ -229,12 +265,10 @@ phi::d3d12::gpu_feature_info phi::d3d12::getGPUFeaturesFromDevice(ID3D12Device5*
                 {
                     res.raytracing = gpu_feature_info::raytracing_t1_0;
                 }
-#if PHI_D3D12_HAS_20H1_FEATURES
                 else if (feat_data.RaytracingTier >= D3D12_RAYTRACING_TIER_1_1)
                 {
                     res.raytracing = gpu_feature_info::raytracing_t1_1;
                 }
-#endif
             }
         }
 
@@ -256,7 +290,6 @@ phi::d3d12::gpu_feature_info phi::d3d12::getGPUFeaturesFromDevice(ID3D12Device5*
             }
         }
 
-#if PHI_D3D12_HAS_20H1_FEATURES
         // Mesh/Amplification shaders
         {
             D3D12_FEATURE_DATA_D3D12_OPTIONS7 feat_data = {};
@@ -265,6 +298,20 @@ phi::d3d12::gpu_feature_info phi::d3d12::getGPUFeaturesFromDevice(ID3D12Device5*
             if (success && feat_data.MeshShaderTier >= D3D12_MESH_SHADER_TIER_1)
             {
                 res.features |= gpu_feature::mesh_shaders;
+            }
+        }
+
+#ifdef PHI_HAS_D3D12_AGILITY
+        // RGB9E5 UAVs and RTs
+        // see: https://devblogs.microsoft.com/directx/agility-sdk-1-614-0/
+        {
+            D3D12_FEATURE_DATA_FORMAT_SUPPORT feat_data = {};
+            feat_data.Format = DXGI_FORMAT_R9G9B9E5_SHAREDEXP;
+            auto const success = SUCCEEDED(device->CheckFeatureSupport(D3D12_FEATURE_FORMAT_SUPPORT, &feat_data, sizeof(feat_data)));
+
+            if (success && (feat_data.Support1 & D3D12_FORMAT_SUPPORT1_RENDER_TARGET))
+            {
+                res.features |= gpu_feature::rgb9e5_rt_uav;
             }
         }
 #endif

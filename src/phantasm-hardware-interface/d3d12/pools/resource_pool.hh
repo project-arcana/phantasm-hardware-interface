@@ -33,6 +33,8 @@ public:
 
     void setDebugName(handle::resource res, char const* name, unsigned name_length);
 
+    uint64_t getResourceSizeVRAM(handle::resource res) const;
+
 public:
     struct resource_node
     {
@@ -76,8 +78,8 @@ public:
 public:
     // internal API
 
-    void initialize(ID3D12Device* device, uint32_t max_num_resources, uint32_t max_num_swapchains, cc::allocator* static_alloc, cc::allocator* dynamic_alloc);
-    void destroy();
+    void initialize(ID3D12Device* pDevice, IDXGIAdapter* pAdapter, uint32_t max_num_resources, uint32_t max_num_swapchains, cc::allocator* static_alloc, cc::allocator* dynamic_alloc);
+    bool destroy();
 
     //
     // Raw ID3D12Resource access
@@ -85,6 +87,12 @@ public:
 
     ID3D12Resource* getRawResource(handle::resource res) const { return internalGet(res).resource; }
     ID3D12Resource* getRawResource(buffer_address const& addr) const { return internalGet(addr.buffer).resource; }
+
+    ID3D12Resource* getRawResourceOrNull(handle::resource res) const { return res.is_valid() ? internalGet(res).resource : nullptr; }
+    ID3D12Resource* getRawResourceOrNull(buffer_address const& addr) const
+    {
+        return addr.buffer.is_valid() ? internalGet(addr.buffer).resource : nullptr;
+    }
 
     // Additional information
     bool isImage(handle::resource res) const { return internalGet(res).type == resource_node::resource_type::image; }
@@ -162,6 +170,9 @@ public:
     {
         auto const& data = internalGet(res);
         CC_ASSERT(data.type == resource_node::resource_type::buffer);
+
+        CC_ASSERT((data.buffer.stride == 4 || data.buffer.stride == 2) && "Buffers used as index buffers must specify a stride of 4B (R32) or 2B (R16)");
+
         return {data.buffer.gpu_va, data.buffer.width, (data.buffer.stride == 4) ? DXGI_FORMAT_R32_UINT : DXGI_FORMAT_R16_UINT};
     }
 
@@ -180,9 +191,11 @@ public:
     // the first of either phi::present or phi::resize
     //
 
-    [[nodiscard]] handle::resource injectBackbufferResource(unsigned swapchain_index, tg::isize2 size, ID3D12Resource* raw_resource, D3D12_RESOURCE_STATES state);
+    [[nodiscard]] handle::resource injectBackbufferResource(unsigned swapchain_index, tg::isize2 size, format fmt, ID3D12Resource* raw_resource, D3D12_RESOURCE_STATES state);
 
     [[nodiscard]] bool isBackbuffer(handle::resource res) const { return mPool.get_handle_index(res._value) < mNumReservedBackbuffers; }
+
+    allocated_resource_info queryAllocatedResourceInfo() { return mAllocator.getStats(); }
 
 private:
     [[nodiscard]] handle::resource acquireBuffer(D3D12MA::Allocation* alloc, D3D12_RESOURCE_STATES initial_state, arg::buffer_description const& desc);
@@ -214,4 +227,4 @@ private:
     ResourceAllocator mAllocator;
 };
 
-}
+} // namespace phi::d3d12

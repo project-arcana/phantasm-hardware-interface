@@ -13,7 +13,7 @@
 
 namespace
 {
-void verifyReflectionDataConsistencyInDebug(cc::span<const phi::vk::util::spirv_desc_info> reflectedDescriptors,
+void verifyReflectionDataConsistencyInDebug(cc::span<const phi::vk::util::ReflectedDescriptorInfo> reflectedDescriptors,
                                             phi::arg::shader_arg_shapes argShapes,
                                             bool hasPushConstants,
                                             bool shouldHavePushConstants)
@@ -21,7 +21,7 @@ void verifyReflectionDataConsistencyInDebug(cc::span<const phi::vk::util::spirv_
 #ifdef CC_ENABLE_ASSERTIONS
     // Since we reflect all of the descriptor info from SPIR-V, arg shapes and root const flags are
     // not strictly required here, however in debug check if they are consistent
-    phi::vk::util::warnIfReflectionIsIncosistent(reflectedDescriptors, argShapes);
+    phi::vk::util::warnIfReflectionIsInconsistent(reflectedDescriptors, argShapes);
 
     if (!!hasPushConstants != !!shouldHavePushConstants)
     {
@@ -37,35 +37,30 @@ void verifyReflectionDataConsistencyInDebug(cc::span<const phi::vk::util::spirv_
 }
 } // namespace
 
-phi::handle::pipeline_state phi::vk::PipelinePool::createPipelineState(phi::arg::vertex_format vertex_format,
-                                                                       phi::arg::framebuffer_config const& framebuffer_config,
-                                                                       phi::arg::shader_arg_shapes shader_arg_shapes,
-                                                                       bool should_have_push_constants,
-                                                                       phi::arg::graphics_shaders shader_stages,
-                                                                       const phi::pipeline_config& primitive_config,
+phi::handle::pipeline_state phi::vk::PipelinePool::createPipelineState(arg::graphics_pipeline_state_description const& desc,
                                                                        cc::allocator* scratch_alloc,
                                                                        char const* dbg_name)
 {
     // Patch and reflect SPIR-V binaries
-    cc::capped_vector<util::patched_spirv_stage, 6> patched_shader_stages;
-    cc::alloc_vector<util::spirv_desc_info> shader_descriptor_ranges;
+    cc::capped_vector<util::PatchedShaderStage, 6> patched_shader_stages;
+    cc::alloc_vector<util::ReflectedDescriptorInfo> shader_descriptor_ranges;
     bool has_push_constants = false;
     CC_DEFER
     {
         for (auto const& ps : patched_shader_stages)
-            util::free_patched_spirv(ps);
+            util::freePatchedShader(ps);
     };
 
     {
-        util::spirv_refl_info spirv_info;
-        spirv_info.descriptor_infos.reset_reserve(scratch_alloc, shader_stages.size() * 8);
+        util::ReflectedShaderInfo spirv_info;
+        spirv_info.descriptor_infos.reset_reserve(scratch_alloc, desc.shader_binaries.size() * 8);
 
-        for (auto const& shader : shader_stages)
+        for (auto const& shader : desc.shader_binaries)
         {
-            patched_shader_stages.push_back(util::create_patched_spirv(shader.binary.data, shader.binary.size, spirv_info, scratch_alloc));
+            patched_shader_stages.push_back(util::createPatchedShader(shader.binary.data, shader.binary.size, spirv_info, scratch_alloc));
         }
 
-        shader_descriptor_ranges = util::merge_spirv_descriptors(spirv_info.descriptor_infos, scratch_alloc);
+        shader_descriptor_ranges = util::mergeReflectedDescriptors(spirv_info.descriptor_infos, scratch_alloc);
         has_push_constants = spirv_info.has_push_constants;
     }
 
@@ -93,7 +88,8 @@ phi::handle::pipeline_state phi::vk::PipelinePool::createPipelineState(phi::arg:
     }
 #endif
 
-    verifyReflectionDataConsistencyInDebug(shader_descriptor_ranges, shader_arg_shapes, has_push_constants, should_have_push_constants);
+    bool const bShouldHaveRootConstants = desc.root_signature.has_root_constants;
+    verifyReflectionDataConsistencyInDebug(shader_descriptor_ranges, desc.root_signature.shader_arg_shapes, has_push_constants, bShouldHaveRootConstants);
 
     pipeline_layout* layout;
     // Do things requiring synchronization
@@ -107,17 +103,17 @@ phi::handle::pipeline_state phi::vk::PipelinePool::createPipelineState(phi::arg:
     pso_node& new_node = mPool.get(pool_index);
     new_node.associated_pipeline_layout = layout;
 
-    CC_ASSERT(primitive_config.samples > 0 && "invalid amount of MSAA samples");
+    CC_ASSERT(desc.config.samples > 0 && "invalid amount of MSAA samples");
 
 
     {
         // Create VkPipeline
-        auto const vert_format_native = util::get_native_vertex_format(vertex_format.attributes);
+        auto const vert_format_native = util::get_native_vertex_format(desc.vertices.attributes);
 
-        VkRenderPass dummy_render_pass = create_render_pass(mDevice, framebuffer_config, primitive_config);
+        VkRenderPass dummy_render_pass = create_render_pass(mDevice, desc.framebuffer, desc.config);
 
-        new_node.raw_pipeline = create_pipeline(mDevice, dummy_render_pass, new_node.associated_pipeline_layout->raw_layout, patched_shader_stages,
-                                                primitive_config, vert_format_native, vertex_format.vertex_sizes_bytes, framebuffer_config);
+        new_node.raw_pipeline
+            = create_pipeline(mDevice, dummy_render_pass, new_node.associated_pipeline_layout->raw_layout, patched_shader_stages, vert_format_native, desc);
 
         util::set_object_name(mDevice, new_node.raw_pipeline, "phi graphics pso %s", dbg_name ? dbg_name : "");
 
@@ -134,17 +130,17 @@ phi::handle::pipeline_state phi::vk::PipelinePool::createComputePipelineState(ph
                                                                               char const* dbg_name)
 {
     // Patch and reflect SPIR-V binary
-    util::patched_spirv_stage patched_shader_stage;
-    cc::alloc_vector<util::spirv_desc_info> shader_descriptor_ranges;
+    util::PatchedShaderStage patched_shader_stage;
+    cc::alloc_vector<util::ReflectedDescriptorInfo> shader_descriptor_ranges;
     bool has_push_constants = false;
-    CC_DEFER { util::free_patched_spirv(patched_shader_stage); };
+    CC_DEFER { util::freePatchedShader(patched_shader_stage); };
 
     {
-        util::spirv_refl_info spirv_info;
+        util::ReflectedShaderInfo spirv_info;
         spirv_info.descriptor_infos.reset_reserve(scratch_alloc, 10);
 
-        patched_shader_stage = util::create_patched_spirv(compute_shader.data, compute_shader.size, spirv_info, scratch_alloc);
-        shader_descriptor_ranges = util::merge_spirv_descriptors(spirv_info.descriptor_infos, scratch_alloc);
+        patched_shader_stage = util::createPatchedShader(compute_shader.data, compute_shader.size, spirv_info, scratch_alloc);
+        shader_descriptor_ranges = util::mergeReflectedDescriptors(spirv_info.descriptor_infos, scratch_alloc);
         has_push_constants = spirv_info.has_push_constants;
 
         verifyReflectionDataConsistencyInDebug(shader_descriptor_ranges, shader_arg_shapes, has_push_constants, should_have_push_constants);
@@ -185,7 +181,7 @@ phi::handle::pipeline_state phi::vk::PipelinePool::createRaytracingPipelineState
     patched_shader_intermediates shader_intermediates;
     shader_intermediates.initialize_from_libraries(mDevice, libraries, scratch_alloc);
     CC_DEFER { shader_intermediates.free(mDevice); };
-    // util::print_spirv_info(shader_intermediates.sorted_merged_descriptor_infos);
+    // util::logSpirvDescriptorInfo(shader_intermediates.sorted_merged_descriptor_infos);
 
     // verifying the descriptor ranges reflected here is much more involved than in a graphics / compute setting, skipping for now
 
@@ -234,10 +230,12 @@ void phi::vk::PipelinePool::destroy()
 {
     auto num_leaks = 0;
 
-    mPool.iterate_allocated_nodes([&](pso_node& leaked_node) {
-        ++num_leaks;
-        vkDestroyPipeline(mDevice, leaked_node.raw_pipeline, nullptr);
-    });
+    mPool.iterate_allocated_nodes(
+        [&](pso_node& leaked_node)
+        {
+            ++num_leaks;
+            vkDestroyPipeline(mDevice, leaked_node.raw_pipeline, nullptr);
+        });
 
     if (num_leaks > 0)
     {

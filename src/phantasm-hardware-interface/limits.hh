@@ -21,10 +21,6 @@ enum limits_e : unsigned
     /// most non-desktop GPUs only support a maximum of 8.
     max_shader_arguments = 4u,
 
-    /// the maximum amount of samplers per shader view
-    /// configurable
-    max_shader_samplers = 16u,
-
     /// the maximum size for root constants
     /// configurable in increments of 4, also concerns CPU memory (cmd::draw, cmd::dispatch)
     max_root_constant_bytes = 16u,
@@ -40,7 +36,7 @@ enum limits_e : unsigned
     /// configurable
     max_raytracing_hit_groups = 16u,
 
-    /// amount of shader stages in the graphics pipeline
+    /// amount of shader stages in the classical graphics pipeline (not compute, raytracing, or mesh shading)
     num_graphics_shader_stages = 5u,
 };
 }

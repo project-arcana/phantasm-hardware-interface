@@ -48,6 +48,9 @@ void phi::d3d12::ShaderTableConstructor::writeShaderTable(std::byte* dest, handl
     CC_ASSERT(pool_pipeline_states->isRaytracingPipeline(pso) && "invalid or non-raytracing PSO given");
     CC_ASSERT(PHI_IMPLICATION(stride_bytes == 0, records.size() == 1) && "if no stride is specified, no more than a single record is allowed");
 
+    // NOTE: The shader table is memory-wise 1:1 verbatim "the root signature"
+    // meaning the order of elements follows from the way we build root signatures
+
     auto const& pso_info = pool_pipeline_states->getRaytrace(pso);
 
     std::byte* data_ptr_outer = dest;
@@ -57,7 +60,7 @@ void phi::d3d12::ShaderTableConstructor::writeShaderTable(std::byte* dest, handl
 
         PipelineStateObjectPool::pso_argument_info arg_info_verification;
 
-        // write the shader identifier
+        // write the shader identifier first
         if (rec.target_type == arg::shader_table_record::e_target_identifiable_shader)
         {
             CC_ASSERT(rec.target_index < pso_info.identifiable_shader_infos.size() && "shader table record - identifiable shader index OOB");
@@ -69,6 +72,7 @@ void phi::d3d12::ShaderTableConstructor::writeShaderTable(std::byte* dest, handl
         }
         else // (e_target_hitgroup)
         {
+            CC_ASSERT(rec.target_type == arg::shader_table_record::e_target_hitgroup);
             CC_ASSERT(rec.target_index < pso_info.hitgroup_infos.size() && "shader table record - hitgroup index OOB");
 
             auto const& hitgroup_info = pso_info.hitgroup_infos[rec.target_index];
@@ -79,19 +83,19 @@ void phi::d3d12::ShaderTableConstructor::writeShaderTable(std::byte* dest, handl
 
         data_ptr_inner += D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
 
-
-        // write the root constants
+        // write the root constants before any descriptor handles
         if (rec.root_arg_size_bytes > 0)
         {
             CC_ASSERT(arg_info_verification.has_root_consts() && "shader table write invalid - writing root constants where none are required");
+            CC_ASSERT(rec.root_arg_size_bytes <= limits::max_root_constant_bytes && "shader table write invalid - maximum root constant byte size exceed");
 
             std::memcpy(data_ptr_inner, rec.root_arg_data, rec.root_arg_size_bytes);
             // root constants must fill a multiple of 8 bytes
-            data_ptr_inner += phi::util::align_up(rec.root_arg_size_bytes, 8u);
+            data_ptr_inner += phi::util::align_up(limits::max_root_constant_bytes, 8u);
         }
         else
         {
-            CC_ASSERT(!arg_info_verification.has_root_consts() && "shader table write invalid - omitting root constants where they are required");
+            CC_ASSERT(!arg_info_verification.has_root_consts() && "shader table write invalid - missing root constants but were declared in argument association");
         }
 
         for (auto i = 0u; i < rec.shader_arguments.size(); ++i)
@@ -174,16 +178,11 @@ void phi::d3d12::ShaderTableConstructor::initialize(ID3D12Device5* device,
 
 unsigned phi::d3d12::ShaderTableConstructor::getShaderRecordSize(cc::span<arg::shader_table_record const> records)
 {
-    unsigned max_num_8byte_blocks = 0;
+    uint32_t max_num_8byte_blocks = 0;
 
     for (auto const& rec : records)
     {
-        unsigned num_8byte_blocks = 0;
-
-        // root constants in the beginning
-        // the root constant section must be packed into 8 byte blocks, ceil the given size to a multiple of 8
-        // (effectively 'align_up(size, 8) / 8')
-        num_8byte_blocks += cc::int_div_ceil(rec.root_arg_size_bytes, 8u);
+        uint32_t num_8byte_blocks = 0;
 
         for (auto const& arg : rec.shader_arguments)
         {
@@ -203,14 +202,20 @@ unsigned phi::d3d12::ShaderTableConstructor::getShaderRecordSize(cc::span<arg::s
             }
         }
 
-        max_num_8byte_blocks = cc::max<uint32_t>(max_num_8byte_blocks, num_8byte_blocks);
+        // root constants
+        // the root constant section must be packed into 8 byte blocks, ceil the given size to a multiple of 8
+        // (effectively 'align_up(size, 8) / 8')
+        num_8byte_blocks += rec.root_arg_size_bytes ? cc::int_div_ceil<uint32_t>(limits::max_root_constant_bytes, 8u) : 0;
+        CC_ASSERT(rec.root_arg_size_bytes <= limits::max_root_constant_bytes && "Shader Table Record has root constant size exceeding limits::max_root_constant_bytes");
+
+        max_num_8byte_blocks = cc::max(max_num_8byte_blocks, num_8byte_blocks);
     }
 
 
     // size of the program identifier, plus 8 bytes per maximum over the record's arguments, aligned to shader record alignment alignment
 
-    auto const size_unaligned = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES // sign of the program identifier
-                                + 8u * max_num_8byte_blocks; // all records use as much space for arguments as the largest one: 8 byte per pointer / root constant
+    uint32_t const size_unaligned = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES // sign of the program identifier
+                                    + 8u * max_num_8byte_blocks; // all records use as much space for arguments as the largest one: 8 byte per pointer / root constant
 
     // align correctly
     return phi::util::align_up(size_unaligned, D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT);

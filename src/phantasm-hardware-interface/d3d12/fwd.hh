@@ -17,6 +17,7 @@ class QueryPool;
 
 class CPUDescriptorLinearAllocator;
 
-struct command_list_translator;
+struct CommandListTranslator;
 struct incomplete_state_cache;
+struct root_signature;
 }

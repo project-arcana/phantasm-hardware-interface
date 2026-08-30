@@ -1,7 +1,5 @@
 #pragma once
 
-#include <clean-core/array.hh>
-
 #include <phantasm-hardware-interface/fwd.hh>
 #include <phantasm-hardware-interface/vulkan/queue_util.hh>
 
@@ -20,7 +18,7 @@ public:
     Device& operator=(Device&&) noexcept = delete;
     Device() = default;
 
-    void initialize(vulkan_gpu_info const& device, backend_config const& config);
+    bool initialize(vulkan_gpu_info const& device, backend_config const& config);
     void destroy();
 
     // returns the requested type, or a fallback type if unavailable
@@ -71,4 +69,4 @@ private:
     bool mHasConservativeRaster = false;
     void queryDeviceProps2();
 };
-}
+} // namespace phi::vk

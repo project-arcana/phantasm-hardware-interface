@@ -5,6 +5,18 @@
 
 #include <phantasm-hardware-interface/arguments.hh>
 
+phi::init_status phi::Backend::initializeParallel(backend_config const& /*config*/, uint32_t /*idx*/)
+{
+    // do nothing by default
+    return init_status::success;
+}
+
+phi::init_status phi::Backend::initializeQueues(backend_config const& /*config*/)
+{
+    // do nothing by default
+    return init_status::success;
+}
+
 phi::handle::resource phi::Backend::createTexture(
     phi::format format, tg::isize2 size, uint32_t mips, texture_dimension dim, uint32_t depth_or_array_size, bool allow_uav, char const* debug_name)
 {
@@ -79,4 +91,17 @@ phi::handle::resource phi::Backend::createResourceFromInfo(const phi::arg::resou
         return handle::null_resource;
     }
     CC_UNREACHABLE("invalid type");
+}
+
+phi::handle::pipeline_state phi::Backend::createComputePipelineState(arg::shader_arg_shapes arg_shapes, arg::shader_binary shader, bool hasRootConsts)
+{
+    arg::compute_pipeline_state_description desc = {};
+    for (auto const& arg : arg_shapes)
+    {
+        desc.root_signature.shader_arg_shapes.push_back(arg);
+    }
+    desc.root_signature.has_root_constants = hasRootConsts;
+    desc.shader = shader;
+
+    return createComputePipelineState(desc);
 }

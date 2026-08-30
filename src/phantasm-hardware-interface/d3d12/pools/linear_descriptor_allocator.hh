@@ -32,7 +32,7 @@ struct resource_view_cpu_only
 
 private:
     unsigned _descriptor_size = 0;
-    D3D12_CPU_DESCRIPTOR_HANDLE _handle_cpu;
+    D3D12_CPU_DESCRIPTOR_HANDLE _handle_cpu = {};
 };
 
 class CPUDescriptorLinearAllocator
@@ -53,7 +53,7 @@ public:
 
 private:
     ID3D12DescriptorHeap* mHeap = nullptr;
-    D3D12_CPU_DESCRIPTOR_HANDLE mHandleCPU;
+    D3D12_CPU_DESCRIPTOR_HANDLE mHandleCPU = {};
     unsigned mDescriptorSize = 0;
     unsigned mNumDescriptors = 0;
     unsigned mNumAllocatedDescriptors = 0;

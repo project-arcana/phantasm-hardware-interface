@@ -1,6 +1,6 @@
 #pragma once
 
-#include <clean-core/array.hh>
+#include <clean-core/capped_vector.hh>
 
 #include <phantasm-hardware-interface/commands.hh>
 
@@ -11,7 +11,8 @@
 namespace Optick
 {
 struct EventData;
-}
+struct GPUContext;
+} // namespace Optick
 #endif
 
 namespace phi::vk
@@ -23,7 +24,7 @@ class CommandListPool;
 class AccelStructPool;
 class QueryPool;
 
-struct translator_global_memory
+struct TranslatorContext
 {
     void initialize(VkDevice device,
                     ShaderViewPool* sv_pool,
@@ -53,11 +54,11 @@ struct translator_global_memory
     AccelStructPool* pool_accel_structs = nullptr;
     bool has_raytracing = false;
 
-    translator_global_memory() = default;
+    TranslatorContext() = default;
 };
 
 /// responsible for filling command lists, 1 per thread
-struct command_list_translator
+struct CommandListTranslator
 {
     void initialize(VkDevice device,
                     ShaderViewPool* sv_pool,
@@ -68,10 +69,18 @@ struct command_list_translator
                     AccelStructPool* as_pool,
                     bool has_rt)
     {
-        _globals.initialize(device, sv_pool, resource_pool, pso_pool, cmd_pool, query_pool, as_pool, has_rt);
+        _context.initialize(device, sv_pool, resource_pool, pso_pool, cmd_pool, query_pool, as_pool, has_rt);
     }
 
-    void translateCommandList(VkCommandBuffer list, handle::command_list list_handle, vk_incomplete_state_cache* state_cache, std::byte const* buffer, size_t buffer_size);
+    void destroy() {}
+
+    void beginTranslation(VkCommandBuffer list,
+                          handle::command_list list_handle,
+                          queue_type queue,
+                          vk_incomplete_state_cache* state_cache,
+                          cmd::set_global_profile_scope const* pOptGlobalProfileScope);
+
+    void endTranslation(bool bClose);
 
     void execute(cmd::begin_render_pass const& begin_rp);
 
@@ -82,6 +91,10 @@ struct command_list_translator
     void execute(cmd::dispatch const& dispatch);
 
     void execute(cmd::dispatch_indirect const& dispatch_indirect);
+
+    void execute(cmd::dispatch_mesh const& dispatch) { CC_ASSERT(false && "unimplemented"); }
+
+    void execute(cmd::dispatch_mesh_indirect const& dispatch) { CC_ASSERT(false && "unimplemented"); }
 
     void execute(cmd::end_render_pass const& end_rp);
 
@@ -115,6 +128,8 @@ struct command_list_translator
 
     void execute(cmd::update_bottom_level const& blas_update);
 
+    void execute(cmd::update_bottom_level_in_buffer const& blas_update);
+
     void execute(cmd::update_top_level const& tlas_update);
 
     void execute(cmd::dispatch_rays const& dispatch_rays);
@@ -123,16 +138,19 @@ struct command_list_translator
 
     void execute(cmd::code_location_marker const& marker);
 
+    void execute(cmd::set_global_profile_scope const&);
+
 private:
     void bind_vertex_buffers(handle::resource const vertex_buffers[limits::max_vertex_buffers]);
 
-    void bind_shader_arguments(handle::pipeline_state pso, std::byte const* root_consts, cc::span<shader_argument const> shader_args, VkPipelineBindPoint bind_point);
+    // returns whether root constants are present
+    bool bind_shader_arguments(handle::pipeline_state pso, std::byte const* root_consts, cc::span<shader_argument const> shader_args, VkPipelineBindPoint bind_point);
 
     VkBuffer get_buffer_or_null(handle::resource buf) const;
 
 private:
     // non-owning constant (global)
-    translator_global_memory _globals;
+    TranslatorContext _context;
 
     // non-owning dynamic
     vk_incomplete_state_cache* _state_cache = nullptr;
@@ -183,7 +201,7 @@ private:
             }
         };
 
-        cc::array<shader_arg_info, limits::max_shader_arguments> shader_args;
+        shader_arg_info shader_args[limits::max_shader_arguments];
 
         VkRenderPass raw_render_pass = nullptr;
         VkFramebuffer raw_framebuffer = nullptr;
@@ -253,8 +271,17 @@ private:
 
 // debug state - current Optick GPU Event
 #ifdef PHI_HAS_OPTICK
-    Optick::EventData* _current_optick_event = nullptr;
+    struct OptickGPUContextFwd
+    {
+        void* cmdBuffer;
+        uint32_t queue;
+        int node;
+    };
+
+    OptickGPUContextFwd _prev_optick_gpu_context = {};
+    Optick::EventData* _global_optick_event = nullptr;
+    cc::capped_vector<Optick::EventData*, 8> _current_optick_event_stack;
 #endif
 };
 
-}
+} // namespace phi::vk

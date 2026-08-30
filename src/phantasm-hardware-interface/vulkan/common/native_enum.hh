@@ -56,6 +56,9 @@ constexpr VkAccessFlags to_access_flags(resource_state state)
     case rs::raytrace_accel_struct:
         return VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_NV | VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_NV;
 
+    case rs::shader_resource_nonpixel_or_index:
+        return VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_INDEX_READ_BIT;
+
     case rs::unknown:
         CC_ASSERT(false && "unknown state access masks queried");
         return {};
@@ -105,6 +108,7 @@ constexpr VkImageLayout to_image_layout(resource_state state)
     case rs::constant_buffer:
     case rs::indirect_argument:
     case rs::raytrace_accel_struct:
+    case rs::shader_resource_nonpixel_or_index:
         CC_ASSERT(false && "invalid image layout queried");
         return VK_IMAGE_LAYOUT_UNDEFINED;
     }
@@ -138,6 +142,11 @@ constexpr VkPipelineStageFlags to_pipeline_stage_flags(phi::shader_stage stage)
     case phi::shader_stage::ray_callable:
         return VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV;
 
+    case phi::shader_stage::amplification:
+        return VK_PIPELINE_STAGE_TASK_SHADER_BIT_NV;
+    case phi::shader_stage::mesh:
+        return VK_PIPELINE_STAGE_MESH_SHADER_BIT_NV;
+
     case phi::shader_stage::none:
     case phi::shader_stage::MAX_SHADER_STAGE_RANGE:
         CC_ASSERT(false && "invalid shader stage given");
@@ -151,27 +160,27 @@ constexpr VkPipelineStageFlags to_pipeline_stage_flags_bitwise(phi::shader_stage
 {
     VkPipelineStageFlags res = 0;
 
-    if (stage_flags & shader_stage::vertex)
+    if (stage_flags & shader_stage_flags::vertex)
         res |= VK_PIPELINE_STAGE_VERTEX_SHADER_BIT;
 
-    if (stage_flags & shader_stage::hull)
+    if (stage_flags & shader_stage_flags::hull)
         res |= VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT;
 
-    if (stage_flags & shader_stage::domain)
+    if (stage_flags & shader_stage_flags::domain)
         res |= VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT;
 
-    if (stage_flags & shader_stage::geometry)
+    if (stage_flags & shader_stage_flags::geometry)
         res |= VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT;
 
-    if (stage_flags & shader_stage::pixel)
+    if (stage_flags & shader_stage_flags::pixel)
         res |= VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
 
 
-    if (stage_flags & shader_stage::compute)
+    if (stage_flags & shader_stage_flags::compute)
         res |= VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
 
 
-    if (stage_flags.has_any_of(shader_stage_mask_all_ray))
+    if (stage_flags & shader_stage_flags::MASK_all_ray)
         res |= VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV;
 
     return res;
@@ -219,6 +228,9 @@ constexpr VkPipelineStageFlags to_pipeline_stage_dependency(resource_state state
     case rs::raytrace_accel_struct:
         return VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV | VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_NV;
 
+    case rs::shader_resource_nonpixel_or_index:
+        return shader_flags | VK_PIPELINE_STAGE_VERTEX_INPUT_BIT;
+
     case rs::unknown:
         CC_ASSERT(false && "unknown state queried");
         return VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
@@ -244,6 +256,8 @@ constexpr VkPrimitiveTopology to_native(phi::primitive_topology topology)
         return VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
     case phi::primitive_topology::patches:
         return VK_PRIMITIVE_TOPOLOGY_PATCH_LIST;
+    case phi::primitive_topology::triangle_strips:
+        return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
     }
 
     CC_UNREACHABLE_SWITCH_WORKAROUND(topology);
@@ -322,6 +336,11 @@ constexpr VkShaderStageFlagBits to_shader_stage_flags(phi::shader_stage stage)
         return VK_SHADER_STAGE_ANY_HIT_BIT_NV;
     case phi::shader_stage::ray_callable:
         return VK_SHADER_STAGE_CALLABLE_BIT_NV;
+
+    case phi::shader_stage::amplification:
+        return VK_SHADER_STAGE_TASK_BIT_NV;
+    case phi::shader_stage::mesh:
+        return VK_SHADER_STAGE_MESH_BIT_NV;
 
     case phi::shader_stage::none:
     case phi::shader_stage::MAX_SHADER_STAGE_RANGE:

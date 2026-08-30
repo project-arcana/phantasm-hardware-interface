@@ -43,21 +43,26 @@ void phi::d3d12::FencePool::initialize(ID3D12Device* device, unsigned max_num_fe
     mPool.initialize(max_num_fences, static_alloc);
 }
 
-void phi::d3d12::FencePool::destroy()
+bool phi::d3d12::FencePool::destroy()
 {
+    bool bAllGood = true;
     if (mDevice != nullptr)
     {
         auto num_leaks = 0;
-        mPool.iterate_allocated_nodes([&](node& leaked_fence) {
-            ++num_leaks;
-            leaked_fence.free();
-        });
+        mPool.iterate_allocated_nodes(
+            [&](node& leaked_fence)
+            {
+                ++num_leaks;
+                leaked_fence.free();
+            });
 
         if (num_leaks > 0)
         {
+            bAllGood = false;
             PHI_LOG("leaked {} handle::fence object{}", num_leaks, num_leaks == 1 ? "" : "s");
         }
     }
+    return bAllGood;
 }
 
 void phi::d3d12::FencePool::signalCPU(phi::handle::fence fence, uint64_t new_val) const

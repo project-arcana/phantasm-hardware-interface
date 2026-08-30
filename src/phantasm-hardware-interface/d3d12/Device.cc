@@ -3,7 +3,7 @@
 #include <cstdio>
 
 #ifdef PHI_HAS_OPTICK
-#include <optick/optick.h>
+#include <optick.h>
 #endif
 
 #include <clean-core/native/win32_util.hh>
@@ -17,7 +17,7 @@
 #include "common/verify.hh"
 
 
-void phi::d3d12::Device::initialize(ID3D12Device* deviceToUse, IDXGIAdapter& adapter, const backend_config& config)
+bool phi::d3d12::Device::initialize(ID3D12Device* deviceToUse, IDXGIAdapter& adapter, const backend_config& config)
 {
 #ifdef PHI_HAS_OPTICK
     OPTICK_EVENT();
@@ -89,7 +89,7 @@ void phi::d3d12::Device::initialize(ID3D12Device* deviceToUse, IDXGIAdapter& ada
         }
         else
         {
-            PHI_LOG_ERROR << "failed to enable DRED";
+            PHI_LOG_ERROR("failed to enable DRED");
         }
     }
 
@@ -120,12 +120,16 @@ void phi::d3d12::Device::initialize(ID3D12Device* deviceToUse, IDXGIAdapter& ada
         // QI proper device
         bool const got_device5 = SUCCEEDED(temp_device->QueryInterface(IID_PPV_ARGS(&mDevice)));
 
-        // there is no way to recover here
-        // Device5 support is purely OS-based, Win10 1809+, aka Redstone 5
-        CC_RUNTIME_ASSERT_MSG(got_device5, "fatal error: unable to QI ID3D12Device5 - please update to Windows 10 1809 or higher\n"
-                                           "to check your windows version, press Win + R and enter 'winver'\n");
-
         temp_device->Release();
+
+        if (!got_device5)
+        {
+            // there is no way to recover here
+            // Device5 support is purely OS-based, Win10 1809+, aka Redstone 5
+            PHI_LOG_ERROR("fatal error: unable to QI ID3D12Device5 - please update to Windows 10 1809 or higher");
+            PHI_LOG_ERROR("to check your windows version, press Win + R and enter 'winver'\n");
+            return false;
+        }
     }
 
     // Feature checks
@@ -150,6 +154,8 @@ void phi::d3d12::Device::initialize(ID3D12Device* deviceToUse, IDXGIAdapter& ada
             PHI_LOG("d3d12_break_on_warn enabled");
         }
     }
+
+    return true;
 }
 
 void phi::d3d12::Device::destroy()
@@ -173,6 +179,8 @@ void phi::d3d12::Device::destroy()
 
         return;
     }
+
+	
 
     PHI_D3D12_SAFE_RELEASE(mDevice);
 }

@@ -27,13 +27,16 @@ void phi::d3d12::SimpleFence::signalCPU(uint64_t new_val) { fence->Signal(new_va
 
 void phi::d3d12::SimpleFence::signalGPU(uint64_t new_val, ID3D12CommandQueue& queue) { queue.Signal(fence, new_val); }
 
-void phi::d3d12::SimpleFence::waitCPU(uint64_t val)
+bool phi::d3d12::SimpleFence::waitCPU(uint64_t val)
 {
     if (fence->GetCompletedValue() <= val)
     {
         PHI_D3D12_VERIFY(fence->SetEventOnCompletion(val, event));
         ::WaitForSingleObject(event, INFINITE);
+        return true;
     }
+
+    return false;
 }
 
 void phi::d3d12::SimpleFence::waitGPU(uint64_t val, ID3D12CommandQueue& queue)

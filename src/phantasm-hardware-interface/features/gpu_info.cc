@@ -22,27 +22,48 @@ constexpr char const* get_preference_literal(phi::adapter_preference pref)
         return "highest vram";
     case phi::adapter_preference::explicit_index:
         return "explicit index";
-    case phi::adapter_preference::highest_feature_level:
-        return "highest feature level";
     }
     CC_UNREACHABLE_SWITCH_WORKAROUND(pref);
+}
+
+char const* get_vendor_literal(phi::gpu_vendor vendor)
+{
+    switch (vendor)
+    {
+    case phi::gpu_vendor::amd:
+        return "AMD";
+    case phi::gpu_vendor::intel:
+        return "Intel";
+    case phi::gpu_vendor::nvidia:
+        return "Nvidia";
+    case phi::gpu_vendor::imgtec:
+        return "ImgTec";
+    case phi::gpu_vendor::arm:
+        return "ARM";
+    case phi::gpu_vendor::qualcomm:
+        return "Qualcomm";
+    case phi::gpu_vendor::unknown:
+        return "Unknown";
+    }
+    CC_UNREACHABLE_SWITCH_WORKAROUND(vendor);
 }
 } // namespace
 
 size_t phi::getPreferredGPU(cc::span<const phi::gpu_info> candidates, phi::adapter_preference preference)
 {
-    auto const get_first_capable = [&]() -> size_t {
+    auto const F_GetFirstCapable = [&]() -> size_t
+    {
         for (auto i = 0u; i < candidates.size(); ++i)
         {
-            if (candidates[i].capabilities != gpu_capabilities::insufficient)
-                return i;
+            return i;
         }
 
         PHI_LOG_ERROR("Fatal: Found no suitable GPU (in {} candidate{})", candidates.size(), candidates.size() == 1 ? "" : "s");
         return candidates.size();
     };
 
-    auto const make_choice = [&]() -> size_t {
+    auto const F_MakeChoice = [&]() -> size_t
+    {
         if (candidates.empty())
             return candidates.size();
 
@@ -53,48 +74,35 @@ size_t phi::getPreferredGPU(cc::span<const phi::gpu_info> candidates, phi::adapt
             for (auto i = 0u; i < candidates.size(); ++i)
             {
                 // Note that AMD also manufactures integrated GPUs, this is a heuristic
-                if (candidates[i].capabilities != gpu_capabilities::insufficient && candidates[i].vendor == gpu_vendor::intel)
+                if (candidates[i].vendor == gpu_vendor::intel)
                     return i;
             }
 
             // Fall back to the first adapter
-            return get_first_capable();
+            return F_GetFirstCapable();
         }
         case adapter_preference::highest_vram:
         {
-            auto highest_vram_index = get_first_capable();
+            auto highest_vram_index = F_GetFirstCapable();
 
             for (auto i = 0u; i < candidates.size(); ++i)
             {
-                if (candidates[i].capabilities != gpu_capabilities::insufficient
-                    && candidates[i].dedicated_video_memory_bytes > candidates[highest_vram_index].dedicated_video_memory_bytes)
+                if (candidates[i].dedicated_video_memory_bytes > candidates[highest_vram_index].dedicated_video_memory_bytes)
                     highest_vram_index = i;
             }
 
             return highest_vram_index;
         }
-        case adapter_preference::highest_feature_level:
-        {
-            auto highest_capability_index = get_first_capable();
-
-            for (auto i = 1u; i < candidates.size(); ++i)
-            {
-                if (candidates[i].capabilities > candidates[highest_capability_index].capabilities)
-                    highest_capability_index = i;
-            }
-
-            return highest_capability_index;
-        }
         case adapter_preference::first:
-            return get_first_capable();
+            return F_GetFirstCapable();
         case adapter_preference::explicit_index:
             return candidates.size();
         }
 
-        return get_first_capable();
+        return F_GetFirstCapable();
     };
 
-    return make_choice();
+    return F_MakeChoice();
 }
 
 phi::gpu_vendor phi::getGPUVendorFromPCIeID(unsigned vendor_id)
@@ -118,26 +126,25 @@ phi::gpu_vendor phi::getGPUVendorFromPCIeID(unsigned vendor_id)
     }
 }
 
-void phi::printStartupMessage(cc::span<const phi::gpu_info> gpu_candidates, size_t chosen_index, const phi::backend_config& config, bool is_d3d12)
+void phi::printStartupMessage(size_t numCandidates, gpu_info const* chosenCandidate, const phi::backend_config& config, bool is_d3d12)
 {
     if (!config.print_startup_message)
         return;
 
     PHI_LOG("{} backend initialized, validation: {}", //
-            is_d3d12 ? "d3d12" : "vulkan", enum_to_string(config.validation));
+            is_d3d12 ? "D3D12" : "Vulkan", enum_to_string(config.validation));
 
     PHI_LOG("   {} threads, max {} resources, max {} PSOs", //
             config.num_threads, config.max_num_resources, config.max_num_pipeline_states);
 
-    if (chosen_index < gpu_candidates.size())
+    if (chosenCandidate != nullptr)
     {
-        PHI_LOG("   chose gpu #{} ({}) from {} candidate{}, preference: {}", //
-                chosen_index, gpu_candidates[chosen_index].name, gpu_candidates.size(), (gpu_candidates.size() == 1 ? "" : "s"),
-                get_preference_literal(config.adapter));
+        PHI_LOG("   {} ({}, index #{})", //
+                chosenCandidate->name, get_vendor_literal(chosenCandidate->vendor), chosenCandidate->index);
     }
     else
     {
         PHI_LOG("   failed to choose gpu from {} candidate{}, preference: {}", //
-                gpu_candidates.size(), (gpu_candidates.size() == 1 ? "" : "s"), get_preference_literal(config.adapter));
+                numCandidates, (numCandidates == 1 ? "" : "s"), get_preference_literal(config.adapter));
     }
 }

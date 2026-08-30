@@ -1,6 +1,7 @@
 #pragma once
 
-#include <clean-core/array.hh>
+#include <clean-core/capped_vector.hh>
+#include <clean-core/span.hh>
 
 #include <phantasm-hardware-interface/commands.hh>
 
@@ -11,12 +12,13 @@
 namespace Optick
 {
 struct EventData;
-}
+struct GPUContext;
+} // namespace Optick
 #endif
 
 namespace phi::d3d12
 {
-struct translator_thread_local_memory
+struct TranslatorLocals
 {
     void initialize(ID3D12Device& device);
     void destroy();
@@ -25,33 +27,26 @@ struct translator_thread_local_memory
     CPUDescriptorLinearAllocator lin_alloc_dsvs;
 };
 
-struct translator_global_memory
-{
-    void initialize(ID3D12Device* device, ShaderViewPool* sv_pool, ResourcePool* resource_pool, PipelineStateObjectPool* pso_pool, AccelStructPool* as_pool, QueryPool* query_pool)
-    {
-        this->device = device;
-        this->pool_shader_views = sv_pool;
-        this->pool_resources = resource_pool;
-        this->pool_pipeline_states = pso_pool;
-        this->pool_accel_structs = as_pool;
-        this->pool_queries = query_pool;
-    }
-
-    ID3D12Device* device;
-    ShaderViewPool* pool_shader_views;
-    ResourcePool* pool_resources;
-    PipelineStateObjectPool* pool_pipeline_states;
-    AccelStructPool* pool_accel_structs;
-    QueryPool* pool_queries;
-};
-
-/// responsible for filling command lists, 1 per thread
-struct command_list_translator
+struct TranslatorContext
 {
     void initialize(ID3D12Device* device, ShaderViewPool* sv_pool, ResourcePool* resource_pool, PipelineStateObjectPool* pso_pool, AccelStructPool* as_pool, QueryPool* query_pool);
-    void destroy();
 
-    void translateCommandList(ID3D12GraphicsCommandList5* list, queue_type type, incomplete_state_cache* state_cache, std::byte const* buffer, size_t buffer_size);
+    ID3D12Device* device = nullptr;
+    ShaderViewPool* pool_shader_views = nullptr;
+    ResourcePool* pool_resources = nullptr;
+    PipelineStateObjectPool* pool_pipeline_states = nullptr;
+    AccelStructPool* pool_accel_structs = nullptr;
+    QueryPool* pool_queries = nullptr;
+};
+
+/// responsible for filling command lists
+struct CommandListTranslator
+{
+    void initialize(TranslatorContext const* pContext, TranslatorLocals* pLocals);
+
+    void beginTranslation(ID3D12GraphicsCommandList_Spec* list, queue_type type, incomplete_state_cache* state_cache, cmd::set_global_profile_scope const* pOptGlobalProfile = nullptr);
+
+    void endTranslation(bool bDoClose);
 
     void execute(cmd::begin_render_pass const& begin_rp);
 
@@ -62,6 +57,10 @@ struct command_list_translator
     void execute(cmd::dispatch const& dispatch);
 
     void execute(cmd::dispatch_indirect const& dispatch_indirect);
+
+    void execute(cmd::dispatch_mesh const& dispatch);
+
+    void execute(cmd::dispatch_mesh_indirect const& dispatch);
 
     void execute(cmd::end_render_pass const& end_rp);
 
@@ -95,6 +94,8 @@ struct command_list_translator
 
     void execute(cmd::update_bottom_level const& blas_update);
 
+    void execute(cmd::update_bottom_level_in_buffer const& blas_update);
+
     void execute(cmd::update_top_level const& tlas_update);
 
     void execute(cmd::dispatch_rays const& dispatch_rays);
@@ -103,19 +104,30 @@ struct command_list_translator
 
     void execute(cmd::code_location_marker const& marker);
 
+    void execute(cmd::set_global_profile_scope const&);
+
 private:
+    // binds shader arguments to "Graphics"
+    // returns true if the root signature has root constants
+    bool bind_graphics_shader_args(root_signature const& root_sig, cc::span<shader_argument const> sp_arguments, void const* p_root_consts, size_t num_dwords_root_consts);
+
+    // binds shader arguments to "Compute"
+    void bind_compute_shader_args(root_signature const& root_sig, cc::span<shader_argument const> sp_arguments, void const* p_root_consts, size_t num_dwords_root_consts);
+
     void bind_vertex_buffers(handle::resource const vertex_buffers[limits::max_vertex_buffers]);
 
 private:
-    // non-owning constant (global)
-    translator_global_memory _globals;
+    friend class CmdlistTranslatorPool;
 
-    // owning constant (thread local)
-    translator_thread_local_memory _thread_local;
+    // global context
+    TranslatorContext const* _context = nullptr;
+
+    // locals to this translator instance
+    TranslatorLocals* _thread_local = nullptr;
 
     // non-owning dynamic
     incomplete_state_cache* _state_cache = nullptr;
-    ID3D12GraphicsCommandList5* _cmd_list = nullptr;
+    ID3D12GraphicsCommandList_Spec* _cmd_list = nullptr;
     queue_type _current_queue_type = queue_type::direct;
 
     // dynamic state
@@ -164,7 +176,7 @@ private:
             }
         };
 
-        cc::array<shader_arg_info, limits::max_shader_arguments> shader_args;
+        shader_arg_info shader_args[limits::max_shader_arguments];
 
         void reset()
         {
@@ -205,7 +217,7 @@ private:
             return false;
         }
 
-    } _bound;
+    } _bound = {};
 
     // debug state - cmd::code_location_marker
     struct
@@ -221,12 +233,22 @@ private:
             line = 0;
         }
 
-    } _last_code_location;
+    } _last_code_location = {};
 
 // debug state - current Optick GPU Event
 #ifdef PHI_HAS_OPTICK
-    Optick::EventData* _current_optick_event = nullptr;
+    struct OptickGPUContextFwd
+    {
+        void* cmdBuffer;
+        uint32_t queue;
+        int node;
+    };
+
+    OptickGPUContextFwd _prev_optick_gpu_context = {};
+    Optick::EventData* _global_optick_event = nullptr;
+    cc::capped_vector<Optick::EventData*, 8> _current_optick_event_stack;
+    int32_t _num_optick_event_overflow = 0;
 #endif
 };
 
-}
+} // namespace phi::d3d12

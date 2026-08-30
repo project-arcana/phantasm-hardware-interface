@@ -3,6 +3,7 @@
 #include <clean-core/bit_cast.hh>
 #include <clean-core/utility.hh>
 
+#include <phantasm-hardware-interface/common/byte_print.hh>
 #include <phantasm-hardware-interface/common/byte_util.hh>
 #include <phantasm-hardware-interface/common/format_size.hh>
 #include <phantasm-hardware-interface/common/log.hh>
@@ -12,7 +13,6 @@
 #include <phantasm-hardware-interface/d3d12/common/native_enum.hh>
 #include <phantasm-hardware-interface/d3d12/common/util.hh>
 #include <phantasm-hardware-interface/d3d12/common/verify.hh>
-#include <phantasm-hardware-interface/d3d12/memory/D3D12MA.hh>
 
 namespace
 {
@@ -60,11 +60,12 @@ constexpr D3D12_RESOURCE_STATES d3d12_get_initial_state_by_heap(phi::resource_he
 
     return D3D12_RESOURCE_STATE_COMMON;
 }
-}
+} // namespace
 
-void phi::d3d12::ResourcePool::initialize(ID3D12Device* device, uint32_t max_num_resources, uint32_t max_num_swapchains, cc::allocator* static_alloc, cc::allocator* dynamic_alloc)
+void phi::d3d12::ResourcePool::initialize(
+    ID3D12Device* pDevice, IDXGIAdapter* pAdapter, uint32_t max_num_resources, uint32_t max_num_swapchains, cc::allocator* static_alloc, cc::allocator* dynamic_alloc)
 {
-    mAllocator.initialize(device, dynamic_alloc);
+    mAllocator.initialize(pDevice, pAdapter, dynamic_alloc);
     mPool.initialize(max_num_resources + max_num_swapchains, static_alloc); // additional resources for swapchain backbuffers
 
     mParallelResourceDescriptions.reset(static_alloc, mPool.max_size());
@@ -77,7 +78,7 @@ void phi::d3d12::ResourcePool::initialize(ID3D12Device* device, uint32_t max_num
     }
 }
 
-void phi::d3d12::ResourcePool::destroy()
+bool phi::d3d12::ResourcePool::destroy()
 {
     for (auto i = 0u; i < mNumReservedBackbuffers; ++i)
     {
@@ -87,20 +88,22 @@ void phi::d3d12::ResourcePool::destroy()
     auto num_leaks = 0;
 
     char debugname_buffer[256];
-    mPool.iterate_allocated_nodes([&](resource_node& leaked_node) {
-        if (leaked_node.allocation != nullptr)
+    mPool.iterate_allocated_nodes(
+        [&](resource_node& leaked_node)
         {
-            if (num_leaks == 0)
-                PHI_LOG("handle::resource leaks:");
+            if (leaked_node.allocation != nullptr)
+            {
+                if (num_leaks == 0)
+                    PHI_LOG("handle::resource leaks:");
 
-            ++num_leaks;
+                ++num_leaks;
 
-            auto const strlen = util::get_object_name(leaked_node.resource, debugname_buffer);
-            PHI_LOG("  leaked handle::resource - {}", cc::string_view(debugname_buffer, cc::min<UINT>(strlen, sizeof(debugname_buffer))));
+                auto const strlen = util::get_object_name(leaked_node.resource, debugname_buffer);
+                PHI_LOG("  leaked handle::resource - {}", cc::string_view(debugname_buffer, cc::min<UINT>(strlen, sizeof(debugname_buffer))));
 
-            leaked_node.allocation->Release();
-        }
-    });
+                leaked_node.allocation->Release();
+            }
+        });
 
     if (num_leaks > 0)
     {
@@ -111,9 +114,11 @@ void phi::d3d12::ResourcePool::destroy()
     mParallelResourceDescriptions = {};
 
     mAllocator.destroy();
+
+    return num_leaks == 0;
 }
 
-phi::handle::resource phi::d3d12::ResourcePool::injectBackbufferResource(unsigned swapchain_index, tg::isize2 size, ID3D12Resource* raw_resource, D3D12_RESOURCE_STATES state)
+phi::handle::resource phi::d3d12::ResourcePool::injectBackbufferResource(unsigned swapchain_index, tg::isize2 size, format fmt, ID3D12Resource* raw_resource, D3D12_RESOURCE_STATES state)
 {
     CC_ASSERT(swapchain_index < mNumReservedBackbuffers && "swapchain index OOB");
     auto const res_handle = mPool.unsafe_construct_handle_for_index(swapchain_index);
@@ -124,7 +129,7 @@ phi::handle::resource phi::d3d12::ResourcePool::injectBackbufferResource(unsigne
 
 
     arg::resource_description& storedDesc = mParallelResourceDescriptions[swapchain_index];
-    storedDesc = arg::resource_description::texture(format::bgra8un, size);
+    storedDesc = arg::resource_description::texture(fmt, size);
 
     return {res_handle};
 }
@@ -195,7 +200,14 @@ phi::handle::resource phi::d3d12::ResourcePool::createTexture(arg::texture_descr
 phi::handle::resource phi::d3d12::ResourcePool::createBuffer(arg::buffer_description const& description, const char* dbg_name)
 {
     CC_CONTRACT(description.size_bytes > 0);
-    D3D12_RESOURCE_STATES const initial_state = d3d12_get_initial_state_by_heap(description.heap);
+    D3D12_RESOURCE_STATES initial_state = d3d12_get_initial_state_by_heap(description.heap);
+    if (description.is_bottom_level_accel_struct)
+    {
+        CC_ASSERT(description.stride_bytes == 0 && "buffers created to hold BLAS must have stride zero");
+        CC_ASSERT(description.allow_uav && "buffers created to hold BLAS must allow UAV access");
+        CC_ASSERT(description.heap == resource_heap::gpu && "buffers created to hold BLAS must be on the GPU heap");
+        initial_state = D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE;
+    }
 
     auto desc = CD3DX12_RESOURCE_DESC::Buffer(description.size_bytes);
 
@@ -203,7 +215,11 @@ phi::handle::resource phi::d3d12::ResourcePool::createBuffer(arg::buffer_descrip
         desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
     auto* const alloc = mAllocator.allocate(desc, initial_state, nullptr, util::to_native(description.heap));
-    util::set_object_name(alloc->GetResource(), "buf %s (%uB, %uB stride, %s heap)", dbg_name ? dbg_name : "", uint32_t(description.size_bytes),
+
+    char formatted_bytes[128];
+    byte_print(description.size_bytes, formatted_bytes);
+
+    util::set_object_name(alloc->GetResource(), "buf %s (%s, %uB stride, %s heap)", dbg_name ? dbg_name : "", formatted_bytes,
                           description.stride_bytes, d3d12_get_heap_type_literal(description.heap));
 
     auto const res = acquireBuffer(alloc, initial_state, description);
@@ -285,6 +301,13 @@ void phi::d3d12::ResourcePool::setDebugName(phi::handle::resource res, const cha
     util::set_object_name(internalGet(res).resource, "%*s [respool named]", name_length, name);
 }
 
+uint64_t phi::d3d12::ResourcePool::getResourceSizeVRAM(handle::resource res) const
+{
+    CC_ASSERT(res.is_valid());
+    resource_node const& node = mPool.get(res._value);
+    return node.allocation->GetSize();
+}
+
 phi::handle::resource phi::d3d12::ResourcePool::acquireBuffer(D3D12MA::Allocation* alloc, D3D12_RESOURCE_STATES initial_state, arg::buffer_description const& desc)
 {
     uint32_t const res = mPool.acquire();
@@ -317,13 +340,14 @@ phi::handle::resource phi::d3d12::ResourcePool::acquireImage(D3D12MA::Allocation
     new_node.type = resource_node::resource_type::image;
     new_node.heap = resource_heap::gpu;
     new_node.master_state = initial_state;
-    new_node.image.num_mips = desc.num_mips;
+    new_node.image.num_mips = realNumMipmaps;
     new_node.image.pixel_format = desc.fmt;
 
     uint32_t descriptionIndex = mPool.get_handle_index(res);
     arg::resource_description& storedDesc = mParallelResourceDescriptions[descriptionIndex];
     storedDesc.type = arg::resource_description::e_resource_texture;
     storedDesc.info_texture = desc;
+    // override the MIP amount with the actual amount on device
     storedDesc.info_texture.num_mips = uint32_t(realNumMipmaps);
 
     return {res};
